@@ -1,15 +1,4 @@
-/// Read-only keypath
-pub struct ReadableKeyPath<Root, Value> {
-    pub get: for<'a> fn(&'a Root) -> &'a Value,
-}
 
-/// Read/write keypath
-pub struct WritableKeyPath<Root, Value> {
-    pub get: for<'a> fn(&'a Root) -> &'a Value,
-    pub get_mut: for<'a> fn(&'a mut Root) -> &'a mut Value,
-}
-
-/// Common trait for readable keypaths
 pub trait Readable<Root, Value> {
     fn get<'a>(&self, root: &'a Root) -> &'a Value;
 
@@ -24,7 +13,18 @@ pub trait Readable<Root, Value> {
     fn get_fn(&self) -> for<'a> fn(&'a Root) -> &'a Value;
 }
 
-/// Extra trait for writable keypaths
+/// Read-only keypath
+pub struct ReadableKeyPath<Root, Value> {
+    pub get: for<'a> fn(&'a Root) -> &'a Value,
+}
+
+
+/// Read/write keypath
+pub struct WritableKeyPath<Root, Value> {
+    pub get: for<'a> fn(&'a Root) -> &'a Value,
+    pub get_mut: for<'a> fn(&'a mut Root) -> &'a mut Value,
+}
+
 pub trait Writable<Root, Value>: Readable<Root, Value> {
     fn get_mut<'a>(&self, root: &'a mut Root) -> &'a mut Value;
 
