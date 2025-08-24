@@ -8,12 +8,12 @@ description = "ReadableKeyPath, WritableKeyPath and EnumKeypath for struct and e
 repository = "https://github.com/codefonsi/rust-key-paths"
 homepage = "https://github.com/codefonsi/rust-key-paths"
 documentation = "https://docs.rs/rust-key-paths"
-keywords = ["keypaths", "EnumKeyPath", "type-safe", "WritableKeyPath", "ReadableKeyPath", "references to properties"]
-categories = ["properties-reference"]
+keywords = ["keypaths", "EnumKeyPath", "type-safe", "WritableKeyPath", "ReadableKeyPath"]
 readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
+key-paths-core = { path = "key-paths-core", version = "0.1.0" }
 
 
 [workspace]
