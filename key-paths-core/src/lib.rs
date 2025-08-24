@@ -84,3 +84,22 @@ impl<Root, Value> Writable<Root, Value> for WritableKeyPath<Root, Value> {
     }
 }
 
+/// Macro for readable keypaths
+#[macro_export]
+macro_rules! readable_keypath {
+    ($Root:ty, $field:ident) => {
+        ReadableKeyPath::new(|root: &$Root| &root.$field)
+    };
+}
+
+/// Macro for writable keypaths
+#[macro_export]
+macro_rules! writable_keypath {
+    ($Root:ty, $field:ident) => {
+        WritableKeyPath::new(
+            |root: &$Root| &root.$field,
+            |root: &mut $Root| &mut root.$field,
+        )
+    };
+}
+
