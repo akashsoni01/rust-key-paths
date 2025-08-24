@@ -2,5 +2,15 @@
 name = "key-paths-core"
 version = "0.1.0"
 edition = "2024"
+authors = ["Codefonsi <info@codefonsi.com>"]
+license = "MPL-2.0"
+description = "ReadableKeyPath, WritableKeyPath and EnumKeypath for struct and enums in Rust."
+repository = "https://github.com/codefonsi/rust-key-paths"
+homepage = "https://github.com/codefonsi/rust-key-paths"
+documentation = "https://docs.rs/rust-key-paths"
+keywords = ["keypaths", "EnumKeyPath", "type-safe", "WritableKeyPath", "ReadableKeyPath", "references to properties"]
+categories = ["properties-reference"]
+readme = "./README.md"
+include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
