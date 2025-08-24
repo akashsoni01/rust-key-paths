@@ -84,6 +84,14 @@ impl<Root, Value> Writable<Root, Value> for WritableKeyPath<Root, Value> {
     }
 }
 
+
+pub struct CasePath<Enum, Inner> {
+    pub extract: fn(&Enum) -> Option<&Inner>,
+    pub embed: fn(Inner) -> Enum,
+}
+
+
+
 /// Macro for readable keypaths
 #[macro_export]
 macro_rules! readable_keypath {
