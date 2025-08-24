@@ -9,7 +9,7 @@ repository = "https://github.com/codefonsi/rust-key-paths"
 homepage = "https://github.com/codefonsi/rust-key-paths"
 documentation = "https://docs.rs/rust-key-paths"
 keywords = ["keypaths", "EnumKeyPath", "type-safe", "WritableKeyPath", "ReadableKeyPath"]
-categories = ["properties-reference"]
+categories = ["datatype"]
 readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
