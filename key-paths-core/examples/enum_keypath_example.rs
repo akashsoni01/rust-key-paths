@@ -1,4 +1,5 @@
 use key_paths_core::enum_keypath;
+use key_paths_core::EnumKeyPath;
 
 #[derive(Debug)]
 struct User {
@@ -26,6 +27,10 @@ fn main() {
 
 
     let cp3 = enum_keypath!(SomeOtherStatus::Active(String));
+    if let Some(x) = cp3.extract(&SomeOtherStatus::Active("Hello".to_string())) {
+        println!("Active: {:?}", x);
+    }
+    
     let cp4 = enum_keypath!(SomeOtherStatus::Inactive);
     if let Some(x) = cp4.extract(&SomeOtherStatus::Inactive) {
         println!("Inactive: {:?}", x);

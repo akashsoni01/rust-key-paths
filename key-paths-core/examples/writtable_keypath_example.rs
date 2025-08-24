@@ -1,4 +1,7 @@
 use key_paths_core::writable_keypath;
+use key_paths_core::WritableKeyPath;
+use key_paths_core::Readable;
+use key_paths_core::Writable;
 
 #[derive(Debug)]
 struct User {

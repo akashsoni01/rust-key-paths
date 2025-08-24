@@ -85,12 +85,12 @@ impl<Root, Value> Writable<Root, Value> for WritableKeyPath<Root, Value> {
 }
 
 
-pub struct EnumPath<Enum, Inner> {
+pub struct EnumKeyPath<Enum, Inner> {
     pub extract: fn(&Enum) -> Option<&Inner>,
     pub embed: fn(Inner) -> Enum,
 }
 
-impl<Enum, Inner> EnumPath<Enum, Inner> {
+impl<Enum, Inner> EnumKeyPath<Enum, Inner> {
     pub fn new(extract: fn(&Enum) -> Option<&Inner>, embed: fn(Inner) -> Enum) -> Self {
         Self { extract, embed }
     }
@@ -108,7 +108,7 @@ impl<Enum, Inner> EnumPath<Enum, Inner> {
 macro_rules! enum_keypath {
     // Case with payload
     ($enum:ident :: $variant:ident ( $inner:ty )) => {{
-        EnumPath::<$enum, $inner>::new(
+        EnumKeyPath::<$enum, $inner>::new(
             |root: &$enum| {
                 if let $enum::$variant(inner) = root {
                     Some(inner)
@@ -121,7 +121,7 @@ macro_rules! enum_keypath {
     }};
     // Case without payload
     ($enum:ident :: $variant:ident) => {{
-        EnumPath::<$enum, ()>::new(
+        EnumKeyPath::<$enum, ()>::new(
             |root: &$enum| {
                 if let $enum::$variant = root {
                     Some(&())
