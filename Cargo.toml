@@ -14,3 +14,17 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
+
+
+[workspace]
+resolver = "3" # or "3"
+members = [
+    "key-paths-core"
+]
+
+[patch.crates-io]
+key-paths-core = { path = "key-paths-core" }
+
+
+[features]
+default = []
