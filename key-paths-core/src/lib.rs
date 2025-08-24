@@ -55,3 +55,32 @@ pub trait Writable<Root, Value>: Readable<Root, Value> {
     fn get_mut_fn(&self) -> for<'a> fn(&'a mut Root) -> &'a mut Value;
 }
 
+impl<Root, Value> WritableKeyPath<Root, Value> {
+    pub fn new(
+        get: for<'a> fn(&'a Root) -> &'a Value,
+        get_mut: for<'a> fn(&'a mut Root) -> &'a mut Value,
+    ) -> Self {
+        Self { get, get_mut }
+    }
+}
+
+impl<Root, Value> Readable<Root, Value> for WritableKeyPath<Root, Value> {
+    fn get<'a>(&self, root: &'a Root) -> &'a Value {
+        (self.get)(root)
+    }
+
+    fn get_fn(&self) -> for<'a> fn(&'a Root) -> &'a Value {
+        self.get
+    }
+}
+
+impl<Root, Value> Writable<Root, Value> for WritableKeyPath<Root, Value> {
+    fn get_mut<'a>(&self, root: &'a mut Root) -> &'a mut Value {
+        (self.get_mut)(root)
+    }
+
+    fn get_mut_fn(&self) -> for<'a> fn(&'a mut Root) -> &'a mut Value {
+        self.get_mut
+    }
+}
+
