@@ -1,17 +1,18 @@
-# 🔑 Rust KeyPaths & CasePaths
+# 🔑 KeyPaths & CasePaths in Rust
 
-A lightweight experimental library to bring **Swift-style KeyPaths** and **CasePaths** into Rust.  
-This makes it easier to work with **nested struct fields** and **enum variants** in a composable, functional style.
+Key paths and case paths provide a **safe, composable way to access and modify nested data** in Rust.
+Inspired by **Swift’s KeyPath / CasePath** system, this crate lets you work with **struct fields** and **enum variants** as *first-class values*.
 
 ---
 
 ## ✨ Features
 
-- **KeyPath**: Immutable (read-only) access to struct fields.
-- **WritableKeyPath**: Read-write access to struct fields.
-- **CasePath**: Extract and embed enum variants safely.
-- **Composable**: KeyPaths and CasePaths can be chained for deep traversal.
-- **Arc support**: Thread-safe sharing of extracted values.
+* ✅ **ReadableKeyPath** → safely read struct fields.
+* ✅ **WritableKeyPath** → safely read/write struct fields.
+* ✅ **EnumKeyPath (CasePaths)** → extract and embed enum variants.
+* ✅ **Composable** → chain key paths together(Upcoming).
+* ✅ **Iterable** → iterate or mutate values across collections.
+* ✅ **Macros** → concise `readable_keypath!`, `writable_keypath!`, `enum_keypath!`.
 
 ---
 
@@ -19,15 +20,59 @@ This makes it easier to work with **nested struct fields** and **enum variants**
 
 ```toml
 [dependencies]
-casepath_keypath = { git = "https://github.com/your-username/casepath-keypath" }
-````
+key_paths_core = "0.1"
+```
 
 ---
 
-## 🔑 KeyPath Example
+## 🚀 Examples
+
+### 1. CasePaths with Enums
 
 ```rust
-use casepath_keypath::{KeyPath, WritableKeyPath};
+use key_paths_core::enum_keypath;
+use key_paths_core::EnumKeyPath;
+
+#[derive(Debug)]
+struct User {
+    id: u32,
+    name: String,
+}
+
+#[derive(Debug)]
+enum Status {
+    Active(User),
+    Inactive(()),
+}
+
+fn main() {
+    let cp = enum_keypath!(Status::Active(User));
+
+    let status = Status::Active(User {
+        id: 42,
+        name: "Charlie".to_string(),
+    });
+
+    if let Some(u) = cp.extract(&status) {
+        println!("Extracted user: {:?}", u);
+    }
+
+    let new_status = cp.embed(User {
+        id: 99,
+        name: "Diana".to_string(),
+    });
+    println!("Embedded back: {:?}", new_status);
+}
+```
+
+---
+
+### 2. Readable KeyPaths
+
+```rust
+use key_paths_core::Readable;
+use key_paths_core::ReadableKeyPath;
+use key_paths_core::readable_keypath;
 
 #[derive(Debug)]
 struct User {
@@ -36,96 +81,92 @@ struct User {
 }
 
 fn main() {
-    // Read-only KeyPath
-    let name_key = KeyPath::new(|u: &User| &u.name);
-    let age_key = KeyPath::new(|u: &User| &u.age);
+    let users = vec![
+        User { name: "Akash".into(), age: 25 },
+        User { name: "Soni".into(), age: 30 },
+        User { name: "Neha".into(), age: 20 },
+    ];
 
-    let user = User { name: "Akash".into(), age: 25 };
+    let name_key = readable_keypath!(User, name);
 
-    println!("name = {}", name_key.get(&user));
-    println!("age = {}", age_key.get(&user));
-
-    // Writable KeyPath
-    let name_key = WritableKeyPath::new(|u: &User| &u.name, |u: &mut User| &mut u.name);
-    let age_key = WritableKeyPath::new(|u: &User| &u.age, |u: &mut User| &mut u.age);
-
-    let mut user = User { name: "Akash".into(), age: 25 };
-
-    name_key.set(&mut user, "Soni".into());
-    age_key.set(&mut user, 30);
-
-    println!("updated = {:?}", user);
+    println!("Names:");
+    for name in name_key.iter(&users) {
+        println!("{}", name);
+    }
 }
 ```
 
 ---
 
-## 🔀 CasePath Example
+### 3. Writable KeyPaths
 
 ```rust
-use casepath_keypath::casepath;
+use key_paths_core::writable_keypath;
+use key_paths_core::WritableKeyPath;
+use key_paths_core::Readable;
+use key_paths_core::Writable;
 
 #[derive(Debug)]
-enum AppState {
-    Loading,
-    Loaded(String),
-    Error(u32),
+struct User {
+    name: String,
+    age: u32,
 }
 
 fn main() {
-    let loaded = casepath!(AppState::Loaded(String));
-    let error = casepath!(AppState::Error(u32));
-    let loading = casepath!(AppState::Loading);
+    let mut users = vec![
+        User { name: "Akash".into(), age: 25 },
+        User { name: "Soni".into(), age: 30 },
+        User { name: "Neha".into(), age: 20 },
+    ];
 
-    let s = AppState::Loaded("Hello".into());
+    let age_key = writable_keypath!(User, age);
 
-    if let Some(inner) = loaded.extract(&s) {
-        println!("Loaded value = {}", inner);
+    println!("Ages before:");
+    for age in age_key.iter(&users) {
+        println!("{}", age);
     }
 
-    let state = AppState::Loading;
-    println!("Loading extract = {:?}", loading.extract(&state));
+    for age in age_key.iter_mut(&mut users) {
+        *age += 1;
+    }
 
-    println!("Embed Error = {:?}", error.embed(404));
-    println!("Embed Loading = {:?}", loading.embed(()));
+    println!("Ages after:");
+    for age in age_key.iter(&users) {
+        println!("{}", age);
+    }
 }
 ```
 
 ---
 
-## 🧑‍💻 Why Use This?
+## 🔗 Helpful Links & Resources
 
-* Makes code more **declarative**: instead of closures everywhere, reuse paths.
-* **Functional programming friendly**: map, filter, and transform collections using KeyPaths.
-* Helps with **pattern matching enums** without repeating boilerplate.
-* Provides a **Swift-like developer experience** for Rust.
-
----
-
-## 📚 Helpful Resources
-
-* [Swift KeyPath Documentation](https://developer.apple.com/documentation/swift/keypath)
-* [Swift CasePath proposal (SE-0259)](https://github.com/apple/swift-evolution/blob/main/proposals/0259-enum-cases-as-protocol-witnesses.md)
-* [Point-Free’s CasePaths library for Swift](https://github.com/pointfreeco/swift-case-paths)
-* [Rust `Arc` (std::sync)](https://doc.rust-lang.org/std/sync/struct.Arc.html)
-* [Rust Macros by Example](https://doc.rust-lang.org/reference/macros-by-example.html)
+* 📘 [Swift KeyPath documentation](https://developer.apple.com/documentation/swift/keypath)
+* 📘 [Swift CasePath library (pointfreeco)](https://github.com/pointfreeco/swift-case-paths)
+* 📘 [Elm Architecture & Functional Lenses](https://guide.elm-lang.org/architecture/)
+* 📘 [Rust Macros Book](https://doc.rust-lang.org/book/ch19-06-macros.html)
+* 📘 [Category Theory in FP (for intuition)](https://bartoszmilewski.com/2014/11/24/category-the-essence-of-composition/)
 
 ---
 
-## 🚧 Roadmap
+## 💡 Why use KeyPaths?
 
-* [ ] Composition for nested CasePaths (e.g. `Option<AppState>` → `Some` → `Loaded`)
-* [ ] Derive macros for automatic KeyPath generation
-* [ ] Integration with async contexts
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue or PR with improvements, examples, or bug fixes.
+* Avoids repetitive `match` / `.` chains.
+* Encourages **compositional design**.
+* Plays well with **DDD (Domain-Driven Design)** and **Actor-based systems**.
+* Useful for **reflection-like behaviors** in Rust (without unsafe).
 
 ---
 
-Licensed under either of:
+## 🛠 Roadmap
+
+* [ ] `zip` support for combining multiple key paths (Upcoming).
+* [ ] Derive macros for automatic KeyPath generation.
+* [ ] Nested struct & enum traversal.
+* [ ] Optional chaining (`User?.profile?.name`).
+
+---
+
+## 📜 License
 
 * Mozilla Public License 2.0
