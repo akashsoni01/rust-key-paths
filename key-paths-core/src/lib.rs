@@ -18,6 +18,22 @@ pub struct ReadableKeyPath<Root, Value> {
     pub get: for<'a> fn(&'a Root) -> &'a Value,
 }
 
+impl<Root, Value> ReadableKeyPath<Root, Value> {
+    pub fn new(get: for<'a> fn(&'a Root) -> &'a Value) -> Self {
+        Self { get }
+    }
+}
+
+impl<Root, Value> Readable<Root, Value> for ReadableKeyPath<Root, Value> {
+    fn get<'a>(&self, root: &'a Root) -> &'a Value {
+        (self.get)(root)
+    }
+
+    fn get_fn(&self) -> for<'a> fn(&'a Root) -> &'a Value {
+        self.get
+    }
+}
+
 
 /// Read/write keypath
 pub struct WritableKeyPath<Root, Value> {
