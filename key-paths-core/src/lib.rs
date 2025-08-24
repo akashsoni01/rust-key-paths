@@ -90,6 +90,19 @@ pub struct CasePath<Enum, Inner> {
     pub embed: fn(Inner) -> Enum,
 }
 
+impl<Enum, Inner> CasePath<Enum, Inner> {
+    pub fn new(extract: fn(&Enum) -> Option<&Inner>, embed: fn(Inner) -> Enum) -> Self {
+        Self { extract, embed }
+    }
+
+    pub fn extract<'a>(&self, e: &'a Enum) -> Option<&'a Inner> {
+        (self.extract)(e)
+    }
+
+    pub fn embed(&self, inner: Inner) -> Enum {
+        (self.embed)(inner)
+    }
+}
 
 
 /// Macro for readable keypaths
