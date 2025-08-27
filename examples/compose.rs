@@ -40,8 +40,8 @@ fn main() {
     println!("Horsepower = {:?}", (city_hp2.get)(&city));
 
     // compose example ----
-    // compose keypath together 
-    
+    // compose keypath together
+
     let city_garage = FailableReadableKeyPath::new(|c: &City| c.garage.as_ref());
     let garage_car = FailableReadableKeyPath::new(|g: &Garage| g.car.as_ref());
     let car_engine = FailableReadableKeyPath::new(|c: &Car| c.engine.as_ref());

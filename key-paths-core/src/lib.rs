@@ -12,10 +12,7 @@ impl<Root, Value> ReadableKeyPath<Root, Value> {
     }
 
     /// Iterate a slice of `Root` and yield references to `Value`
-    pub fn iter<'a>(
-        &'a self,
-        slice: &'a [Root],
-    ) -> impl Iterator<Item = &'a Value> + 'a {
+    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = &'a Value> + 'a {
         slice.iter().map(move |root| (self.get)(root))
     }
 }
@@ -25,12 +22,9 @@ where
     Root: 'static,
     Mid: 'static,
 {
-    pub fn compose<Value>(
-        self,
-        mid: ReadableKeyPath<Mid, Value>,
-    ) -> ReadableKeyPath<Root, Value> 
-    where 
-    Value: 'static,
+    pub fn compose<Value>(self, mid: ReadableKeyPath<Mid, Value>) -> ReadableKeyPath<Root, Value>
+    where
+        Value: 'static,
     {
         ReadableKeyPath::new(move |r: &Root| {
             let mid_ref: &Mid = (self.get)(r);
@@ -45,8 +39,14 @@ pub struct WritableKeyPath<Root, Value> {
 }
 
 impl<Root, Value> WritableKeyPath<Root, Value> {
-    pub fn new(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static, get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static) -> Self {
-        Self {get: Box::new(get),  get_mut: Box::new(get_mut) }
+    pub fn new(
+        get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static,
+        get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static,
+    ) -> Self {
+        Self {
+            get: Box::new(get),
+            get_mut: Box::new(get_mut),
+        }
     }
 
     pub fn try_get<'a>(&self, root: &'a Root) -> &'a Value {
@@ -58,10 +58,7 @@ impl<Root, Value> WritableKeyPath<Root, Value> {
     }
 
     /// Mutable iteration
-    pub fn iter<'a>(
-        &'a self,
-        slice: &'a [Root],
-    ) -> impl Iterator<Item = &'a Value> + 'a {
+    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = &'a Value> + 'a {
         slice.iter().map(move |root| (self.get)(root))
     }
 
@@ -72,7 +69,6 @@ impl<Root, Value> WritableKeyPath<Root, Value> {
     ) -> impl Iterator<Item = &'a mut Value> + 'a {
         slice.iter_mut().map(move |root| (self.get_mut)(root))
     }
-
 }
 
 // --- Compose: impl over (Root, Mid); Value is method-generic ---
@@ -82,22 +78,20 @@ where
     Root: 'static,
     Mid: 'static,
 {
-    pub fn compose<Value>(
-        self,
-        mid: WritableKeyPath<Mid, Value>,
-    ) -> WritableKeyPath<Root, Value>
+    pub fn compose<Value>(self, mid: WritableKeyPath<Mid, Value>) -> WritableKeyPath<Root, Value>
     where
         Value: 'static,
     {
-        WritableKeyPath::new( move |r: & Root| {
-            let mid_ref: & Mid = (self.get)(r);
-            (mid.get)(mid_ref)
-        }, 
-    move |r: &mut Root| {
-            let mid_ref: &mut Mid = (self.get_mut)(r);
-            (mid.get_mut)(mid_ref)
-        }, 
-)
+        WritableKeyPath::new(
+            move |r: &Root| {
+                let mid_ref: &Mid = (self.get)(r);
+                (mid.get)(mid_ref)
+            },
+            move |r: &mut Root| {
+                let mid_ref: &mut Mid = (self.get_mut)(r);
+                (mid.get_mut)(mid_ref)
+            },
+        )
     }
 }
 
@@ -114,13 +108,9 @@ impl<Root, Value> FailableReadableKeyPath<Root, Value> {
     }
 
     /// Iterate a slice of `Root` and yield references to `Value`
-    pub fn iter<'a>(
-        &'a self,
-        slice: &'a [Root],
-    ) -> impl Iterator<Item = Option<&'a Value>> + 'a {
+    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = Option<&'a Value>> + 'a {
         slice.iter().map(move |root| (self.get)(root))
     }
-
 }
 
 impl<Root, Mid> FailableReadableKeyPath<Root, Mid>
@@ -145,7 +135,10 @@ pub struct FailableWritableKeyPath<Root, Value> {
 }
 
 impl<Root, Value> FailableWritableKeyPath<Root, Value> {
-    pub fn new(get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static, get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static) -> Self {
+    pub fn new(
+        get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
+        get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
+    ) -> Self {
         Self {
             get: Box::new(get),
             get_mut: Box::new(get_mut),
@@ -160,13 +153,9 @@ impl<Root, Value> FailableWritableKeyPath<Root, Value> {
         (self.get_mut)(root)
     }
 
-    pub fn iter<'a>(
-        &'a self,
-        slice: &'a [Root],
-    ) -> impl Iterator<Item = Option<&'a Value>> + 'a {
+    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = Option<&'a Value>> + 'a {
         slice.iter().map(move |root| (self.get)(root))
     }
-
 
     /// Mutable iteration
     pub fn iter_mut<'a>(
@@ -175,7 +164,6 @@ impl<Root, Value> FailableWritableKeyPath<Root, Value> {
     ) -> impl Iterator<Item = Option<&'a mut Value>> + 'a {
         slice.iter_mut().map(move |root| (self.get_mut)(root))
     }
-
 }
 
 impl<Root, Mid> FailableWritableKeyPath<Root, Mid>
@@ -190,12 +178,10 @@ where
     where
         Value: 'static,
     {
-        FailableWritableKeyPath::new(move |r: & Root| {
-            (self.get)(r).and_then(|m: & Mid| (mid.get)(m))
-        },
-    move |r: &mut Root| {
-            (self.get_mut)(r).and_then(|m: &mut Mid| (mid.get_mut)(m))
-        })
+        FailableWritableKeyPath::new(
+            move |r: &Root| (self.get)(r).and_then(|m: &Mid| (mid.get)(m)),
+            move |r: &mut Root| (self.get_mut)(r).and_then(|m: &mut Mid| (mid.get_mut)(m)),
+        )
     }
 }
 
@@ -247,8 +233,6 @@ macro_rules! enum_keypath {
         )
     }};
 }
-
-
 
 /*
     let name_key = ReadableKeyPath::new(|u: &User| &u.name);

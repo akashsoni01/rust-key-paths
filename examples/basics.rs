@@ -35,7 +35,7 @@ fn main() {
 
     // Writable keypath for modifying fields:
     let width_mut: WritableKeyPath<Rectangle, u32> = WritableKeyPath::new(
-        |r: & Rectangle| & r.size.width,
+        |r: &Rectangle| &r.size.width,
         |r: &mut Rectangle| &mut r.size.width,
     );
     *(width_mut.get_mut)(&mut rect) = 100;

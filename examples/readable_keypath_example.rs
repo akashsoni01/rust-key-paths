@@ -1,4 +1,4 @@
-use key_paths_core::{readable_keypath, ReadableKeyPath};
+use key_paths_core::{ReadableKeyPath, readable_keypath};
 
 #[derive(Debug)]
 struct User {

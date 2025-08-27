@@ -1,5 +1,4 @@
-use key_paths_core::{writable_keypath, WritableKeyPath};
-
+use key_paths_core::{WritableKeyPath, writable_keypath};
 
 #[derive(Debug)]
 struct User {

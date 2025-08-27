@@ -1,4 +1,4 @@
-use key_paths_core::{FailableReadableKeyPath};
+use key_paths_core::FailableReadableKeyPath;
 
 #[derive(Debug)]
 struct Engine {
