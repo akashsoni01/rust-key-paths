@@ -1,27 +1,46 @@
-use key_paths_core::FailableWritableKeyPath;
+use key_paths_core::{FailableReadable, FailableReadableKeyPath, FailableWritableKeyPath};
 
 #[derive(Debug)]
-struct Engine { horsepower: u32 }
+struct Engine {
+    horsepower: u32,
+}
 #[derive(Debug)]
-struct Car { engine: Option<Engine> }
+struct Car {
+    engine: Option<Engine>,
+}
 #[derive(Debug)]
-struct Garage { car: Option<Car> }
+struct Garage {
+    car: Option<Car>,
+}
 
 fn main() {
-    let mut garage = Garage {
-        car: Some(Car { engine: Some(Engine { horsepower: 120 }) }),
+    let garage = Garage {
+        car: Some(Car {
+            engine: Some(Engine { horsepower: 120 }),
+        }),
     };
 
-    let kp_car = FailableWritableKeyPath::new(|g: &mut Garage| g.car.as_mut());
-    let kp_engine = FailableWritableKeyPath::new(|c: &mut Car| c.engine.as_mut());
-    let kp_hp = FailableWritableKeyPath::new(|e: &mut Engine| Some(&mut e.horsepower));
+    let kp_car = FailableReadableKeyPath::new(|g: &Garage| g.car.as_ref());
+    let kp_engine = FailableReadableKeyPath::new(|c: &Car| c.engine.as_ref());
+    let kp_hp = FailableReadableKeyPath::new(|e: &Engine| Some(&e.horsepower));
 
     // Compose: Garage -> Car -> Engine -> horsepower
     let kp = kp_car.compose(kp_engine).compose(kp_hp);
 
-    if let Some(hp) = kp.try_get_mut(&mut garage) {
-        *hp = 250;
+    let kp2 = FailableReadableKeyPath::new(|g: &Garage| {
+        g.car
+            .as_ref()
+            .and_then(|c| c.engine.as_ref())
+            .and_then(|e| Some(&e.horsepower))
+    });
+
+    if let Some(hp) = kp.try_get(&garage) {
+        println!("{hp:?}");
     }
 
-    println!("{garage:?}"); // Garage { car: Some(Car { engine: Some(Engine { horsepower: 250 }) }) }
+    if let Some(hp) = kp2.try_get(&garage) {
+        println!("{hp:?}");
+    }
+
+    println!("{garage:?}");
 }

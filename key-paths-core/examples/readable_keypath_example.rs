@@ -10,11 +10,19 @@ struct User {
 
 fn main() {
     let users = vec![
-        User { name: "Akash".into(), age: 25 },
-        User { name: "Soni".into(), age: 30 },
-        User { name: "Neha".into(), age: 20 },
+        User {
+            name: "Akash".into(),
+            age: 25,
+        },
+        User {
+            name: "Soni".into(),
+            age: 30,
+        },
+        User {
+            name: "Neha".into(),
+            age: 20,
+        },
     ];
-
 
     // Read-only keypath
     // let name_key = ReadableKeyPath::new(|u: &User| &u.name);
@@ -27,10 +35,8 @@ fn main() {
     // );
     // let age_key = writable_keypath!(User, age);
 
-
     println!("Names:");
     for name in name_key.iter(&users) {
         println!("{}", name);
     }
-
 }

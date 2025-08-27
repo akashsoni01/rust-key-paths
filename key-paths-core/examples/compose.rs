@@ -1,16 +1,24 @@
 use key_paths_core::FailableReadableKeyPath;
 
 #[derive(Debug)]
-struct Engine { horsepower: u32 }
+struct Engine {
+    horsepower: u32,
+}
 
 #[derive(Debug)]
-struct Car { engine: Option<Engine> }
+struct Car {
+    engine: Option<Engine>,
+}
 
 #[derive(Debug)]
-struct Garage { car: Option<Car> }
+struct Garage {
+    car: Option<Car>,
+}
 
 #[derive(Debug)]
-struct City { garage: Option<Garage> }
+struct City {
+    garage: Option<Garage>,
+}
 
 fn main() {
     let city = City {
@@ -22,9 +30,9 @@ fn main() {
     };
 
     let city_garage = FailableReadableKeyPath::new(|c: &City| c.garage.as_ref());
-    let garage_car  = FailableReadableKeyPath::new(|g: &Garage| g.car.as_ref());
-    let car_engine  = FailableReadableKeyPath::new(|c: &Car| c.engine.as_ref());
-    let engine_hp   = FailableReadableKeyPath::new(|e: &Engine| Some(&e.horsepower));
+    let garage_car = FailableReadableKeyPath::new(|g: &Garage| g.car.as_ref());
+    let car_engine = FailableReadableKeyPath::new(|c: &Car| c.engine.as_ref());
+    let engine_hp = FailableReadableKeyPath::new(|e: &Engine| Some(&e.horsepower));
 
     let city_hp = city_garage
         .compose(garage_car)

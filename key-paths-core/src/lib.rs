@@ -1,4 +1,3 @@
-
 pub trait Readable<Root, Value> {
     fn get<'a>(&self, root: &'a Root) -> &'a Value;
 
@@ -33,7 +32,6 @@ impl<Root, Value> Readable<Root, Value> for ReadableKeyPath<Root, Value> {
         self.get
     }
 }
-
 
 /// Read/write keypath
 pub struct WritableKeyPath<Root, Value> {
@@ -84,7 +82,6 @@ impl<Root, Value> Writable<Root, Value> for WritableKeyPath<Root, Value> {
     }
 }
 
-
 pub struct EnumKeyPath<Enum, Inner> {
     pub extract: fn(&Enum) -> Option<&Inner>,
     pub embed: fn(Inner) -> Enum,
@@ -103,8 +100,6 @@ impl<Enum, Inner> EnumKeyPath<Enum, Inner> {
         (self.embed)(inner)
     }
 }
-
-
 
 pub trait FailableReadable<Root, Value> {
     fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value>;
@@ -132,18 +127,15 @@ impl<Root, Mid> FailableReadableKeyPath<Root, Mid>
 where
     Root: 'static,
     Mid: 'static,
-
 {
     pub fn compose<Value>(
         self,
-        mid: FailableReadableKeyPath<Mid, Value> ,
+        mid: FailableReadableKeyPath<Mid, Value>,
     ) -> FailableReadableKeyPath<Root, Value>
     where
         Value: 'static,
     {
-        FailableReadableKeyPath::new(move |r: &Root| {
-            (self.get)(r).and_then(|m: &Mid| (mid.get)(m))
-        })
+        FailableReadableKeyPath::new(move |r: &Root| (self.get)(r).and_then(|m: &Mid| (mid.get)(m)))
     }
 }
 
@@ -156,9 +148,7 @@ pub struct FailableWritableKeyPath<Root, Value> {
 }
 
 impl<Root, Value> FailableWritableKeyPath<Root, Value> {
-    pub fn new(
-        get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
-    ) -> Self {
+    pub fn new(get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static) -> Self {
         Self {
             get_mut: Box::new(get_mut),
         }
