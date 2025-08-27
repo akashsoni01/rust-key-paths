@@ -110,17 +110,14 @@ pub trait FailableReadable<Root, Value> {
     fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value>;
 }
 
-pub trait FailableWritable<Root, Value>: FailableReadable<Root, Value> {
-    fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value>;
-}
-
+// --- Core type ---
 pub struct FailableReadableKeyPath<Root, Value> {
-    pub get: for<'a> fn(&'a Root) -> Option<&'a Value>,
+    pub get: Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
 }
 
 impl<Root, Value> FailableReadableKeyPath<Root, Value> {
-    pub fn new(get: for<'a> fn(&'a Root) -> Option<&'a Value>) -> Self {
-        Self { get }
+    pub fn new(get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static) -> Self {
+        Self { get: Box::new(get) }
     }
 }
 
@@ -130,34 +127,39 @@ impl<Root, Value> FailableReadable<Root, Value> for FailableReadableKeyPath<Root
     }
 }
 
-impl<Root, Value> FailableReadableKeyPath<Root, Value> {
-    pub fn compose<Mid: 'static>(
-        self: FailableReadableKeyPath<Root, Mid>,
-        mid: FailableReadableKeyPath<Mid, Value>,
-    ) -> FailableReadableKeyPath<Root, Value> {
+// --- Compose: impl over (Root, Mid); Value is method-generic ---
+impl<Root, Mid> FailableReadableKeyPath<Root, Mid>
+where
+    Root: 'static,
+    Mid: 'static,
+
+{
+    pub fn compose<Value>(
+        self,
+        mid: FailableReadableKeyPath<Mid, Value> ,
+    ) -> FailableReadableKeyPath<Root, Value>
+    where
+        Value: 'static,
+    {
         FailableReadableKeyPath::new(move |r: &Root| {
             (self.get)(r).and_then(|m: &Mid| (mid.get)(m))
         })
     }
 }
 
+pub trait FailableWritable<Root, Value> {
+    fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value>;
+}
+
 pub struct FailableWritableKeyPath<Root, Value> {
-    pub get: for<'a> fn(&'a Root) -> Option<&'a Value>,
-    pub get_mut: for<'a> fn(&'a mut Root) -> Option<&'a mut Value>,
+    pub get_mut: for<'a> fn(&'a mut Root) -> Option<&'a mut Value>
 }
 
 impl<Root, Value> FailableWritableKeyPath<Root, Value> {
     pub fn new(
-        get: for<'a> fn(&'a Root) -> Option<&'a Value>,
-        get_mut: for<'a> fn(&'a mut Root) -> Option<&'a mut Value>,
+        get_mut: for<'a> fn(&'a mut Root) -> Option<&'a mut Value>
     ) -> Self {
-        Self { get, get_mut }
-    }
-}
-
-impl<Root, Value> FailableReadable<Root, Value> for FailableWritableKeyPath<Root, Value> {
-    fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
-        (self.get)(root)
+        Self { get_mut }
     }
 }
 
@@ -217,4 +219,3 @@ macro_rules! writable_keypath {
         )
     };
 }
-
