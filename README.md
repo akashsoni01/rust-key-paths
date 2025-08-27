@@ -161,9 +161,9 @@ fn main() {
 ## 🛠 Roadmap
 
 * [ ] `zip` support for combining multiple key paths (Upcoming).
-* [ ] Derive macros for automatic KeyPath generation.
-* [ ] Nested struct & enum traversal.
-* [ ] Optional chaining (`User?.profile?.name`).
+* [ ] Derive macros for automatic KeyPath generation (Upcoming).
+* [ ] Nested struct & enum traversal (Upcoming).
+* [ ] Optional chaining (`User?.profile?.name`) (Upcoming).
 
 ---
 
