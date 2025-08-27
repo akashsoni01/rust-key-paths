@@ -249,22 +249,31 @@ macro_rules! enum_keypath {
 }
 
 
-// 
-// /// Macro for readable keypaths
-// #[macro_export]
-// macro_rules! readable_keypath {
-//     ($Root:ty, $field:ident) => {
-//         ReadableKeyPath::new(|root: &$Root| &root.$field)
-//     };
-// }
-// 
-// /// Macro for writable keypaths
-// #[macro_export]
-// macro_rules! writable_keypath {
-//     ($Root:ty, $field:ident) => {
-//         WritableKeyPath::new(
-//             |root: &$Root| &root.$field,
-//             |root: &mut $Root| &mut root.$field,
-//         )
-//     };
-// }
+
+/*
+    let name_key = ReadableKeyPath::new(|u: &User| &u.name);
+*/
+/// Macro for readable keypaths
+#[macro_export]
+macro_rules! readable_keypath {
+    ($Root:ty, $field:ident) => {
+        ReadableKeyPath::new(|root: &$Root| &root.$field)
+    };
+}
+
+/*
+    let age_key = WritableKeyPath::new(
+        |u: & User| & u.age,
+        |u: &mut User| &mut u.age,
+    );
+*/
+/// Macro for writable keypaths
+#[macro_export]
+macro_rules! writable_keypath {
+    ($Root:ty, $field:ident) => {
+        WritableKeyPath::new(
+            |root: &$Root| &root.$field,
+            |root: &mut $Root| &mut root.$field,
+        )
+    };
+}

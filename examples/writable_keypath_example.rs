@@ -1,4 +1,4 @@
-use key_paths_core::WritableKeyPath;
+use key_paths_core::{writable_keypath, WritableKeyPath};
 
 
 #[derive(Debug)]
@@ -28,11 +28,11 @@ fn main() {
     // let name_key = readable_keypath!(User, name);
 
     // Writable keypath
-    let age_key = WritableKeyPath::new(
-        |u: & User| & u.age,
-        |u: &mut User| &mut u.age,
-    );
-    // let age_key = writable_keypath!(User, age);
+    // let age_key = WritableKeyPath::new(
+    //     |u: & User| & u.age,
+    //     |u: &mut User| &mut u.age,
+    // );
+    let age_key = writable_keypath!(User, age);
 
     // println!("Names:");
     // for name in name_key.iter(&users) {

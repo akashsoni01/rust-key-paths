@@ -1,4 +1,4 @@
-use key_paths_core::ReadableKeyPath;
+use key_paths_core::{readable_keypath, ReadableKeyPath};
 
 #[derive(Debug)]
 struct User {
@@ -23,8 +23,8 @@ fn main() {
     ];
 
     // Read-only keypath
-    let name_key = ReadableKeyPath::new(|u: &User| &u.name);
-    // let name_key = readable_keypath!(User, name);
+    // let name_key = ReadableKeyPath::new(|u: &User| &u.name);
+    let name_key = readable_keypath!(User, name);
 
     // Writable keypath
     // let age_key = WritableKeyPath::new(
