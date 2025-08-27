@@ -29,6 +29,7 @@ fn main() {
 
     // Writable keypath
     let age_key = WritableKeyPath::new(
+        |u: & User| & u.age,
         |u: &mut User| &mut u.age,
     );
     // let age_key = writable_keypath!(User, age);
@@ -39,7 +40,7 @@ fn main() {
     // }
 
     println!("Ages before:");
-    for age in age_key.iter_mut(&mut users) {
+    for age in age_key.iter(&users) {
         println!("{}", age);
     }
 
@@ -49,7 +50,7 @@ fn main() {
     }
 
     println!("Ages after:");
-    for age in age_key.iter_mut(&mut users) {
+    for age in age_key.iter(&mut users) {
         println!("{}", age);
     }
 }
