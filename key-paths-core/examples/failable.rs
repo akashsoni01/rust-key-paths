@@ -1,42 +1,27 @@
-use key_paths_core::{FailableWritableKeyPath, FailableReadable, FailableWritable};
+use key_paths_core::FailableWritableKeyPath;
 
 #[derive(Debug)]
-struct Size {
-    width: u32,
-    height: u32,
-}
-
+struct Engine { horsepower: u32 }
 #[derive(Debug)]
-struct Rectangle {
-    size: Option<Size>,
-    name: String,
-}
+struct Car { engine: Option<Engine> }
+#[derive(Debug)]
+struct Garage { car: Option<Car> }
 
 fn main() {
-    let mut rect = Rectangle {
-        size: Some(Size { width: 10, height: 20 }),
-        name: "MyRect".into(),
+    let mut garage = Garage {
+        car: Some(Car { engine: Some(Engine { horsepower: 120 }) }),
     };
 
-    // Define a keypath for width inside Rectangle.size
-    let size_width = FailableWritableKeyPath::new(
-        |r: &Rectangle| r.size.as_ref().map(|s| &s.width),
-        |r: &mut Rectangle| r.size.as_mut().map(|s| &mut s.width),
-    );
+    let kp_car = FailableWritableKeyPath::new(|g: &mut Garage| g.car.as_mut());
+    let kp_engine = FailableWritableKeyPath::new(|c: &mut Car| c.engine.as_mut());
+    let kp_hp = FailableWritableKeyPath::new(|e: &mut Engine| Some(&mut e.horsepower));
 
-    // Try reading
-    if let Some(width) = size_width.try_get(&rect) {
-        println!("Width = {}", width);
+    // Compose: Garage -> Car -> Engine -> horsepower
+    let kp = kp_car.compose(kp_engine).compose(kp_hp);
+
+    if let Some(hp) = kp.try_get_mut(&mut garage) {
+        *hp = 250;
     }
 
-    // Try writing
-    if let Some(width) = size_width.try_get_mut(&mut rect) {
-        *width = 42;
-    }
-
-    println!("Updated Rectangle = {:?}", rect);
-
-    // If size is None
-    rect.size = None;
-    println!("Missing width = {:?}", size_width.try_get(&rect));
+    println!("{garage:?}"); // Garage { car: Some(Car { engine: Some(Engine { horsepower: 250 }) }) }
 }

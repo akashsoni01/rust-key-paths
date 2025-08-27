@@ -152,24 +152,41 @@ pub trait FailableWritable<Root, Value> {
 }
 
 pub struct FailableWritableKeyPath<Root, Value> {
-    pub get_mut: for<'a> fn(&'a mut Root) -> Option<&'a mut Value>
+    pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
 }
 
 impl<Root, Value> FailableWritableKeyPath<Root, Value> {
     pub fn new(
-        get_mut: for<'a> fn(&'a mut Root) -> Option<&'a mut Value>
+        get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
     ) -> Self {
-        Self { get_mut }
+        Self {
+            get_mut: Box::new(get_mut),
+        }
     }
-}
 
-impl<Root, Value> FailableWritable<Root, Value> for FailableWritableKeyPath<Root, Value> {
-    fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
+    pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
         (self.get_mut)(root)
     }
 }
 
-
+// ---------------- COMPOSE ----------------
+impl<Root, Mid> FailableWritableKeyPath<Root, Mid>
+where
+    Root: 'static,
+    Mid: 'static,
+{
+    pub fn compose<Value>(
+        self,
+        mid: FailableWritableKeyPath<Mid, Value>,
+    ) -> FailableWritableKeyPath<Root, Value>
+    where
+        Value: 'static,
+    {
+        FailableWritableKeyPath::new(move |r: &mut Root| {
+            (self.get_mut)(r).and_then(|m: &mut Mid| (mid.get_mut)(m))
+        })
+    }
+}
 
 #[macro_export]
 macro_rules! enum_keypath {
