@@ -267,6 +267,7 @@ fn main() {
 
 ## 🔗 Helpful Links & Resources
 
+* 📘 [type-safe property paths](https://lodash.com/docs/4.17.15#get)
 * 📘 [Swift KeyPath documentation](https://developer.apple.com/documentation/swift/keypath)
 * 📘 [Swift CasePath library (pointfreeco)](https://github.com/pointfreeco/swift-case-paths)
 * 📘 [Elm Architecture & Functional Lenses](https://guide.elm-lang.org/architecture/)
