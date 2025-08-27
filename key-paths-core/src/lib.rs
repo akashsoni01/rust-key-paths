@@ -104,6 +104,71 @@ impl<Enum, Inner> EnumKeyPath<Enum, Inner> {
     }
 }
 
+
+
+pub trait FailableReadable<Root, Value> {
+    fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value>;
+}
+
+pub trait FailableWritable<Root, Value>: FailableReadable<Root, Value> {
+    fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value>;
+}
+
+pub struct FailableReadableKeyPath<Root, Value> {
+    pub get: for<'a> fn(&'a Root) -> Option<&'a Value>,
+}
+
+impl<Root, Value> FailableReadableKeyPath<Root, Value> {
+    pub fn new(get: for<'a> fn(&'a Root) -> Option<&'a Value>) -> Self {
+        Self { get }
+    }
+}
+
+impl<Root, Value> FailableReadable<Root, Value> for FailableReadableKeyPath<Root, Value> {
+    fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
+        (self.get)(root)
+    }
+}
+
+impl<Root, Value> FailableReadableKeyPath<Root, Value> {
+    pub fn compose<Mid: 'static>(
+        self: FailableReadableKeyPath<Root, Mid>,
+        mid: FailableReadableKeyPath<Mid, Value>,
+    ) -> FailableReadableKeyPath<Root, Value> {
+        FailableReadableKeyPath::new(move |r: &Root| {
+            (self.get)(r).and_then(|m: &Mid| (mid.get)(m))
+        })
+    }
+}
+
+pub struct FailableWritableKeyPath<Root, Value> {
+    pub get: for<'a> fn(&'a Root) -> Option<&'a Value>,
+    pub get_mut: for<'a> fn(&'a mut Root) -> Option<&'a mut Value>,
+}
+
+impl<Root, Value> FailableWritableKeyPath<Root, Value> {
+    pub fn new(
+        get: for<'a> fn(&'a Root) -> Option<&'a Value>,
+        get_mut: for<'a> fn(&'a mut Root) -> Option<&'a mut Value>,
+    ) -> Self {
+        Self { get, get_mut }
+    }
+}
+
+impl<Root, Value> FailableReadable<Root, Value> for FailableWritableKeyPath<Root, Value> {
+    fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
+        (self.get)(root)
+    }
+}
+
+impl<Root, Value> FailableWritable<Root, Value> for FailableWritableKeyPath<Root, Value> {
+    fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
+        (self.get_mut)(root)
+    }
+}
+
+
+
 #[macro_export]
 macro_rules! enum_keypath {
     // Case with payload
