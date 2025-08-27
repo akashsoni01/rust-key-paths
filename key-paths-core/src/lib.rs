@@ -1,89 +1,189 @@
-
-pub trait Readable<Root, Value> {
-    fn get<'a>(&self, root: &'a Root) -> &'a Value;
-
-    fn iter<'a>(&self, slice: &'a [Root]) -> Box<dyn Iterator<Item = &'a Value> + 'a>
-    where
-        Self: Sized,
-    {
-        let f = self.get_fn(); // capture fn pointer
-        Box::new(slice.iter().map(move |root| f(root)))
-    }
-
-    fn get_fn(&self) -> for<'a> fn(&'a Root) -> &'a Value;
-}
-
 /// Read-only keypath
 pub struct ReadableKeyPath<Root, Value> {
-    pub get: for<'a> fn(&'a Root) -> &'a Value,
+    pub get: Box<dyn for<'a> Fn(&'a Root) -> &'a Value>,
 }
 
 impl<Root, Value> ReadableKeyPath<Root, Value> {
-    pub fn new(get: for<'a> fn(&'a Root) -> &'a Value) -> Self {
-        Self { get }
+    pub fn new(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static) -> Self {
+        Self { get: Box::new(get) }
     }
-}
-
-impl<Root, Value> Readable<Root, Value> for ReadableKeyPath<Root, Value> {
-    fn get<'a>(&self, root: &'a Root) -> &'a Value {
+    pub fn get<'a>(&self, root: &'a Root) -> &'a Value {
         (self.get)(root)
     }
 
-    fn get_fn(&self) -> for<'a> fn(&'a Root) -> &'a Value {
-        self.get
+    /// Iterate a slice of `Root` and yield references to `Value`
+    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = &'a Value> + 'a {
+        slice.iter().map(move |root| (self.get)(root))
     }
 }
 
-
-/// Read/write keypath
-pub struct WritableKeyPath<Root, Value> {
-    pub get: for<'a> fn(&'a Root) -> &'a Value,
-    pub get_mut: for<'a> fn(&'a mut Root) -> &'a mut Value,
-}
-
-pub trait Writable<Root, Value>: Readable<Root, Value> {
-    fn get_mut<'a>(&self, root: &'a mut Root) -> &'a mut Value;
-
-    fn iter_mut<'a>(&self, slice: &'a mut [Root]) -> Box<dyn Iterator<Item = &'a mut Value> + 'a>
+impl<Root, Mid> ReadableKeyPath<Root, Mid>
+where
+    Root: 'static,
+    Mid: 'static,
+{
+    pub fn compose<Value>(self, mid: ReadableKeyPath<Mid, Value>) -> ReadableKeyPath<Root, Value>
     where
-        Self: Sized,
+        Value: 'static,
     {
-        let f = self.get_mut_fn(); // capture fn pointer
-        Box::new(slice.iter_mut().map(move |root| f(root)))
+        ReadableKeyPath::new(move |r: &Root| {
+            let mid_ref: &Mid = (self.get)(r);
+            (mid.get)(mid_ref)
+        })
     }
+}
 
-    fn get_mut_fn(&self) -> for<'a> fn(&'a mut Root) -> &'a mut Value;
+pub struct WritableKeyPath<Root, Value> {
+    pub get: Box<dyn for<'a> Fn(&'a Root) -> &'a Value>,
+    pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>,
 }
 
 impl<Root, Value> WritableKeyPath<Root, Value> {
     pub fn new(
-        get: for<'a> fn(&'a Root) -> &'a Value,
-        get_mut: for<'a> fn(&'a mut Root) -> &'a mut Value,
+        get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static,
+        get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static,
     ) -> Self {
-        Self { get, get_mut }
+        Self {
+            get: Box::new(get),
+            get_mut: Box::new(get_mut),
+        }
     }
-}
 
-impl<Root, Value> Readable<Root, Value> for WritableKeyPath<Root, Value> {
-    fn get<'a>(&self, root: &'a Root) -> &'a Value {
+    pub fn try_get<'a>(&self, root: &'a Root) -> &'a Value {
         (self.get)(root)
     }
 
-    fn get_fn(&self) -> for<'a> fn(&'a Root) -> &'a Value {
-        self.get
-    }
-}
-
-impl<Root, Value> Writable<Root, Value> for WritableKeyPath<Root, Value> {
-    fn get_mut<'a>(&self, root: &'a mut Root) -> &'a mut Value {
+    pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> &'a mut Value {
         (self.get_mut)(root)
     }
 
-    fn get_mut_fn(&self) -> for<'a> fn(&'a mut Root) -> &'a mut Value {
-        self.get_mut
+    /// Mutable iteration
+    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = &'a Value> + 'a {
+        slice.iter().map(move |root| (self.get)(root))
+    }
+
+    /// Mutable iteration
+    pub fn iter_mut<'a>(
+        &'a self,
+        slice: &'a mut [Root],
+    ) -> impl Iterator<Item = &'a mut Value> + 'a {
+        slice.iter_mut().map(move |root| (self.get_mut)(root))
     }
 }
 
+// --- Compose: impl over (Root, Mid); Value is method-generic ---
+// --- Compose ---
+impl<Root, Mid> WritableKeyPath<Root, Mid>
+where
+    Root: 'static,
+    Mid: 'static,
+{
+    pub fn compose<Value>(self, mid: WritableKeyPath<Mid, Value>) -> WritableKeyPath<Root, Value>
+    where
+        Value: 'static,
+    {
+        WritableKeyPath::new(
+            move |r: &Root| {
+                let mid_ref: &Mid = (self.get)(r);
+                (mid.get)(mid_ref)
+            },
+            move |r: &mut Root| {
+                let mid_ref: &mut Mid = (self.get_mut)(r);
+                (mid.get_mut)(mid_ref)
+            },
+        )
+    }
+}
+
+pub struct FailableReadableKeyPath<Root, Value> {
+    pub get: Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
+}
+
+impl<Root, Value> FailableReadableKeyPath<Root, Value> {
+    pub fn new(get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static) -> Self {
+        Self { get: Box::new(get) }
+    }
+    pub fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
+        (self.get)(root)
+    }
+
+    /// Iterate a slice of `Root` and yield references to `Value`
+    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = Option<&'a Value>> + 'a {
+        slice.iter().map(move |root| (self.get)(root))
+    }
+}
+
+impl<Root, Mid> FailableReadableKeyPath<Root, Mid>
+where
+    Root: 'static,
+    Mid: 'static,
+{
+    pub fn compose<Value>(
+        self,
+        mid: FailableReadableKeyPath<Mid, Value>,
+    ) -> FailableReadableKeyPath<Root, Value>
+    where
+        Value: 'static,
+    {
+        FailableReadableKeyPath::new(move |r: &Root| (self.get)(r).and_then(|m: &Mid| (mid.get)(m)))
+    }
+}
+
+pub struct FailableWritableKeyPath<Root, Value> {
+    pub get: Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
+    pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
+}
+
+impl<Root, Value> FailableWritableKeyPath<Root, Value> {
+    pub fn new(
+        get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
+        get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
+    ) -> Self {
+        Self {
+            get: Box::new(get),
+            get_mut: Box::new(get_mut),
+        }
+    }
+
+    pub fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
+        (self.get)(root)
+    }
+
+    pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
+        (self.get_mut)(root)
+    }
+
+    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = Option<&'a Value>> + 'a {
+        slice.iter().map(move |root| (self.get)(root))
+    }
+
+    /// Mutable iteration
+    pub fn iter_mut<'a>(
+        &'a self,
+        slice: &'a mut [Root],
+    ) -> impl Iterator<Item = Option<&'a mut Value>> + 'a {
+        slice.iter_mut().map(move |root| (self.get_mut)(root))
+    }
+}
+
+impl<Root, Mid> FailableWritableKeyPath<Root, Mid>
+where
+    Root: 'static,
+    Mid: 'static,
+{
+    pub fn compose<Value>(
+        self,
+        mid: FailableWritableKeyPath<Mid, Value>,
+    ) -> FailableWritableKeyPath<Root, Value>
+    where
+        Value: 'static,
+    {
+        FailableWritableKeyPath::new(
+            move |r: &Root| (self.get)(r).and_then(|m: &Mid| (mid.get)(m)),
+            move |r: &mut Root| (self.get_mut)(r).and_then(|m: &mut Mid| (mid.get_mut)(m)),
+        )
+    }
+}
 
 pub struct EnumKeyPath<Enum, Inner> {
     pub extract: fn(&Enum) -> Option<&Inner>,
@@ -134,6 +234,9 @@ macro_rules! enum_keypath {
     }};
 }
 
+/*
+    let name_key = ReadableKeyPath::new(|u: &User| &u.name);
+*/
 /// Macro for readable keypaths
 #[macro_export]
 macro_rules! readable_keypath {
@@ -142,6 +245,12 @@ macro_rules! readable_keypath {
     };
 }
 
+/*
+    let age_key = WritableKeyPath::new(
+        |u: & User| & u.age,
+        |u: &mut User| &mut u.age,
+    );
+*/
 /// Macro for writable keypaths
 #[macro_export]
 macro_rules! writable_keypath {
@@ -152,4 +261,3 @@ macro_rules! writable_keypath {
         )
     };
 }
-
