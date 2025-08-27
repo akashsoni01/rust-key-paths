@@ -1,7 +1,5 @@
-use key_paths_core::Readable;
-use key_paths_core::Writable;
 use key_paths_core::WritableKeyPath;
-use key_paths_core::writable_keypath;
+
 
 #[derive(Debug)]
 struct User {
@@ -30,11 +28,10 @@ fn main() {
     // let name_key = readable_keypath!(User, name);
 
     // Writable keypath
-    // let age_key = WritableKeyPath::new(
-    //     |u: &User| &u.age,
-    //     |u: &mut User| &mut u.age,
-    // );
-    let age_key = writable_keypath!(User, age);
+    let age_key = WritableKeyPath::new(
+        |u: &mut User| &mut u.age,
+    );
+    // let age_key = writable_keypath!(User, age);
 
     // println!("Names:");
     // for name in name_key.iter(&users) {
@@ -42,7 +39,7 @@ fn main() {
     // }
 
     println!("Ages before:");
-    for age in age_key.iter(&users) {
+    for age in age_key.iter_mut(&mut users) {
         println!("{}", age);
     }
 
@@ -52,7 +49,7 @@ fn main() {
     }
 
     println!("Ages after:");
-    for age in age_key.iter(&users) {
+    for age in age_key.iter_mut(&mut users) {
         println!("{}", age);
     }
 }

@@ -40,15 +40,37 @@ where
 }
 
 pub struct WritableKeyPath<Root, Value> {
+    pub get: Box<dyn for<'a> Fn(&'a Root) -> &'a Value>,
     pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>,
 }
 
 impl<Root, Value> WritableKeyPath<Root, Value> {
-    pub fn new(get: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static) -> Self {
-        Self { get_mut: Box::new(get) }
+    pub fn new(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static, get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static) -> Self {
+        Self {get: Box::new(get),  get_mut: Box::new(get_mut) }
     }
-    pub fn try_get<'a>(&self, root: &'a mut Root) -> &'a mut Value {
+
+    pub fn try_get<'a>(&self, root: &'a Root) -> &'a Value {
+        (self.get)(root)
+    }
+
+    pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> &'a mut Value {
         (self.get_mut)(root)
+    }
+
+        /// Mutable iteration
+    pub fn iter<'a>(
+        &'a self,
+        slice: &'a [Root],
+    ) -> impl Iterator<Item = &'a Value> + 'a {
+        slice.iter().map(move |root| (self.get)(root))
+    }
+
+    /// Mutable iteration
+    pub fn iter_mut<'a>(
+        &'a self,
+        slice: &'a mut [Root],
+    ) -> impl Iterator<Item = &'a mut Value> + 'a {
+        slice.iter_mut().map(move |root| (self.get_mut)(root))
     }
 
 }
@@ -67,10 +89,15 @@ where
     where
         Value: 'static,
     {
-        WritableKeyPath::new(move |r: &mut Root| {
+        WritableKeyPath::new( move |r: & Root| {
+            let mid_ref: & Mid = (self.get)(r);
+            (mid.get)(mid_ref)
+        }, 
+    move |r: &mut Root| {
             let mid_ref: &mut Mid = (self.get_mut)(r);
             (mid.get_mut)(mid_ref)
-        })
+        }, 
+)
     }
 }
 
