@@ -29,6 +29,19 @@ fn main() {
         }),
     };
 
+    let city_hp2 = FailableReadableKeyPath::new(|c: &City| {
+        c.garage
+            .as_ref()
+            .and_then(|g| g.car.as_ref())
+            .and_then(|car| car.engine.as_ref())
+            .and_then(|e| Some(&e.horsepower)) // ✅ removed the extra Some(...)
+    });
+
+    println!("Horsepower = {:?}", (city_hp2.get)(&city));
+
+    // compose example ----
+    // compose keypath together 
+    
     let city_garage = FailableReadableKeyPath::new(|c: &City| c.garage.as_ref());
     let garage_car = FailableReadableKeyPath::new(|g: &Garage| g.car.as_ref());
     let car_engine = FailableReadableKeyPath::new(|c: &Car| c.engine.as_ref());
