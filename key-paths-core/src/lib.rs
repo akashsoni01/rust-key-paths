@@ -7,7 +7,7 @@ impl<Root, Value> ReadableKeyPath<Root, Value> {
     pub fn new(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static) -> Self {
         Self { get: Box::new(get) }
     }
-    pub fn try_get<'a>(&self, root: &'a Root) -> &'a Value {
+    pub fn get<'a>(&self, root: &'a Root) -> &'a Value {
         (self.get)(root)
     }
 

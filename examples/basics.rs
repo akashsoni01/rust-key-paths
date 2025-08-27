@@ -35,9 +35,8 @@ fn main() {
 
     // Writable keypath for modifying fields:
     let width_mut = WritableKeyPath::new(
-        |r: &Rectangle| &r.size.width,
         |r: &mut Rectangle| &mut r.size.width,
     );
-    *width_mut.get_mut(&mut rect) = 100;
+    *(width_mut.get_mut)(&mut rect) = 100;
     println!("Updated rectangle: {:?}", rect);
 }
