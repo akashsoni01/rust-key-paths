@@ -57,7 +57,7 @@ impl<Root, Value> WritableKeyPath<Root, Value> {
         (self.get_mut)(root)
     }
 
-        /// Mutable iteration
+    /// Mutable iteration
     pub fn iter<'a>(
         &'a self,
         slice: &'a [Root],
@@ -113,6 +113,14 @@ impl<Root, Value> FailableReadableKeyPath<Root, Value> {
         (self.get)(root)
     }
 
+    /// Iterate a slice of `Root` and yield references to `Value`
+    pub fn iter<'a>(
+        &'a self,
+        slice: &'a [Root],
+    ) -> impl Iterator<Item = Option<&'a Value>> + 'a {
+        slice.iter().map(move |root| (self.get)(root))
+    }
+
 }
 
 impl<Root, Mid> FailableReadableKeyPath<Root, Mid>
@@ -132,19 +140,42 @@ where
 }
 
 pub struct FailableWritableKeyPath<Root, Value> {
+    pub get: Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
     pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
 }
 
 impl<Root, Value> FailableWritableKeyPath<Root, Value> {
-    pub fn new(get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static) -> Self {
+    pub fn new(get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static, get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static) -> Self {
         Self {
+            get: Box::new(get),
             get_mut: Box::new(get_mut),
         }
+    }
+
+    pub fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
+        (self.get)(root)
     }
 
     pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
         (self.get_mut)(root)
     }
+
+    pub fn iter<'a>(
+        &'a self,
+        slice: &'a [Root],
+    ) -> impl Iterator<Item = Option<&'a Value>> + 'a {
+        slice.iter().map(move |root| (self.get)(root))
+    }
+
+
+    /// Mutable iteration
+    pub fn iter_mut<'a>(
+        &'a self,
+        slice: &'a mut [Root],
+    ) -> impl Iterator<Item = Option<&'a mut Value>> + 'a {
+        slice.iter_mut().map(move |root| (self.get_mut)(root))
+    }
+
 }
 
 impl<Root, Mid> FailableWritableKeyPath<Root, Mid>
@@ -159,7 +190,10 @@ where
     where
         Value: 'static,
     {
-        FailableWritableKeyPath::new(move |r: &mut Root| {
+        FailableWritableKeyPath::new(move |r: & Root| {
+            (self.get)(r).and_then(|m: & Mid| (mid.get)(m))
+        },
+    move |r: &mut Root| {
             (self.get_mut)(r).and_then(|m: &mut Mid| (mid.get_mut)(m))
         })
     }
