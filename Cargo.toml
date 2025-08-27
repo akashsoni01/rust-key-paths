@@ -13,7 +13,7 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-key-paths-core = { path = "key-paths-core", version = "0.1.0" }
+key-paths-core = { path = "key-paths-core", version = "0.2.0" }
 
 
 [workspace]
