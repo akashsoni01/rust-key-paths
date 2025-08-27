@@ -11,6 +11,13 @@ impl<Root, Value> ReadableKeyPath<Root, Value> {
         (self.get)(root)
     }
 
+    /// Iterate a slice of `Root` and yield references to `Value`
+    pub fn iter<'a>(
+        &'a self,
+        slice: &'a [Root],
+    ) -> impl Iterator<Item = &'a Value> + 'a {
+        slice.iter().map(move |root| (self.get)(root))
+    }
 }
 
 impl<Root, Mid> ReadableKeyPath<Root, Mid>
