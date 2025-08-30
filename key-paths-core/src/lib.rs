@@ -107,7 +107,6 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
-
     /// Iter over immutable references if `Value: IntoIterator`
     pub fn iter<'a, T>(&'a self, root: &'a Root) -> Option<<&'a Value as IntoIterator>::IntoIter>
     where
@@ -210,9 +209,9 @@ where
             //     //         // extract_mut(r).and_then(|m| f2(m))
             //     //         // let x = f2(m);
             //     //         extract_mut(r).and_then(|a| f2(a))
-            //     // 
+            //     //
             //     //     }
-            //     //     
+            //     //
             //     // ))
             //     // FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|a| f2(a))))
             //     // FailableWritable(Rc::new(move |r: &mut Root| {
@@ -221,7 +220,7 @@ where
             //     //         None => None,
             //     //     }
             //     // }) as Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>)
-            // 
+            //
             //     FailableWritable(Rc::new(move |r: &mut Root| {
             //         // First extract the intermediate value using extract_mut
             //         extract_mut(r).and_then(|intermediate| {
@@ -250,12 +249,12 @@ where
             //     }))
             // }
 
-/*            (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
-                FailableWritable(Rc::new(move |r: &mut Root| {
-                    extract_mut(r).and_then(|intermediate_mid| f2(intermediate_mid))
-                }))
-            }
-*/
+            /*            (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+                            FailableWritable(Rc::new(move |r: &mut Root| {
+                                extract_mut(r).and_then(|intermediate_mid| f2(intermediate_mid))
+                            }))
+                        }
+            */
             // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
             //     // Here's the fix: f2 must be a function that operates on a Mid and returns a Value
             //     // It is already of this type since the 'mid' KeyPaths is KeyPaths<Mid, Value>
@@ -272,8 +271,13 @@ where
             //         f2(mid_ref)
             //     }))
             // }
-
-            (FailableWritable(f_root_mid), WritableEnum { extract_mut: exm_mid_val, .. }) => {
+            (
+                FailableWritable(f_root_mid),
+                WritableEnum {
+                    extract_mut: exm_mid_val,
+                    ..
+                },
+            ) => {
                 FailableWritable(Rc::new(move |r: &mut Root| {
                     // First, apply the function that operates on Root.
                     // This will give us `Option<&mut Mid>`.
@@ -284,7 +288,6 @@ where
                     intermediate_mid_ref.and_then(|intermediate_mid| exm_mid_val(intermediate_mid))
                 }))
             }
-
 
             (WritableEnum { extract_mut, .. }, FailableWritable(f2)) => {
                 FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|m| f2(m))))

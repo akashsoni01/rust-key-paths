@@ -5,8 +5,6 @@ enum Payment {
     Card { number: String, cvv: String },
 }
 
-
-
 fn main() {
     // let kp = KeyPaths::Prism {
     //     extract: Rc::new(|p: &Payment| match p {
@@ -26,7 +24,6 @@ fn main() {
             Payment::Cash { amount } => Some(amount),
             _ => None,
         },
-
     );
 
     let mut p = Payment::Cash { amount: 10 };
