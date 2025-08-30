@@ -5,7 +5,7 @@ pub enum KeyPaths<Root, Value> {
     Readable(Rc<dyn for<'a> Fn(&'a Root) -> &'a Value>),
     Prism {
         extract: Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
-        embed: Rc<dyn for<'a> Fn(&'a Value) -> &'a Root>,
+        embed: Rc<dyn Fn(Value) -> Root>,
     },
     FailableReadable(Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>),
 
@@ -14,7 +14,7 @@ pub enum KeyPaths<Root, Value> {
     PrismMut {
         extract: Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
         extract_mut: Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
-        embed: Rc<dyn for<'a> Fn(&'a Value) -> &'a Root>,
+        embed: Rc<dyn Fn(Value) -> Root>,
     },
 }
 
@@ -40,7 +40,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     }
 
     pub fn prism(
-        embed: impl for<'a> Fn(&'a Value) -> &'a Root + 'static,
+        embed: impl Fn(Value) -> Root + 'static,
         extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
     ) -> Self {
         Self::Prism {
@@ -50,7 +50,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     }
 
     pub fn prism_mut(
-        embed: impl for<'a> Fn(&'a Value) -> &'a Root + 'static,
+        embed: impl Fn(Value) -> Root + 'static,
         extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
         extract_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
     ) -> Self {
@@ -86,6 +86,28 @@ impl<Root, Value> KeyPaths<Root, Value> {
             _ => None,
         }
     }
+
+    pub fn embed(&self, value: Value) -> Option<Root>
+    where
+        Value: Clone,
+    {
+        match self {
+            KeyPaths::Prism { embed, .. } => Some(embed(value)),
+            _ => None,
+        }
+    }
+
+    pub fn embed_mut(&self, value: Value) -> Option<Root>
+    where
+        Value: Clone,
+    {
+        match self {
+            KeyPaths::PrismMut { embed, .. } => Some(embed(value)),
+            _ => None,
+        }
+    }
+
+
     /// Iter over immutable references if `Value: IntoIterator`
     pub fn iter<'a, T>(&'a self, root: &'a Root) -> Option<<&'a Value as IntoIterator>::IntoIter>
     where
