@@ -3,7 +3,7 @@ use std::rc::Rc;
 // #[derive(Clone)]
 pub enum KeyPaths<Root, Value> {
     Readable(Rc<dyn for<'a> Fn(&'a Root) -> &'a Value>),
-    Prism {
+    ReadableEnum {
         extract: Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
         embed: Rc<dyn Fn(Value) -> Root>,
     },
@@ -11,7 +11,7 @@ pub enum KeyPaths<Root, Value> {
 
     Writable(Rc<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>),
     FailableWritable(Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>),
-    PrismMut {
+    WritableEnum {
         extract: Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
         extract_mut: Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
         embed: Rc<dyn Fn(Value) -> Root>,
@@ -39,22 +39,22 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Self::FailableWritable(Rc::new(get_mut))
     }
 
-    pub fn prism(
+    pub fn readable_enum(
         embed: impl Fn(Value) -> Root + 'static,
         extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
     ) -> Self {
-        Self::Prism {
+        Self::ReadableEnum {
             extract: Rc::new(extract),
             embed: Rc::new(embed),
         }
     }
 
-    pub fn prism_mut(
+    pub fn writable_enum(
         embed: impl Fn(Value) -> Root + 'static,
         extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
         extract_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
     ) -> Self {
-        Self::PrismMut {
+        Self::WritableEnum {
             extract: Rc::new(extract),
             embed: Rc::new(embed),
             extract_mut: Rc::new(extract_mut),
@@ -70,8 +70,8 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Writable(_) => None, // Writable requires mut
             KeyPaths::FailableReadable(f) => f(root),
             KeyPaths::FailableWritable(_) => None, // needs mut
-            KeyPaths::Prism { extract, .. } => extract(root),
-            KeyPaths::PrismMut { extract, .. } => extract(root),
+            KeyPaths::ReadableEnum { extract, .. } => extract(root),
+            KeyPaths::WritableEnum { extract, .. } => extract(root),
         }
     }
 
@@ -82,7 +82,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Writable(f) => Some(f(root)),
             KeyPaths::FailableReadable(_) => None, // immutable only
             KeyPaths::FailableWritable(f) => f(root),
-            KeyPaths::PrismMut { extract_mut, .. } => extract_mut(root),
+            KeyPaths::WritableEnum { extract_mut, .. } => extract_mut(root),
             _ => None,
         }
     }
@@ -92,7 +92,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: Clone,
     {
         match self {
-            KeyPaths::Prism { embed, .. } => Some(embed(value)),
+            KeyPaths::ReadableEnum { embed, .. } => Some(embed(value)),
             _ => None,
         }
     }
@@ -102,7 +102,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: Clone,
     {
         match self {
-            KeyPaths::PrismMut { embed, .. } => Some(embed(value)),
+            KeyPaths::WritableEnum { embed, .. } => Some(embed(value)),
             _ => None,
         }
     }
@@ -139,8 +139,8 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Writable(_) => None,
             KeyPaths::FailableReadable(f) => f(&root).map(|v| v.clone().into_iter()),
             KeyPaths::FailableWritable(_) => None,
-            KeyPaths::Prism { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
-            KeyPaths::PrismMut { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
+            KeyPaths::ReadableEnum { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
+            KeyPaths::WritableEnum { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
         }
     }
 }
@@ -181,71 +181,156 @@ where
                 FailableWritable(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
             }
 
-            (Prism { extract, .. }, Readable(f2)) => {
+            (ReadableEnum { extract, .. }, Readable(f2)) => {
                 FailableReadable(Rc::new(move |r| extract(r).map(|m| f2(m))))
             }
 
-            (Prism { extract, .. }, FailableReadable(f2)) => {
+            (ReadableEnum { extract, .. }, FailableReadable(f2)) => {
                 FailableReadable(Rc::new(move |r| extract(r).and_then(|m| f2(m))))
             }
 
-            (PrismMut { extract, .. }, Readable(f2)) => {
+            (WritableEnum { extract, .. }, Readable(f2)) => {
                 FailableReadable(Rc::new(move |r| extract(r).map(|m| f2(m))))
             }
 
-            (PrismMut { extract, .. }, FailableReadable(f2)) => {
+            (WritableEnum { extract, .. }, FailableReadable(f2)) => {
                 FailableReadable(Rc::new(move |r| extract(r).and_then(|m| f2(m))))
             }
 
-            (PrismMut { extract_mut, .. }, Writable(f2)) => {
+            (WritableEnum { extract_mut, .. }, Writable(f2)) => {
                 FailableWritable(Rc::new(move |r| extract_mut(r).map(|m| f2(m))))
             }
 
-            (PrismMut { extract_mut, .. }, FailableWritable(f2)) => {
+            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+            //     // FailableWritable(Rc::new(move |r|
+            //     //     {
+            //     //         // let mut x = extract_mut(r);
+            //     //         // x.as_mut().map(|m| f2(m))
+            //     //         // extract_mut(r).map(|m| f2(m))
+            //     //         // extract_mut(r).and_then(|m| f2(m))
+            //     //         // let x = f2(m);
+            //     //         extract_mut(r).and_then(|a| f2(a))
+            //     // 
+            //     //     }
+            //     //     
+            //     // ))
+            //     // FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|a| f2(a))))
+            //     // FailableWritable(Rc::new(move |r: &mut Root| {
+            //     //     match extract_mut(r) {
+            //     //         Some(mid) => f2(mid), // mid: &mut Mid -> Option<&mut Value>
+            //     //         None => None,
+            //     //     }
+            //     // }) as Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>)
+            // 
+            //     FailableWritable(Rc::new(move |r: &mut Root| {
+            //         // First extract the intermediate value using extract_mut
+            //         extract_mut(r).and_then(|intermediate| {
+            //             // Now apply f2 to the intermediate value
+            //             // f2 expects &mut Value but intermediate is &mut Value
+            //             f2(intermediate)
+            //         })
+            //     }))
+            // }
+
+            // (WritableEnum { extract_mut, .. }, FailableWritable(f2)) => {
+            //     FailableWritable(Rc::new(move |r: &mut Root| {
+            //         // Extract the intermediate Mid value
+            //         let mid_ref = extract_mut(r)?;
+            //         // Apply the second function to get the final Value
+            //         f2(mid_ref)
+            //     }))
+            // }
+
+            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+            //     FailableWritable(Rc::new(move |r: &mut Root| {
+            //         // Extract the intermediate Mid value
+            //         let mid_ref = extract_mut(r)?;
+            //         // Apply the second function to get the final Value
+            //         f2(mid_ref)
+            //     }))
+            // }
+
+/*            (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+                FailableWritable(Rc::new(move |r: &mut Root| {
+                    extract_mut(r).and_then(|intermediate_mid| f2(intermediate_mid))
+                }))
+            }
+*/
+            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+            //     // Here's the fix: f2 must be a function that operates on a Mid and returns a Value
+            //     // It is already of this type since the 'mid' KeyPaths is KeyPaths<Mid, Value>
+            //     FailableWritable(Rc::new(move |r: &mut Root| {
+            //         extract_mut(r).and_then(|intermediate_mid| f2(intermediate_mid))
+            //     }))
+            // }
+
+            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+            //     FailableWritable(Rc::new(move |r: &mut Root| -> Option<&mut Value> {
+            //         // Extract the intermediate Mid value
+            //         let mid_ref: &mut Mid = extract_mut(r).unwrap();
+            //         // Apply the second function to get the final Value
+            //         f2(mid_ref)
+            //     }))
+            // }
+
+            (FailableWritable(f_root_mid), WritableEnum { extract_mut: exm_mid_val, .. }) => {
+                FailableWritable(Rc::new(move |r: &mut Root| {
+                    // First, apply the function that operates on Root.
+                    // This will give us `Option<&mut Mid>`.
+                    let intermediate_mid_ref = f_root_mid(r);
+
+                    // Then, apply the function that operates on Mid.
+                    // This will give us `Option<&mut Value>`.
+                    intermediate_mid_ref.and_then(|intermediate_mid| exm_mid_val(intermediate_mid))
+                }))
+            }
+
+
+            (WritableEnum { extract_mut, .. }, FailableWritable(f2)) => {
                 FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|m| f2(m))))
             }
 
             (
-                Prism {
+                ReadableEnum {
                     extract: ex1,
                     embed: em1,
                 },
-                Prism {
+                ReadableEnum {
                     extract: ex2,
                     embed: em2,
                 },
-            ) => Prism {
+            ) => ReadableEnum {
                 extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
                 embed: Rc::new(move |v| em1(em2(v))),
             },
 
             (
-                PrismMut {
+                WritableEnum {
                     extract: ex1,
                     extract_mut,
                     embed: em1,
                 },
-                Prism {
+                ReadableEnum {
                     extract: ex2,
                     embed: em2,
                 },
-            ) => Prism {
+            ) => ReadableEnum {
                 extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
                 embed: Rc::new(move |v| em1(em2(v))),
             },
 
             (
-                PrismMut {
+                WritableEnum {
                     extract: ex1,
                     extract_mut: exm1,
                     embed: em1,
                 },
-                PrismMut {
+                WritableEnum {
                     extract: ex2,
                     extract_mut: exm2,
                     embed: em2,
                 },
-            ) => PrismMut {
+            ) => WritableEnum {
                 extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
                 extract_mut: Rc::new(move |r| exm1(r).and_then(|m| exm2(m))),
                 embed: Rc::new(move |v| em1(em2(v))),
@@ -267,7 +352,7 @@ fn kind_name<Root, Value>(k: &KeyPaths<Root, Value>) -> &'static str {
         Writable(_) => "Writable",
         FailableReadable(_) => "FailableReadable",
         FailableWritable(_) => "FailableWritable",
-        Prism { .. } => "Prism",
-        PrismMut { .. } => "PrismMut",
+        ReadableEnum { .. } => "ReadableEnum",
+        WritableEnum { .. } => "WritableEnum",
     }
 }
