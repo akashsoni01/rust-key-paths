@@ -170,7 +170,7 @@ fn main() {
     println!("{garage:?}");
 }
 ```
-### 4. Mutablity
+### 4. Mutability
  ```rust
 use key_paths_core::KeyPaths;
 
@@ -252,6 +252,20 @@ ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(0
 * 📘 [Category Theory in FP (for intuition)](https://bartoszmilewski.com/2014/11/24/category-the-essence-of-composition/)
 
 ---
+
+## Support
+
+* Struct Field Support
+* Enum Variant Support
+* Read / Write
+* Mutability support 
+* Full support of Composition with keypaths including enum
+* Helper macros support (WIP)
+* Proc macros support (WIP)
+* Feature rich, error free and light weigh 3KB only 
+
+---
+
 
 ## 💡 Why use KeyPaths?
 
