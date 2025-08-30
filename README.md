@@ -269,7 +269,6 @@ fn main() {
 
 * 📘 [type-safe property paths](https://lodash.com/docs/4.17.15#get)
 * 📘 [Swift KeyPath documentation](https://developer.apple.com/documentation/swift/keypath)
-* 📘 [Swift CasePath library (pointfreeco)](https://github.com/pointfreeco/swift-case-paths)
 * 📘 [Elm Architecture & Functional Lenses](https://guide.elm-lang.org/architecture/)
 * 📘 [Rust Macros Book](https://doc.rust-lang.org/book/ch19-06-macros.html)
 * 📘 [Category Theory in FP (for intuition)](https://bartoszmilewski.com/2014/11/24/category-the-essence-of-composition/)
