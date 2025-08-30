@@ -281,7 +281,7 @@ ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(0
 * [ ] `compose` support for combining multiple key paths.
 * [ ] Derive macros for automatic KeyPath generation (Upcoming).
 * [ ] Nested struct & enum traversal.
-* [ ] Optional chaining (`User?.profile?.name`) with failable.
+* [ ] Optional chaining with failable.
 ---
 
 ## 📜 License

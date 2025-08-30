@@ -156,6 +156,7 @@ where
         use KeyPaths::*;
 
         match (self, mid) {
+            
             (Readable(f1), Readable(f2)) => Readable(Rc::new(move |r| f2(f1(r)))),
 
             (Writable(f1), Writable(f2)) => Writable(Rc::new(move |r| f2(f1(r)))),
@@ -200,77 +201,6 @@ where
                 FailableWritable(Rc::new(move |r| extract_mut(r).map(|m| f2(m))))
             }
 
-            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
-            //     // FailableWritable(Rc::new(move |r|
-            //     //     {
-            //     //         // let mut x = extract_mut(r);
-            //     //         // x.as_mut().map(|m| f2(m))
-            //     //         // extract_mut(r).map(|m| f2(m))
-            //     //         // extract_mut(r).and_then(|m| f2(m))
-            //     //         // let x = f2(m);
-            //     //         extract_mut(r).and_then(|a| f2(a))
-            //     //
-            //     //     }
-            //     //
-            //     // ))
-            //     // FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|a| f2(a))))
-            //     // FailableWritable(Rc::new(move |r: &mut Root| {
-            //     //     match extract_mut(r) {
-            //     //         Some(mid) => f2(mid), // mid: &mut Mid -> Option<&mut Value>
-            //     //         None => None,
-            //     //     }
-            //     // }) as Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>)
-            //
-            //     FailableWritable(Rc::new(move |r: &mut Root| {
-            //         // First extract the intermediate value using extract_mut
-            //         extract_mut(r).and_then(|intermediate| {
-            //             // Now apply f2 to the intermediate value
-            //             // f2 expects &mut Value but intermediate is &mut Value
-            //             f2(intermediate)
-            //         })
-            //     }))
-            // }
-
-            // (WritableEnum { extract_mut, .. }, FailableWritable(f2)) => {
-            //     FailableWritable(Rc::new(move |r: &mut Root| {
-            //         // Extract the intermediate Mid value
-            //         let mid_ref = extract_mut(r)?;
-            //         // Apply the second function to get the final Value
-            //         f2(mid_ref)
-            //     }))
-            // }
-
-            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
-            //     FailableWritable(Rc::new(move |r: &mut Root| {
-            //         // Extract the intermediate Mid value
-            //         let mid_ref = extract_mut(r)?;
-            //         // Apply the second function to get the final Value
-            //         f2(mid_ref)
-            //     }))
-            // }
-
-            /*            (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
-                            FailableWritable(Rc::new(move |r: &mut Root| {
-                                extract_mut(r).and_then(|intermediate_mid| f2(intermediate_mid))
-                            }))
-                        }
-            */
-            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
-            //     // Here's the fix: f2 must be a function that operates on a Mid and returns a Value
-            //     // It is already of this type since the 'mid' KeyPaths is KeyPaths<Mid, Value>
-            //     FailableWritable(Rc::new(move |r: &mut Root| {
-            //         extract_mut(r).and_then(|intermediate_mid| f2(intermediate_mid))
-            //     }))
-            // }
-
-            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
-            //     FailableWritable(Rc::new(move |r: &mut Root| -> Option<&mut Value> {
-            //         // Extract the intermediate Mid value
-            //         let mid_ref: &mut Mid = extract_mut(r).unwrap();
-            //         // Apply the second function to get the final Value
-            //         f2(mid_ref)
-            //     }))
-            // }
             (
                 FailableWritable(f_root_mid),
                 WritableEnum {
