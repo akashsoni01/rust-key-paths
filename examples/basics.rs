@@ -1,4 +1,4 @@
-use key_paths_core::*;
+use key_paths_core::KeyPaths;
 
 #[derive(Debug)]
 struct Size {
@@ -22,22 +22,25 @@ fn main() {
     };
 
     // Define readable and writable keypaths.
-    let size_kp: ReadableKeyPath<Rectangle, Size> = ReadableKeyPath::new(|r: &Rectangle| &r.size);
-    let width_kp: ReadableKeyPath<Size, u32> = ReadableKeyPath::new(|s: &Size| &s.width);
+    let size_kp= KeyPaths::readable(|r: &Rectangle| &r.size);
+    let width_kp = KeyPaths::readable(|s: &Size| &s.width);
 
     // Compose nested paths (assuming composition is supported).
     // e.g., rect[&size_kp.then(&width_kp)] — hypothetical chaining
 
     // Alternatively, define them directly:
-    let width_direct: ReadableKeyPath<Rectangle, u32> =
-        ReadableKeyPath::new(|r: &Rectangle| &r.size.width);
-    println!("Width: {}", width_direct.get(&rect));
+    let width_direct =
+        KeyPaths::readable(|r: &Rectangle| &r.size.width);
+    println!("Width: {:?}", width_direct.get(&rect));
 
     // Writable keypath for modifying fields:
-    let width_mut: WritableKeyPath<Rectangle, u32> = WritableKeyPath::new(
-        |r: &Rectangle| &r.size.width,
+    let width_mut = KeyPaths::writable(
+        // |r: &Rectangle| &r.size.width,
         |r: &mut Rectangle| &mut r.size.width,
     );
-    *(width_mut.get_mut)(&mut rect) = 100;
+    // Mutable
+    if let Some(hp_mut) = width_mut.get_mut(&mut rect) {
+        *hp_mut += 50;
+    }
     println!("Updated rectangle: {:?}", rect);
 }
