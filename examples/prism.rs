@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use key_paths_core::KeyPaths;
 
 #[derive(Debug)]
@@ -18,7 +17,7 @@ fn main() {
     //     // embed: Rc::new(|v| Payment::Cash { amount: v }),
     //     embed: Rc::new(|v| Payment::Cash { amount: v.clone() }),
     // };
-    let kp = KeyPaths::prism_mut(
+    let kp = KeyPaths::writable_enum(
         |v| Payment::Cash { amount: v },
         |p: &Payment| match p {
             Payment::Cash { amount } => Some(amount),

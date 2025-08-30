@@ -47,7 +47,7 @@ fn main() {
     let color_kp: KeyPaths<ABox, Color> = KeyPaths::failable_writable(|x: &mut ABox| Some(&mut x.color));
     
     
-    let case_path = KeyPaths::prism_mut(
+    let case_path = KeyPaths::writable_enum(
         {
             |v| Color::Other(v)
         },
@@ -67,6 +67,14 @@ fn main() {
     println!("{:?}", a_box);
     let color_rgb_kp = color_kp.compose(case_path);
     if let Some(value) = color_rgb_kp.get_mut(&mut a_box) {
-        *value = RGBU8(10, 20, 30);
+        *value = RGBU8(0, 0, 0);
     }
+
+    println!("{:?}", a_box);
+
 }
+
+/*
+ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(10, 20, 30)) }
+ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(0, 0, 0)) }
+*/

@@ -20,18 +20,18 @@ enum SomeOtherStatus {
 
 fn main() {
     // ---------- EnumPath ----------
-    let cp = KeyPaths::prism(Status::Active, |u| match u {
+    let cp = KeyPaths::readable_enum(Status::Active, |u| match u {
         Status::Active(e) => Some(e),
         _ => None,
     });
     // let cp2 = enum_keypath!(Status::Inactive(()));
-    let cp2 = KeyPaths::prism(Status::Inactive, |u| match u {
+    let cp2 = KeyPaths::readable_enum(Status::Inactive, |u| match u {
         Status::Inactive(e) => None,
         _ => None,
     });
 
     // let cp3 = enum_keypath!(SomeOtherStatus::Active(String));
-    let cp3 = KeyPaths::prism(SomeOtherStatus::Active, |u| match u {
+    let cp3 = KeyPaths::readable_enum(SomeOtherStatus::Active, |u| match u {
         SomeOtherStatus::Active(e) => Some(e),
         _ => None,
     });
@@ -40,7 +40,7 @@ fn main() {
     }
 
     // let cp4 = enum_keypath!(SomeOtherStatus::Inactive);
-    let cp4 = KeyPaths::prism(|u: ()| { SomeOtherStatus::Inactive }, |u| None);
+    let cp4 = KeyPaths::readable_enum(|u: ()| { SomeOtherStatus::Inactive }, |u| None);
     if let Some(x) = cp4.get(&SomeOtherStatus::Inactive) {
         println!("Inactive: {:?}", x);
     }
