@@ -3,14 +3,19 @@ use std::rc::Rc;
 // #[derive(Clone)]
 pub enum KeyPaths<Root, Value> {
     Readable(Rc<dyn for<'a> Fn(&'a Root) -> &'a Value>),
-    Writable(Rc<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>),
+    Prism {
+        extract: Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
+        embed: Rc<dyn for<'a> Fn(&'a Value) -> &'a Root>,
+    },
     FailableReadable(Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>),
+
+    Writable(Rc<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>),
     FailableWritable(Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>),
-    // Prism {
-    //     extract: fn(&Root) -> Option<&Value>,
-    //     embed: fn(Value) -> Root,
-    // },
-    //
+    PrismMut {
+        extract: Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
+        extract_mut: Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
+        embed: Rc<dyn for<'a> Fn(&'a Value) -> &'a Root>,
+    },
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
@@ -34,9 +39,27 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Self::FailableWritable(Rc::new(get_mut))
     }
 
-    // pub fn prism(extract: fn(&Root) -> Option<&Value>, embed: fn(Value) -> Root) -> Self {
-    //     Self::Prism { extract, embed }
-    // }
+    pub fn prism(
+        embed: impl for<'a> Fn(&'a Value) -> &'a Root + 'static,
+        extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
+    ) -> Self {
+        Self::Prism {
+            extract: Rc::new(extract),
+            embed: Rc::new(embed),
+        }
+    }
+
+    pub fn prism_mut(
+        embed: impl for<'a> Fn(&'a Value) -> &'a Root + 'static,
+        extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
+        extract_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
+    ) -> Self {
+        Self::PrismMut {
+            extract: Rc::new(extract),
+            embed: Rc::new(embed),
+            extract_mut: Rc::new(extract_mut),
+        }
+    }
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
@@ -47,7 +70,8 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Writable(_) => None, // Writable requires mut
             KeyPaths::FailableReadable(f) => f(root),
             KeyPaths::FailableWritable(_) => None, // needs mut
-                                                   // KeyPaths::Prism { extract, .. } => extract(root),
+            KeyPaths::Prism { extract, .. } => extract(root),
+            KeyPaths::PrismMut { extract, .. } => extract(root),
         }
     }
 
@@ -58,6 +82,8 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Writable(f) => Some(f(root)),
             KeyPaths::FailableReadable(_) => None, // immutable only
             KeyPaths::FailableWritable(f) => f(root),
+            KeyPaths::PrismMut { extract_mut, .. } => extract_mut(root),
+            _ => None,
         }
     }
     /// Iter over immutable references if `Value: IntoIterator`
@@ -91,6 +117,8 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Writable(_) => None,
             KeyPaths::FailableReadable(f) => f(&root).map(|v| v.clone().into_iter()),
             KeyPaths::FailableWritable(_) => None,
+            KeyPaths::Prism { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
+            KeyPaths::PrismMut { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
         }
     }
 }
@@ -131,6 +159,76 @@ where
                 FailableWritable(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
             }
 
+            (Prism { extract, .. }, Readable(f2)) => {
+                FailableReadable(Rc::new(move |r| extract(r).map(|m| f2(m))))
+            }
+
+            (Prism { extract, .. }, FailableReadable(f2)) => {
+                FailableReadable(Rc::new(move |r| extract(r).and_then(|m| f2(m))))
+            }
+
+            (PrismMut { extract, .. }, Readable(f2)) => {
+                FailableReadable(Rc::new(move |r| extract(r).map(|m| f2(m))))
+            }
+
+            (PrismMut { extract, .. }, FailableReadable(f2)) => {
+                FailableReadable(Rc::new(move |r| extract(r).and_then(|m| f2(m))))
+            }
+
+            (PrismMut { extract_mut, .. }, Writable(f2)) => {
+                FailableWritable(Rc::new(move |r| extract_mut(r).map(|m| f2(m))))
+            }
+
+            (PrismMut { extract_mut, .. }, FailableWritable(f2)) => {
+                FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|m| f2(m))))
+            }
+
+            (
+                Prism {
+                    extract: ex1,
+                    embed: em1,
+                },
+                Prism {
+                    extract: ex2,
+                    embed: em2,
+                },
+            ) => Prism {
+                extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
+                embed: Rc::new(move |v| em1(em2(v))),
+            },
+
+            (
+                PrismMut {
+                    extract: ex1,
+                    extract_mut,
+                    embed: em1,
+                },
+                Prism {
+                    extract: ex2,
+                    embed: em2,
+                },
+            ) => Prism {
+                extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
+                embed: Rc::new(move |v| em1(em2(v))),
+            },
+
+            (
+                PrismMut {
+                    extract: ex1,
+                    extract_mut: exm1,
+                    embed: em1,
+                },
+                PrismMut {
+                    extract: ex2,
+                    extract_mut: exm2,
+                    embed: em2,
+                },
+            ) => PrismMut {
+                extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
+                extract_mut: Rc::new(move |r| exm1(r).and_then(|m| exm2(m))),
+                embed: Rc::new(move |v| em1(em2(v))),
+            },
+
             (a, b) => panic!(
                 "Unsupported composition: {:?} then {:?}",
                 kind_name(&a),
@@ -147,5 +245,7 @@ fn kind_name<Root, Value>(k: &KeyPaths<Root, Value>) -> &'static str {
         Writable(_) => "Writable",
         FailableReadable(_) => "FailableReadable",
         FailableWritable(_) => "FailableWritable",
+        Prism { .. } => "Prism",
+        PrismMut { .. } => "PrismMut",
     }
 }
