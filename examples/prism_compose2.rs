@@ -1,6 +1,4 @@
-use std::rc::Rc;
 use key_paths_core::KeyPaths;
-use crate::Product::Apparel;
 
 #[derive(Debug)]
 pub enum Product {
