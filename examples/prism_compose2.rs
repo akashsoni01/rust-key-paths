@@ -1,5 +1,20 @@
 use key_paths_core::KeyPaths;
 
+// Example usage (SOUND: User actually owns Address)
+#[derive(Debug)]
+struct Address {
+    city: String,
+    zip: String,
+}
+
+#[derive(Debug)]
+struct User {
+    name: String,
+    age: u32,
+    address: Address,
+}
+
+
 #[derive(Debug)]
 pub enum Product {
     Book(Book),
