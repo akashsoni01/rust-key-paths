@@ -1,263 +1,361 @@
-/// Read-only keypath
-pub struct ReadableKeyPath<Root, Value> {
-    pub get: Box<dyn for<'a> Fn(&'a Root) -> &'a Value>,
+use std::rc::Rc;
+
+// #[derive(Clone)]
+pub enum KeyPaths<Root, Value> {
+    Readable(Rc<dyn for<'a> Fn(&'a Root) -> &'a Value>),
+    ReadableEnum {
+        extract: Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
+        embed: Rc<dyn Fn(Value) -> Root>,
+    },
+    FailableReadable(Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>),
+
+    Writable(Rc<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>),
+    FailableWritable(Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>),
+    WritableEnum {
+        extract: Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
+        extract_mut: Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
+        embed: Rc<dyn Fn(Value) -> Root>,
+    },
 }
 
-impl<Root, Value> ReadableKeyPath<Root, Value> {
-    pub fn new(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static) -> Self {
-        Self { get: Box::new(get) }
-    }
-    pub fn get<'a>(&self, root: &'a Root) -> &'a Value {
-        (self.get)(root)
+impl<Root, Value> KeyPaths<Root, Value> {
+    pub fn readable(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static) -> Self {
+        Self::Readable(Rc::new(get))
     }
 
-    /// Iterate a slice of `Root` and yield references to `Value`
-    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = &'a Value> + 'a {
-        slice.iter().map(move |root| (self.get)(root))
-    }
-}
-
-impl<Root, Mid> ReadableKeyPath<Root, Mid>
-where
-    Root: 'static,
-    Mid: 'static,
-{
-    pub fn compose<Value>(self, mid: ReadableKeyPath<Mid, Value>) -> ReadableKeyPath<Root, Value>
-    where
-        Value: 'static,
-    {
-        ReadableKeyPath::new(move |r: &Root| {
-            let mid_ref: &Mid = (self.get)(r);
-            (mid.get)(mid_ref)
-        })
-    }
-}
-
-pub struct WritableKeyPath<Root, Value> {
-    pub get: Box<dyn for<'a> Fn(&'a Root) -> &'a Value>,
-    pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>,
-}
-
-impl<Root, Value> WritableKeyPath<Root, Value> {
-    pub fn new(
-        get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static,
-        get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static,
-    ) -> Self {
-        Self {
-            get: Box::new(get),
-            get_mut: Box::new(get_mut),
-        }
+    pub fn writable(get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static) -> Self {
+        Self::Writable(Rc::new(get_mut))
     }
 
-    pub fn try_get<'a>(&self, root: &'a Root) -> &'a Value {
-        (self.get)(root)
-    }
-
-    pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> &'a mut Value {
-        (self.get_mut)(root)
-    }
-
-    /// Mutable iteration
-    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = &'a Value> + 'a {
-        slice.iter().map(move |root| (self.get)(root))
-    }
-
-    /// Mutable iteration
-    pub fn iter_mut<'a>(
-        &'a self,
-        slice: &'a mut [Root],
-    ) -> impl Iterator<Item = &'a mut Value> + 'a {
-        slice.iter_mut().map(move |root| (self.get_mut)(root))
-    }
-}
-
-// --- Compose: impl over (Root, Mid); Value is method-generic ---
-// --- Compose ---
-impl<Root, Mid> WritableKeyPath<Root, Mid>
-where
-    Root: 'static,
-    Mid: 'static,
-{
-    pub fn compose<Value>(self, mid: WritableKeyPath<Mid, Value>) -> WritableKeyPath<Root, Value>
-    where
-        Value: 'static,
-    {
-        WritableKeyPath::new(
-            move |r: &Root| {
-                let mid_ref: &Mid = (self.get)(r);
-                (mid.get)(mid_ref)
-            },
-            move |r: &mut Root| {
-                let mid_ref: &mut Mid = (self.get_mut)(r);
-                (mid.get_mut)(mid_ref)
-            },
-        )
-    }
-}
-
-pub struct FailableReadableKeyPath<Root, Value> {
-    pub get: Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
-}
-
-impl<Root, Value> FailableReadableKeyPath<Root, Value> {
-    pub fn new(get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static) -> Self {
-        Self { get: Box::new(get) }
-    }
-    pub fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
-        (self.get)(root)
-    }
-
-    /// Iterate a slice of `Root` and yield references to `Value`
-    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = Option<&'a Value>> + 'a {
-        slice.iter().map(move |root| (self.get)(root))
-    }
-}
-
-impl<Root, Mid> FailableReadableKeyPath<Root, Mid>
-where
-    Root: 'static,
-    Mid: 'static,
-{
-    pub fn compose<Value>(
-        self,
-        mid: FailableReadableKeyPath<Mid, Value>,
-    ) -> FailableReadableKeyPath<Root, Value>
-    where
-        Value: 'static,
-    {
-        FailableReadableKeyPath::new(move |r: &Root| (self.get)(r).and_then(|m: &Mid| (mid.get)(m)))
-    }
-}
-
-pub struct FailableWritableKeyPath<Root, Value> {
-    pub get: Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
-    pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
-}
-
-impl<Root, Value> FailableWritableKeyPath<Root, Value> {
-    pub fn new(
+    pub fn failable_readable(
         get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
+    ) -> Self {
+        Self::FailableReadable(Rc::new(get))
+    }
+
+    pub fn failable_writable(
         get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
     ) -> Self {
-        Self {
-            get: Box::new(get),
-            get_mut: Box::new(get_mut),
+        Self::FailableWritable(Rc::new(get_mut))
+    }
+
+    pub fn readable_enum(
+        embed: impl Fn(Value) -> Root + 'static,
+        extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
+    ) -> Self {
+        Self::ReadableEnum {
+            extract: Rc::new(extract),
+            embed: Rc::new(embed),
         }
     }
 
-    pub fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
-        (self.get)(root)
-    }
-
-    pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
-        (self.get_mut)(root)
-    }
-
-    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = Option<&'a Value>> + 'a {
-        slice.iter().map(move |root| (self.get)(root))
-    }
-
-    /// Mutable iteration
-    pub fn iter_mut<'a>(
-        &'a self,
-        slice: &'a mut [Root],
-    ) -> impl Iterator<Item = Option<&'a mut Value>> + 'a {
-        slice.iter_mut().map(move |root| (self.get_mut)(root))
+    pub fn writable_enum(
+        embed: impl Fn(Value) -> Root + 'static,
+        extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
+        extract_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
+    ) -> Self {
+        Self::WritableEnum {
+            extract: Rc::new(extract),
+            embed: Rc::new(embed),
+            extract_mut: Rc::new(extract_mut),
+        }
     }
 }
 
-impl<Root, Mid> FailableWritableKeyPath<Root, Mid>
+impl<Root, Value> KeyPaths<Root, Value> {
+    /// Get an immutable reference if possible
+    pub fn get<'a>(&'a self, root: &'a Root) -> Option<&'a Value> {
+        match self {
+            KeyPaths::Readable(f) => Some(f(root)),
+            KeyPaths::Writable(_) => None, // Writable requires mut
+            KeyPaths::FailableReadable(f) => f(root),
+            KeyPaths::FailableWritable(_) => None, // needs mut
+            KeyPaths::ReadableEnum { extract, .. } => extract(root),
+            KeyPaths::WritableEnum { extract, .. } => extract(root),
+        }
+    }
+
+    /// Get a mutable reference if possible
+    pub fn get_mut<'a>(&'a self, root: &'a mut Root) -> Option<&'a mut Value> {
+        match self {
+            KeyPaths::Readable(_) => None, // immutable only
+            KeyPaths::Writable(f) => Some(f(root)),
+            KeyPaths::FailableReadable(_) => None, // immutable only
+            KeyPaths::FailableWritable(f) => f(root),
+            KeyPaths::WritableEnum { extract_mut, .. } => extract_mut(root),
+            _ => None,
+        }
+    }
+
+    pub fn embed(&self, value: Value) -> Option<Root>
+    where
+        Value: Clone,
+    {
+        match self {
+            KeyPaths::ReadableEnum { embed, .. } => Some(embed(value)),
+            _ => None,
+        }
+    }
+
+    pub fn embed_mut(&self, value: Value) -> Option<Root>
+    where
+        Value: Clone,
+    {
+        match self {
+            KeyPaths::WritableEnum { embed, .. } => Some(embed(value)),
+            _ => None,
+        }
+    }
+
+    /// Iter over immutable references if `Value: IntoIterator`
+    pub fn iter<'a, T>(&'a self, root: &'a Root) -> Option<<&'a Value as IntoIterator>::IntoIter>
+    where
+        &'a Value: IntoIterator<Item = &'a T>,
+        T: 'a,
+    {
+        self.get(root).map(|v| v.into_iter())
+    }
+
+    /// Iter over mutable references if `&mut Value: IntoIterator`
+    pub fn iter_mut<'a, T>(
+        &'a self,
+        root: &'a mut Root,
+    ) -> Option<<&'a mut Value as IntoIterator>::IntoIter>
+    where
+        &'a mut Value: IntoIterator<Item = &'a mut T>,
+        T: 'a,
+    {
+        self.get_mut(root).map(|v| v.into_iter())
+    }
+
+    /// Consume root and iterate if `Value: IntoIterator`
+    pub fn into_iter<T>(self, root: Root) -> Option<<Value as IntoIterator>::IntoIter>
+    where
+        Value: IntoIterator<Item = T> + Clone,
+    {
+        match self {
+            KeyPaths::Readable(f) => Some(f(&root).clone().into_iter()), // requires Clone
+            KeyPaths::Writable(_) => None,
+            KeyPaths::FailableReadable(f) => f(&root).map(|v| v.clone().into_iter()),
+            KeyPaths::FailableWritable(_) => None,
+            KeyPaths::ReadableEnum { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
+            KeyPaths::WritableEnum { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
+        }
+    }
+}
+
+impl<Root, Mid> KeyPaths<Root, Mid>
 where
     Root: 'static,
     Mid: 'static,
 {
-    pub fn compose<Value>(
-        self,
-        mid: FailableWritableKeyPath<Mid, Value>,
-    ) -> FailableWritableKeyPath<Root, Value>
+    pub fn compose<Value>(self, mid: KeyPaths<Mid, Value>) -> KeyPaths<Root, Value>
     where
         Value: 'static,
     {
-        FailableWritableKeyPath::new(
-            move |r: &Root| (self.get)(r).and_then(|m: &Mid| (mid.get)(m)),
-            move |r: &mut Root| (self.get_mut)(r).and_then(|m: &mut Mid| (mid.get_mut)(m)),
-        )
-    }
-}
+        use KeyPaths::*;
 
-pub struct EnumKeyPath<Enum, Inner> {
-    pub extract: fn(&Enum) -> Option<&Inner>,
-    pub embed: fn(Inner) -> Enum,
-}
+        match (self, mid) {
+            (Readable(f1), Readable(f2)) => Readable(Rc::new(move |r| f2(f1(r)))),
 
-impl<Enum, Inner> EnumKeyPath<Enum, Inner> {
-    pub fn new(extract: fn(&Enum) -> Option<&Inner>, embed: fn(Inner) -> Enum) -> Self {
-        Self { extract, embed }
-    }
+            (Writable(f1), Writable(f2)) => Writable(Rc::new(move |r| f2(f1(r)))),
 
-    pub fn extract<'a>(&self, e: &'a Enum) -> Option<&'a Inner> {
-        (self.extract)(e)
-    }
+            (FailableReadable(f1), Readable(f2)) => {
+                FailableReadable(Rc::new(move |r| f1(r).map(|m| f2(m))))
+            }
 
-    pub fn embed(&self, inner: Inner) -> Enum {
-        (self.embed)(inner)
-    }
-}
+            (Readable(f1), FailableReadable(f2)) => FailableReadable(Rc::new(move |r| f2(f1(r)))),
 
-#[macro_export]
-macro_rules! enum_keypath {
-    // Case with payload
-    ($enum:ident :: $variant:ident ( $inner:ty )) => {{
-        EnumKeyPath::<$enum, $inner>::new(
-            |root: &$enum| {
-                if let $enum::$variant(inner) = root {
-                    Some(inner)
-                } else {
-                    None
-                }
+            (FailableReadable(f1), FailableReadable(f2)) => {
+                FailableReadable(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
+            }
+
+            (FailableWritable(f1), Writable(f2)) => {
+                FailableWritable(Rc::new(move |r| f1(r).map(|m| f2(m))))
+            }
+
+            (Writable(f1), FailableWritable(f2)) => FailableWritable(Rc::new(move |r| f2(f1(r)))),
+
+            (FailableWritable(f1), FailableWritable(f2)) => {
+                FailableWritable(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
+            }
+
+            (ReadableEnum { extract, .. }, Readable(f2)) => {
+                FailableReadable(Rc::new(move |r| extract(r).map(|m| f2(m))))
+            }
+
+            (ReadableEnum { extract, .. }, FailableReadable(f2)) => {
+                FailableReadable(Rc::new(move |r| extract(r).and_then(|m| f2(m))))
+            }
+
+            (WritableEnum { extract, .. }, Readable(f2)) => {
+                FailableReadable(Rc::new(move |r| extract(r).map(|m| f2(m))))
+            }
+
+            (WritableEnum { extract, .. }, FailableReadable(f2)) => {
+                FailableReadable(Rc::new(move |r| extract(r).and_then(|m| f2(m))))
+            }
+
+            (WritableEnum { extract_mut, .. }, Writable(f2)) => {
+                FailableWritable(Rc::new(move |r| extract_mut(r).map(|m| f2(m))))
+            }
+
+            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+            //     // FailableWritable(Rc::new(move |r|
+            //     //     {
+            //     //         // let mut x = extract_mut(r);
+            //     //         // x.as_mut().map(|m| f2(m))
+            //     //         // extract_mut(r).map(|m| f2(m))
+            //     //         // extract_mut(r).and_then(|m| f2(m))
+            //     //         // let x = f2(m);
+            //     //         extract_mut(r).and_then(|a| f2(a))
+            //     //
+            //     //     }
+            //     //
+            //     // ))
+            //     // FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|a| f2(a))))
+            //     // FailableWritable(Rc::new(move |r: &mut Root| {
+            //     //     match extract_mut(r) {
+            //     //         Some(mid) => f2(mid), // mid: &mut Mid -> Option<&mut Value>
+            //     //         None => None,
+            //     //     }
+            //     // }) as Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>)
+            //
+            //     FailableWritable(Rc::new(move |r: &mut Root| {
+            //         // First extract the intermediate value using extract_mut
+            //         extract_mut(r).and_then(|intermediate| {
+            //             // Now apply f2 to the intermediate value
+            //             // f2 expects &mut Value but intermediate is &mut Value
+            //             f2(intermediate)
+            //         })
+            //     }))
+            // }
+
+            // (WritableEnum { extract_mut, .. }, FailableWritable(f2)) => {
+            //     FailableWritable(Rc::new(move |r: &mut Root| {
+            //         // Extract the intermediate Mid value
+            //         let mid_ref = extract_mut(r)?;
+            //         // Apply the second function to get the final Value
+            //         f2(mid_ref)
+            //     }))
+            // }
+
+            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+            //     FailableWritable(Rc::new(move |r: &mut Root| {
+            //         // Extract the intermediate Mid value
+            //         let mid_ref = extract_mut(r)?;
+            //         // Apply the second function to get the final Value
+            //         f2(mid_ref)
+            //     }))
+            // }
+
+            /*            (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+                            FailableWritable(Rc::new(move |r: &mut Root| {
+                                extract_mut(r).and_then(|intermediate_mid| f2(intermediate_mid))
+                            }))
+                        }
+            */
+            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+            //     // Here's the fix: f2 must be a function that operates on a Mid and returns a Value
+            //     // It is already of this type since the 'mid' KeyPaths is KeyPaths<Mid, Value>
+            //     FailableWritable(Rc::new(move |r: &mut Root| {
+            //         extract_mut(r).and_then(|intermediate_mid| f2(intermediate_mid))
+            //     }))
+            // }
+
+            // (FailableWritable(f2), WritableEnum { extract_mut, .. }) => {
+            //     FailableWritable(Rc::new(move |r: &mut Root| -> Option<&mut Value> {
+            //         // Extract the intermediate Mid value
+            //         let mid_ref: &mut Mid = extract_mut(r).unwrap();
+            //         // Apply the second function to get the final Value
+            //         f2(mid_ref)
+            //     }))
+            // }
+            (
+                FailableWritable(f_root_mid),
+                WritableEnum {
+                    extract_mut: exm_mid_val,
+                    ..
+                },
+            ) => {
+                FailableWritable(Rc::new(move |r: &mut Root| {
+                    // First, apply the function that operates on Root.
+                    // This will give us `Option<&mut Mid>`.
+                    let intermediate_mid_ref = f_root_mid(r);
+
+                    // Then, apply the function that operates on Mid.
+                    // This will give us `Option<&mut Value>`.
+                    intermediate_mid_ref.and_then(|intermediate_mid| exm_mid_val(intermediate_mid))
+                }))
+            }
+
+            (WritableEnum { extract_mut, .. }, FailableWritable(f2)) => {
+                FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|m| f2(m))))
+            }
+
+            (
+                ReadableEnum {
+                    extract: ex1,
+                    embed: em1,
+                },
+                ReadableEnum {
+                    extract: ex2,
+                    embed: em2,
+                },
+            ) => ReadableEnum {
+                extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
+                embed: Rc::new(move |v| em1(em2(v))),
             },
-            |inner: $inner| $enum::$variant(inner),
-        )
-    }};
-    // Case without payload
-    ($enum:ident :: $variant:ident) => {{
-        EnumKeyPath::<$enum, ()>::new(
-            |root: &$enum| {
-                if let $enum::$variant = root {
-                    Some(&())
-                } else {
-                    None
-                }
+
+            (
+                WritableEnum {
+                    extract: ex1,
+                    extract_mut,
+                    embed: em1,
+                },
+                ReadableEnum {
+                    extract: ex2,
+                    embed: em2,
+                },
+            ) => ReadableEnum {
+                extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
+                embed: Rc::new(move |v| em1(em2(v))),
             },
-            |_| $enum::$variant,
-        )
-    }};
+
+            (
+                WritableEnum {
+                    extract: ex1,
+                    extract_mut: exm1,
+                    embed: em1,
+                },
+                WritableEnum {
+                    extract: ex2,
+                    extract_mut: exm2,
+                    embed: em2,
+                },
+            ) => WritableEnum {
+                extract: Rc::new(move |r| ex1(r).and_then(|m| ex2(m))),
+                extract_mut: Rc::new(move |r| exm1(r).and_then(|m| exm2(m))),
+                embed: Rc::new(move |v| em1(em2(v))),
+            },
+
+            (a, b) => panic!(
+                "Unsupported composition: {:?} then {:?}",
+                kind_name(&a),
+                kind_name(&b)
+            ),
+        }
+    }
 }
 
-/*
-    let name_key = ReadableKeyPath::new(|u: &User| &u.name);
-*/
-/// Macro for readable keypaths
-#[macro_export]
-macro_rules! readable_keypath {
-    ($Root:ty, $field:ident) => {
-        ReadableKeyPath::new(|root: &$Root| &root.$field)
-    };
-}
-
-/*
-    let age_key = WritableKeyPath::new(
-        |u: & User| & u.age,
-        |u: &mut User| &mut u.age,
-    );
-*/
-/// Macro for writable keypaths
-#[macro_export]
-macro_rules! writable_keypath {
-    ($Root:ty, $field:ident) => {
-        WritableKeyPath::new(
-            |root: &$Root| &root.$field,
-            |root: &mut $Root| &mut root.$field,
-        )
-    };
+fn kind_name<Root, Value>(k: &KeyPaths<Root, Value>) -> &'static str {
+    use KeyPaths::*;
+    match k {
+        Readable(_) => "Readable",
+        Writable(_) => "Writable",
+        FailableReadable(_) => "FailableReadable",
+        FailableWritable(_) => "FailableWritable",
+        ReadableEnum { .. } => "ReadableEnum",
+        WritableEnum { .. } => "WritableEnum",
+    }
 }

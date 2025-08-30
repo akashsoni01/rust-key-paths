@@ -1,4 +1,4 @@
-use key_paths_core::FailableReadableKeyPath;
+use key_paths_core::KeyPaths;
 
 #[derive(Debug)]
 struct Engine {
@@ -20,25 +20,25 @@ fn main() {
         }),
     };
 
-    let kp_car = FailableReadableKeyPath::new(|g: &Garage| g.car.as_ref());
-    let kp_engine = FailableReadableKeyPath::new(|c: &Car| c.engine.as_ref());
-    let kp_hp = FailableReadableKeyPath::new(|e: &Engine| Some(&e.horsepower));
+    let kp_car = KeyPaths::failable_readable(|g: &Garage| g.car.as_ref());
+    let kp_engine = KeyPaths::failable_readable(|c: &Car| c.engine.as_ref());
+    let kp_hp = KeyPaths::failable_readable(|e: &Engine| Some(&e.horsepower));
 
     // Compose: Garage -> Car -> Engine -> horsepower
     let kp = kp_car.compose(kp_engine).compose(kp_hp);
 
-    let kp2 = FailableReadableKeyPath::new(|g: &Garage| {
+    let kp2 = KeyPaths::failable_readable(|g: &Garage| {
         g.car
             .as_ref()
             .and_then(|c| c.engine.as_ref())
             .and_then(|e| Some(&e.horsepower))
     });
 
-    if let Some(hp) = kp.try_get(&garage) {
+    if let Some(hp) = kp.get(&garage) {
         println!("{hp:?}");
     }
 
-    if let Some(hp) = kp2.try_get(&garage) {
+    if let Some(hp) = kp2.get(&garage) {
         println!("{hp:?}");
     }
 

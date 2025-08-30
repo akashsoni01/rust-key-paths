@@ -20,212 +20,120 @@ Inspired by **Swift’s KeyPath / CasePath** system, this crate lets you work wi
 
 ```toml
 [dependencies]
-key_paths_core = "0.3"
+key_paths_core = "0.6"
 ```
 
 ---
 
-## 🚀 Examples
+## 🚀 Examples - Go to latest examples directory docs will be updated later
 
 ### 1. CasePaths with Enums
 
 ```rust
-use key_paths_core::enum_keypath;
-use key_paths_core::EnumKeyPath;
-
+use key_paths_core::KeyPaths;
 #[derive(Debug)]
-struct User {
-    id: u32,
-    name: String,
-}
-
-#[derive(Debug)]
-enum Status {
-    Active(User),
-    Inactive(()),
+enum Payment {
+    Cash { amount: u32 },
+    Card { number: String, cvv: String },
 }
 
 fn main() {
-    let cp = enum_keypath!(Status::Active(User));
+    let kp = KeyPaths::writable_enum(
+        |v| Payment::Cash { amount: v },
+        |p: &Payment| match p {
+            Payment::Cash { amount } => Some(amount),
+            _ => None,
+        },
+        |p: &mut Payment| match p {
+            Payment::Cash { amount } => Some(amount),
+            _ => None,
+        },
 
-    let status = Status::Active(User {
-        id: 42,
-        name: "Charlie".to_string(),
-    });
+    );
 
-    if let Some(u) = cp.extract(&status) {
-        println!("Extracted user: {:?}", u);
+    let mut p = Payment::Cash { amount: 10 };
+
+    println!("{:?}", p);
+
+    if let Some(v) = kp.get_mut(&mut p) {
+        *v = 34
     }
-
-    let new_status = cp.embed(User {
-        id: 99,
-        name: "Diana".to_string(),
-    });
-    println!("Embedded back: {:?}", new_status);
+    println!("{:?}", p);
 }
 ```
 
 ---
 
-### 2. Readable KeyPaths
+### 2. Readable KeyPaths - helper macros wip
 
 ```rust
-use key_paths_core::{readable_keypath, ReadableKeyPath};
+use key_paths_core::KeyPaths;
 
 #[derive(Debug)]
-struct User {
+struct Size {
+    width: u32,
+    height: u32,
+}
+
+#[derive(Debug)]
+struct Rectangle {
+    size: Size,
     name: String,
-    age: u32,
 }
 
 fn main() {
-    let users = vec![
-        User {
-            name: "Akash".into(),
-            age: 25,
+    let mut rect = Rectangle {
+        size: Size {
+            width: 30,
+            height: 50,
         },
-        User {
-            name: "Soni".into(),
-            age: 30,
-        },
-        User {
-            name: "Neha".into(),
-            age: 20,
-        },
-    ];
+        name: "MyRect".into(),
+    };
 
-    // Read-only keypath
-    // let name_key = ReadableKeyPath::new(|u: &User| &u.name);
-    let name_key = readable_keypath!(User, name);
-
-    // Writable keypath
-    // let age_key = WritableKeyPath::new(
-    //     |u: &User| &u.age,
-    //     |u: &mut User| &mut u.age,
-    // );
-    // let age_key = writable_keypath!(User, age);
-
-    println!("Names:");
-    for name in name_key.iter(&users) {
-        println!("{}", name);
-    }
+    let width_direct = KeyPaths::readable(|r: &Rectangle| &r.size.width);
+    println!("Width: {:?}", width_direct.get(&rect));
 }
 ```
 
 ---
 
-### 3. Writable KeyPaths
+### 3. Writable KeyPaths - helper macros wip
 
 ```rust
-use key_paths_core::{writable_keypath, WritableKeyPath};
+use key_paths_core::KeyPaths;
 
 #[derive(Debug)]
-struct User {
-    name: String,
-    age: u32,
+struct Size {
+    width: u32,
+    height: u32,
 }
-
+#[derive(Debug)]
+struct Rectangle {
+    size: Size,
+    name: String,
+}
 fn main() {
-    let mut users = vec![
-        User {
-            name: "Akash".into(),
-            age: 25,
+    let mut rect = Rectangle {
+        size: Size {
+            width: 30,
+            height: 50,
         },
-        User {
-            name: "Soni".into(),
-            age: 30,
-        },
-        User {
-            name: "Neha".into(),
-            age: 20,
-        },
-    ];
-
-    // Read-only keypath
-    // let name_key = ReadableKeyPath::new(|u: &User| &u.name);
-    // let name_key = readable_keypath!(User, name);
-
-    // Writable keypath
-    // let age_key = WritableKeyPath::new(
-    //     |u: & User| & u.age,
-    //     |u: &mut User| &mut u.age,
-    // );
-    let age_key = writable_keypath!(User, age);
-
-    // println!("Names:");
-    // for name in name_key.iter(&users) {
-    //     println!("{}", name);
-    // }
-
-    println!("Ages before:");
-    for age in age_key.iter(&users) {
-        println!("{}", age);
+        name: "MyRect".into(),
+    };
+    let width_mut = KeyPaths::writable(
+        |r: &mut Rectangle| &mut r.size.width,
+    );
+    // Mutable
+    if let Some(hp_mut) = width_mut.get_mut(&mut rect) {
+        *hp_mut += 50;
     }
-
-    // Mutate agesiter
-    for age in age_key.iter_mut(&mut users) {
-        *age += 1;
-    }
-
-    println!("Ages after:");
-    for age in age_key.iter(&mut users) {
-        println!("{}", age);
-    }
+    println!("Updated rectangle: {:?}", rect);
 }
 ```
 
 ### 4. Composability and failablity
  ```rust
- use key_paths_core::{FailableReadableKeyPath};
-
-#[derive(Debug)]
-struct Engine {
-    horsepower: u32,
-}
-#[derive(Debug)]
-struct Car {
-    engine: Option<Engine>,
-}
-#[derive(Debug)]
-struct Garage {
-    car: Option<Car>,
-}
-
-fn main() {
-    let garage = Garage {
-        car: Some(Car {
-            engine: Some(Engine { horsepower: 120 }),
-        }),
-    };
-
-    let kp_car = FailableReadableKeyPath::new(|g: &Garage| g.car.as_ref());
-    let kp_engine = FailableReadableKeyPath::new(|c: &Car| c.engine.as_ref());
-    let kp_hp = FailableReadableKeyPath::new(|e: &Engine| Some(&e.horsepower));
-
-    // Compose: Garage -> Car -> Engine -> horsepower
-    let kp = kp_car.compose(kp_engine).compose(kp_hp);
-
-    let kp2 = FailableReadableKeyPath::new(|g: &Garage| {
-        g.car
-            .as_ref()
-            .and_then(|c| c.engine.as_ref())
-            .and_then(|e| Some(&e.horsepower))
-    });
-
-    if let Some(hp) = kp.try_get(&garage) {
-        println!("{hp:?}");
-    }
-
-    if let Some(hp) = kp2.try_get(&garage) {
-        println!("{hp:?}");
-    }
-
-    println!("{garage:?}");
-}
-```
-### 4. Mutablity
- ```rust
- use key_paths_core::{FailableWritableKeyPath};
+use key_paths_core::KeyPaths;
 
 #[derive(Debug)]
 struct Engine {
@@ -247,28 +155,98 @@ fn main() {
         }),
     };
 
-    let kp_car = FailableWritableKeyPath::new(|g: &Garage| g.car.as_ref(), |g: &mut Garage| g.car.as_mut());
-    let kp_engine = FailableWritableKeyPath::new(|c: &Car| c.engine.as_ref(), |c: &mut Car| c.engine.as_mut());
-    let kp_hp = FailableWritableKeyPath::new(|e: &Engine| Some(&e.horsepower), |e: &mut Engine| Some(&mut e.horsepower));
+    let kp_car = KeyPaths::failable_writable(|g: &mut Garage| g.car.as_mut());
+    let kp_engine = KeyPaths::failable_writable(|c: &mut Car| c.engine.as_mut());
+    let kp_hp = KeyPaths::failable_writable(|e: &mut Engine| Some(&mut e.horsepower));
 
     // Compose: Garage -> Car -> Engine -> horsepower
     let kp = kp_car.compose(kp_engine).compose(kp_hp);
 
     println!("{garage:?}");
-    if let Some(hp) = kp.try_get_mut(&mut garage) {
+    if let Some(hp) = kp.get_mut(&mut garage) {
         *hp = 200;
     }
 
     println!("{garage:?}");
 }
 ```
+### 4. Mutablity
+ ```rust
+use key_paths_core::KeyPaths;
+
+#[derive(Debug)]
+struct Size {
+    width: u32,
+    height: u32,
+}
+#[derive(Debug)]
+enum Color {
+    Red,
+    Green,
+    Blue,
+    Other(RGBU8),
+}
+#[derive(Debug)]
+struct RGBU8(u8, u8, u8);
+
+#[derive(Debug)]
+struct ABox {
+    name: String,
+    size: Size,
+    color: Color,
+}
+#[derive(Debug)]
+struct Rectangle {
+    size: Size,
+    name: String,
+}
+fn main() {
+    let mut a_box = ABox {
+        name: String::from("A box"),
+        size: Size {
+            width: 10,
+            height: 20,
+        },
+        color: Color::Other(
+            RGBU8(10, 20, 30)
+        ),
+    };
+
+    let color_kp: KeyPaths<ABox, Color> = KeyPaths::failable_writable(|x: &mut ABox| Some(&mut x.color));
+    let case_path = KeyPaths::writable_enum(
+        {
+            |v| Color::Other(v)
+        },
+        |p: &Color| match p {
+            Color::Other(rgb) => Some(rgb),
+            _ => None,
+        },
+        |p: &mut Color| match p {
+            Color::Other(rgb) => Some(rgb),
+            _ => None,
+        },
+
+    );
+    
+    println!("{:?}", a_box);
+    let color_rgb_kp = color_kp.compose(case_path);
+    if let Some(value) = color_rgb_kp.get_mut(&mut a_box) {
+        *value = RGBU8(0, 0, 0);
+    }
+    println!("{:?}", a_box);
+}
+/*
+ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(10, 20, 30)) }
+ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(0, 0, 0)) }
+*/
+```
 
 ---
 
 ## 🔗 Helpful Links & Resources
 
+* 📘 [type-safe property paths](https://lodash.com/docs/4.17.15#get)
 * 📘 [Swift KeyPath documentation](https://developer.apple.com/documentation/swift/keypath)
-* 📘 [Swift CasePath library (pointfreeco)](https://github.com/pointfreeco/swift-case-paths)
 * 📘 [Elm Architecture & Functional Lenses](https://guide.elm-lang.org/architecture/)
 * 📘 [Rust Macros Book](https://doc.rust-lang.org/book/ch19-06-macros.html)
 * 📘 [Category Theory in FP (for intuition)](https://bartoszmilewski.com/2014/11/24/category-the-essence-of-composition/)
@@ -289,8 +267,7 @@ fn main() {
 * [ ] `compose` support for combining multiple key paths.
 * [ ] Derive macros for automatic KeyPath generation (Upcoming).
 * [ ] Nested struct & enum traversal.
-* [ ] Optional chaining (`User?.profile?.name`).
-
+* [ ] Optional chaining (`User?.profile?.name`) with failable.
 ---
 
 ## 📜 License

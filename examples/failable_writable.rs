@@ -1,4 +1,4 @@
-use key_paths_core::FailableWritableKeyPath;
+use key_paths_core::KeyPaths;
 
 #[derive(Debug)]
 struct Engine {
@@ -20,20 +20,15 @@ fn main() {
         }),
     };
 
-    let kp_car =
-        FailableWritableKeyPath::new(|g: &Garage| g.car.as_ref(), |g: &mut Garage| g.car.as_mut());
-    let kp_engine =
-        FailableWritableKeyPath::new(|c: &Car| c.engine.as_ref(), |c: &mut Car| c.engine.as_mut());
-    let kp_hp = FailableWritableKeyPath::new(
-        |e: &Engine| Some(&e.horsepower),
-        |e: &mut Engine| Some(&mut e.horsepower),
-    );
+    let kp_car = KeyPaths::failable_writable(|g: &mut Garage| g.car.as_mut());
+    let kp_engine = KeyPaths::failable_writable(|c: &mut Car| c.engine.as_mut());
+    let kp_hp = KeyPaths::failable_writable(|e: &mut Engine| Some(&mut e.horsepower));
 
     // Compose: Garage -> Car -> Engine -> horsepower
     let kp = kp_car.compose(kp_engine).compose(kp_hp);
 
     println!("{garage:?}");
-    if let Some(hp) = kp.try_get_mut(&mut garage) {
+    if let Some(hp) = kp.get_mut(&mut garage) {
         *hp = 200;
     }
 

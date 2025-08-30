@@ -1,4 +1,4 @@
-use key_paths_core::FailableReadableKeyPath;
+use key_paths_core::KeyPaths;
 
 #[derive(Debug)]
 struct Engine {
@@ -29,7 +29,7 @@ fn main() {
         }),
     };
 
-    let city_hp2 = FailableReadableKeyPath::new(|c: &City| {
+    let city_hp2 = KeyPaths::failable_readable(|c: &City| {
         c.garage
             .as_ref()
             .and_then(|g| g.car.as_ref())
@@ -37,20 +37,20 @@ fn main() {
             .and_then(|e| Some(&e.horsepower)) // ✅ removed the extra Some(...)
     });
 
-    println!("Horsepower = {:?}", (city_hp2.get)(&city));
+    println!("Horsepower = {:?}", city_hp2.get(&city));
 
     // compose example ----
     // compose keypath together
 
-    let city_garage = FailableReadableKeyPath::new(|c: &City| c.garage.as_ref());
-    let garage_car = FailableReadableKeyPath::new(|g: &Garage| g.car.as_ref());
-    let car_engine = FailableReadableKeyPath::new(|c: &Car| c.engine.as_ref());
-    let engine_hp = FailableReadableKeyPath::new(|e: &Engine| Some(&e.horsepower));
+    let city_garage = KeyPaths::failable_readable(|c: &City| c.garage.as_ref());
+    let garage_car = KeyPaths::failable_readable(|g: &Garage| g.car.as_ref());
+    let car_engine = KeyPaths::failable_readable(|c: &Car| c.engine.as_ref());
+    let engine_hp = KeyPaths::failable_readable(|e: &Engine| Some(&e.horsepower));
 
     let city_hp = city_garage
         .compose(garage_car)
         .compose(car_engine)
         .compose(engine_hp);
 
-    println!("Horsepower = {:?}", (city_hp.get)(&city));
+    println!("Horsepower = {:?}", city_hp.get(&city));
 }

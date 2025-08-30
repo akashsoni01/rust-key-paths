@@ -1,7 +1,6 @@
-use key_paths_core::EnumKeyPath;
-use key_paths_core::enum_keypath;
+use key_paths_core::KeyPaths;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct User {
     id: u32,
     name: String,
@@ -21,16 +20,28 @@ enum SomeOtherStatus {
 
 fn main() {
     // ---------- EnumPath ----------
-    let cp = enum_keypath!(Status::Active(User));
-    let cp2 = enum_keypath!(Status::Inactive(()));
+    let cp = KeyPaths::readable_enum(Status::Active, |u| match u {
+        Status::Active(e) => Some(e),
+        _ => None,
+    });
+    // let cp2 = enum_keypath!(Status::Inactive(()));
+    let cp2 = KeyPaths::readable_enum(Status::Inactive, |u| match u {
+        Status::Inactive(e) => None,
+        _ => None,
+    });
 
-    let cp3 = enum_keypath!(SomeOtherStatus::Active(String));
-    if let Some(x) = cp3.extract(&SomeOtherStatus::Active("Hello".to_string())) {
+    // let cp3 = enum_keypath!(SomeOtherStatus::Active(String));
+    let cp3 = KeyPaths::readable_enum(SomeOtherStatus::Active, |u| match u {
+        SomeOtherStatus::Active(e) => Some(e),
+        _ => None,
+    });
+    if let Some(x) = cp3.get(&SomeOtherStatus::Active("Hello".to_string())) {
         println!("Active: {:?}", x);
     }
 
-    let cp4 = enum_keypath!(SomeOtherStatus::Inactive);
-    if let Some(x) = cp4.extract(&SomeOtherStatus::Inactive) {
+    // let cp4 = enum_keypath!(SomeOtherStatus::Inactive);
+    let cp4 = KeyPaths::readable_enum(|u: ()| SomeOtherStatus::Inactive, |u| None);
+    if let Some(x) = cp4.get(&SomeOtherStatus::Inactive) {
         println!("Inactive: {:?}", x);
     }
 
@@ -39,7 +50,7 @@ fn main() {
         name: "Charlie".to_string(),
     });
 
-    if let Some(u) = cp.extract(&status) {
+    if let Some(u) = cp.get(&status) {
         println!("Extracted user: {:?}", u);
     }
 
