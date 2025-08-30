@@ -1,263 +1,83 @@
-/// Read-only keypath
-pub struct ReadableKeyPath<Root, Value> {
-    pub get: Box<dyn for<'a> Fn(&'a Root) -> &'a Value>,
+// #[derive(Clone)]
+pub enum KeyPathKind<Root, Value> {
+    Readable(Box<dyn for<'a> Fn(&'a Root) -> &'a Value>),
+    Writable(Box<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>),
+    FailableReadable(Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>),
+    FailableWritable(Box<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>),
 }
 
-impl<Root, Value> ReadableKeyPath<Root, Value> {
-    pub fn new(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static) -> Self {
-        Self { get: Box::new(get) }
-    }
-    pub fn get<'a>(&self, root: &'a Root) -> &'a Value {
-        (self.get)(root)
-    }
-
-    /// Iterate a slice of `Root` and yield references to `Value`
-    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = &'a Value> + 'a {
-        slice.iter().map(move |root| (self.get)(root))
-    }
-}
-
-impl<Root, Mid> ReadableKeyPath<Root, Mid>
-where
-    Root: 'static,
-    Mid: 'static,
-{
-    pub fn compose<Value>(self, mid: ReadableKeyPath<Mid, Value>) -> ReadableKeyPath<Root, Value>
-    where
-        Value: 'static,
-    {
-        ReadableKeyPath::new(move |r: &Root| {
-            let mid_ref: &Mid = (self.get)(r);
-            (mid.get)(mid_ref)
-        })
-    }
-}
-
-pub struct WritableKeyPath<Root, Value> {
-    pub get: Box<dyn for<'a> Fn(&'a Root) -> &'a Value>,
-    pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>,
-}
-
-impl<Root, Value> WritableKeyPath<Root, Value> {
-    pub fn new(
-        get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static,
-        get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static,
-    ) -> Self {
-        Self {
-            get: Box::new(get),
-            get_mut: Box::new(get_mut),
-        }
-    }
-
-    pub fn try_get<'a>(&self, root: &'a Root) -> &'a Value {
-        (self.get)(root)
-    }
-
-    pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> &'a mut Value {
-        (self.get_mut)(root)
-    }
-
-    /// Mutable iteration
-    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = &'a Value> + 'a {
-        slice.iter().map(move |root| (self.get)(root))
-    }
-
-    /// Mutable iteration
-    pub fn iter_mut<'a>(
-        &'a self,
-        slice: &'a mut [Root],
-    ) -> impl Iterator<Item = &'a mut Value> + 'a {
-        slice.iter_mut().map(move |root| (self.get_mut)(root))
-    }
-}
-
-// --- Compose: impl over (Root, Mid); Value is method-generic ---
-// --- Compose ---
-impl<Root, Mid> WritableKeyPath<Root, Mid>
-where
-    Root: 'static,
-    Mid: 'static,
-{
-    pub fn compose<Value>(self, mid: WritableKeyPath<Mid, Value>) -> WritableKeyPath<Root, Value>
-    where
-        Value: 'static,
-    {
-        WritableKeyPath::new(
-            move |r: &Root| {
-                let mid_ref: &Mid = (self.get)(r);
-                (mid.get)(mid_ref)
-            },
-            move |r: &mut Root| {
-                let mid_ref: &mut Mid = (self.get_mut)(r);
-                (mid.get_mut)(mid_ref)
-            },
-        )
-    }
-}
-
-pub struct FailableReadableKeyPath<Root, Value> {
-    pub get: Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
-}
-
-impl<Root, Value> FailableReadableKeyPath<Root, Value> {
-    pub fn new(get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static) -> Self {
-        Self { get: Box::new(get) }
-    }
-    pub fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
-        (self.get)(root)
-    }
-
-    /// Iterate a slice of `Root` and yield references to `Value`
-    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = Option<&'a Value>> + 'a {
-        slice.iter().map(move |root| (self.get)(root))
-    }
-}
-
-impl<Root, Mid> FailableReadableKeyPath<Root, Mid>
-where
+impl<Root, Mid> KeyPathKind<Root, Mid> 
+where 
     Root: 'static,
     Mid: 'static,
 {
     pub fn compose<Value>(
         self,
-        mid: FailableReadableKeyPath<Mid, Value>,
-    ) -> FailableReadableKeyPath<Root, Value>
-    where
+        mid: KeyPathKind<Mid, Value>,
+    ) -> KeyPathKind<Root, Value> 
+    where 
         Value: 'static,
     {
-        FailableReadableKeyPath::new(move |r: &Root| (self.get)(r).and_then(|m: &Mid| (mid.get)(m)))
-    }
-}
+        use KeyPathKind::*;
 
-pub struct FailableWritableKeyPath<Root, Value> {
-    pub get: Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>,
-    pub get_mut: Box<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
-}
+        match (self, mid) {
+            // --- Readable + Readable = Readable
+            (Readable(f1), Readable(f2)) => {
+                Readable(Box::new(move |r| f2(f1(r))))
+            }
 
-impl<Root, Value> FailableWritableKeyPath<Root, Value> {
-    pub fn new(
-        get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
-        get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
-    ) -> Self {
-        Self {
-            get: Box::new(get),
-            get_mut: Box::new(get_mut),
+            // --- Writable + Writable = Writable
+            (Writable(f1), Writable(f2)) => {
+                Writable(Box::new(move |r| f2(f1(r))))
+            }
+
+            // --- FailableReadable + Readable = FailableReadable
+            (FailableReadable(f1), Readable(f2)) => {
+                FailableReadable(Box::new(move |r| f1(r).map(|m| f2(m))))
+            }
+
+            // --- Readable + FailableReadable = FailableReadable
+            (Readable(f1), FailableReadable(f2)) => {
+                FailableReadable(Box::new(move |r| f2(f1(r))))
+            }
+
+            // --- FailableReadable + FailableReadable = FailableReadable
+            (FailableReadable(f1), FailableReadable(f2)) => {
+                FailableReadable(Box::new(move |r| f1(r).and_then(|m| f2(m))))
+            }
+
+            // --- FailableWritable + Writable = FailableWritable
+            (FailableWritable(f1), Writable(f2)) => {
+                FailableWritable(Box::new(move |r| f1(r).map(|m| f2(m))))
+            }
+
+            // --- Writable + FailableWritable = FailableWritable
+            (Writable(f1), FailableWritable(f2)) => {
+                FailableWritable(Box::new(move |r| f2(f1(r))))
+            }
+
+            // --- FailableWritable + FailableWritable = FailableWritable
+            (FailableWritable(f1), FailableWritable(f2)) => {
+                FailableWritable(Box::new(move |r| f1(r).and_then(|m| f2(m))))
+            }
+
+            // --- Readable + Writable (nonsense: mismatch) 
+            // --- or anything else: panic for now
+            (a, b) => panic!(
+                "Unsupported composition: {:?} then {:?}",
+                kind_name(&a),
+                kind_name(&b)
+            ),
         }
     }
-
-    pub fn try_get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
-        (self.get)(root)
-    }
-
-    pub fn try_get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
-        (self.get_mut)(root)
-    }
-
-    pub fn iter<'a>(&'a self, slice: &'a [Root]) -> impl Iterator<Item = Option<&'a Value>> + 'a {
-        slice.iter().map(move |root| (self.get)(root))
-    }
-
-    /// Mutable iteration
-    pub fn iter_mut<'a>(
-        &'a self,
-        slice: &'a mut [Root],
-    ) -> impl Iterator<Item = Option<&'a mut Value>> + 'a {
-        slice.iter_mut().map(move |root| (self.get_mut)(root))
-    }
 }
 
-impl<Root, Mid> FailableWritableKeyPath<Root, Mid>
-where
-    Root: 'static,
-    Mid: 'static,
-{
-    pub fn compose<Value>(
-        self,
-        mid: FailableWritableKeyPath<Mid, Value>,
-    ) -> FailableWritableKeyPath<Root, Value>
-    where
-        Value: 'static,
-    {
-        FailableWritableKeyPath::new(
-            move |r: &Root| (self.get)(r).and_then(|m: &Mid| (mid.get)(m)),
-            move |r: &mut Root| (self.get_mut)(r).and_then(|m: &mut Mid| (mid.get_mut)(m)),
-        )
+fn kind_name<Root, Value>(k: &KeyPathKind<Root, Value>) -> &'static str {
+    use KeyPathKind::*;
+    match k {
+        Readable(_) => "Readable",
+        Writable(_) => "Writable",
+        FailableReadable(_) => "FailableReadable",
+        FailableWritable(_) => "FailableWritable",
     }
-}
-
-pub struct EnumKeyPath<Enum, Inner> {
-    pub extract: fn(&Enum) -> Option<&Inner>,
-    pub embed: fn(Inner) -> Enum,
-}
-
-impl<Enum, Inner> EnumKeyPath<Enum, Inner> {
-    pub fn new(extract: fn(&Enum) -> Option<&Inner>, embed: fn(Inner) -> Enum) -> Self {
-        Self { extract, embed }
-    }
-
-    pub fn extract<'a>(&self, e: &'a Enum) -> Option<&'a Inner> {
-        (self.extract)(e)
-    }
-
-    pub fn embed(&self, inner: Inner) -> Enum {
-        (self.embed)(inner)
-    }
-}
-
-#[macro_export]
-macro_rules! enum_keypath {
-    // Case with payload
-    ($enum:ident :: $variant:ident ( $inner:ty )) => {{
-        EnumKeyPath::<$enum, $inner>::new(
-            |root: &$enum| {
-                if let $enum::$variant(inner) = root {
-                    Some(inner)
-                } else {
-                    None
-                }
-            },
-            |inner: $inner| $enum::$variant(inner),
-        )
-    }};
-    // Case without payload
-    ($enum:ident :: $variant:ident) => {{
-        EnumKeyPath::<$enum, ()>::new(
-            |root: &$enum| {
-                if let $enum::$variant = root {
-                    Some(&())
-                } else {
-                    None
-                }
-            },
-            |_| $enum::$variant,
-        )
-    }};
-}
-
-/*
-    let name_key = ReadableKeyPath::new(|u: &User| &u.name);
-*/
-/// Macro for readable keypaths
-#[macro_export]
-macro_rules! readable_keypath {
-    ($Root:ty, $field:ident) => {
-        ReadableKeyPath::new(|root: &$Root| &root.$field)
-    };
-}
-
-/*
-    let age_key = WritableKeyPath::new(
-        |u: & User| & u.age,
-        |u: &mut User| &mut u.age,
-    );
-*/
-/// Macro for writable keypaths
-#[macro_export]
-macro_rules! writable_keypath {
-    ($Root:ty, $field:ident) => {
-        WritableKeyPath::new(
-            |root: &$Root| &root.$field,
-            |root: &mut $Root| &mut root.$field,
-        )
-    };
 }
