@@ -20,12 +20,12 @@ Inspired by **Swift’s KeyPath / CasePath** system, this crate lets you work wi
 
 ```toml
 [dependencies]
-key_paths_core = "0.3"
+key_paths_core = "0.5"
 ```
 
 ---
 
-## 🚀 Examples
+## 🚀 Examples - Go to latest examples directory docs will be updated later
 
 ### 1. CasePaths with Enums
 
