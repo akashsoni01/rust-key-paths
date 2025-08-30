@@ -6,6 +6,11 @@ pub enum KeyPaths<Root, Value> {
     Writable(Rc<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>),
     FailableReadable(Rc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>),
     FailableWritable(Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>),
+    // Prism {
+    //     extract: fn(&Root) -> Option<&Value>,
+    //     embed: fn(Value) -> Root,
+    // },
+    //
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
@@ -28,6 +33,10 @@ impl<Root, Value> KeyPaths<Root, Value> {
     ) -> Self {
         Self::FailableWritable(Rc::new(get_mut))
     }
+
+    // pub fn prism(extract: fn(&Root) -> Option<&Value>, embed: fn(Value) -> Root) -> Self {
+    //     Self::Prism { extract, embed }
+    // }
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
@@ -38,6 +47,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Writable(_) => None, // Writable requires mut
             KeyPaths::FailableReadable(f) => f(root),
             KeyPaths::FailableWritable(_) => None, // needs mut
+                                                   // KeyPaths::Prism { extract, .. } => extract(root),
         }
     }
 
@@ -66,7 +76,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     ) -> Option<<&'a mut Value as IntoIterator>::IntoIter>
     where
         &'a mut Value: IntoIterator<Item = &'a mut T>,
-        T: 'a
+        T: 'a,
     {
         self.get_mut(root).map(|v| v.into_iter())
     }
@@ -83,7 +93,6 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::FailableWritable(_) => None,
         }
     }
-
 }
 
 impl<Root, Mid> KeyPaths<Root, Mid>
@@ -91,31 +100,22 @@ where
     Root: 'static,
     Mid: 'static,
 {
-    pub fn compose<Value>(
-        self,
-        mid: KeyPaths<Mid, Value>,
-    ) -> KeyPaths<Root, Value>
+    pub fn compose<Value>(self, mid: KeyPaths<Mid, Value>) -> KeyPaths<Root, Value>
     where
         Value: 'static,
     {
         use KeyPaths::*;
 
         match (self, mid) {
-            (Readable(f1), Readable(f2)) => {
-                Readable(Rc::new(move |r| f2(f1(r))))
-            }
+            (Readable(f1), Readable(f2)) => Readable(Rc::new(move |r| f2(f1(r)))),
 
-            (Writable(f1), Writable(f2)) => {
-                Writable(Rc::new(move |r| f2(f1(r))))
-            }
+            (Writable(f1), Writable(f2)) => Writable(Rc::new(move |r| f2(f1(r)))),
 
             (FailableReadable(f1), Readable(f2)) => {
                 FailableReadable(Rc::new(move |r| f1(r).map(|m| f2(m))))
             }
 
-            (Readable(f1), FailableReadable(f2)) => {
-                FailableReadable(Rc::new(move |r| f2(f1(r))))
-            }
+            (Readable(f1), FailableReadable(f2)) => FailableReadable(Rc::new(move |r| f2(f1(r)))),
 
             (FailableReadable(f1), FailableReadable(f2)) => {
                 FailableReadable(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
@@ -125,9 +125,7 @@ where
                 FailableWritable(Rc::new(move |r| f1(r).map(|m| f2(m))))
             }
 
-            (Writable(f1), FailableWritable(f2)) => {
-                FailableWritable(Rc::new(move |r| f2(f1(r))))
-            }
+            (Writable(f1), FailableWritable(f2)) => FailableWritable(Rc::new(move |r| f2(f1(r)))),
 
             (FailableWritable(f1), FailableWritable(f2)) => {
                 FailableWritable(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
@@ -142,7 +140,6 @@ where
     }
 }
 
-
 fn kind_name<Root, Value>(k: &KeyPaths<Root, Value>) -> &'static str {
     use KeyPaths::*;
     match k {
@@ -152,4 +149,3 @@ fn kind_name<Root, Value>(k: &KeyPaths<Root, Value>) -> &'static str {
         FailableWritable(_) => "FailableWritable",
     }
 }
-
