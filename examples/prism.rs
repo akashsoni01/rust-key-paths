@@ -1,5 +1,4 @@
 use key_paths_core::KeyPaths;
-
 #[derive(Debug)]
 enum Payment {
     Cash { amount: u32 },
