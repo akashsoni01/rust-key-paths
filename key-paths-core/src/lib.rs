@@ -1,12 +1,12 @@
 // #[derive(Clone)]
-pub enum KeyPathKind<Root, Value> {
+pub enum KeyPaths<Root, Value> {
     Readable(Box<dyn for<'a> Fn(&'a Root) -> &'a Value>),
     Writable(Box<dyn for<'a> Fn(&'a mut Root) -> &'a mut Value>),
     FailableReadable(Box<dyn for<'a> Fn(&'a Root) -> Option<&'a Value>>),
     FailableWritable(Box<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>),
 }
 
-impl<Root, Value> KeyPathKind<Root, Value> {
+impl<Root, Value> KeyPaths<Root, Value> {
     pub fn readable(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static) -> Self {
         Self::Readable(Box::new(get))
     }
@@ -28,19 +28,41 @@ impl<Root, Value> KeyPathKind<Root, Value> {
     }
 }
 
-impl<Root, Mid> KeyPathKind<Root, Mid> 
-where 
+impl<Root, Value> KeyPaths<Root, Value> {
+    /// Get an immutable reference if possible
+    pub fn get<'a>(&'a self, root: &'a Root) -> Option<&'a Value> {
+        match self {
+            KeyPaths::Readable(f) => Some(f(root)),
+            KeyPaths::Writable(_) => None, // Writable requires mut
+            KeyPaths::FailableReadable(f) => f(root),
+            KeyPaths::FailableWritable(_) => None, // needs mut
+        }
+    }
+
+    /// Get a mutable reference if possible
+    pub fn get_mut<'a>(&'a self, root: &'a mut Root) -> Option<&'a mut Value> {
+        match self {
+            KeyPaths::Readable(_) => None, // immutable only
+            KeyPaths::Writable(f) => Some(f(root)),
+            KeyPaths::FailableReadable(_) => None, // immutable only
+            KeyPaths::FailableWritable(f) => f(root),
+        }
+    }
+}
+
+impl<Root, Mid> KeyPaths<Root, Mid>
+where
     Root: 'static,
     Mid: 'static,
 {
     pub fn compose<Value>(
         self,
-        mid: KeyPathKind<Mid, Value>,
-    ) -> KeyPathKind<Root, Value> 
-    where 
+        mid: KeyPaths<Mid, Value>,
+    ) -> KeyPaths<Root, Value>
+    where
         Value: 'static,
     {
-        use KeyPathKind::*;
+        use KeyPaths::*;
 
         match (self, mid) {
             (Readable(f1), Readable(f2)) => {
@@ -84,8 +106,8 @@ where
     }
 }
 
-fn kind_name<Root, Value>(k: &KeyPathKind<Root, Value>) -> &'static str {
-    use KeyPathKind::*;
+fn kind_name<Root, Value>(k: &KeyPaths<Root, Value>) -> &'static str {
+    use KeyPaths::*;
     match k {
         Readable(_) => "Readable",
         Writable(_) => "Writable",
@@ -93,3 +115,4 @@ fn kind_name<Root, Value>(k: &KeyPathKind<Root, Value>) -> &'static str {
         FailableWritable(_) => "FailableWritable",
     }
 }
+
