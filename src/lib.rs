@@ -95,7 +95,7 @@ impl<Root, Value> EmbedKeyPath<Root, Value> for WritableEmbed<Root, Value> {
     }
 }
 
-// Composition wrapper - now with explicit Mid type
+// Composition wrapper
 pub struct ComposedKeyPath<First, Second, Mid> {
     first: First,
     second: Second,
@@ -136,14 +136,14 @@ where
     }
 }
 
-// ---------- Composition trait (constrains Root properly) ----------
+// Composition trait
 pub trait Compose<Root, Mid, Value>: Sized + ReadKeyPath<Root, Mid> {
     fn then<Second>(self, second: Second) -> ComposedKeyPath<Self, Second, Mid>
     where
         Second: ReadKeyPath<Mid, Value>;
 }
 
-// Blanket impl for anything that can read Root -> Mid
+// Blanket implementation
 impl<Root, Mid, Value, First> Compose<Root, Mid, Value> for First
 where
     First: Sized + ReadKeyPath<Root, Mid>,
@@ -160,7 +160,7 @@ where
     }
 }
 
-// Builders
+// Builder functions
 impl<Root, Value> FailableWritable<Root, Value> {
     pub fn new(func: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static) -> Self {
         Self { func: Rc::new(func) }
@@ -180,3 +180,4 @@ impl<Root, Value> Writable<Root, Value> {
         }
     }
 }
+

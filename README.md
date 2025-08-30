@@ -20,7 +20,7 @@ Inspired by **Swift’s KeyPath / CasePath** system, this crate lets you work wi
 
 ```toml
 [dependencies]
-key_paths_core = "0.6"
+rust_key_paths_ = "0.7"
 ```
 
 ---

@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
-// #[derive(Clone)]
+/// Go to examples section to see the implementations 
+/// 
 pub enum KeyPaths<Root, Value> {
     Readable(Rc<dyn for<'a> Fn(&'a Root) -> &'a Value>),
     ReadableEnum {
