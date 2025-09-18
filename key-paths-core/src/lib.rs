@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-// #[derive(Clone)]
+#[derive(Clone)]
 pub enum KeyPaths<Root, Value> {
     Readable(Rc<dyn for<'a> Fn(&'a Root) -> &'a Value>),
     ReadableEnum {
@@ -19,26 +19,31 @@ pub enum KeyPaths<Root, Value> {
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
+    #[inline]
     pub fn readable(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static) -> Self {
         Self::Readable(Rc::new(get))
     }
 
+    #[inline]
     pub fn writable(get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static) -> Self {
         Self::Writable(Rc::new(get_mut))
     }
 
+    #[inline]
     pub fn failable_readable(
         get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
     ) -> Self {
         Self::FailableReadable(Rc::new(get))
     }
 
+    #[inline]
     pub fn failable_writable(
         get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
     ) -> Self {
         Self::FailableWritable(Rc::new(get_mut))
     }
 
+    #[inline]
     pub fn readable_enum(
         embed: impl Fn(Value) -> Root + 'static,
         extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
@@ -49,6 +54,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
+    #[inline]
     pub fn writable_enum(
         embed: impl Fn(Value) -> Root + 'static,
         extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
@@ -64,6 +70,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
 
 impl<Root, Value> KeyPaths<Root, Value> {
     /// Get an immutable reference if possible
+    #[inline]
     pub fn get<'a>(&'a self, root: &'a Root) -> Option<&'a Value> {
         match self {
             KeyPaths::Readable(f) => Some(f(root)),
@@ -76,6 +83,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     }
 
     /// Get a mutable reference if possible
+    #[inline]
     pub fn get_mut<'a>(&'a self, root: &'a mut Root) -> Option<&'a mut Value> {
         match self {
             KeyPaths::Readable(_) => None, // immutable only
@@ -129,6 +137,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     }
 
     /// Consume root and iterate if `Value: IntoIterator`
+    #[inline]
     pub fn into_iter<T>(self, root: Root) -> Option<<Value as IntoIterator>::IntoIter>
     where
         Value: IntoIterator<Item = T> + Clone,
