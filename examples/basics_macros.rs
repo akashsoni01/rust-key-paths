@@ -23,18 +23,18 @@ fn main() {
     };
 
     // Define readable and writable keypaths.
-    let size_kp = KeyPaths::readable(|r: &Rectangle| &r.size);
-    let width_kp = KeyPaths::readable(|s: &Size| &s.width);
+    let size_kp: KeyPaths<Rectangle, Size> = KeyPaths::readable(|r: &Rectangle| &r.size);
+    let width_kp: KeyPaths<Size, u32> = KeyPaths::readable(|s: &Size| &s.width);
 
     // Compose nested paths (assuming composition is supported).
     // e.g., rect[&size_kp.then(&width_kp)] — hypothetical chaining
 
     // Alternatively, define them directly:
-    let width_direct = KeyPaths::readable(|r: &Rectangle| &r.size.width);
+    let width_direct: KeyPaths<Rectangle, u32> = KeyPaths::readable(|r: &Rectangle| &r.size.width);
     println!("Width: {:?}", width_direct.get(&rect));
 
     // Writable keypath for modifying fields:
-    let width_mut = KeyPaths::writable(
+    let width_mut: KeyPaths<Rectangle, u32> = KeyPaths::writable(
         // |r: &Rectangle| &r.size.width,
         |r: &mut Rectangle| &mut r.size.width,
     );
