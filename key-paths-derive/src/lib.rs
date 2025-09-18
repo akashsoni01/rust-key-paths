@@ -65,6 +65,59 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 compile_error!("Keypaths derive supports only structs with named fields");
             },
         },
+        Data::Enum(data_enum) => {
+            let mut tokens = proc_macro2::TokenStream::new();
+            for variant in data_enum.variants.iter() {
+                let v_ident = &variant.ident;
+                let r_fn = format_ident!("{}_r", to_snake_case(&v_ident.to_string()));
+                let w_fn = format_ident!("{}_w", to_snake_case(&v_ident.to_string()));
+
+                match &variant.fields {
+                    Fields::Unit => {
+                        // Map () <-> Unit variant
+                        tokens.extend(quote! {
+                            pub fn #r_fn() -> key_paths_core::KeyPaths<#name, ()> {
+                                key_paths_core::KeyPaths::readable_enum(
+                                    |_| #name::#v_ident,
+                                    |e: &#name| match e { #name::#v_ident => Some(&()), _ => None }
+                                )
+                            }
+                            pub fn #w_fn() -> key_paths_core::KeyPaths<#name, ()> {
+                                key_paths_core::KeyPaths::writable_enum(
+                                    |_| #name::#v_ident,
+                                    |e: &#name| match e { #name::#v_ident => Some(&()), _ => None },
+                                    |e: &mut #name| match e { #name::#v_ident => Some(&mut ()), _ => None },
+                                )
+                            }
+                        });
+                    }
+                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
+                        let inner_ty = &unnamed.unnamed.first().unwrap().ty;
+                        tokens.extend(quote! {
+                            pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                key_paths_core::KeyPaths::readable_enum(
+                                    #name::#v_ident,
+                                    |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
+                                )
+                            }
+                            pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                key_paths_core::KeyPaths::writable_enum(
+                                    #name::#v_ident,
+                                    |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None },
+                                    |e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None },
+                                )
+                            }
+                        });
+                    }
+                    _ => {
+                        tokens.extend(quote! {
+                            compile_error!("Keypaths derive currently supports enum unit and single-field tuple variants only");
+                        });
+                    }
+                }
+            }
+            tokens
+        }
         _ => quote! {
             compile_error!("Keypaths derive supports only structs with named fields");
         },
@@ -95,6 +148,19 @@ fn extract_option_inner_type(ty: &Type) -> Option<Type> {
         }
     }
     None
+}
+
+fn to_snake_case(name: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in name.chars().enumerate() {
+        if c.is_uppercase() {
+            if i != 0 { out.push('_'); }
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 
 
