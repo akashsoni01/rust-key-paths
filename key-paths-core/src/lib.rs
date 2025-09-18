@@ -293,6 +293,14 @@ where
                 FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|m| f2(m))))
             }
 
+            // New: Writable then WritableEnum => FailableWritable
+            (Writable(f1), WritableEnum { extract_mut, .. }) => {
+                FailableWritable(Rc::new(move |r: &mut Root| {
+                    let mid: &mut Mid = f1(r);
+                    extract_mut(mid)
+                }))
+            }
+
             (
                 ReadableEnum {
                     extract: ex1,
