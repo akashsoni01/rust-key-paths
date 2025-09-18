@@ -123,19 +123,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                 match &variant.fields {
                     Fields::Unit => {
-                        // Map () <-> Unit variant
+                        // Only readable for unit variants. Writable would require returning &mut () to a non-existent payload.
                         tokens.extend(quote! {
                             pub fn #r_fn() -> key_paths_core::KeyPaths<#name, ()> {
+                                static UNIT: () = ();
                                 key_paths_core::KeyPaths::readable_enum(
                                     |_| #name::#v_ident,
-                                    |e: &#name| match e { #name::#v_ident => Some(&()), _ => None }
-                                )
-                            }
-                            pub fn #w_fn() -> key_paths_core::KeyPaths<#name, ()> {
-                                key_paths_core::KeyPaths::writable_enum(
-                                    |_| #name::#v_ident,
-                                    |e: &#name| match e { #name::#v_ident => Some(&()), _ => None },
-                                    |e: &mut #name| match e { #name::#v_ident => Some(&mut ()), _ => None },
+                                    |e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None }
                                 )
                             }
                         });
@@ -210,6 +204,71 @@ fn to_snake_case(name: &str) -> String {
         }
     }
     out
+}
+
+#[proc_macro_derive(Casepaths)]
+pub fn derive_casepaths(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+
+    let tokens = match input.data {
+        Data::Enum(data_enum) => {
+            let mut tokens = proc_macro2::TokenStream::new();
+            for variant in data_enum.variants.iter() {
+                let v_ident = &variant.ident;
+                let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
+                let r_fn = format_ident!("{}_case_r", snake);
+                let w_fn = format_ident!("{}_case_w", snake);
+
+                match &variant.fields {
+                    Fields::Unit => {
+                        tokens.extend(quote! {
+                            pub fn #r_fn() -> key_paths_core::KeyPaths<#name, ()> {
+                                static UNIT: () = ();
+                                key_paths_core::KeyPaths::readable_enum(
+                                    |_| #name::#v_ident,
+                                    |e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None }
+                                )
+                            }
+                        });
+                    }
+                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
+                        let inner_ty = &unnamed.unnamed.first().unwrap().ty;
+                        tokens.extend(quote! {
+                            pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                key_paths_core::KeyPaths::readable_enum(
+                                    #name::#v_ident,
+                                    |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
+                                )
+                            }
+                            pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                key_paths_core::KeyPaths::writable_enum(
+                                    #name::#v_ident,
+                                    |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None },
+                                    |e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None },
+                                )
+                            }
+                        });
+                    }
+                    _ => {
+                        tokens.extend(quote! {
+                            compile_error!("Casepaths derive supports only unit and single-field tuple variants");
+                        });
+                    }
+                }
+            }
+            tokens
+        }
+        _ => quote! { compile_error!("Casepaths can only be derived for enums"); },
+    };
+
+    let expanded = quote! {
+        impl #name {
+            #tokens
+        }
+    };
+
+    TokenStream::from(expanded)
 }
 
 
