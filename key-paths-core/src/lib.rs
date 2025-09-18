@@ -394,14 +394,20 @@ macro_rules! readable_enum_macro {
     ($enum:path, $variant:ident) => {{
         $crate::KeyPaths::readable_enum(
             |_| <$enum>::$variant,
-            |e: &$enum| match e { <$enum>::$variant => Some(&()), _ => None },
+            |e: &$enum| match e {
+                <$enum>::$variant => Some(&()),
+                _ => None,
+            },
         )
     }};
     // Single-field tuple variant: Enum::Variant(Inner)
     ($enum:path, $variant:ident($inner:ty)) => {{
         $crate::KeyPaths::readable_enum(
             |v: $inner| <$enum>::$variant(v),
-            |e: &$enum| match e { <$enum>::$variant(v) => Some(v), _ => None },
+            |e: &$enum| match e {
+                <$enum>::$variant(v) => Some(v),
+                _ => None,
+            },
         )
     }};
 }
@@ -412,17 +418,28 @@ macro_rules! writable_enum_macro {
     ($enum:path, $variant:ident) => {{
         $crate::KeyPaths::writable_enum(
             |_| <$enum>::$variant,
-            |e: &$enum| match e { <$enum>::$variant => Some(&()), _ => None },
-            |e: &mut $enum| match e { <$enum>::$variant => Some(&mut ()), _ => None },
+            |e: &$enum| match e {
+                <$enum>::$variant => Some(&()),
+                _ => None,
+            },
+            |e: &mut $enum| match e {
+                <$enum>::$variant => Some(&mut ()),
+                _ => None,
+            },
         )
     }};
     // Single-field tuple variant: Enum::Variant(Inner)
     ($enum:path, $variant:ident($inner:ty)) => {{
         $crate::KeyPaths::writable_enum(
             |v: $inner| <$enum>::$variant(v),
-            |e: &$enum| match e { <$enum>::$variant(v) => Some(v), _ => None },
-            |e: &mut $enum| match e { <$enum>::$variant(v) => Some(v), _ => None },
+            |e: &$enum| match e {
+                <$enum>::$variant(v) => Some(v),
+                _ => None,
+            },
+            |e: &mut $enum| match e {
+                <$enum>::$variant(v) => Some(v),
+                _ => None,
+            },
         )
     }};
 }
-

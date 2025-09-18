@@ -63,5 +63,3 @@ fn main() {
     }
     println!("City with missing path unchanged = {:?}", city_missing);
 }
-
-

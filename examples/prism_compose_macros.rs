@@ -28,15 +28,24 @@ struct ABox {
 fn main() {
     let mut a_box = ABox {
         name: String::from("A box"),
-        size: Size { width: 10, height: 20 },
+        size: Size {
+            width: 10,
+            height: 20,
+        },
         color: Color::Other(RGBU8(10, 20, 30)),
     };
 
     let color_kp = ABox::color_w();
     let case_path = KeyPaths::writable_enum(
         |v| Color::Other(v),
-        |c: &Color| match c { Color::Other(rgb) => Some(rgb), _ => None },
-        |c: &mut Color| match c { Color::Other(rgb) => Some(rgb), _ => None },
+        |c: &Color| match c {
+            Color::Other(rgb) => Some(rgb),
+            _ => None,
+        },
+        |c: &mut Color| match c {
+            Color::Other(rgb) => Some(rgb),
+            _ => None,
+        },
     );
 
     let color_rgb_kp = color_kp.compose(case_path);
@@ -46,5 +55,3 @@ fn main() {
 
     println!("{:?}", a_box);
 }
-
-

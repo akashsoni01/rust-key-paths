@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Data, DeriveInput, Fields, Type};
+use syn::{Data, DeriveInput, Fields, Type, parse_macro_input};
 
 #[proc_macro_derive(Keypaths)]
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
@@ -176,7 +176,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 }
 
 fn extract_option_inner_type(ty: &Type) -> Option<Type> {
-    use syn::{PathArguments, GenericArgument};
+    use syn::{GenericArgument, PathArguments};
     if let Type::Path(tp) = ty {
         if let Some(seg) = tp.path.segments.last() {
             if seg.ident == "Option" {
@@ -197,7 +197,9 @@ fn to_snake_case(name: &str) -> String {
     let mut out = String::new();
     for (i, c) in name.chars().enumerate() {
         if c.is_uppercase() {
-            if i != 0 { out.push('_'); }
+            if i != 0 {
+                out.push('_');
+            }
             out.push(c.to_ascii_lowercase());
         } else {
             out.push(c);
@@ -270,5 +272,3 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
-
-

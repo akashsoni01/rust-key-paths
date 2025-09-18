@@ -40,7 +40,11 @@ fn main() {
 
     // Demonstrate writable/failable-writable compose
     let mut city2 = City {
-        garage: Some(Garage { car: Some(Car { engine: Some(Engine { horsepower: 100 }) }) }),
+        garage: Some(Garage {
+            car: Some(Car {
+                engine: Some(Engine { horsepower: 100 }),
+            }),
+        }),
     };
 
     let garage_fw = City::garage_fw();
@@ -60,5 +64,3 @@ fn main() {
 
     println!("Updated city2 = {:?}", city2);
 }
-
-

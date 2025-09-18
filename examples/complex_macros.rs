@@ -50,7 +50,10 @@ fn main() {
         users: vec![
             User {
                 id: 1,
-                profile: Some(Profile { display_name: "Ada".into(), age: 31 }),
+                profile: Some(Profile {
+                    display_name: "Ada".into(),
+                    age: 31,
+                }),
                 tags: vec!["admin".into(), "founder".into()],
             },
             User {
@@ -59,7 +62,10 @@ fn main() {
                 tags: vec!["guest".into()],
             },
         ],
-        settings: Some(Settings { theme: "dark".into(), db: Some(DbConfig(5432, "postgres://localhost".into())) }),
+        settings: Some(Settings {
+            theme: "dark".into(),
+            db: Some(DbConfig(5432, "postgres://localhost".into())),
+        }),
         connection: Connection::Connecting(42),
         name: "MegaApp".into(),
     };
@@ -69,7 +75,10 @@ fn main() {
         .compose(KeyPaths::failable_readable(|v: &Vec<User>| v.first()))
         .compose(User::profile_fr())
         .compose(Profile::display_name_r());
-    println!("first_user_profile_name = {:?}", first_user_profile_name.get(&app));
+    println!(
+        "first_user_profile_name = {:?}",
+        first_user_profile_name.get(&app)
+    );
 
     // 2) Mutate nested Option chain via failable writable
     let settings_fw = App::settings_fw();
@@ -82,7 +91,10 @@ fn main() {
             }
         }
     }
-    println!("db after bump = {:?}", app.settings.as_ref().and_then(|s| s.db.as_ref()));
+    println!(
+        "db after bump = {:?}",
+        app.settings.as_ref().and_then(|s| s.db.as_ref())
+    );
 
     // 3) Compose writable + enum case (prism) to mutate only when connected
     app.connection = Connection::Connected("10.0.0.1".into());
@@ -103,11 +115,15 @@ fn main() {
     // 5) Iterate immutably and mutably via derived vec keypaths
     let users_r = App::users_r();
     if let Some(mut iter) = users_r.iter::<User>(&app) {
-        if let Some(u0) = iter.next() { println!("first user id = {}", u0.id); }
+        if let Some(u0) = iter.next() {
+            println!("first user id = {}", u0.id);
+        }
     }
     let users_w = App::users_w();
     if let Some(iter) = users_w.iter_mut::<User>(&mut app) {
-        for u in iter { u.tags.push("seen".into()); }
+        for u in iter {
+            u.tags.push("seen".into());
+        }
     }
     println!("users after tag = {:?}", app.users);
 
@@ -115,9 +131,14 @@ fn main() {
     let first_user_fr = KeyPaths::failable_readable(|v: &Vec<User>| v.first());
     let profile_fr = User::profile_fr();
     let age_w = Profile::age_w();
-    if let Some(u0) = first_user_fr.get(&app.users) { // borrow helper
+    if let Some(u0) = first_user_fr.get(&app.users) {
+        // borrow helper
         let mut app_ref = &mut app.users[0];
-        if let Some(p) = profile_fr.get_mut(&mut app_ref) { if let Some(age) = age_w.get_mut(p) { *age += 1; } }
+        if let Some(p) = profile_fr.get_mut(&mut app_ref) {
+            if let Some(age) = age_w.get_mut(p) {
+                *age += 1;
+            }
+        }
     }
     println!("first user after bday = {:?}", app.users.first());
 
@@ -127,15 +148,19 @@ fn main() {
     println!("embedded = {:?}", new_conn);
 
     // 8) Additional enum with casepaths: Status
-    let mut st = Status::Active(User { id: 99, profile: None, tags: vec![] });
+    let mut st = Status::Active(User {
+        id: 99,
+        profile: None,
+        tags: vec![],
+    });
     let st_active = Status::active_case_r();
     let st_active_name = st_active.compose(User::id_r());
     println!("status active user id = {:?}", st_active_name.get(&st));
 
     let st_pending = Status::pending_case_w();
     st = Status::Pending(5);
-    if let Some(v) = st_pending.get_mut(&mut st) { *v += 1; }
+    if let Some(v) = st_pending.get_mut(&mut st) {
+        *v += 1;
+    }
     println!("status after pending increment = {:?}", st);
 }
-
-

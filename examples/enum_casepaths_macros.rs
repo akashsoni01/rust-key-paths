@@ -14,13 +14,19 @@ enum Status {
 }
 
 fn main() {
-    let status = Status::Active(User { id: 1, name: "Ada".into() });
+    let status = Status::Active(User {
+        id: 1,
+        name: "Ada".into(),
+    });
 
     let kp_active = Status::active_case_r();
     let active_name = Status::active_case_r().compose(User::name_r());
     println!("Active name = {:?}", active_name.get(&status));
 
-    let mut status2 = Status::Active(User { id: 2, name: "Bob".into() });
+    let mut status2 = Status::Active(User {
+        id: 2,
+        name: "Bob".into(),
+    });
     let kp_active_w = Status::active_case_w();
     if let Some(user) = kp_active_w.get_mut(&mut status2) {
         user.name.push_str("_edited");
@@ -28,8 +34,9 @@ fn main() {
     println!("Status2 = {:?}", status2);
 
     // Embedding via readable enum
-    let embedded = kp_active.embed(User { id: 3, name: "Cleo".into() });
+    let embedded = kp_active.embed(User {
+        id: 3,
+        name: "Cleo".into(),
+    });
     println!("Embedded = {:?}", embedded);
 }
-
-

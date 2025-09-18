@@ -24,7 +24,10 @@ fn main() {
     let user_name_kp = User::name_r();
     let user_id_kp = User::id_r();
 
-    let user = User { id: 7, name: "Ada".into() };
+    let user = User {
+        id: 7,
+        name: "Ada".into(),
+    };
     println!("user.name via kp = {:?}", user_name_kp.get(&user));
     println!("user.id via kp = {:?}", user_id_kp.get(&user));
 
@@ -44,7 +47,10 @@ fn main() {
         _ => None,
     });
 
-    let status = Status::Active(User { id: 42, name: "Grace".into() });
+    let status = Status::Active(User {
+        id: 42,
+        name: "Grace".into(),
+    });
 
     if let Some(u) = status_active_user.get(&status) {
         println!("Extracted user: {:?}", u);
@@ -59,7 +65,10 @@ fn main() {
 
     println!("Active user name = {:?}", active_user_name.get(&status));
 
-    let embedded = status_active_user.embed(User { id: 99, name: "Lin".into() });
+    let embedded = status_active_user.embed(User {
+        id: 99,
+        name: "Lin".into(),
+    });
     println!("Embedded back: {:?}", embedded);
 
     let greeting = SomeOtherStatus::Active("Hello".to_string());
@@ -72,5 +81,3 @@ fn main() {
         println!("Status::Inactive: {:?}", x);
     }
 }
-
-

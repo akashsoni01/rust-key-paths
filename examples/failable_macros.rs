@@ -66,5 +66,3 @@ fn main() {
         println!("No garage to mutate");
     }
 }
-
-

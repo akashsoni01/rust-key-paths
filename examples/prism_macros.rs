@@ -40,6 +40,4 @@
 //     println!("{:?}", p);
 // }
 
-fn main() {
-    
-}
+fn main() {}

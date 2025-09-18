@@ -29,5 +29,3 @@ fn main() {
 
     println!("{:?}", g.cars);
 }
-
-
