@@ -158,6 +158,15 @@ where
     Root: 'static,
     Mid: 'static,
 {
+    /// Alias for `compose` for ergonomic chaining.
+    #[inline]
+    pub fn then<Value>(self, mid: KeyPaths<Mid, Value>) -> KeyPaths<Root, Value>
+    where
+        Value: 'static,
+    {
+        self.compose(mid)
+    }
+
     pub fn compose<Value>(self, mid: KeyPaths<Mid, Value>) -> KeyPaths<Root, Value>
     where
         Value: 'static,
