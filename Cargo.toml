@@ -13,8 +13,8 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-key-paths-core = { path = "key-paths-core", version = "0.6.0" }
-key-paths-derive = { path = "key-paths-derive"}
+key-paths-core = { path = "key-paths-core", version = "0.7.0" }
+key-paths-derive = { path = "key-paths-derive", version = "0.1.0"}
 
 
 [workspace]
@@ -26,6 +26,7 @@ members = [
 
 [patch.crates-io]
 key-paths-core = { path = "key-paths-core" }
+key-paths-derive = { path = "key-paths-derive" }
 
 [features]
 default = []

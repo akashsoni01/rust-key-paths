@@ -1,9 +1,17 @@
 [package]
 name = "key-paths-derive"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Proc-macro derive to generate keypath methods"
 license = "MPL-2.0"
+authors = ["Codefonsi <info@codefonsi.com>"]
+description = "ReadableKeyPath, WritableKeyPath and EnumKeypath for struct and enums in Rust."
+repository = "https://github.com/codefonsi/key-paths-derive"
+homepage = "https://github.com/codefonsi/rust-key-paths"
+documentation = "https://docs.rs/key-paths-derive"
+keywords = ["keypaths", "EnumKeyPath", "type-safe", "macros", "proc"]
+readme = "./README.md"
+include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [lib]
 proc-macro = true
