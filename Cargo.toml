@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -13,18 +13,20 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-key-paths-core = { path = "key-paths-core", version = "0.6.0" }
+key-paths-core = { path = "key-paths-core", version = "0.7.0" }
+key-paths-derive = { path = "key-paths-derive", version = "0.1.0"}
 
 
 [workspace]
 resolver = "3" # or "3"
 members = [
-    "key-paths-core"
+    "key-paths-core",
+    "key-paths-derive"
 ]
 
 [patch.crates-io]
 key-paths-core = { path = "key-paths-core" }
-
+key-paths-derive = { path = "key-paths-derive" }
 
 [features]
 default = []

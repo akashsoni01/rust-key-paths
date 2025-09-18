@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-// #[derive(Clone)]
+#[derive(Clone)]
 pub enum KeyPaths<Root, Value> {
     Readable(Rc<dyn for<'a> Fn(&'a Root) -> &'a Value>),
     ReadableEnum {
@@ -19,26 +19,31 @@ pub enum KeyPaths<Root, Value> {
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
+    #[inline]
     pub fn readable(get: impl for<'a> Fn(&'a Root) -> &'a Value + 'static) -> Self {
         Self::Readable(Rc::new(get))
     }
 
+    #[inline]
     pub fn writable(get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + 'static) -> Self {
         Self::Writable(Rc::new(get_mut))
     }
 
+    #[inline]
     pub fn failable_readable(
         get: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
     ) -> Self {
         Self::FailableReadable(Rc::new(get))
     }
 
+    #[inline]
     pub fn failable_writable(
         get_mut: impl for<'a> Fn(&'a mut Root) -> Option<&'a mut Value> + 'static,
     ) -> Self {
         Self::FailableWritable(Rc::new(get_mut))
     }
 
+    #[inline]
     pub fn readable_enum(
         embed: impl Fn(Value) -> Root + 'static,
         extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
@@ -49,6 +54,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
+    #[inline]
     pub fn writable_enum(
         embed: impl Fn(Value) -> Root + 'static,
         extract: impl for<'a> Fn(&'a Root) -> Option<&'a Value> + 'static,
@@ -64,6 +70,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
 
 impl<Root, Value> KeyPaths<Root, Value> {
     /// Get an immutable reference if possible
+    #[inline]
     pub fn get<'a>(&'a self, root: &'a Root) -> Option<&'a Value> {
         match self {
             KeyPaths::Readable(f) => Some(f(root)),
@@ -76,6 +83,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     }
 
     /// Get a mutable reference if possible
+    #[inline]
     pub fn get_mut<'a>(&'a self, root: &'a mut Root) -> Option<&'a mut Value> {
         match self {
             KeyPaths::Readable(_) => None, // immutable only
@@ -129,6 +137,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     }
 
     /// Consume root and iterate if `Value: IntoIterator`
+    #[inline]
     pub fn into_iter<T>(self, root: Root) -> Option<<Value as IntoIterator>::IntoIter>
     where
         Value: IntoIterator<Item = T> + Clone,
@@ -149,6 +158,15 @@ where
     Root: 'static,
     Mid: 'static,
 {
+    /// Alias for `compose` for ergonomic chaining.
+    #[inline]
+    pub fn then<Value>(self, mid: KeyPaths<Mid, Value>) -> KeyPaths<Root, Value>
+    where
+        Value: 'static,
+    {
+        self.compose(mid)
+    }
+
     pub fn compose<Value>(self, mid: KeyPaths<Mid, Value>) -> KeyPaths<Root, Value>
     where
         Value: 'static,
@@ -293,6 +311,14 @@ where
                 FailableWritable(Rc::new(move |r| extract_mut(r).and_then(|m| f2(m))))
             }
 
+            // New: Writable then WritableEnum => FailableWritable
+            (Writable(f1), WritableEnum { extract_mut, .. }) => {
+                FailableWritable(Rc::new(move |r: &mut Root| {
+                    let mid: &mut Mid = f1(r);
+                    extract_mut(mid)
+                }))
+            }
+
             (
                 ReadableEnum {
                     extract: ex1,
@@ -358,4 +384,62 @@ fn kind_name<Root, Value>(k: &KeyPaths<Root, Value>) -> &'static str {
         ReadableEnum { .. } => "ReadableEnum",
         WritableEnum { .. } => "WritableEnum",
     }
+}
+
+// ===== Helper macros for enum case keypaths =====
+
+#[macro_export]
+macro_rules! readable_enum_macro {
+    // Unit variant: Enum::Variant
+    ($enum:path, $variant:ident) => {{
+        $crate::KeyPaths::readable_enum(
+            |_| <$enum>::$variant,
+            |e: &$enum| match e {
+                <$enum>::$variant => Some(&()),
+                _ => None,
+            },
+        )
+    }};
+    // Single-field tuple variant: Enum::Variant(Inner)
+    ($enum:path, $variant:ident($inner:ty)) => {{
+        $crate::KeyPaths::readable_enum(
+            |v: $inner| <$enum>::$variant(v),
+            |e: &$enum| match e {
+                <$enum>::$variant(v) => Some(v),
+                _ => None,
+            },
+        )
+    }};
+}
+
+#[macro_export]
+macro_rules! writable_enum_macro {
+    // Unit variant: Enum::Variant (creates prism to and from ())
+    ($enum:path, $variant:ident) => {{
+        $crate::KeyPaths::writable_enum(
+            |_| <$enum>::$variant,
+            |e: &$enum| match e {
+                <$enum>::$variant => Some(&()),
+                _ => None,
+            },
+            |e: &mut $enum| match e {
+                <$enum>::$variant => Some(&mut ()),
+                _ => None,
+            },
+        )
+    }};
+    // Single-field tuple variant: Enum::Variant(Inner)
+    ($enum:path, $variant:ident($inner:ty)) => {{
+        $crate::KeyPaths::writable_enum(
+            |v: $inner| <$enum>::$variant(v),
+            |e: &$enum| match e {
+                <$enum>::$variant(v) => Some(v),
+                _ => None,
+            },
+            |e: &mut $enum| match e {
+                <$enum>::$variant(v) => Some(v),
+                _ => None,
+            },
+        )
+    }};
 }
