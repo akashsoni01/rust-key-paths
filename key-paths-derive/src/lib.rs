@@ -61,6 +61,55 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 }
                 tokens
             }
+            Fields::Unnamed(unnamed) => {
+                let mut tokens = proc_macro2::TokenStream::new();
+                for (idx, field) in unnamed.unnamed.iter().enumerate() {
+                    let idx_lit = syn::Index::from(idx);
+                    let ty = &field.ty;
+
+                    let r_fn = format_ident!("f{}_r", idx);
+                    let w_fn = format_ident!("f{}_w", idx);
+                    let fr_fn = format_ident!("f{}_fr", idx);
+                    let fw_fn = format_ident!("f{}_fw", idx);
+
+                    let option_inner: Option<Type> = extract_option_inner_type(ty);
+                    match option_inner {
+                        Some(inner_ty) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                }
+                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref())
+                                }
+                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.as_mut())
+                                }
+                            });
+                        }
+                        None => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                }
+                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&s.#idx_lit))
+                                }
+                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut s.#idx_lit))
+                                }
+                            });
+                        }
+                    }
+                }
+                tokens
+            }
             _ => quote! {
                 compile_error!("Keypaths derive supports only structs with named fields");
             },
