@@ -21,11 +21,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let fr_fn = format_ident!("{}_fr", field_ident);
                     let fw_fn = format_ident!("{}_fw", field_ident);
 
-                    // Helper: detect Option<T>
-                    let option_inner: Option<Type> = extract_option_inner_type(ty);
+                    // Helper: detect Option<T> or Box<T>
+                    let (is_option, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match option_inner {
-                        Some(inner_ty) => {
+                    match (is_option, inner_ty) {
+                        (true, Some(inner_ty)) => {
+                            // Option<T> case
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -41,7 +42,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        None => {
+                        (false, Some(inner_ty)) => {
+                            // Box<T> case - treat like a normal field but with dereferencing
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#field_ident)
+                                }
+                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#field_ident))
+                                }
+                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut *s.#field_ident))
+                                }
+                            });
+                        }
+                        (_, None) => {
+                            // Regular field case
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -72,9 +91,11 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let fr_fn = format_ident!("f{}_fr", idx);
                     let fw_fn = format_ident!("f{}_fw", idx);
 
-                    let option_inner: Option<Type> = extract_option_inner_type(ty);
-                    match option_inner {
-                        Some(inner_ty) => {
+                    let (is_option, inner_ty) = extract_wrapper_inner_type(ty);
+                    
+                    match (is_option, inner_ty) {
+                        (true, Some(inner_ty)) => {
+                            // Option<T> case
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -90,7 +111,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        None => {
+                        (false, Some(inner_ty)) => {
+                            // Box<T> case
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#idx_lit)
+                                }
+                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#idx_lit))
+                                }
+                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut *s.#idx_lit))
+                                }
+                            });
+                        }
+                        (_, None) => {
+                            // Regular field case
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -175,22 +214,32 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-fn extract_option_inner_type(ty: &Type) -> Option<Type> {
+fn extract_wrapper_inner_type(ty: &Type) -> (bool, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
     if let Type::Path(tp) = ty {
         if let Some(seg) = tp.path.segments.last() {
-            if seg.ident == "Option" {
+            let ident_str = seg.ident.to_string();
+            
+            if ident_str == "Option" {
                 if let PathArguments::AngleBracketed(ab) = &seg.arguments {
                     for arg in ab.args.iter() {
                         if let GenericArgument::Type(inner) = arg {
-                            return Some(inner.clone());
+                            return (true, Some(inner.clone()));
+                        }
+                    }
+                }
+            } else if ident_str == "Box" {
+                if let PathArguments::AngleBracketed(ab) = &seg.arguments {
+                    for arg in ab.args.iter() {
+                        if let GenericArgument::Type(inner) = arg {
+                            return (false, Some(inner.clone()));
                         }
                     }
                 }
             }
         }
     }
-    None
+    (false, None)
 }
 
 fn to_snake_case(name: &str) -> String {
