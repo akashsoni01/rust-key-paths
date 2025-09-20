@@ -1,20 +1,24 @@
+use std::{rc::Rc, sync::Arc};
+
 use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
 struct SomeComplexStruct {
-    scsf: Box<SomeOtherStruct>,
+    scsf: Rc<SomeOtherStruct>,
+    // scsf2: Option<Arc<SomeOtherStruct>>,
 
 }
 
 impl SomeComplexStruct {
     fn new() -> Self {
         Self {
-            scsf: Box::new(SomeOtherStruct {
+            scsf: Rc::new(SomeOtherStruct {
                 sosf: OneMoreStruct {
                     omsf: String::from("no value for now"),
                     omse: SomeEnum::B(DarkStruct { dsf: String::from("dark field") }),
                 },
             }),
+            // scsf2: None,
         }
     }
 }
@@ -42,15 +46,17 @@ struct DarkStruct {
 }
 
 fn main() {
-    let op = SomeComplexStruct::scsf_fw()
-        .then(SomeOtherStruct::sosf_fw())
-        .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_w())
-        .then(DarkStruct::dsf_fw());
+    // let x = SomeComplexStruct::scsf2_fw().then(SomeOtherStruct::sosf_fw());
+    let op = SomeComplexStruct::scsf_fr()
+        .then(SomeOtherStruct::sosf_fr())
+        .then(OneMoreStruct::omse_fr())
+        .then(SomeEnum::b_case_r())
+        .then(DarkStruct::dsf_fr());
     let mut instance = SomeComplexStruct::new();
-    let omsf = op.get_mut(&mut instance);
-    *omsf.unwrap() =
-        String::from("we can change the field with the other way unlocked by keypaths");
-    println!("instance = {:?}", instance);
+    if let Some(omsf) = op.get( &instance) {
+    // *omsf =
+    //     String::from("we can change the field with the other way unlocked by keypaths");
+        println!("instance = {:?}", instance);
+    }
 
 }
