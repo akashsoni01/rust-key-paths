@@ -1,18 +1,18 @@
 # 🔑 KeyPaths & CasePaths in Rust
 
 Key paths and case paths provide a **safe, composable way to access and modify nested data** in Rust.
-Inspired by **Swift’s KeyPath / CasePath** system, this crate lets you work with **struct fields** and **enum variants** as *first-class values*.
+Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
 
 ---
 
 ## ✨ Features
 
-* ✅ **ReadableKeyPath** → safely read struct fields.
-* ✅ **WritableKeyPath** → safely read/write struct fields.
-* ✅ **EnumKeyPath (CasePaths)** → extract and embed enum variants.
-* ✅ **Composable** → chain key paths together(Upcoming).
-* ✅ **Iterable** → iterate or mutate values across collections.
-* ✅ **Macros** → concise `readable_keypath!`, `writable_keypath!`, `enum_keypath!`.
+- ✅ **Readable/Writable keypaths** for struct fields
+- ✅ **Failable keypaths** for `Option<T>` chains (`_fr`/`_fw`)
+- ✅ **Enum CasePaths** (readable and writable prisms)
+- ✅ **Composition** across structs, options and enum cases
+- ✅ **Iteration helpers** over collections via keypaths
+- ✅ **Proc-macros**: `#[derive(Keypaths)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
 
 ---
 
@@ -20,157 +20,78 @@ Inspired by **Swift’s KeyPath / CasePath** system, this crate lets you work wi
 
 ```toml
 [dependencies]
-key_paths_core = "0.7"
+key-paths-core = "0.8"
+key-paths-derive = "0.1"
 ```
 
 ---
 
-## 🚀 Examples - Go to latest examples directory docs will be updated later
+## 🚀 Examples
 
-### 1. CasePaths with Enums
+See `examples/` for many runnable samples. Below are a few highlights.
 
+### Widely used - Deeply nested struct
 ```rust
 use key_paths_core::KeyPaths;
-#[derive(Debug)]
-enum Payment {
-    Cash { amount: u32 },
-    Card { number: String, cvv: String },
+use key_paths_derive::{Casepaths, Keypaths};
+
+#[derive(Debug, Keypaths)]
+struct SomeComplexStruct {
+    scsf: Option<SomeOtherStruct>,
+    // scsf2: Option<SomeOtherStruct>,
 }
 
-fn main() {
-    let kp = KeyPaths::writable_enum(
-        |v| Payment::Cash { amount: v },
-        |p: &Payment| match p {
-            Payment::Cash { amount } => Some(amount),
-            _ => None,
-        },
-        |p: &mut Payment| match p {
-            Payment::Cash { amount } => Some(amount),
-            _ => None,
-        },
-
-    );
-
-    let mut p = Payment::Cash { amount: 10 };
-
-    println!("{:?}", p);
-
-    if let Some(v) = kp.get_mut(&mut p) {
-        *v = 34
+impl SomeComplexStruct {
+    fn new() -> Self {
+        Self {
+            scsf: Some(SomeOtherStruct {
+                sosf: OneMoreStruct {
+                    omsf: String::from("no value for now"),
+                    omse: SomeEnum::B(DarkStruct { dsf: String::from("dark field") }),
+                },
+            }),
+        }
     }
-    println!("{:?}", p);
+}
+
+#[derive(Debug, Keypaths)]
+struct SomeOtherStruct {
+    sosf: OneMoreStruct,
+}
+
+#[derive(Debug, Casepaths)]
+enum SomeEnum {
+    A(String), 
+    B(DarkStruct)
+}
+
+#[derive(Debug, Keypaths)]
+struct OneMoreStruct {
+    omsf: String,
+    omse: SomeEnum
+}
+
+#[derive(Debug, Keypaths)]
+struct DarkStruct {
+    dsf: String
+}
+
+fn main() {    
+    let op = SomeComplexStruct::scsf_fw()
+        .then(SomeOtherStruct::sosf_fw())
+        .then(OneMoreStruct::omse_fw())
+        .then(SomeEnum::b_case_w())
+        .then(DarkStruct::dsf_fw());
+    let mut instance = SomeComplexStruct::new();
+    let omsf = op.get_mut(&mut instance);
+    *omsf.unwrap() =
+        String::from("we can change the field with the other way unclocked by keypaths");
+    println!("instance = {:?}", instance);
+
 }
 ```
 
----
-
-### 2. Readable KeyPaths - helper macros wip
-
-```rust
-use key_paths_core::KeyPaths;
-
-#[derive(Debug)]
-struct Size {
-    width: u32,
-    height: u32,
-}
-
-#[derive(Debug)]
-struct Rectangle {
-    size: Size,
-    name: String,
-}
-
-fn main() {
-    let mut rect = Rectangle {
-        size: Size {
-            width: 30,
-            height: 50,
-        },
-        name: "MyRect".into(),
-    };
-
-    let width_direct = KeyPaths::readable(|r: &Rectangle| &r.size.width);
-    println!("Width: {:?}", width_direct.get(&rect));
-}
-```
-
----
-
-### 3. Writable KeyPaths - helper macros wip
-
-```rust
-use key_paths_core::KeyPaths;
-
-#[derive(Debug)]
-struct Size {
-    width: u32,
-    height: u32,
-}
-#[derive(Debug)]
-struct Rectangle {
-    size: Size,
-    name: String,
-}
-fn main() {
-    let mut rect = Rectangle {
-        size: Size {
-            width: 30,
-            height: 50,
-        },
-        name: "MyRect".into(),
-    };
-    let width_mut = KeyPaths::writable(
-        |r: &mut Rectangle| &mut r.size.width,
-    );
-    // Mutable
-    if let Some(hp_mut) = width_mut.get_mut(&mut rect) {
-        *hp_mut += 50;
-    }
-    println!("Updated rectangle: {:?}", rect);
-}
-```
-
-### 4. Composability and failablity
- ```rust
-use key_paths_core::KeyPaths;
-
-#[derive(Debug)]
-struct Engine {
-    horsepower: u32,
-}
-#[derive(Debug)]
-struct Car {
-    engine: Option<Engine>,
-}
-#[derive(Debug)]
-struct Garage {
-    car: Option<Car>,
-}
-
-fn main() {
-    let mut garage = Garage {
-        car: Some(Car {
-            engine: Some(Engine { horsepower: 120 }),
-        }),
-    };
-
-    let kp_car = KeyPaths::failable_writable(|g: &mut Garage| g.car.as_mut());
-    let kp_engine = KeyPaths::failable_writable(|c: &mut Car| c.engine.as_mut());
-    let kp_hp = KeyPaths::failable_writable(|e: &mut Engine| Some(&mut e.horsepower));
-
-    // Compose: Garage -> Car -> Engine -> horsepower
-    let kp = kp_car.compose(kp_engine).compose(kp_hp);
-
-    println!("{garage:?}");
-    if let Some(hp) = kp.get_mut(&mut garage) {
-        *hp = 200;
-    }
-
-    println!("{garage:?}");
-}
-```
-### 4. Mutability
+### Iteration via keypaths
  ```rust
 use key_paths_core::KeyPaths;
 
@@ -253,20 +174,6 @@ ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(0
 
 ---
 
-## Support
-
-* Struct Field Support
-* Enum Variant Support
-* Read / Write
-* Mutability support 
-* Full support of Composition with keypaths including enum
-* Helper macros support (WIP)
-* Proc macros support (WIP)
-* Feature rich, error free and light weigh 3KB only 
-
----
-
-
 ## 💡 Why use KeyPaths?
 
 * Avoids repetitive `match` / `.` chains.
@@ -278,10 +185,10 @@ ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(0
 
 ## 🛠 Roadmap
 
-* [ ] `compose` support for combining multiple key paths.
-* [ ] Derive macros for automatic KeyPath generation (Upcoming).
-* [ ] Nested struct & enum traversal.
-* [ ] Optional chaining with failable.
+- [x] Compose across structs, options and enum cases
+- [x] Derive macros for automatic keypath generation
+- [x] Optional chaining with failable keypaths
+- [] Derive macros for complex multi-field enum variants
 ---
 
 ## 📜 License
