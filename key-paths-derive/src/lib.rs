@@ -9,6 +9,7 @@ enum WrapperKind {
     Box,
     Rc,
     Arc,
+    Vec,
 }
 
 #[proc_macro_derive(Keypaths)]
@@ -46,6 +47,23 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.as_mut())
+                                }
+                            });
+                        }
+                        (WrapperKind::Vec, Some(inner_ty)) => {
+                            // Vec<T>
+                            tokens.extend(quote! {
+                                // pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                //     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident.first)
+                                // }
+                                // pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                //     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#field_ident)
+                                // }
+                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#field_ident.first()))
+                                }
+                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut *s.#field_ident.first_mut()))
                                 }
                             });
                         }
@@ -137,6 +155,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.as_mut())
+                                }
+                            });
+                        }
+                        (WrapperKind::Vec, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                // help me add code here for vec only 
+                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| &s.#idx_lit.first())
+                                }
+                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| &mut s.#idx_lit.first_mut())
                                 }
                             });
                         }
@@ -241,6 +270,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
+                            (WrapperKind::Vec, Some(inner_ty)) => {
+                                // help me add code here for vec
+                                tokens.extend(quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        key_paths_core::KeyPaths::readable_enum(
+                                            #name::#v_ident,
+                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v.first()), _ => None }
+                                        )
+                                    }
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        key_paths_core::KeyPaths::writable_enum(
+                                            #name::#v_ident,
+                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None },
+                                            |e: &mut #name| match e { #name::#v_ident(v) => Some(&mut *v.first_mut), _ => None },
+                                        )
+                                    }
+                                });
+                            }
+
                             (WrapperKind::Box, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -336,6 +384,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             "Box"    => (WrapperKind::Box, Some(inner.clone())),
                             "Rc"     => (WrapperKind::Rc, Some(inner.clone())),
                             "Arc"    => (WrapperKind::Arc, Some(inner.clone())),
+                            "Vec"    => (WrapperKind::Vec, Some(inner.clone())),
                             _        => (WrapperKind::None, None),
                         };
                     }
