@@ -197,7 +197,12 @@ where
             (FailableWritable(f1), FailableWritable(f2)) => {
                 FailableWritable(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
             }
-
+            (FailableReadable(f1), ReadableEnum { extract, .. }, ) => {
+                FailableReadable(Rc::new(move |r| f1(r).and_then(|m| extract(m))))
+            }
+            // (ReadableEnum { extract, .. }, FailableReadable(f2)) => {
+            //     FailableReadable(Rc::new(move |r| extract(r).map(|m| f2(m).unwrap())))
+            // }
             (ReadableEnum { extract, .. }, Readable(f2)) => {
                 FailableReadable(Rc::new(move |r| extract(r).map(|m| f2(m))))
             }
