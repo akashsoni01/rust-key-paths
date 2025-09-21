@@ -1,50 +1,50 @@
-use key_paths_core::KeyPaths;
+// use key_paths_core::KeyPaths;
 use key_paths_derive::{Casepaths, Keypaths};
 
-#[derive(Debug)]
+#[derive(Debug, Keypaths)]
 struct SomeComplexStruct {
     scsf: Vec<SomeOtherStruct>,
 
 }
 
-impl SomeComplexStruct {
-    fn scsf_fr() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-        KeyPaths::failable_readable(
-            |root: & SomeComplexStruct|
-            {
-                root.scsf.first()
-            }
-        )
-    }
+// impl SomeComplexStruct {
+//     fn scsf_fr() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
+//         KeyPaths::failable_readable(
+//             |root: & SomeComplexStruct|
+//             {
+//                 root.scsf.first()
+//             }
+//         )
+//     }
 
-    fn scsf_fr_at(index: &'static usize) -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-        KeyPaths::failable_readable(
-            |root: & SomeComplexStruct|
-            {
-                root.scsf.get(*index)
-            }
-        )
-    }
+//     fn scsf_fr_at(index: &'static usize) -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
+//         KeyPaths::failable_readable(
+//             |root: & SomeComplexStruct|
+//             {
+//                 root.scsf.get(*index)
+//             }
+//         )
+//     }
 
-    fn scsf_fw() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-        KeyPaths::failable_writable(
-            |root: &mut SomeComplexStruct|
-            {
-                root.scsf.first_mut()
-            }
-        )
-    }
+//     fn scsf_fw() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
+//         KeyPaths::failable_writable(
+//             |root: &mut SomeComplexStruct|
+//             {
+//                 root.scsf.first_mut()
+//             }
+//         )
+//     }
 
-    fn scsf_fw_at(index: &'static usize) -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-        KeyPaths::failable_writable(
-            |root: &mut SomeComplexStruct|
-            {
-                root.scsf.get_mut(*index)
-            }
-        )
-    }
+//     fn scsf_fw_at(index: &'static usize) -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
+//         KeyPaths::failable_writable(
+//             |root: &mut SomeComplexStruct|
+//             {
+//                 root.scsf.get_mut(*index)
+//             }
+//         )
+//     }
 
-}
+// }
 impl SomeComplexStruct {
     fn new() -> Self {
         Self {
@@ -73,7 +73,7 @@ struct SomeOtherStruct {
 
 #[derive(Debug, Casepaths)]
 enum SomeEnum {
-    A(String), 
+    A(Vec<String>), 
     B(DarkStruct)
 }
 

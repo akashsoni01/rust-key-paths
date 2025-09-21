@@ -29,12 +29,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let w_fn = format_ident!("{}_w", field_ident);
                     let fr_fn = format_ident!("{}_fr", field_ident);
                     let fw_fn = format_ident!("{}_fw", field_ident);
+                    let fr_at_fn = format_ident!("{}_fr_at", field_ident);
+                    let fw_at_fn = format_ident!("{}_fw_at", field_ident);
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty) {
                         (WrapperKind::Option, Some(inner_ty)) => {
-                            // Option<T>
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -51,24 +52,28 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
-                            // Vec<T>
                             tokens.extend(quote! {
-                                // pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                //     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident.first)
-                                // }
-                                // pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                //     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#field_ident)
-                                // }
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
+                                }
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#field_ident.first()))
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.first())
                                 }
                                 pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut *s.#field_ident.first_mut()))
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.first_mut())
+                                }
+                                pub fn #fr_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.get(*index))
+                                }
+                                pub fn #fw_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.get_mut(*index))
                                 }
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
-                            // Box<T>
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
@@ -85,7 +90,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
-                            // Rc<T> or Arc<T> -> read-only only
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
@@ -96,7 +100,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::None, None) => {
-                            // Regular field
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -112,7 +115,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        // Shouldn't get here: fallback to regular field behavior
                         _ => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -128,7 +130,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 tokens
             }
             Fields::Unnamed(unnamed) => {
-                // tuple struct fields (0,1,2...)
                 let mut tokens = proc_macro2::TokenStream::new();
                 for (idx, field) in unnamed.unnamed.iter().enumerate() {
                     let idx_lit = syn::Index::from(idx);
@@ -138,6 +139,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let w_fn = format_ident!("f{}_w", idx);
                     let fr_fn = format_ident!("f{}_fr", idx);
                     let fw_fn = format_ident!("f{}_fw", idx);
+                    let fr_at_fn = format_ident!("f{}_fr_at", idx);
+                    let fw_at_fn = format_ident!("f{}_fw_at", idx);
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
@@ -160,12 +163,23 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                // help me add code here for vec only 
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                }
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| &s.#idx_lit.first())
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.first())
                                 }
                                 pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| &mut s.#idx_lit.first_mut())
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.first_mut())
+                                }
+                                pub fn #fr_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.get(*index))
+                                }
+                                pub fn #fw_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.get_mut(*index))
                                 }
                             });
                         }
@@ -212,7 +226,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         _ => {
-                            // fallback
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -228,13 +241,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             },
         },
         Data::Enum(data_enum) => {
-            // Support enum unit variants and single-field tuple variants.
             let mut tokens = proc_macro2::TokenStream::new();
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
                 let r_fn = format_ident!("{}_case_r", snake);
                 let w_fn = format_ident!("{}_case_w", snake);
+                let fr_at_fn = format_ident!("{}_case_fr_at", snake);
+                let fw_at_fn = format_ident!("{}_case_fw_at", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
@@ -271,24 +285,35 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 });
                             }
                             (WrapperKind::Vec, Some(inner_ty)) => {
-                                // help me add code here for vec
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
                                             #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v.first()), _ => None }
+                                            |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None }
                                         )
                                     }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => Some(&mut *v.first_mut), _ => None },
+                                            |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None },
+                                            |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut(), _ => None },
+                                        )
+                                    }
+                                    pub fn #fr_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        key_paths_core::KeyPaths::readable_enum(
+                                            #name::#v_ident,
+                                            |e: &#name| match e { #name::#v_ident(v) => v.get(*index), _ => None }
+                                        )
+                                    }
+                                    pub fn #fw_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        key_paths_core::KeyPaths::writable_enum(
+                                            #name::#v_ident,
+                                            |e: &#name| match e { #name::#v_ident(v) => v.get(*index), _ => None },
+                                            |e: &mut #name| match e { #name::#v_ident(v) => v.get_mut(*index), _ => None },
                                         )
                                     }
                                 });
                             }
-
                             (WrapperKind::Box, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -317,7 +342,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 });
                             }
                             (WrapperKind::None, None) => {
-                                // plain payload
                                 let inner_ty = field_ty;
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -336,7 +360,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 });
                             }
                             _ => {
-                                // Fallback: expose the raw field as readable
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -409,37 +432,6 @@ fn to_snake_case(name: &str) -> String {
     }
     out
 }
-
-// #[proc_macro_derive(Casepaths)]
-// pub fn derive_casepaths(input: TokenStream) -> TokenStream {
-//     // NOTE: the Casepaths derive was already handled inside the Keypaths impl above.
-//     // If you prefer a separate derive for Casepaths (kept for backward compat), simply call the same
-//     // generation logic or extract shared helpers. For brevity, this stub keeps the behavior minimal.
-//     let input = parse_macro_input!(input as DeriveInput);
-//     let name = input.ident;
-
-//     // Delegate to the same enum handling as Keypaths for single-field tuple / unit variants.
-//     // (You can copy-paste the enum branch above into a shared helper if you want real dedup.)
-//     let tokens = match input.data {
-//         Data::Enum(_) => {
-//             quote! {
-//                 // Casepaths derive is intentionally left as a no-op here because Keypaths
-//                 // already implements the enum helpers. If you want separate Casepaths
-//                 // behavior, implement it similarly to the enum branch above.
-//             }
-//         }
-//         _ => quote! { compile_error!("Casepaths can only be derived for enums"); },
-//     };
-
-//     let expanded = quote! {
-//         impl #name {
-//             #tokens
-//         }
-//     };
-
-//     TokenStream::from(expanded)
-// }
-
 
 #[proc_macro_derive(Casepaths)]
 pub fn derive_casepaths(input: TokenStream) -> TokenStream {
