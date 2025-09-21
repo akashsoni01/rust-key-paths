@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 #[derive(Clone)]
-/// Go to examples section to see the implementations 
-/// 
+/// Go to examples section to see the implementations
+///
 pub enum KeyPaths<Root, Value> {
     Readable(Rc<dyn for<'a> Fn(&'a Root) -> &'a Value>),
     ReadableEnum {
@@ -176,7 +176,6 @@ where
         use KeyPaths::*;
 
         match (self, mid) {
-            
             (Readable(f1), Readable(f2)) => Readable(Rc::new(move |r| f2(f1(r)))),
 
             (Writable(f1), Writable(f2)) => Writable(Rc::new(move |r| f2(f1(r)))),
@@ -200,7 +199,7 @@ where
             (FailableWritable(f1), FailableWritable(f2)) => {
                 FailableWritable(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
             }
-            (FailableReadable(f1), ReadableEnum { extract, .. }, ) => {
+            (FailableReadable(f1), ReadableEnum { extract, .. }) => {
                 FailableReadable(Rc::new(move |r| f1(r).and_then(|m| extract(m))))
             }
             // (ReadableEnum { extract, .. }, FailableReadable(f2)) => {

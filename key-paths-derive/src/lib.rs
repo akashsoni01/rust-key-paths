@@ -53,6 +53,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
+                                pub fn #fr_at_fn(index: usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(index))
+                                }
+                                pub fn #fw_at_fn(index: usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(index))
+                                }
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
                                 }
@@ -64,12 +70,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.first_mut())
-                                }
-                                pub fn #fr_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.get(*index))
-                                }
-                                pub fn #fw_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.get_mut(*index))
                                 }
                             });
                         }
@@ -331,7 +331,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                            (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
+                            (WrapperKind::Rc, Some(inner_ty))
+                            | (WrapperKind::Arc, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -404,11 +405,11 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                     if let GenericArgument::Type(inner) = arg {
                         return match ident_str.as_str() {
                             "Option" => (WrapperKind::Option, Some(inner.clone())),
-                            "Box"    => (WrapperKind::Box, Some(inner.clone())),
-                            "Rc"     => (WrapperKind::Rc, Some(inner.clone())),
-                            "Arc"    => (WrapperKind::Arc, Some(inner.clone())),
-                            "Vec"    => (WrapperKind::Vec, Some(inner.clone())),
-                            _        => (WrapperKind::None, None),
+                            "Box" => (WrapperKind::Box, Some(inner.clone())),
+                            "Rc" => (WrapperKind::Rc, Some(inner.clone())),
+                            "Arc" => (WrapperKind::Arc, Some(inner.clone())),
+                            "Vec" => (WrapperKind::Vec, Some(inner.clone())),
+                            _ => (WrapperKind::None, None),
                         };
                     }
                 }

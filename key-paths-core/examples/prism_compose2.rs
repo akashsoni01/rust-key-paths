@@ -14,7 +14,6 @@ struct User {
     address: Address,
 }
 
-
 #[derive(Debug)]
 pub enum Product {
     Book(Book),
@@ -66,7 +65,6 @@ fn main() {
     //     },
     // );
 
-
     let mut inventory = Inventory {
         items: vec![
             Product::Book(Book {
@@ -83,22 +81,19 @@ fn main() {
         shipping_cost: 5.0,
     };
 
-
     let electronics_path: KeyPaths<Product, Electronics> = KeyPaths::writable_enum(
         |v| Product::Electronics(v),
         |p: &Product| match p {
-            Product::Electronics ( electronics) => Some(electronics),
+            Product::Electronics(electronics) => Some(electronics),
             _ => None,
         },
         |p: &mut Product| match p {
-            Product::Electronics (electronics) => Some(electronics),
+            Product::Electronics(electronics) => Some(electronics),
             _ => None,
         },
     );
 
-    let price_path = KeyPaths::failable_writable(
-        |e: &mut Electronics| Some(&mut e.price)
-    );
+    let price_path = KeyPaths::failable_writable(|e: &mut Electronics| Some(&mut e.price));
 
     // Product -> Electronics -> price
     let product_to_price = electronics_path.compose(price_path);
@@ -119,5 +114,4 @@ fn main() {
     } else {
         println!("Path not found for the book.");
     }
-
 }
