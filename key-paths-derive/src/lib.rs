@@ -76,18 +76,24 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
+                                }
+                                pub fn #fr_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(&key))
+                                }
+                                pub fn #fw_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(&key))
+                                }
                                 pub fn #fr_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(&key))
                                 }
                                 pub fn #fw_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(&key))
                                 }
-                                // pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                //     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
-                                // }
-                                // pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                //     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
-                                // }
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
@@ -202,12 +208,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                // pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                //     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                // }
-                                // pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                //     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                // }
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                }
+                                pub fn #fr_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#idx_lit.get(&key))
+                                }
+                                pub fn #fw_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#idx_lit.get_mut(&key))
+                                }
                                 pub fn #fr_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#idx_lit.get(&key))
                                 }
@@ -347,32 +359,32 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                            (WrapperKind::HashMap, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    // pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    //     key_paths_core::KeyPaths::readable_enum(
-                                    //         #name::#v_ident,
-                                    //         |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None }
-                                    //     )
-                                    // }
-                                    // pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    //     key_paths_core::KeyPaths::writable_enum(
-                                    //         #name::#v_ident,
-                                    //         |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None },
-                                    //         |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut(), _ => None },
-                                    //     )
-                                    // }
-                                    pub fn #fr_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
                                             #name::#v_ident,
-                                            move |e: &#name| match e { #name::#v_ident(v) => v.get(&key), _ => None }
+                                            |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None }
                                         )
                                     }
-                                    pub fn #fw_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
-                                            move |e: &#name| match e { #name::#v_ident(v) => v.get(&key), _ => None },
-                                            move |e: &mut #name| match e { #name::#v_ident(v) => v.get_mut(&key), _ => None },
+                                            |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None },
+                                            |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut().map(|(_, v)| v), _ => None },
+                                        )
+                                    }
+                                    pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        key_paths_core::KeyPaths::readable_enum(
+                                            #name::#v_ident,
+                                            |e: &#name| match e { #name::#v_ident(v) => v.get(key), _ => None }
+                                        )
+                                    }
+                                    pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        key_paths_core::KeyPaths::writable_enum(
+                                            #name::#v_ident,
+                                            |e: &#name| match e { #name::#v_ident(v) => v.get(key), _ => None },
+                                            |e: &mut #name| match e { #name::#v_ident(v) => v.get_mut(key), _ => None },
                                         )
                                     }
                                 });
@@ -461,20 +473,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
     if let Type::Path(tp) = ty {
+        let is_vec = tp.path.segments.iter().any(|seg| seg.ident == "Vec" || seg.ident == "vec");
+        let is_hashmap = tp.path.segments.iter().any(|seg| seg.ident == "HashMap" || seg.ident == "hash_map");
         if let Some(seg) = tp.path.segments.last() {
             let ident_str = seg.ident.to_string();
             if let PathArguments::AngleBracketed(ab) = &seg.arguments {
-                for arg in ab.args.iter() {
-                    if let GenericArgument::Type(inner) = arg {
-                        return match ident_str.as_str() {
-                            "Option" => (WrapperKind::Option, Some(inner.clone())),
-                            "Box" => (WrapperKind::Box, Some(inner.clone())),
-                            "Rc" => (WrapperKind::Rc, Some(inner.clone())),
-                            "Arc" => (WrapperKind::Arc, Some(inner.clone())),
-                            "Vec" => (WrapperKind::Vec, Some(inner.clone())),
-                            "HashMap" => (WrapperKind::HashMap, Some(inner.clone())),
-                            _ => (WrapperKind::None, None),
-                        };
+                let mut args = ab.args.iter();
+                if is_hashmap {
+                    // For HashMap<K, V>, we want the value type (V), which is the second argument
+                    if let (Some(_key_arg), Some(value_arg)) = (args.next(), args.next()) {
+                        if let GenericArgument::Type(inner) = value_arg {
+                            eprintln!("Detected HashMap type: {}, extracting value type", ident_str);
+                            return (WrapperKind::HashMap, Some(inner.clone()));
+                        }
+                    }
+                } else {
+                    // For other types like Vec, take the first argument
+                    if let Some(arg) = args.next() {
+                        if let GenericArgument::Type(inner) = arg {
+                            eprintln!("Detected type: {}, is_vec: {}", ident_str, is_vec);
+                            return match ident_str.as_str() {
+                                "Option" => (WrapperKind::Option, Some(inner.clone())),
+                                "Box" => (WrapperKind::Box, Some(inner.clone())),
+                                "Rc" => (WrapperKind::Rc, Some(inner.clone())),
+                                "Arc" => (WrapperKind::Arc, Some(inner.clone())),
+                                _ if is_vec => (WrapperKind::Vec, Some(inner.clone())),
+                                _ => (WrapperKind::None, None),
+                            };
+                        }
                     }
                 }
             }
@@ -482,6 +508,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     }
     (WrapperKind::None, None)
 }
+
 
 fn to_snake_case(name: &str) -> String {
     let mut out = String::new();

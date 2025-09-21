@@ -20,8 +20,8 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 
 ```toml
 [dependencies]
-key-paths-core = "0.8"
-key-paths-derive = "0.1"
+key-paths-core = "0.9"
+key-paths-derive = "0.3"
 ```
 
 ---

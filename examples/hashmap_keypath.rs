@@ -101,7 +101,6 @@ struct DarkStruct {
 }
 
 fn main() {
-    // let x = ;
     let op = SomeComplexStruct::scsf_fw_at("1".to_string())
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
