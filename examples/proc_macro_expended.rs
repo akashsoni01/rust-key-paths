@@ -73,7 +73,7 @@ fn main() {
     // let mut instance = SomeComplexStruct::new();
     // let omsf = op.get_mut(&mut instance);
     // *omsf.unwrap() =
-    //     String::from("we can change the field with the other way unclocked by keypaths");
+    //     String::from("we can change the field with the other way unlocked by keypaths");
     // println!("instance = {:?}", instance);
 
     // syntictic suger to do what we just do with other way
@@ -85,7 +85,7 @@ fn main() {
     let mut instance = SomeComplexStruct::new();
     let omsf = op.get_mut(&mut instance);
     *omsf.unwrap() =
-        String::from("we can change the field with the other way unclocked by keypaths");
+        String::from("we can change the field with the other way unlocked by keypaths");
     println!("instance = {:?}", instance);
 
 }
