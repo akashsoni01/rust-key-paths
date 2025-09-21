@@ -1,3 +1,5 @@
+use key_paths_core::KeyPaths;
+
 #[derive(Debug)]
 struct Size {
     width: u32,
