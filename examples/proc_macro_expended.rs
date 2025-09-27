@@ -75,7 +75,7 @@ fn main() {
     // syntictic suger to do what we just do with other way
     // SomeComplexStruct -> SomeOtherStruct -> OneMoreStruct -> omsf
 
-    let op = SomeComplexStruct::scsf_fr()
+    let op = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omsf_fw());
     let mut instance = SomeComplexStruct::new();

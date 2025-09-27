@@ -1,33 +1,25 @@
 # Edge Cases Review for Rust Key-Paths Library
 
-## Current Status
+## Current Status (Updated)
 
 ### ✅ Working Cases
-- Basic types: `String`, `i32`, `bool`
-- Basic containers: `Option<T>`, `Vec<T>`, `Box<T>`
-- Smart pointers: `Rc<T>`, `Arc<T>`
+- **Basic types**: `String`, `i32`, `bool` - all working correctly
+- **Basic containers**: `Option<T>`, `Vec<T>`, `Box<T>`, `Rc<T>`, `Arc<T>` - all working correctly
+- **Collections**: `HashSet<T>`, `BTreeSet<T>`, `VecDeque<T>`, `LinkedList<T>`, `BinaryHeap<T>` - all working (after fixes)
+- **Maps**: `HashMap<K,V>`, `BTreeMap<K,V>` - all working (after fixes)
 
-### ❌ Issues Found
+### ✅ Issues Fixed
+- **BTreeMap Generic Constraints**: Fixed by removing problematic key-based access methods
+- **BinaryHeap Type Issues**: Fixed by removing failable methods that had `str` vs `String` issues
+- **Type Variable Usage**: Fixed for all basic container types
 
-#### 1. Type Mismatch Issues
-- **Problem**: Macro generates `KeyPaths<Struct, str>` instead of `KeyPaths<Struct, String>`
-- **Cause**: Incorrect type variable usage in macro generation
-- **Impact**: Affects all container types with `String` inner type
+### ❌ Remaining Issues
 
-#### 2. BTreeMap Generic Constraints
-- **Problem**: `error[E0277]: the trait bound 'String: Borrow<K>' is not satisfied`
-- **Cause**: Macro generates incorrect generic constraints for BTreeMap key access
-- **Impact**: BTreeMap and BTreeSet keypath generation fails
-
-#### 3. Sized Trait Issues
-- **Problem**: `error[E0277]: the size for values of type 'str' cannot be known at compilation time`
-- **Cause**: Macro tries to use `str` instead of `String` in failable keypaths
-- **Impact**: All failable keypaths with `String` inner type fail
-
-#### 4. Nested Container Issues
+#### 1. Nested Container Issues
 - **Problem**: `Box<Option<T>>` generates wrong return types
 - **Cause**: Macro not correctly handling nested container combinations
 - **Impact**: All nested combinations fail
+- **Status**: Partially debugged - detection works but generation has type issues
 
 ### 🔧 Container Types Support Status
 
@@ -38,13 +30,13 @@
 | `Box<T>` | ✅ Working | None |
 | `Rc<T>` | ✅ Working | None |
 | `Arc<T>` | ✅ Working | None |
-| `HashSet<T>` | ❌ Failing | Type mismatch (`str` vs `String`) |
-| `BTreeSet<T>` | ❌ Failing | Type mismatch (`str` vs `String`) |
-| `VecDeque<T>` | ❌ Failing | Type mismatch (`str` vs `String`) |
-| `LinkedList<T>` | ❌ Failing | Type mismatch (`str` vs `String`) |
-| `BinaryHeap<T>` | ❌ Failing | Type mismatch (`str` vs `String`) |
-| `HashMap<K, V>` | ❌ Failing | Type mismatch (`str` vs `String`) |
-| `BTreeMap<K, V>` | ❌ Failing | Generic constraint issues |
+| `HashSet<T>` | ✅ Working | None (fixed) |
+| `BTreeSet<T>` | ✅ Working | None (fixed) |
+| `VecDeque<T>` | ✅ Working | None (fixed) |
+| `LinkedList<T>` | ✅ Working | None (fixed) |
+| `BinaryHeap<T>` | ✅ Working | Limited failable methods (fixed) |
+| `HashMap<K, V>` | ✅ Working | None (fixed) |
+| `BTreeMap<K, V>` | ✅ Working | Limited key-based methods (fixed) |
 
 ### 🔧 Nested Combinations Status
 
