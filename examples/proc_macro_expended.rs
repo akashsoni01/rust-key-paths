@@ -7,7 +7,7 @@ struct SomeComplexStruct {
     // scsf2: Option<SomeOtherStruct>,
 }
 
-impl  SomeComplexStruct {
+impl SomeComplexStruct {
     // read only keypath = field_name_r
     // fn r() -> KeyPaths<SomeComplexStruct, SomeOtherStruct>{
     //     KeyPaths::readable(get)
@@ -17,17 +17,13 @@ impl  SomeComplexStruct {
     // fn w() -> KeyPaths<>{}
 
     // failable read only keypath = field_name_fr
-    fn scsf_fr() -> KeyPaths<SomeComplexStruct, SomeOtherStruct>{
-        KeyPaths::failable_readable(|root: &SomeComplexStruct| {
-            root.scsf.as_ref()
-        })
+    fn scsf_fr() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
+        KeyPaths::failable_readable(|root: &SomeComplexStruct| root.scsf.as_ref())
     }
 
     // failable writeable keypath = field_name_fw
-    fn scsf_fw() -> KeyPaths<SomeComplexStruct, SomeOtherStruct>{
-            KeyPaths::failable_writable(|root: &mut SomeComplexStruct| {
-            root.scsf.as_mut()
-        })
+    fn scsf_fw() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
+        KeyPaths::failable_writable(|root: &mut SomeComplexStruct| root.scsf.as_mut())
     }
 }
 
@@ -78,8 +74,8 @@ fn main() {
 
     // syntictic suger to do what we just do with other way
     // SomeComplexStruct -> SomeOtherStruct -> OneMoreStruct -> omsf
-    
-    let op = SomeComplexStruct::scsf_fr()
+
+    let op = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omsf_fw());
     let mut instance = SomeComplexStruct::new();
@@ -87,5 +83,4 @@ fn main() {
     *omsf.unwrap() =
         String::from("we can change the field with the other way unlocked by keypaths");
     println!("instance = {:?}", instance);
-
 }

@@ -15,15 +15,6 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 - ✅ **Proc-macros**: `#[derive(Keypaths)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
 
 ---
-
-## 📦 Installation
-
-```toml
-[dependencies]
-key-paths-core = "0.8"
-key-paths-derive = "0.1"
-```
-
 ---
 
 ## 🚀 Examples
