@@ -16,14 +16,6 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 
 ---
 
-## 📦 Installation
-
-```toml
-[dependencies]
-key-paths-core = "0.9"
-key-paths-derive = "0.3"
-```
-
 ---
 
 ## 🚀 Examples
