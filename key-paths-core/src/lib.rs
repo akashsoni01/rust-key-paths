@@ -18,6 +18,12 @@ pub enum KeyPaths<Root, Value> {
         extract_mut: Rc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut Value>>,
         embed: Rc<dyn Fn(Value) -> Root>,
     },
+
+
+
+    // New Owned KeyPath types (value semantics)
+    Owned(Rc<dyn Fn(Root) -> Value>),
+    FailableOwned(Rc<dyn Fn(Root) -> Option<Value>>),    
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
@@ -68,6 +74,28 @@ impl<Root, Value> KeyPaths<Root, Value> {
             extract_mut: Rc::new(extract_mut),
         }
     }
+
+
+    // New Owned KeyPath constructors
+    #[inline]
+    pub fn owned(get: impl Fn(Root) -> Value + 'static) -> Self {
+        Self::Owned(Rc::new(get))
+    }
+
+    #[inline]
+    pub fn failable_owned(get: impl Fn(Root) -> Option<Value> + 'static) -> Self {
+        Self::FailableOwned(Rc::new(get))
+    }
+
+    #[inline]
+    pub fn owned_writable(get: impl Fn(Root) -> Value + 'static) -> Self {
+        Self::Owned(Rc::new(get))
+    }
+    
+    #[inline]
+    pub fn failable_owned_writable(get: impl Fn(Root) -> Option<Value> + 'static) -> Self {
+        Self::FailableOwned(Rc::new(get))
+    }
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
@@ -81,6 +109,9 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::FailableWritable(_) => None, // needs mut
             KeyPaths::ReadableEnum { extract, .. } => extract(root),
             KeyPaths::WritableEnum { extract, .. } => extract(root),
+            // New owned keypath types (don't work with references)
+            KeyPaths::Owned(_) => None, // Owned keypaths don't work with references
+            KeyPaths::FailableOwned(_) => None, // Owned keypaths don't work with references
         }
     }
 
@@ -92,8 +123,11 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Writable(f) => Some(f(root)),
             KeyPaths::FailableReadable(_) => None, // immutable only
             KeyPaths::FailableWritable(f) => f(root),
+            KeyPaths::ReadableEnum { .. } => None, // immutable only
             KeyPaths::WritableEnum { extract_mut, .. } => extract_mut(root),
-            _ => None,
+            // New owned keypath types (don't work with references)
+            KeyPaths::Owned(_) => None, // Owned keypaths don't work with references
+            KeyPaths::FailableOwned(_) => None, // Owned keypaths don't work with references
         }
     }
 
@@ -114,6 +148,27 @@ impl<Root, Value> KeyPaths<Root, Value> {
         match self {
             KeyPaths::WritableEnum { embed, .. } => Some(embed(value)),
             _ => None,
+        }
+    }
+
+
+    // ===== Owned KeyPath Accessor Methods =====
+
+    /// Get an owned value (primary method for owned keypaths)
+    #[inline]
+    pub fn get_owned(self, root: Root) -> Value {
+        match self {
+            KeyPaths::Owned(f) => f(root),
+            _ => panic!("get_owned only works with owned keypaths"),
+        }
+    }
+
+    /// Get an owned value with failable access
+    #[inline]
+    pub fn get_failable_owned(self, root: Root) -> Option<Value> {
+        match self {
+            KeyPaths::FailableOwned(f) => f(root),
+            _ => panic!("get_failable_owned only works with failable owned keypaths"),
         }
     }
 
@@ -151,6 +206,9 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::FailableWritable(_) => None,
             KeyPaths::ReadableEnum { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
             KeyPaths::WritableEnum { extract, .. } => extract(&root).map(|v| v.clone().into_iter()),
+            // New owned keypath types
+            KeyPaths::Owned(f) => Some(f(root).into_iter()),
+            KeyPaths::FailableOwned(f) => f(root).map(|v| v.into_iter()),
         }
     }
 }
@@ -272,7 +330,7 @@ where
             (
                 WritableEnum {
                     extract: ex1,
-                    extract_mut,
+                    extract_mut: _,
                     embed: em1,
                 },
                 ReadableEnum {
@@ -301,12 +359,37 @@ where
                 embed: Rc::new(move |v| em1(em2(v))),
             },
 
+
+            // New owned keypath compositions
+            (Owned(f1), Owned(f2)) => {
+                Owned(Rc::new(move |r| f2(f1(r))))
+            }
+            (FailableOwned(f1), Owned(f2)) => {
+                FailableOwned(Rc::new(move |r| f1(r).map(|m| f2(m))))
+            }
+            (Owned(f1), FailableOwned(f2)) => {
+                FailableOwned(Rc::new(move |r| f2(f1(r))))
+            }
+            (FailableOwned(f1), FailableOwned(f2)) => {
+                FailableOwned(Rc::new(move |r| f1(r).and_then(|m| f2(m))))
+            }
+
+            // Cross-composition between owned and regular keypaths
+            // Note: These compositions require Clone bounds which may not always be available
+            // For now, we'll skip these complex compositions
+
             (a, b) => panic!(
                 "Unsupported composition: {:?} then {:?}",
                 kind_name(&a),
                 kind_name(&b)
             ),
         }
+    }
+
+    /// Get the kind name of this keypath
+    #[inline]
+    pub fn kind_name(&self) -> &'static str {
+        kind_name(self)
     }
 }
 
@@ -319,7 +402,30 @@ fn kind_name<Root, Value>(k: &KeyPaths<Root, Value>) -> &'static str {
         FailableWritable(_) => "FailableWritable",
         ReadableEnum { .. } => "ReadableEnum",
         WritableEnum { .. } => "WritableEnum",
+        // New owned keypath types
+        Owned(_) => "Owned",
+        FailableOwned(_) => "FailableOwned",
     }
+}
+
+// ===== Helper functions for creating reusable getter functions =====
+// Note: These helper functions have lifetime constraints that make them
+// difficult to implement in Rust's current type system. The keypath
+// instances themselves can be used directly for access.
+
+// ===== Global compose function =====
+
+/// Global compose function that combines two compatible key paths
+pub fn compose<Root, Mid, Value>(
+    kp1: KeyPaths<Root, Mid>,
+    kp2: KeyPaths<Mid, Value>,
+) -> KeyPaths<Root, Value>
+where
+    Root: 'static,
+    Mid: 'static,
+    Value: 'static,
+{
+    kp1.compose(kp2)
 }
 
 // ===== Helper macros for enum case keypaths =====
