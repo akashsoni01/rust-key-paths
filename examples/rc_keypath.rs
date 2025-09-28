@@ -24,24 +24,24 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypaths, Clone)]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
-#[derive(Debug, Casepaths)]
+#[derive(Debug, Casepaths, Clone)]
 enum SomeEnum {
     A(String),
     B(DarkStruct),
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypaths, Clone)]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypaths, Clone)]
 struct DarkStruct {
     dsf: String,
 }
