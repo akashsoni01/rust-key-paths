@@ -12,6 +12,13 @@ struct Address {
     city: String,
 }
 
+/*
+there is no fom and om i.e. failable owned mutable and owned mutable keypaths. 
+because once the value moved it is up to you you wan to mutate it or not. 
+e.g. 
+    let name_kp = KeyPaths::owned(|p: Person| p.name);
+    let mut extracted_name = name_kp.get_owned(person.clone());
+*/
 fn main() {
     println!("=== Owned KeyPaths Test Suite ===\n");
 
