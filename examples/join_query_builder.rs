@@ -371,32 +371,36 @@ fn main() {
     // Join 3: Left join to show all users (including those without orders)
     println!("\n--- Join 3: All Users with Order Count (Left Join) ---");
     
-    // Build a map of user orders
-    let mut user_order_map: HashMap<u32, Vec<&Order>> = HashMap::new();
-    for order in &orders {
-        user_order_map
-            .entry(order.user_id)
-            .or_insert_with(Vec::new)
-            .push(order);
+    // Use left_join to get all users with their orders (or None)
+    let user_order_pairs = JoinQuery::new(&users, &orders).left_join(
+        User::id_r(),
+        Order::user_id_r(),
+        |user, order| (user.clone(), order.map(|o| o.clone())),
+    );
+
+    // Group by user to count orders
+    let mut user_stats: HashMap<u32, (String, String, usize, f64)> = HashMap::new();
+    for (user, order) in &user_order_pairs {
+        let entry = user_stats
+            .entry(user.id)
+            .or_insert_with(|| (user.name.clone(), user.city.clone(), 0, 0.0));
+        if let Some(order) = order {
+            entry.2 += 1; // order count
+            entry.3 += order.total; // total spent
+        }
     }
 
-    let user_order_stats: Vec<UserOrderCount> = users
-        .iter()
-        .map(|user| {
-            let user_orders = user_order_map.get(&user.id);
-            let order_count = user_orders.map(|v| v.len()).unwrap_or(0);
-            let total_spent = user_orders
-                .map(|orders| orders.iter().map(|o| o.total).sum())
-                .unwrap_or(0.0);
-
-            UserOrderCount {
-                user_name: user.name.clone(),
-                user_city: user.city.clone(),
-                order_count,
-                total_spent,
-            }
+    let mut user_order_stats: Vec<_> = user_stats
+        .into_iter()
+        .map(|(_, (name, city, count, total))| UserOrderCount {
+            user_name: name,
+            user_city: city,
+            order_count: count,
+            total_spent: total,
         })
         .collect();
+
+    user_order_stats.sort_by(|a, b| a.user_name.cmp(&b.user_name));
 
     for stat in &user_order_stats {
         if stat.order_count > 0 {
@@ -412,18 +416,24 @@ fn main() {
     // Join 4: Aggregated join - Category sales analysis
     println!("\n--- Join 4: Sales by Product Category ---");
 
+    // Join orders with products to get category information
+    let order_products = JoinQuery::new(&orders, &products).inner_join(
+        Order::product_id_r(),
+        Product::id_r(),
+        |order, product| (order.clone(), product.clone()),
+    );
+
+    // Aggregate by category
     let mut category_stats: HashMap<String, (Vec<u32>, f64, std::collections::HashSet<u32>)> =
         HashMap::new();
 
-    for order in &orders {
-        if let Some(product) = products.iter().find(|p| p.id == order.product_id) {
-            let entry = category_stats
-                .entry(product.category.clone())
-                .or_insert_with(|| (Vec::new(), 0.0, std::collections::HashSet::new()));
-            entry.0.push(order.id);
-            entry.1 += order.total;
-            entry.2.insert(order.user_id);
-        }
+    for (order, product) in &order_products {
+        let entry = category_stats
+            .entry(product.category.clone())
+            .or_insert_with(|| (Vec::new(), 0.0, std::collections::HashSet::new()));
+        entry.0.push(order.id);
+        entry.1 += order.total;
+        entry.2.insert(order.user_id);
     }
 
     let mut category_sales: Vec<CategorySales> = category_stats
@@ -477,17 +487,23 @@ fn main() {
 
     // Join 7: Product popularity
     println!("\n--- Join 7: Product Popularity Ranking ---");
-    let mut product_sales: HashMap<u32, (String, usize, u32, f64)> = HashMap::new();
+    
+    // Join orders with products
+    let product_order_pairs = JoinQuery::new(&products, &orders).inner_join(
+        Product::id_r(),
+        Order::product_id_r(),
+        |product, order| (product.clone(), order.clone()),
+    );
 
-    for order in &orders {
-        if let Some(product) = products.iter().find(|p| p.id == order.product_id) {
-            let entry = product_sales
-                .entry(product.id)
-                .or_insert_with(|| (product.name.clone(), 0, 0, 0.0));
-            entry.1 += 1; // order count
-            entry.2 += order.quantity; // total quantity
-            entry.3 += order.total; // total revenue
-        }
+    // Aggregate by product
+    let mut product_sales: HashMap<u32, (String, usize, u32, f64)> = HashMap::new();
+    for (product, order) in &product_order_pairs {
+        let entry = product_sales
+            .entry(product.id)
+            .or_insert_with(|| (product.name.clone(), 0, 0, 0.0));
+        entry.1 += 1; // order count
+        entry.2 += order.quantity; // total quantity
+        entry.3 += order.total; // total revenue
     }
 
     let mut popularity: Vec<_> = product_sales.into_iter().collect();
@@ -502,27 +518,34 @@ fn main() {
 
     // Join 8: User spending by city
     println!("\n--- Join 8: Total Spending by City ---");
-    let mut city_spending: HashMap<String, (f64, usize)> = HashMap::new();
+    
+    // Join users with orders to get city and spending info
+    let user_city_orders = JoinQuery::new(&users, &orders).inner_join(
+        User::id_r(),
+        Order::user_id_r(),
+        |user, order| (user.city.clone(), order.total, user.id),
+    );
 
-    for user in &users {
-        if let Some(user_orders) = user_order_map.get(&user.id) {
-            let total_spent: f64 = user_orders.iter().map(|o| o.total).sum();
-            let entry = city_spending
-                .entry(user.city.clone())
-                .or_insert_with(|| (0.0, 0));
-            entry.0 += total_spent;
-            entry.1 += 1;
-        }
+    // Aggregate by city
+    let mut city_spending: HashMap<String, (f64, std::collections::HashSet<u32>)> = HashMap::new();
+    for (city, total, user_id) in &user_city_orders {
+        let entry = city_spending
+            .entry(city.clone())
+            .or_insert_with(|| (0.0, std::collections::HashSet::new()));
+        entry.0 += total;
+        entry.1.insert(*user_id);
     }
 
-    let mut city_stats: Vec<_> = city_spending.into_iter().collect();
+    let mut city_stats: Vec<_> = city_spending
+        .into_iter()
+        .map(|(city, (total, customers))| (city, total, customers.len()))
+        .collect();
+    
     city_stats.sort_by(|a, b| {
-        b.1 .0
-            .partial_cmp(&a.1 .0)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    for (city, (total, customer_count)) in &city_stats {
+    for (city, total, customer_count) in &city_stats {
         println!(
             "  • {} - ${:.2} total - {} customers - ${:.2} avg",
             city,
@@ -535,15 +558,18 @@ fn main() {
     // Statistics summary
     println!("\n=== Summary Statistics ===");
     println!("Total orders: {}", orders.len());
-    println!("Total revenue: ${:.2}", orders.iter().map(|o| o.total).sum::<f64>());
-    println!(
-        "Average order value: ${:.2}",
-        orders.iter().map(|o| o.total).sum::<f64>() / orders.len() as f64
-    );
-    println!("Active customers: {}", user_order_map.len());
+    
+    let total_revenue: f64 = orders.iter().map(|o| o.total).sum();
+    println!("Total revenue: ${:.2}", total_revenue);
+    println!("Average order value: ${:.2}", total_revenue / orders.len() as f64);
+    
+    // Count unique customers using a join
+    let unique_customers: std::collections::HashSet<u32> = 
+        orders.iter().map(|o| o.user_id).collect();
+    println!("Active customers: {}", unique_customers.len());
     println!(
         "Average orders per customer: {:.1}",
-        orders.len() as f64 / user_order_map.len() as f64
+        orders.len() as f64 / unique_customers.len() as f64
     );
 
     println!("\n✓ Join query builder demo complete!");
