@@ -115,6 +115,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
+    /// Get an immutable reference when Root is itself a reference (&T)
+    /// This enables using keypaths with collections of references like Vec<&T>
+    #[inline]
+    pub fn get_ref<'a, 'b>(&'a self, root: &'b &Root) -> Option<&'b Value> 
+    where
+        'a: 'b,
+    {
+        self.get(*root)
+    }
+
     /// Get a mutable reference if possible
     #[inline]
     pub fn get_mut<'a>(&'a self, root: &'a mut Root) -> Option<&'a mut Value> {
@@ -129,6 +139,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::Owned(_) => None, // Owned keypaths don't work with references
             KeyPaths::FailableOwned(_) => None, // Owned keypaths don't work with references
         }
+    }
+
+    /// Get a mutable reference when Root is itself a mutable reference (&mut T)
+    /// This enables using writable keypaths with collections of mutable references
+    #[inline]
+    pub fn get_mut_ref<'a, 'b>(&'a self, root: &'b mut &mut Root) -> Option<&'b mut Value> 
+    where
+        'a: 'b,
+    {
+        self.get_mut(*root)
     }
 
     pub fn embed(&self, value: Value) -> Option<Root>
