@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone)]
 /// Go to examples section to see the implementations
@@ -149,6 +150,98 @@ impl<Root, Value> KeyPaths<Root, Value> {
         'a: 'b,
     {
         self.get_mut(*root)
+    }
+
+    // ===== Smart Pointer / Container Adapter Methods =====
+    // These methods create new keypaths that work with wrapped types
+    // Enables using KeyPaths<T, V> with Vec<Arc<T>>, Vec<Box<T>>, etc.
+
+    /// Adapt this keypath to work with Arc<Root>
+    /// Enables using KeyPaths<T, V> with collections like Vec<Arc<T>>
+    #[inline]
+    pub fn for_arc(self) -> KeyPaths<Arc<Root>, Value>
+    where
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::Readable(Rc::new(move |root: &Arc<Root>| {
+                f(&**root)
+            })),
+            KeyPaths::Writable(_) => {
+                // Writable doesn't work with Arc (no mutable access)
+                panic!("Cannot create writable keypath for Arc (Arc is immutable)")
+            }
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableReadable(Rc::new(move |root: &Arc<Root>| f(&**root)))
+            }
+            KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
+                extract: Rc::new(move |root: &Arc<Root>| extract(&**root)),
+                embed: Rc::new(move |value| Arc::new(embed(value))),
+            },
+            other => panic!("Unsupported keypath variant for Arc adapter: {:?}", kind_name(&other)),
+        }
+    }
+
+    /// Adapt this keypath to work with Box<Root>
+    /// Enables using KeyPaths<T, V> with collections like Vec<Box<T>>
+    #[inline]
+    pub fn for_box(self) -> KeyPaths<Box<Root>, Value>
+    where
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::Readable(Rc::new(move |root: &Box<Root>| {
+                f(&**root)
+            })),
+            KeyPaths::Writable(f) => KeyPaths::Writable(Rc::new(move |root: &mut Box<Root>| {
+                f(&mut **root)
+            })),
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableReadable(Rc::new(move |root: &Box<Root>| f(&**root)))
+            }
+            KeyPaths::FailableWritable(f) => {
+                KeyPaths::FailableWritable(Rc::new(move |root: &mut Box<Root>| f(&mut **root)))
+            }
+            KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
+                extract: Rc::new(move |root: &Box<Root>| extract(&**root)),
+                embed: Rc::new(move |value| Box::new(embed(value))),
+            },
+            KeyPaths::WritableEnum { extract, extract_mut, embed } => KeyPaths::WritableEnum {
+                extract: Rc::new(move |root: &Box<Root>| extract(&**root)),
+                extract_mut: Rc::new(move |root: &mut Box<Root>| extract_mut(&mut **root)),
+                embed: Rc::new(move |value| Box::new(embed(value))),
+            },
+            other => panic!("Unsupported keypath variant for Box adapter: {:?}", kind_name(&other)),
+        }
+    }
+
+    /// Adapt this keypath to work with Rc<Root>
+    /// Enables using KeyPaths<T, V> with collections like Vec<Rc<T>>
+    #[inline]
+    pub fn for_rc(self) -> KeyPaths<Rc<Root>, Value>
+    where
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::Readable(Rc::new(move |root: &Rc<Root>| {
+                f(&**root)
+            })),
+            KeyPaths::Writable(_) => {
+                // Writable doesn't work with Rc (no mutable access)
+                panic!("Cannot create writable keypath for Rc (Rc is immutable)")
+            }
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableReadable(Rc::new(move |root: &Rc<Root>| f(&**root)))
+            }
+            KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
+                extract: Rc::new(move |root: &Rc<Root>| extract(&**root)),
+                embed: Rc::new(move |value| Rc::new(embed(value))),
+            },
+            other => panic!("Unsupported keypath variant for Rc adapter: {:?}", kind_name(&other)),
+        }
     }
 
     pub fn embed(&self, value: Value) -> Option<Root>

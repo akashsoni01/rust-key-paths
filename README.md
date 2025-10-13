@@ -164,6 +164,61 @@ ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(0
 
 ---
 
+## 📦 Container Adapters & References (NEW!)
+
+KeyPaths now support smart pointers, containers, and references via adapter methods:
+
+### Smart Pointer Adapters
+
+Use `.for_arc()`, `.for_box()`, or `.for_rc()` to adapt keypaths for wrapped types:
+
+```rust
+use std::sync::Arc;
+
+let products: Vec<Arc<Product>> = vec![
+    Arc::new(Product { name: "Laptop".into(), price: 999.99 }),
+];
+
+// Adapt keypath to work with Arc<Product>
+let price_path = Product::price_r().for_arc();
+
+let affordable: Vec<&Arc<Product>> = products
+    .iter()
+    .filter(|p| price_path.get(p).map_or(false, |&price| price < 100.0))
+    .collect();
+```
+
+### Reference Support
+
+Use `.get_ref()` and `.get_mut_ref()` for collections of references:
+
+```rust
+let products: Vec<&Product> = hashmap.values().collect();
+let price_path = Product::price_r();
+
+for product_ref in &products {
+    if let Some(&price) = price_path.get_ref(product_ref) {
+        println!("Price: ${}", price);
+    }
+}
+```
+
+**Supported Adapters:**
+- `.for_arc()` - Works with `Arc<T>` (read-only)
+- `.for_box()` - Works with `Box<T>` (read & write)
+- `.for_rc()` - Works with `Rc<T>` (read-only)
+- `.get_ref()` - Works with `&T` references
+- `.get_mut_ref()` - Works with `&mut T` references
+
+**Examples:**
+- [`examples/container_adapters.rs`](examples/container_adapters.rs) - Smart pointer usage
+- [`examples/reference_keypaths.rs`](examples/reference_keypaths.rs) - Reference collections
+- [`key-paths-core/examples/container_adapter_test.rs`](key-paths-core/examples/container_adapter_test.rs) - Test suite
+
+**Documentation:** See [`CONTAINER_ADAPTERS.md`](CONTAINER_ADAPTERS.md) and [`REFERENCE_SUPPORT.md`](REFERENCE_SUPPORT.md)
+
+---
+
 ## 🔗 Helpful Links & Resources
 
 * 📘 [type-safe property paths](https://lodash.com/docs/4.17.15#get)
