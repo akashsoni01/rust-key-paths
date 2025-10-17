@@ -968,8 +968,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
                 let r_fn = format_ident!("{}_case_r", snake);
                 let w_fn = format_ident!("{}_case_w", snake);
-                let fr_fn = format_ident!("{}_case_fr", snake);
-                let fw_fn = format_ident!("{}_case_fw", snake);
+                let _fr_fn = format_ident!("{}_case_fr", snake);
+                let _fw_fn = format_ident!("{}_case_fw", snake);
                 let fr_at_fn = format_ident!("{}_case_fr_at", snake);
                 let fw_at_fn = format_ident!("{}_case_fw_at", snake);
 
@@ -1816,6 +1816,253 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
         },
         _ => quote! {
             compile_error!("WritableKeypaths derive supports only structs");
+        },
+    };
+
+    let expanded = quote! {
+        impl #name {
+            #methods
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+#[proc_macro_derive(Keypath)]
+pub fn derive_keypath(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+
+    let methods = match input.data {
+        Data::Struct(data_struct) => match data_struct.fields {
+            Fields::Named(fields_named) => {
+                let mut tokens = proc_macro2::TokenStream::new();
+                for field in fields_named.named.iter() {
+                    let field_ident = field.ident.as_ref().unwrap();
+                    let ty = &field.ty;
+
+                    let (kind, inner_ty) = extract_wrapper_inner_type(ty);
+
+                    match (kind, inner_ty) {
+                        (WrapperKind::Option, Some(inner_ty)) => {
+                            // For Option<T>, return failable readable keypath to inner type
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref())
+                                }
+                            });
+                        }
+                        (WrapperKind::Vec, Some(inner_ty)) => {
+                            // For Vec<T>, return failable readable keypath to first element
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.first())
+                                }
+                            });
+                        }
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
+                            // For HashMap<K,V>, return readable keypath to the container
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
+                            // For BTreeMap<K,V>, return readable keypath to the container
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::Box, Some(inner_ty)) => {
+                            // For Box<T>, return readable keypath to inner type
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
+                            // For Rc<T>/Arc<T>, return readable keypath to inner type
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
+                            // For HashSet<T>, return failable readable keypath to any element
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.iter().next())
+                                }
+                            });
+                        }
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
+                            // For BTreeSet<T>, return failable readable keypath to any element
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.iter().next())
+                                }
+                            });
+                        }
+                        (WrapperKind::VecDeque, Some(inner_ty)) => {
+                            // For VecDeque<T>, return failable readable keypath to front element
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.front())
+                                }
+                            });
+                        }
+                        (WrapperKind::LinkedList, Some(inner_ty)) => {
+                            // For LinkedList<T>, return failable readable keypath to front element
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.front())
+                                }
+                            });
+                        }
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
+                            // For BinaryHeap<T>, return failable readable keypath to peek element
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.peek())
+                                }
+                            });
+                        }
+                        (WrapperKind::None, None) => {
+                            // For basic types, return readable keypath
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
+                        _ => {
+                            // For unknown types, return readable keypath
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
+                    }
+                }
+                tokens
+            }
+            Fields::Unnamed(unnamed) => {
+                let mut tokens = proc_macro2::TokenStream::new();
+                for (idx, field) in unnamed.unnamed.iter().enumerate() {
+                    let idx_lit = syn::Index::from(idx);
+                    let ty = &field.ty;
+                    let field_name = format_ident!("f{}", idx);
+
+                    let (kind, inner_ty) = extract_wrapper_inner_type(ty);
+
+                    match (kind, inner_ty) {
+                        (WrapperKind::Option, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref())
+                                }
+                            });
+                        }
+                        (WrapperKind::Vec, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.first())
+                                }
+                            });
+                        }
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                            });
+                        }
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                            });
+                        }
+                        (WrapperKind::Box, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
+                                }
+                            });
+                        }
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
+                                }
+                            });
+                        }
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.iter().next())
+                                }
+                            });
+                        }
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.iter().next())
+                                }
+                            });
+                        }
+                        (WrapperKind::VecDeque, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.front())
+                                }
+                            });
+                        }
+                        (WrapperKind::LinkedList, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.front())
+                                }
+                            });
+                        }
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.peek())
+                                }
+                            });
+                        }
+                        (WrapperKind::None, None) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                            });
+                        }
+                        _ => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                            });
+                        }
+                    }
+                }
+                tokens
+            }
+            _ => quote! {
+                compile_error!("Keypath derive supports only structs with named or unnamed fields");
+            },
+        },
+        _ => quote! {
+            compile_error!("Keypath derive supports only structs");
         },
     };
 
