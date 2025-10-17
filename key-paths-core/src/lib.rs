@@ -244,6 +244,52 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
+    /// Adapt this keypath to work with Result<Root, E>
+    /// Enables using KeyPaths<T, V> with Result types
+    /// Note: This creates a FailableReadable keypath since Result can be Err
+    #[inline]
+    pub fn for_result<E>(self) -> KeyPaths<Result<Root, E>, Value>
+    where
+        Root: 'static,
+        Value: 'static,
+        E: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::FailableReadable(Rc::new(move |root: &Result<Root, E>| {
+                root.as_ref().ok().map(|r| f(r))
+            })),
+            KeyPaths::Writable(f) => KeyPaths::FailableWritable(Rc::new(move |root: &mut Result<Root, E>| {
+                root.as_mut().ok().map(|r| f(r))
+            })),
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableReadable(Rc::new(move |root: &Result<Root, E>| {
+                    root.as_ref().ok().and_then(|r| f(r))
+                }))
+            }
+            KeyPaths::FailableWritable(f) => {
+                KeyPaths::FailableWritable(Rc::new(move |root: &mut Result<Root, E>| {
+                    root.as_mut().ok().and_then(|r| f(r))
+                }))
+            }
+            KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
+                extract: Rc::new(move |root: &Result<Root, E>| {
+                    root.as_ref().ok().and_then(|r| extract(r))
+                }),
+                embed: Rc::new(move |value| Ok(embed(value))),
+            },
+            KeyPaths::WritableEnum { extract, extract_mut, embed } => KeyPaths::WritableEnum {
+                extract: Rc::new(move |root: &Result<Root, E>| {
+                    root.as_ref().ok().and_then(|r| extract(r))
+                }),
+                extract_mut: Rc::new(move |root: &mut Result<Root, E>| {
+                    root.as_mut().ok().and_then(|r| extract_mut(r))
+                }),
+                embed: Rc::new(move |value| Ok(embed(value))),
+            },
+            other => panic!("Unsupported keypath variant for Result adapter: {:?}", kind_name(&other)),
+        }
+    }
+
     pub fn embed(&self, value: Value) -> Option<Root>
     where
         Value: Clone,

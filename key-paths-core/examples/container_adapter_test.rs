@@ -232,6 +232,128 @@ fn main() {
     println!("  All containers return: '{}'", arc_name);
     println!("✓ Test 12 passed\n");
 
-    println!("=== All 12 Tests Passed! ===");
+    // ===== Test 13: Result Readable =====
+    println!("--- Test 13: Result with Readable KeyPath ---");
+    let ok_data = Ok(test_data.clone());
+    let err_data: Result<TestStruct, String> = Err("Error occurred".to_string());
+    
+    let name_path_result = name_path.clone().for_result::<String>();
+
+    if let Some(name) = name_path_result.get(&ok_data) {
+        println!("  Result name (Ok): {}", name);
+        assert_eq!(name, "Test", "Result readable should return correct value for Ok");
+    }
+    
+    if let Some(_) = name_path_result.get(&err_data) {
+        panic!("Result readable should return None for Err");
+    }
+    println!("✓ Test 13 passed\n");
+
+    // ===== Test 14: Result Writable =====
+    println!("--- Test 14: Result with Writable KeyPath ---");
+    let mut ok_data_mut = Ok(test_data.clone());
+    let mut err_data_mut: Result<TestStruct, String> = Err("Error occurred".to_string());
+    
+    let name_path_result_w = name_path_w.clone().for_result::<String>();
+
+    if let Some(name) = name_path_result_w.get_mut(&mut ok_data_mut) {
+        println!("  Original Result name: {}", name);
+        *name = "Modified Result".to_string();
+        println!("  Modified Result name: {}", name);
+        assert_eq!(name, "Modified Result", "Result writable should allow modification for Ok");
+    }
+    
+    if let Some(_) = name_path_result_w.get_mut(&mut err_data_mut) {
+        panic!("Result writable should return None for Err");
+    }
+    println!("✓ Test 14 passed\n");
+
+    // ===== Test 15: Result Failable Readable =====
+    println!("--- Test 15: Result with Failable Readable KeyPath ---");
+    let ok_data_opt = Ok(TestStruct {
+        name: "Test".to_string(),
+        value: 42,
+        optional: Some("Optional Value".to_string()),
+    });
+    let ok_data_none = Ok(TestStruct {
+        name: "Test".to_string(),
+        value: 42,
+        optional: None,
+    });
+    let err_data_opt: Result<TestStruct, String> = Err("Error occurred".to_string());
+    
+    let optional_path_result = optional_path.clone().for_result::<String>();
+
+    if let Some(opt_val) = optional_path_result.get(&ok_data_opt) {
+        println!("  Result optional (Some): {}", opt_val);
+        assert_eq!(opt_val, "Optional Value", "Result failable readable should return Some for Ok with Some");
+    }
+    
+    if let Some(_) = optional_path_result.get(&ok_data_none) {
+        panic!("Result failable readable should return None for Ok with None");
+    }
+    
+    if let Some(_) = optional_path_result.get(&err_data_opt) {
+        panic!("Result failable readable should return None for Err");
+    }
+    println!("✓ Test 15 passed\n");
+
+    // ===== Test 16: Result Failable Writable =====
+    println!("--- Test 16: Result with Failable Writable KeyPath ---");
+    let mut ok_data_opt_mut = Ok(TestStruct {
+        name: "Test".to_string(),
+        value: 42,
+        optional: Some("Original".to_string()),
+    });
+    let mut err_data_opt_mut: Result<TestStruct, String> = Err("Error occurred".to_string());
+    
+    let optional_path_result_w = optional_path_w.clone().for_result::<String>();
+
+    if let Some(opt_val) = optional_path_result_w.get_mut(&mut ok_data_opt_mut) {
+        println!("  Original Result optional: {}", opt_val);
+        *opt_val = "Modified".to_string();
+        println!("  Modified Result optional: {}", opt_val);
+        assert_eq!(opt_val, "Modified", "Result failable writable should allow modification for Ok with Some");
+    }
+    
+    if let Some(_) = optional_path_result_w.get_mut(&mut err_data_opt_mut) {
+        panic!("Result failable writable should return None for Err");
+    }
+    println!("✓ Test 16 passed\n");
+
+    // ===== Test 17: Vec<Result<T, E>> Collection =====
+    println!("--- Test 17: Vec<Result<TestStruct, String>> Collection ---");
+    let result_collection: Vec<Result<TestStruct, String>> = vec![
+        Ok(TestStruct {
+            name: "Success 1".to_string(),
+            value: 10,
+            optional: Some("A".to_string()),
+        }),
+        Err("Error 1".to_string()),
+        Ok(TestStruct {
+            name: "Success 2".to_string(),
+            value: 20,
+            optional: None,
+        }),
+        Err("Error 2".to_string()),
+        Ok(TestStruct {
+            name: "Success 3".to_string(),
+            value: 30,
+            optional: Some("B".to_string()),
+        }),
+    ];
+
+    let value_path_result = value_path.clone().for_result::<String>();
+
+    let sum: u32 = result_collection
+        .iter()
+        .filter_map(|item| value_path_result.get(item).copied())
+        .sum();
+
+    println!("  Sum of successful values: {}", sum);
+    assert_eq!(sum, 60, "Sum should be 60 (only successful results)");
+    println!("✓ Test 17 passed\n");
+
+    println!("=== All 17 Tests Passed! ===");
 }
 
