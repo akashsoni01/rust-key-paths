@@ -1835,6 +1835,39 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
+                        (WrapperKind::Result, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
+                                }
+                                // Note: Result<T, E> doesn't support failable_writable for inner type
+                                // Only providing container-level writable access
+                            });
+                        }
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
+                                }
+                                // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level writable access
+                            });
+                        }
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
+                                }
+                                // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level writable access
+                            });
+                        }
+                        (WrapperKind::Weak, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                // Note: Weak<T> doesn't support writable access (it's immutable)
+                                // No methods generated for Weak<T>
+                            });
+                        }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -1979,6 +2012,39 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 // Note: BinaryHeap peek_mut() returns PeekMut wrapper that doesn't allow direct mutable access
                                 // Only providing container-level writable access
+                            });
+                        }
+                        (WrapperKind::Result, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                }
+                                // Note: Result<T, E> doesn't support failable_writable for inner type
+                                // Only providing container-level writable access
+                            });
+                        }
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                }
+                                // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level writable access
+                            });
+                        }
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                }
+                                // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level writable access
+                            });
+                        }
+                        (WrapperKind::Weak, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                // Note: Weak<T> doesn't support writable access (it's immutable)
+                                // No methods generated for Weak<T>
                             });
                         }
                         (WrapperKind::None, None) => {
@@ -2691,6 +2757,43 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::Result, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref().ok())
+                                }
+                            });
+                        }
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                                // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level access
+                            });
+                        }
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                                // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level access
+                            });
+                        }
+                        (WrapperKind::Weak, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                                // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level access
+                            });
+                        }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2842,6 +2945,43 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.peek())
                                 }
+                            });
+                        }
+                        (WrapperKind::Result, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref().ok())
+                                }
+                            });
+                        }
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                                // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level access
+                            });
+                        }
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                                // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level access
+                            });
+                        }
+                        (WrapperKind::Weak, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                                // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level access
                             });
                         }
                         (WrapperKind::None, None) => {
