@@ -12,7 +12,7 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 - ✅ **Enum CasePaths** (readable and writable prisms)
 - ✅ **Composition** across structs, options and enum cases
 - ✅ **Iteration helpers** over collections via keypaths
-- ✅ **Proc-macros**: `#[derive(Keypaths)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
+- ✅ **Proc-macros**: `#[derive(Keypath)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
 
 ---
 
@@ -20,9 +20,82 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 
 ```toml
 [dependencies]
-key-paths-core = "1.0.0"
-key-paths-derive = "0.4"
+key-paths-core = "1.0.4"
+key-paths-derive = "0.8"
 ```
+
+## 🎯 Choose Your Macro
+
+### `#[derive(Keypath)]` - Simple & Beginner-Friendly
+- **One method per field**: `field_name()` 
+- **Smart keypath selection**: Automatically chooses readable or failable readable based on field type
+- **No option chaining**: Perfect for beginners and simple use cases
+- **Clean API**: Just call `Struct::field_name()` and you're done!
+
+```rust
+use key_paths_derive::Keypath;
+
+#[derive(Keypath)]
+struct User {
+    name: String,           // -> User::name() returns readable keypath
+    email: Option<String>,  // -> User::email() returns failable readable keypath
+}
+
+// Usage
+let user = User { name: "Alice".into(), email: Some("alice@example.com".into()) };
+let name_keypath = User::name();
+let email_keypath = User::email();
+let name = name_keypath.get(&user);        // Some("Alice")
+let email = email_keypath.get(&user);      // Some("alice@example.com")
+```
+
+### `#[derive(Keypaths)]` - Advanced & Feature-Rich
+- **Multiple methods per field**: `field_r()`, `field_w()`, `field_fr()`, `field_fw()`, `field_o()`, `field_fo()`
+- **Full control**: Choose exactly which type of keypath you need
+- **Option chaining**: Perfect for intermediate and advanced developers
+- **Comprehensive**: Supports all container types and access patterns
+
+```rust
+use key_paths_derive::Keypaths;
+
+#[derive(Keypaths)]
+struct User {
+    name: String,
+    email: Option<String>,
+}
+
+// Usage - you choose the exact method
+let user = User { name: "Alice".into(), email: Some("alice@example.com".into()) };
+let name_keypath = User::name_r();
+let email_keypath = User::email_fr();
+let name = name_keypath.get(&user);      // Some("Alice") - readable
+let email = email_keypath.get(&user);   // Some("alice@example.com") - failable readable
+```
+
+**Recommendation**: Start with `#[derive(Keypath)]` for simplicity, upgrade to `#[derive(Keypaths)]` when you need more control!
+
+### Keypath vs Keypaths - When to Use Which?
+
+| Feature | `#[derive(Keypath)]` | `#[derive(Keypaths)]` |
+|---------|---------------------|----------------------|
+| **API Complexity** | Simple - one method per field | Advanced - multiple methods per field |
+| **Learning Curve** | Beginner-friendly | Requires understanding of keypath types |
+| **Container Support** | Basic containers only | Full container support including `Result`, `Mutex`, `RwLock`, `Weak` |
+| **Option Chaining** | No - smart selection only | Yes - full control over failable vs non-failable |
+| **Writable Access** | Limited | Full writable support |
+| **Use Case** | Simple field access, beginners | Complex compositions, advanced users |
+
+**When to use `Keypath`:**
+- You're new to keypaths
+- You want simple, clean field access
+- You don't need complex option chaining
+- You're working with basic types
+
+**When to use `Keypaths`:**
+- You need full control over keypath types
+- You're composing complex nested structures
+- You need writable access to fields
+- You're working with advanced container types
 
 ---
 
@@ -30,12 +103,45 @@ key-paths-derive = "0.4"
 
 See `examples/` for many runnable samples. Below are a few highlights.
 
+### Quick Start - Simple Keypath Usage
+```rust
+use key_paths_derive::Keypath;
+
+#[derive(Keypath)]
+struct User {
+    name: String,
+    age: u32,
+    email: Option<String>,
+}
+
+fn main() {
+    let user = User {
+        name: "Alice".to_string(),
+        age: 30,
+        email: Some("alice@example.com".to_string()),
+    };
+
+    // Access fields using keypaths
+    let name_keypath = User::name();
+    let age_keypath = User::age();
+    let email_keypath = User::email();
+    
+    let name = name_keypath.get(&user);        // Some("Alice")
+    let age = age_keypath.get(&user);          // Some(30)
+    let email = email_keypath.get(&user);      // Some("alice@example.com")
+
+    println!("Name: {:?}", name);
+    println!("Age: {:?}", age);
+    println!("Email: {:?}", email);
+}
+```
+
 ### Widely used - Deeply nested struct
 ```rust
 use key_paths_core::KeyPaths;
-use key_paths_derive::{Casepaths, Keypaths};
+use key_paths_derive::{Casepaths, Keypath};
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypath)]
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
     // scsf2: Option<SomeOtherStruct>,
@@ -54,7 +160,7 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypath)]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
@@ -65,23 +171,23 @@ enum SomeEnum {
     B(DarkStruct)
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypath)]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypath)]
 struct DarkStruct {
     dsf: String
 }
 
 fn main() {    
-    let op = SomeComplexStruct::scsf_fw()
-        .then(SomeOtherStruct::sosf_fw())
-        .then(OneMoreStruct::omse_fw())
+    let op = SomeComplexStruct::scsf()
+        .then(SomeOtherStruct::sosf())
+        .then(OneMoreStruct::omse())
         .then(SomeEnum::b_case_w())
-        .then(DarkStruct::dsf_fw());
+        .then(DarkStruct::dsf());
     let mut instance = SomeComplexStruct::new();
     let omsf = op.get_mut(&mut instance);
     *omsf.unwrap() =
@@ -173,14 +279,21 @@ KeyPaths now support smart pointers, containers, and references via adapter meth
 Use `.for_arc()`, `.for_box()`, or `.for_rc()` to adapt keypaths for wrapped types:
 
 ```rust
+use key_paths_derive::Keypath;
 use std::sync::Arc;
+
+#[derive(Keypath)]
+struct Product {
+    name: String,
+    price: f64,
+}
 
 let products: Vec<Arc<Product>> = vec![
     Arc::new(Product { name: "Laptop".into(), price: 999.99 }),
 ];
 
 // Adapt keypath to work with Arc<Product>
-let price_path = Product::price_r().for_arc();
+let price_path = Product::price().for_arc();
 
 let affordable: Vec<&Arc<Product>> = products
     .iter()
@@ -193,8 +306,16 @@ let affordable: Vec<&Arc<Product>> = products
 Use `.get_ref()` and `.get_mut_ref()` for collections of references:
 
 ```rust
+use key_paths_derive::Keypath;
+
+#[derive(Keypath)]
+struct Product {
+    name: String,
+    price: f64,
+}
+
 let products: Vec<&Product> = hashmap.values().collect();
-let price_path = Product::price_r();
+let price_path = Product::price();
 
 for product_ref in &products {
     if let Some(&price) = price_path.get_ref(product_ref) {
@@ -241,8 +362,11 @@ for product_ref in &products {
 ## 🛠 Roadmap
 
 - [x] Compose across structs, options and enum cases
-- [x] Derive macros for automatic keypath generation
+- [x] Derive macros for automatic keypath generation (`Keypaths`, `Keypath`, `Casepaths`)
 - [x] Optional chaining with failable keypaths
+- [x] Smart pointer adapters (`.for_arc()`, `.for_box()`, `.for_rc()`)
+- [x] Container support for `Result`, `Mutex`, `RwLock`, `Weak`, and collections
+- [x] Helper derive macros (`ReadableKeypaths`, `WritableKeypaths`)
 - [] Derive macros for complex multi-field enum variants
 ---
 
