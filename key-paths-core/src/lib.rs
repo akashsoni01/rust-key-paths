@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Clone)]
 /// Go to examples section to see the implementations
@@ -287,6 +287,78 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 embed: Rc::new(move |value| Ok(embed(value))),
             },
             other => panic!("Unsupported keypath variant for Result adapter: {:?}", kind_name(&other)),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside a Mutex
+    /// This avoids cloning by working with references while the guard is alive
+    #[inline]
+    pub fn with_mutex<F, R>(self, mutex: &Mutex<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => {
+                mutex.try_lock().ok().map(|guard| f(get(&*guard)))
+            }
+            KeyPaths::FailableReadable(get) => {
+                mutex.try_lock().ok().and_then(|guard| get(&*guard).map(|v| f(v)))
+            }
+            _ => panic!("with_mutex only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a mutable reference to the value inside a Mutex
+    /// This avoids cloning by working with references while the guard is alive
+    #[inline]
+    pub fn with_mutex_mut<F, R>(self, mutex: &mut Mutex<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R,
+    {
+        match self {
+            KeyPaths::Writable(get) => {
+                mutex.try_lock().ok().map(|mut guard| f(get(&mut *guard)))
+            }
+            KeyPaths::FailableWritable(get) => {
+                mutex.try_lock().ok().and_then(|mut guard| get(&mut *guard).map(|v| f(v)))
+            }
+            _ => panic!("with_mutex_mut only works with writable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside an RwLock
+    /// This avoids cloning by working with references while the guard is alive
+    #[inline]
+    pub fn with_rwlock<F, R>(self, rwlock: &RwLock<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => {
+                rwlock.try_read().ok().map(|guard| f(get(&*guard)))
+            }
+            KeyPaths::FailableReadable(get) => {
+                rwlock.try_read().ok().and_then(|guard| get(&*guard).map(|v| f(v)))
+            }
+            _ => panic!("with_rwlock only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a mutable reference to the value inside an RwLock
+    /// This avoids cloning by working with references while the guard is alive
+    #[inline]
+    pub fn with_rwlock_mut<F, R>(self, rwlock: &mut RwLock<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R,
+    {
+        match self {
+            KeyPaths::Writable(get) => {
+                rwlock.try_write().ok().map(|mut guard| f(get(&mut *guard)))
+            }
+            KeyPaths::FailableWritable(get) => {
+                rwlock.try_write().ok().and_then(|mut guard| get(&mut *guard).map(|v| f(v)))
+            }
+            _ => panic!("with_rwlock_mut only works with writable keypaths"),
         }
     }
 
