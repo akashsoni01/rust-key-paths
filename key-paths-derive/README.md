@@ -145,6 +145,16 @@ struct Person {
     scores: std::collections::HashMap<String, u32>,
 }
 
+#[derive(Debug, Keypath)]
+enum Status {
+    Loading,
+    Success(String),
+    Error(Option<String>),
+    Data(Vec<i32>),
+    Position(f64, f64),
+    User { name: String, age: u32 },
+}
+
 fn main() {
     let person = Person {
         name: "John Doe".to_string(),
@@ -180,6 +190,191 @@ fn main() {
     if let Some(scores) = Person::scores().get(&person) {
         println!("Scores: {:?}", scores);
     }
+
+    // Enum keypath access
+    let success = Status::Success("Operation completed".to_string());
+    if let Some(message) = Status::success().get(&success) {
+        println!("Success message: {}", message);
+    }
+
+    let error = Status::Error(Some("Something went wrong".to_string()));
+    if let Some(error_msg) = Status::error().get(&error) {
+        println!("Error message: {}", error_msg);
+    }
+
+    let data = Status::Data(vec![1, 2, 3, 4, 5]);
+    if let Some(first_value) = Status::data().get(&data) {
+        println!("First data value: {}", first_value);
+    }
+
+    let position = Status::Position(10.5, 20.3);
+    if let Some(pos) = Status::position().get(&position) {
+        println!("Position: {:?}", pos);
+    }
+}
+```
+
+### Keypath vs Keypaths: Choosing the Right Tool
+
+The `Keypath` macro is designed for **simplicity and beginner-friendly access**, while `Keypaths` provides **full control and advanced features** for experienced developers.
+
+#### **Keypath Limitations:**
+- ❌ **No option chaining** - Can't compose keypaths with `.then()`
+- ❌ **No indexed access** - No `_at()` methods for collections
+- ❌ **No writable access** - Only provides readable/failable readable keypaths
+- ❌ **No composition** - Can't chain multiple keypaths together
+- ❌ **Fixed behavior** - Macro decides the keypath type, not you
+- ❌ **Limited control** - No access to intermediate keypath variants
+
+#### **Keypaths Advantages:**
+- ✅ **Full composition** - Chain keypaths with `.then()` and `.compose()`
+- ✅ **Indexed access** - `_at()` methods for collections and maps
+- ✅ **All access types** - Readable, writable, failable, owned variants
+- ✅ **Advanced patterns** - Option chaining, nested access, complex compositions
+- ✅ **Developer control** - Choose exactly which keypath type you need
+- ✅ **Intermediate/Advanced features** - Iteration, mutation, complex data access
+
+#### **When to Use Each:**
+
+**Use `Keypath` for:**
+- 🎯 **Beginners** learning keypath concepts
+- 🎯 **Simple access patterns** where you just need basic field access
+- 🎯 **Prototyping** and quick development
+- 🎯 **Read-only operations** on simple data structures
+- 🎯 **Clean, minimal APIs** without complexity
+
+**Use `Keypaths` for:**
+- 🚀 **Intermediate/Advanced developers** who need full control
+- 🚀 **Complex data access patterns** with option chaining
+- 🚀 **Composition-heavy code** with nested keypath chains
+- 🚀 **Performance-critical applications** where you need specific keypath types
+- 🚀 **Advanced features** like iteration, mutation, and complex compositions
+
+#### **Example Comparison:**
+
+```rust
+// Keypath - Simple, beginner-friendly
+#[derive(Keypath)]
+struct User {
+    profile: Option<Profile>,
+}
+
+// Simple access - no composition possible
+if let Some(profile) = User::profile().get(&user) {
+    // Can't chain further - this is the limit
+}
+
+// Keypaths - Full power for advanced developers
+#[derive(Keypaths)]
+struct User {
+    profile: Option<Profile>,
+}
+
+#[derive(Keypaths)]
+struct Profile {
+    name: Option<String>,
+    settings: Settings,
+}
+
+#[derive(Keypaths)]
+struct Settings {
+    theme: String,
+}
+
+// Advanced composition with option chaining
+let theme_path = User::profile_fr()
+    .then(Profile::settings_r())
+    .then(Settings::theme_r());
+
+// Or even more complex chains
+let name_path = User::profile_fr()
+    .then(Profile::name_fr());
+
+// Full control over keypath types
+let writable_theme = User::profile_fw()
+    .then(Profile::settings_w())
+    .then(Settings::theme_w());
+```
+
+#### **Learning Progression:**
+
+**Beginner Level (Keypath):**
+```rust
+// Start here - simple, intuitive access
+#[derive(Keypath)]
+struct User {
+    name: String,
+    email: Option<String>,
+}
+
+// Easy to understand - one method per field
+let name = User::name().get(&user);
+let email = User::email().get(&user);
+```
+
+**Intermediate Level (Keypaths - Basic):**
+```rust
+// Graduate to full control when you need more features
+#[derive(Keypaths)]
+struct User {
+    name: String,
+    email: Option<String>,
+    profile: Option<Profile>,
+}
+
+// Now you have multiple variants to choose from
+let name = User::name_r().get(&user);        // Readable
+let email = User::email_fr().get(&user);     // Failable readable
+let profile = User::profile_fr().get(&user); // Failable readable
+```
+
+**Advanced Level (Keypaths - Composition):**
+```rust
+// Master level - complex compositions and option chaining
+#[derive(Keypaths)]
+struct User {
+    profile: Option<Profile>,
+}
+
+#[derive(Keypaths)]
+struct Profile {
+    settings: Option<Settings>,
+}
+
+#[derive(Keypaths)]
+struct Settings {
+    theme: String,
+}
+
+// Advanced option chaining - the real power of keypaths
+let theme_path = User::profile_fr()
+    .then(Profile::settings_fr())
+    .then(Settings::theme_r());
+
+// This safely navigates: user.profile?.settings?.theme
+if let Some(theme) = theme_path.get(&user) {
+    println!("User theme: {}", theme);
+}
+```
+
+**Expert Level (Keypaths - All Features):**
+```rust
+// Full mastery - using all keypath features
+let writable_theme = User::profile_fw()
+    .then(Profile::settings_fw())
+    .then(Settings::theme_w());
+
+// Indexed access for collections
+let first_hobby = User::hobbies_fr_at(0).get(&user);
+
+// Complex compositions with owned keypaths
+let owned_name = User::profile_fr()
+    .then(Profile::name_fo())
+    .get(&user);
+
+// Iteration over collections
+for hobby in User::hobbies_r().iter(&user) {
+    println!("Hobby: {}", hobby);
 }
 ```
 
