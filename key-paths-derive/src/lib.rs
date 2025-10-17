@@ -17,6 +17,17 @@ enum WrapperKind {
     VecDeque,
     LinkedList,
     BinaryHeap,
+    // Error handling containers
+    Result,
+    // Synchronization primitives
+    Mutex,
+    RwLock,
+    // Reference counting with weak references
+    Weak,
+    // String types
+    String,
+    OsString,
+    PathBuf,
     // Nested container support
     OptionBox,
     OptionRc,
@@ -1480,6 +1491,10 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     "VecDeque" => (WrapperKind::VecDeque, Some(inner.clone())),
                                     "LinkedList" => (WrapperKind::LinkedList, Some(inner.clone())),
                                     "BinaryHeap" => (WrapperKind::BinaryHeap, Some(inner.clone())),
+                                    "Result" => (WrapperKind::Result, Some(inner.clone())),
+                                    "Mutex" => (WrapperKind::Mutex, Some(inner.clone())),
+                                    "RwLock" => (WrapperKind::RwLock, Some(inner.clone())),
+                                    "Weak" => (WrapperKind::Weak, Some(inner.clone())),
                                     _ => (WrapperKind::None, None),
                                 };
                             }
@@ -1932,6 +1947,38 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::Result, Some(inner_ty)) => {
+                            // For Result<T, E>, return failable readable keypath to Ok value
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref().ok())
+                                }
+                            });
+                        }
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
+                            // For Mutex<T>, return readable keypath to the container (not inner type due to lifetime issues)
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
+                            // For RwLock<T>, return readable keypath to the container (not inner type due to lifetime issues)
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::Weak, Some(inner_ty)) => {
+                            // For Weak<T>, return readable keypath to the container (not inner type due to lifetime issues)
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
                         (WrapperKind::None, None) => {
                             // For basic types, return readable keypath
                             tokens.extend(quote! {
@@ -2036,6 +2083,34 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.peek())
+                                }
+                            });
+                        }
+                        (WrapperKind::Result, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref().ok())
+                                }
+                            });
+                        }
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                            });
+                        }
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                }
+                            });
+                        }
+                        (WrapperKind::Weak, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
@@ -2188,6 +2263,46 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.peek(),
+                                                _ => None,
+                                            })
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Result, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                            key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
+                                                #name::#v_ident(inner) => inner.as_ref().ok(),
+                                                _ => None,
+                                            })
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Mutex, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                            key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
+                                                #name::#v_ident(inner) => Some(inner),
+                                                _ => None,
+                                            })
+                                        }
+                                    });
+                                }
+                                (WrapperKind::RwLock, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                            key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
+                                                #name::#v_ident(inner) => Some(inner),
+                                                _ => None,
+                                            })
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Weak, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                            key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
+                                                #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
                                             })
                                         }
