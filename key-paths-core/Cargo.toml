@@ -13,3 +13,7 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
+parking_lot = { version = "0.12", optional = true }
+
+[features]
+parking_lot = ["dep:parking_lot"]

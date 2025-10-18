@@ -501,6 +501,74 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
+    /// Adapt this keypath to work with Arc<parking_lot::Mutex<Root>>
+    /// Enables using KeyPaths<T, V> with Arc<parking_lot::Mutex<T>> containers
+    /// Note: This creates a FailableOwned keypath since Mutex access can fail and we need to clone values
+    /// Requires the "parking_lot" feature to be enabled
+    #[cfg(feature = "parking_lot")]
+    #[inline]
+    pub fn for_arc_parking_mutex(self) -> KeyPaths<Arc<parking_lot::Mutex<Root>>, Value>
+    where
+        Root: 'static,
+        Value: Clone + 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::FailableOwned(Rc::new(move |root: Arc<parking_lot::Mutex<Root>>| {
+                let guard = root.lock();
+                Some(f(&*guard).clone())
+            })),
+            KeyPaths::Writable(_) => {
+                // Writable doesn't work with Arc<parking_lot::Mutex> (Arc is immutable, need write guard)
+                panic!("Cannot create writable keypath for Arc<parking_lot::Mutex> (use with_arc_parking_mutex_mut instead)")
+            }
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableOwned(Rc::new(move |root: Arc<parking_lot::Mutex<Root>>| {
+                    let guard = root.lock();
+                    f(&*guard).map(|v| v.clone())
+                }))
+            }
+            KeyPaths::ReadableEnum { extract, embed: _ } => KeyPaths::FailableOwned(Rc::new(move |root: Arc<parking_lot::Mutex<Root>>| {
+                let guard = root.lock();
+                extract(&*guard).map(|v| v.clone())
+            })),
+            other => panic!("Unsupported keypath variant for Arc<parking_lot::Mutex> adapter: {:?}", kind_name(&other)),
+        }
+    }
+
+    /// Adapt this keypath to work with Arc<parking_lot::RwLock<Root>>
+    /// Enables using KeyPaths<T, V> with Arc<parking_lot::RwLock<T>> containers
+    /// Note: This creates a FailableOwned keypath since RwLock access can fail and we need to clone values
+    /// Requires the "parking_lot" feature to be enabled
+    #[cfg(feature = "parking_lot")]
+    #[inline]
+    pub fn for_arc_parking_rwlock(self) -> KeyPaths<Arc<parking_lot::RwLock<Root>>, Value>
+    where
+        Root: 'static,
+        Value: Clone + 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::FailableOwned(Rc::new(move |root: Arc<parking_lot::RwLock<Root>>| {
+                let guard = root.read();
+                Some(f(&*guard).clone())
+            })),
+            KeyPaths::Writable(_) => {
+                // Writable doesn't work with Arc<parking_lot::RwLock> (Arc is immutable, need write guard)
+                panic!("Cannot create writable keypath for Arc<parking_lot::RwLock> (use with_arc_parking_rwlock_mut instead)")
+            }
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableOwned(Rc::new(move |root: Arc<parking_lot::RwLock<Root>>| {
+                    let guard = root.read();
+                    f(&*guard).map(|v| v.clone())
+                }))
+            }
+            KeyPaths::ReadableEnum { extract, embed: _ } => KeyPaths::FailableOwned(Rc::new(move |root: Arc<parking_lot::RwLock<Root>>| {
+                let guard = root.read();
+                extract(&*guard).map(|v| v.clone())
+            })),
+            other => panic!("Unsupported keypath variant for Arc<parking_lot::RwLock> adapter: {:?}", kind_name(&other)),
+        }
+    }
+
     // ===== WithContainer Trait Implementation =====
     // All with_* methods are now implemented via the WithContainer trait
 
