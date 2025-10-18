@@ -1,7 +1,7 @@
 // Example demonstrating the for_option adapter method
 // Run with: cargo run --example for_option_example
 
-use key_paths_core::KeyPaths;
+use key_paths_core::{KeyPaths, WithContainer};
 
 #[derive(Debug, Clone)]
 struct User {
@@ -46,10 +46,10 @@ fn main() {
     // Use for_option to create a keypath that works with Option<User>
     let name_option_path = name_path.clone().for_option();
     
-    // Access name from Option<User> using with_option - no cloning!
-    name_option_path.clone().with_option(&option_user, |name| {
+    // Access name from Option<User> using get_ref
+    if let Some(name) = name_option_path.get_ref(&&option_user) {
         println!("  Name from Option: {}", name);
-    });
+    }
 
     // ===== Example 2: Writable Option Usage =====
     println!("--- Example 2: Writable Option Usage ---");
@@ -59,11 +59,11 @@ fn main() {
     // Use for_option with writable keypath
     let name_option_path_w = name_path_w.clone().for_option();
     
-    // Modify name in Option<User> using with_option_mut - no cloning!
-    name_option_path_w.clone().with_option_mut(&mut option_user_mut, |name| {
+    // Modify name in Option<User> using get_mut
+    if let Some(name) = name_option_path_w.get_mut(&mut &mut option_user_mut) {
         *name = "Alice Updated".to_string();
         println!("  Updated name in Option: {}", name);
-    });
+    }
 
     // ===== Example 3: Failable KeyPath with Option =====
     println!("--- Example 3: Failable KeyPath with Option ---");
@@ -77,22 +77,20 @@ fn main() {
     // Use failable keypath with for_option
     let email_option_path = email_path.clone().for_option();
     
-    // Access email from Option<User> using with_option - no cloning!
-    email_option_path.clone().with_option(&option_user_with_email, |email| {
-        if let Some(email_str) = email {
-            println!("  Email from Option: {}", email_str);
-        } else {
-            println!("  No email in user");
-        }
-    });
+    // Access email from Option<User> using get_ref
+    if let Some(email) = email_option_path.get_ref(&&option_user_with_email) {
+        println!("  Email from Option: {}", email);
+    } else {
+        println!("  No email in user");
+    }
 
     // ===== Example 4: None Option Handling =====
     println!("--- Example 4: None Option Handling ---");
     
     let none_user: Option<User> = None;
 
-    // Try to access name from None Option using with_option
-    if name_option_path.clone().with_option(&none_user, |name| name.clone()).is_some() {
+    // Try to access name from None Option using get_ref
+    if name_option_path.get_ref(&&none_user).is_some() {
         println!("  Name from None Option");
     } else {
         println!("  Correctly handled None Option");
@@ -115,12 +113,12 @@ fn main() {
         }),
     ];
 
-    // Process names from collection of Options using with_option
+    // Process names from collection of Options using get_ref
     let mut names = Vec::new();
     for option_user in &option_users {
-        name_option_path.clone().with_option(option_user, |name| {
+        if let Some(name) = name_option_path.get_ref(&option_user) {
             names.push(name.clone());
-        });
+        }
     }
     println!("  User names from Option collection: {:?}", names);
 
@@ -136,10 +134,10 @@ fn main() {
     // Use for_option to work with Option<Profile>
     let profile_name_option_path = profile_user_name_path.for_option();
 
-    // Access nested name through Option<Profile> using with_option
-    profile_name_option_path.clone().with_option(&option_profile, |name| {
+    // Access nested name through Option<Profile> using get_ref
+    if let Some(name) = profile_name_option_path.get_ref(&&option_profile) {
         println!("  Nested name from Option<Profile>: {}", name);
-    });
+    }
 
     // ===== Example 7: Mutable Nested Option =====
     println!("--- Example 7: Mutable Nested Option ---");
@@ -153,11 +151,11 @@ fn main() {
     // Use for_option to work with Option<Profile>
     let profile_name_option_path_w = profile_user_name_path_w.for_option();
 
-    // Modify nested name through Option<Profile> using with_option_mut
-    profile_name_option_path_w.clone().with_option_mut(&mut option_profile_mut, |name| {
+    // Modify nested name through Option<Profile> using get_mut
+    if let Some(name) = profile_name_option_path_w.get_mut(&mut &mut option_profile_mut) {
         *name = "Alice Profile".to_string();
         println!("  Updated nested name in Option<Profile>: {}", name);
-    });
+    }
 
     // ===== Example 8: Composition with for_option =====
     println!("--- Example 8: Composition with for_option ---");
@@ -177,7 +175,7 @@ fn main() {
     
     // Test with None at different levels
     let none_profile: Option<Profile> = None;
-    if profile_name_option_path.clone().with_option(&none_profile, |name| name.clone()).is_some() {
+    if profile_name_option_path.get_ref(&&none_profile).is_some() {
         println!("  Name from None Profile");
     } else {
         println!("  Correctly handled None Profile");
@@ -190,7 +188,7 @@ fn main() {
     };
     let option_profile_none_user: Option<Profile> = Some(profile_with_none_user);
     
-    if profile_name_option_path.clone().with_option(&option_profile_none_user, |name| name.clone()).is_some() {
+    if profile_name_option_path.get_ref(&&option_profile_none_user).is_some() {
         println!("  Name from Profile with None user");
     } else {
         println!("  Correctly handled Profile with None user");
