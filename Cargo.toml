@@ -31,6 +31,7 @@ key-paths-derive = { path = "key-paths-derive" }
 [features]
 default = []
 parking_lot = ["key-paths-core/parking_lot"]
+tagged_core = ["key-paths-core/tagged_core"]
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
