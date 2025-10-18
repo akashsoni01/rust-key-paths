@@ -291,6 +291,51 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
+    /// Adapt this keypath to work with Option<Root>
+    /// Enables using KeyPaths<T, V> with Option types
+    /// Note: This creates a FailableReadable/FailableWritable keypath since Option can be None
+    #[inline]
+    pub fn for_option(self) -> KeyPaths<Option<Root>, Value>
+    where
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::FailableReadable(Rc::new(move |root: &Option<Root>| {
+                root.as_ref().map(|r| f(r))
+            })),
+            KeyPaths::Writable(f) => KeyPaths::FailableWritable(Rc::new(move |root: &mut Option<Root>| {
+                root.as_mut().map(|r| f(r))
+            })),
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableReadable(Rc::new(move |root: &Option<Root>| {
+                    root.as_ref().and_then(|r| f(r))
+                }))
+            }
+            KeyPaths::FailableWritable(f) => {
+                KeyPaths::FailableWritable(Rc::new(move |root: &mut Option<Root>| {
+                    root.as_mut().and_then(|r| f(r))
+                }))
+            }
+            KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
+                extract: Rc::new(move |root: &Option<Root>| {
+                    root.as_ref().and_then(|r| extract(r))
+                }),
+                embed: Rc::new(move |value| Some(embed(value))),
+            },
+            KeyPaths::WritableEnum { extract, extract_mut, embed } => KeyPaths::WritableEnum {
+                extract: Rc::new(move |root: &Option<Root>| {
+                    root.as_ref().and_then(|r| extract(r))
+                }),
+                extract_mut: Rc::new(move |root: &mut Option<Root>| {
+                    root.as_mut().and_then(|r| extract_mut(r))
+                }),
+                embed: Rc::new(move |value| Some(embed(value))),
+            },
+            other => panic!("Unsupported keypath variant for Option adapter: {:?}", kind_name(&other)),
+        }
+    }
+
     /// Execute a closure with a reference to the value inside a Mutex
     /// This avoids cloning by working with references while the guard is alive
     #[inline]
