@@ -1,7 +1,7 @@
 // Example demonstrating the no-clone approach for Mutex and RwLock with KeyPaths
 // Run with: cargo run --example no_clone_mutex_rwlock_example
 
-use key_paths_core::KeyPaths;
+use key_paths_core::{KeyPaths, WithContainer};
 use std::sync::{Mutex, RwLock};
 
 #[derive(Debug, Clone)]

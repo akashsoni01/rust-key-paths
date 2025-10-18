@@ -1,7 +1,7 @@
 // Simple example demonstrating the for_option adapter method
 // Run with: cargo run --example simple_for_option_example
 
-use key_paths_core::KeyPaths;
+use key_paths_core::{KeyPaths, WithContainer};
 
 #[derive(Debug, Clone)]
 struct User {

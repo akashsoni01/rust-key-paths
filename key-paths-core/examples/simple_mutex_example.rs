@@ -1,7 +1,7 @@
 // Simple example demonstrating the for_mutex() adapter for KeyPaths
 // Run with: cargo run --example simple_mutex_example
 
-use key_paths_core::KeyPaths;
+use key_paths_core::{KeyPaths, WithContainer};
 use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
