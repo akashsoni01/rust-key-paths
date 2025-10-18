@@ -39,6 +39,9 @@ enum WrapperKind {
     OptionVec,
     HashMapOption,
     OptionHashMap,
+    // Arc with synchronization primitives
+    ArcMutex,
+    ArcRwLock,
 }
 
 #[proc_macro_derive(Keypaths)]
@@ -363,6 +366,32 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
                                 }
                                 // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level access
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::ArcMutex, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                                // Note: Arc<Mutex<T>> doesn't support writable access (Arc is immutable)
+                                // Note: Arc<Mutex<T>> doesn't support direct access to inner type due to lifetime constraints
+                                // Only providing container-level access
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::ArcRwLock, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                }
+                                // Note: Arc<RwLock<T>> doesn't support writable access (Arc is immutable)
+                                // Note: Arc<RwLock<T>> doesn't support direct access to inner type due to lifetime constraints
                                 // Only providing container-level access
                                 pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
@@ -1654,6 +1683,12 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             }
                             ("HashMap", WrapperKind::Option) => {
                                 return (WrapperKind::HashMapOption, inner_inner);
+                            }
+                            ("Arc", WrapperKind::Mutex) => {
+                                return (WrapperKind::ArcMutex, inner_inner);
+                            }
+                            ("Arc", WrapperKind::RwLock) => {
+                                return (WrapperKind::ArcRwLock, inner_inner);
                             }
                             _ => {
                                 // Handle single-level containers
@@ -3110,7 +3145,7 @@ pub fn keypath_suggestion(input: TokenStream) -> TokenStream {
     } else if input_str.contains("RwLock<") && input_str.contains("KeyPaths<") {
         "💡 Suggestion: For RwLock<T> containers, use the .with_rwlock() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_rwlock(&rwlock, |value| { /* work with value */ });"
     } else {
-        "💡 Suggestion: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T>\n   - .for_box() for Box<T>\n   - .for_rc() for Rc<T>\n   - .for_option() for Option<T>\n   - .for_result() for Result<T, E>\n   - .with_mutex() for Mutex<T> (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> (import WithContainer trait)"
+        "💡 Suggestion: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T>\n   - .for_box() for Box<T>\n   - .for_rc() for Rc<T>\n   - .for_option() for Option<T>\n   - .for_result() for Result<T, E>\n   - .with_mutex() for Mutex<T> (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> (with parking_lot feature)"
     };
     
     let expanded = quote! {
@@ -3127,7 +3162,7 @@ pub fn keypath_help(input: TokenStream) -> TokenStream {
     let input_str = input.to_string();
     
     let help_message = if input_str.is_empty() {
-        "🔧 KeyPaths Help: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T> containers\n   - .for_box() for Box<T> containers\n   - .for_rc() for Rc<T> containers\n   - .for_option() for Option<T> containers\n   - .for_result() for Result<T, E> containers\n   - .with_mutex() for Mutex<T> containers (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> containers (import WithContainer trait)\n\nExample: let arc_keypath = my_keypath.for_arc();\nFor Mutex/RwLock: use key_paths_core::WithContainer; then my_keypath.with_mutex(&mutex, |value| { ... });".to_string()
+        "🔧 KeyPaths Help: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T> containers\n   - .for_box() for Box<T> containers\n   - .for_rc() for Rc<T> containers\n   - .for_option() for Option<T> containers\n   - .for_result() for Result<T, E> containers\n   - .with_mutex() for Mutex<T> containers (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> containers (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> containers (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> containers (with parking_lot feature)\n\nExample: let arc_keypath = my_keypath.for_arc();\nFor Mutex/RwLock: use key_paths_core::WithContainer; then my_keypath.with_mutex(&mutex, |value| { ... });\nFor Arc<Mutex>/Arc<RwLock>: let arc_mutex_keypath = my_keypath.for_arc_mutex();".to_string()
     } else {
         format!("🔧 KeyPaths Help for '{}': Use adapter methods to work with different container types. See documentation for more details.", input_str)
     };
