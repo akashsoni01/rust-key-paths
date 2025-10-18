@@ -469,6 +469,38 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
+    /// Adapt this keypath to work with Arc<Mutex<Root>>
+    /// Enables using KeyPaths<T, V> with Arc<Mutex<T>> containers
+    /// Note: This creates a FailableOwned keypath since Mutex access can fail and we need to clone values
+    #[inline]
+    pub fn for_arc_mutex(self) -> KeyPaths<Arc<Mutex<Root>>, Value>
+    where
+        Root: 'static,
+        Value: Clone + 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::FailableOwned(Rc::new(move |root: Arc<Mutex<Root>>| {
+                let guard = root.lock().ok()?;
+                Some(f(&*guard).clone())
+            })),
+            KeyPaths::Writable(_) => {
+                // Writable doesn't work with Arc<Mutex> (Arc is immutable, need write guard)
+                panic!("Cannot create writable keypath for Arc<Mutex> (use with_arc_mutex_mut instead)")
+            }
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableOwned(Rc::new(move |root: Arc<Mutex<Root>>| {
+                    let guard = root.lock().ok()?;
+                    f(&*guard).map(|v| v.clone())
+                }))
+            }
+            KeyPaths::ReadableEnum { extract, embed: _ } => KeyPaths::FailableOwned(Rc::new(move |root: Arc<Mutex<Root>>| {
+                let guard = root.lock().ok()?;
+                extract(&*guard).map(|v| v.clone())
+            })),
+            other => panic!("Unsupported keypath variant for Arc<Mutex> adapter: {:?}", kind_name(&other)),
+        }
+    }
+
     // ===== WithContainer Trait Implementation =====
     // All with_* methods are now implemented via the WithContainer trait
 
