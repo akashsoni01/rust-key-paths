@@ -89,6 +89,18 @@ pub trait WithContainer<Root, Value> {
     fn with_rwlock_mut<F, R>(self, rwlock: &mut RwLock<Root>, f: F) -> Option<R>
     where
         F: FnOnce(&mut Value) -> R;
+
+    /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
+    /// This avoids cloning by working with references while the guard is alive
+    fn with_arc_rwlock<F, R>(self, arc_rwlock: &Arc<RwLock<Root>>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a mutable reference to the value inside an Arc<RwLock<Root>>
+    /// This avoids cloning by working with references while the guard is alive
+    fn with_arc_rwlock_mut<F, R>(self, arc_rwlock: &Arc<RwLock<Root>>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R;
 }
 
 #[derive(Clone)]
@@ -422,6 +434,38 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 embed: Rc::new(move |value| Some(embed(value))),
             },
             other => panic!("Unsupported keypath variant for Option adapter: {:?}", kind_name(&other)),
+        }
+    }
+
+    /// Adapt this keypath to work with Arc<RwLock<Root>>
+    /// Enables using KeyPaths<T, V> with Arc<RwLock<T>> containers
+    /// Note: This creates a FailableOwned keypath since RwLock access can fail and we need to clone values
+    #[inline]
+    pub fn for_arc_rwlock(self) -> KeyPaths<Arc<RwLock<Root>>, Value>
+    where
+        Root: 'static,
+        Value: Clone + 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::FailableOwned(Rc::new(move |root: Arc<RwLock<Root>>| {
+                let guard = root.read().ok()?;
+                Some(f(&*guard).clone())
+            })),
+            KeyPaths::Writable(_) => {
+                // Writable doesn't work with Arc<RwLock> (Arc is immutable, need write guard)
+                panic!("Cannot create writable keypath for Arc<RwLock> (use with_arc_rwlock_mut instead)")
+            }
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableOwned(Rc::new(move |root: Arc<RwLock<Root>>| {
+                    let guard = root.read().ok()?;
+                    f(&*guard).map(|v| v.clone())
+                }))
+            }
+            KeyPaths::ReadableEnum { extract, embed: _ } => KeyPaths::FailableOwned(Rc::new(move |root: Arc<RwLock<Root>>| {
+                let guard = root.read().ok()?;
+                extract(&*guard).map(|v| v.clone())
+            })),
+            other => panic!("Unsupported keypath variant for Arc<RwLock> adapter: {:?}", kind_name(&other)),
         }
     }
 
@@ -769,6 +813,40 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
                 rwlock.try_write().ok().and_then(|mut guard| get(&mut *guard).map(|v| f(v)))
             }
             _ => panic!("with_rwlock_mut only works with writable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
+    /// This avoids cloning by working with references while the guard is alive
+    fn with_arc_rwlock<F, R>(self, arc_rwlock: &Arc<RwLock<Root>>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => {
+                arc_rwlock.try_read().ok().map(|guard| f(get(&*guard)))
+            }
+            KeyPaths::FailableReadable(get) => {
+                arc_rwlock.try_read().ok().and_then(|guard| get(&*guard).map(|v| f(v)))
+            }
+            _ => panic!("with_arc_rwlock only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a mutable reference to the value inside an Arc<RwLock<Root>>
+    /// This avoids cloning by working with references while the guard is alive
+    fn with_arc_rwlock_mut<F, R>(self, arc_rwlock: &Arc<RwLock<Root>>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R,
+    {
+        match self {
+            KeyPaths::Writable(get) => {
+                arc_rwlock.try_write().ok().map(|mut guard| f(get(&mut *guard)))
+            }
+            KeyPaths::FailableWritable(get) => {
+                arc_rwlock.try_write().ok().and_then(|mut guard| get(&mut *guard).map(|v| f(v)))
+            }
+            _ => panic!("with_arc_rwlock_mut only works with writable keypaths"),
         }
     }
 }
