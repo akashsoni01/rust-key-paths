@@ -42,6 +42,8 @@ enum WrapperKind {
     // Arc with synchronization primitives
     ArcMutex,
     ArcRwLock,
+    // Tagged types
+    Tagged,
 }
 
 #[proc_macro_derive(Keypaths)]
@@ -1707,6 +1709,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     "Mutex" => (WrapperKind::Mutex, Some(inner.clone())),
                                     "RwLock" => (WrapperKind::RwLock, Some(inner.clone())),
                                     "Weak" => (WrapperKind::Weak, Some(inner.clone())),
+                                    "Tagged" => (WrapperKind::Tagged, Some(inner.clone())),
                                     _ => (WrapperKind::None, None),
                                 };
                             }

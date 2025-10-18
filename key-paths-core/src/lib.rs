@@ -2,6 +2,9 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 use std::cell::RefCell;
 
+#[cfg(feature = "tagged_core")]
+use tagged_core::Tagged;
+
 /// Trait for no-clone callback-based access to container types
 /// Provides methods to execute closures with references to values inside containers
 /// without requiring cloning of the values
@@ -65,6 +68,13 @@ pub trait WithContainer<Root, Value> {
     fn with_refcell_mut<F, R>(self, refcell: &RefCell<Root>, f: F) -> Option<R>
     where
         F: FnOnce(&mut Value) -> R;
+
+    /// Execute a closure with a reference to the value inside a Tagged
+    /// This avoids cloning by working with references directly
+    #[cfg(feature = "tagged_core")]
+    fn with_tagged<F, R, Tag>(self, tagged: &Tagged<Root, Tag>, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R;
 
     /// Execute a closure with a reference to the value inside a Mutex
     /// This avoids cloning by working with references while the guard is alive
@@ -569,6 +579,52 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
+    /// Adapt a keypath to work with Tagged<Tag, Root>
+    /// Returns a new KeyPaths instance that can work with Tagged values
+    /// Note: Tagged<T, Tag> where T is the actual value and Tag is a zero-sized phantom type
+    /// Tagged only implements Deref, not DerefMut, so writable keypaths are not supported
+    #[cfg(feature = "tagged_core")]
+    #[inline]
+    pub fn for_tagged<Tag>(self) -> KeyPaths<Tagged<Root, Tag>, Value>
+    where
+        Root: Clone + 'static,
+        Value: 'static,
+        Tag: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::Readable(Rc::new(move |root: &Tagged<Root, Tag>| {
+                f(&**root)
+            })),
+            KeyPaths::Writable(_) => {
+                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+            }
+            KeyPaths::FailableReadable(f) => KeyPaths::FailableReadable(Rc::new(move |root: &Tagged<Root, Tag>| {
+                f(&**root)
+            })),
+            KeyPaths::FailableWritable(_) => {
+                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+            }
+            KeyPaths::Owned(f) => KeyPaths::Owned(Rc::new(move |root: Tagged<Root, Tag>| {
+                // Tagged consumes itself and returns the inner value by cloning
+                f((*root).clone())
+            })),
+            KeyPaths::FailableOwned(f) => KeyPaths::FailableOwned(Rc::new(move |root: Tagged<Root, Tag>| {
+                f((*root).clone())
+            })),
+            KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
+                extract: Rc::new(move |root: &Tagged<Root, Tag>| {
+                    extract(&**root)
+                }),
+                embed: Rc::new(move |value: Value| {
+                    Tagged::new(embed(value))
+                }),
+            },
+            KeyPaths::WritableEnum { .. } => {
+                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+            }
+        }
+    }
+
     // ===== WithContainer Trait Implementation =====
     // All with_* methods are now implemented via the WithContainer trait
 
@@ -841,6 +897,26 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
                 refcell.try_borrow_mut().ok().and_then(|mut borrow| get(&mut *borrow).map(|v| f(v)))
             }
             _ => panic!("with_refcell_mut only works with writable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside a Tagged
+    /// This avoids cloning by working with references directly
+    #[cfg(feature = "tagged_core")]
+    #[inline]
+    fn with_tagged<F, R, Tag>(self, tagged: &Tagged<Root, Tag>, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => f(get(&**tagged)),
+            KeyPaths::FailableReadable(get) => {
+                get(&**tagged).map_or_else(|| panic!("Tagged value is None"), f)
+            }
+            KeyPaths::ReadableEnum { extract, .. } => {
+                extract(&**tagged).map_or_else(|| panic!("Tagged value is None"), f)
+            }
+            _ => panic!("with_tagged only works with readable keypaths"),
         }
     }
 
