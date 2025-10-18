@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
+use std::cell::RefCell;
 
 #[derive(Clone)]
 /// Go to examples section to see the implementations
@@ -359,6 +360,194 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 rwlock.try_write().ok().and_then(|mut guard| get(&mut *guard).map(|v| f(v)))
             }
             _ => panic!("with_rwlock_mut only works with writable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside an Arc
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_arc<F, R>(self, arc: &Arc<Root>, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => f(get(&**arc)),
+            KeyPaths::FailableReadable(get) => {
+                if let Some(value) = get(&**arc) {
+                    f(value)
+                } else {
+                    panic!("FailableReadable keypath returned None for Arc")
+                }
+            }
+            _ => panic!("with_arc only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside a Box
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_box<F, R>(self, boxed: &Box<Root>, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => f(get(&**boxed)),
+            KeyPaths::FailableReadable(get) => {
+                if let Some(value) = get(&**boxed) {
+                    f(value)
+                } else {
+                    panic!("FailableReadable keypath returned None for Box")
+                }
+            }
+            _ => panic!("with_box only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a mutable reference to the value inside a Box
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_box_mut<F, R>(self, boxed: &mut Box<Root>, f: F) -> R
+    where
+        F: FnOnce(&mut Value) -> R,
+    {
+        match self {
+            KeyPaths::Writable(get) => f(get(&mut **boxed)),
+            KeyPaths::FailableWritable(get) => {
+                if let Some(value) = get(&mut **boxed) {
+                    f(value)
+                } else {
+                    panic!("FailableWritable keypath returned None for Box")
+                }
+            }
+            _ => panic!("with_box_mut only works with writable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside an Rc
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_rc<F, R>(self, rc: &Rc<Root>, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => f(get(&**rc)),
+            KeyPaths::FailableReadable(get) => {
+                if let Some(value) = get(&**rc) {
+                    f(value)
+                } else {
+                    panic!("FailableReadable keypath returned None for Rc")
+                }
+            }
+            _ => panic!("with_rc only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside a Result
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_result<F, R, E>(self, result: &Result<Root, E>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => {
+                result.as_ref().ok().map(|root| f(get(root)))
+            }
+            KeyPaths::FailableReadable(get) => {
+                result.as_ref().ok().and_then(|root| get(root).map(|v| f(v)))
+            }
+            _ => panic!("with_result only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a mutable reference to the value inside a Result
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_result_mut<F, R, E>(self, result: &mut Result<Root, E>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R,
+    {
+        match self {
+            KeyPaths::Writable(get) => {
+                result.as_mut().ok().map(|root| f(get(root)))
+            }
+            KeyPaths::FailableWritable(get) => {
+                result.as_mut().ok().and_then(|root| get(root).map(|v| f(v)))
+            }
+            _ => panic!("with_result_mut only works with writable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside an Option
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_option<F, R>(self, option: &Option<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => {
+                option.as_ref().map(|root| f(get(root)))
+            }
+            KeyPaths::FailableReadable(get) => {
+                option.as_ref().and_then(|root| get(root).map(|v| f(v)))
+            }
+            _ => panic!("with_option only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a mutable reference to the value inside an Option
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_option_mut<F, R>(self, option: &mut Option<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R,
+    {
+        match self {
+            KeyPaths::Writable(get) => {
+                option.as_mut().map(|root| f(get(root)))
+            }
+            KeyPaths::FailableWritable(get) => {
+                option.as_mut().and_then(|root| get(root).map(|v| f(v)))
+            }
+            _ => panic!("with_option_mut only works with writable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a reference to the value inside a RefCell
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_refcell<F, R>(self, refcell: &RefCell<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R,
+    {
+        match self {
+            KeyPaths::Readable(get) => {
+                refcell.try_borrow().ok().map(|borrow| f(get(&*borrow)))
+            }
+            KeyPaths::FailableReadable(get) => {
+                refcell.try_borrow().ok().and_then(|borrow| get(&*borrow).map(|v| f(v)))
+            }
+            _ => panic!("with_refcell only works with readable keypaths"),
+        }
+    }
+
+    /// Execute a closure with a mutable reference to the value inside a RefCell
+    /// This avoids cloning by working with references directly
+    #[inline]
+    pub fn with_refcell_mut<F, R>(self, refcell: &RefCell<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R,
+    {
+        match self {
+            KeyPaths::Writable(get) => {
+                refcell.try_borrow_mut().ok().map(|mut borrow| f(get(&mut *borrow)))
+            }
+            KeyPaths::FailableWritable(get) => {
+                refcell.try_borrow_mut().ok().and_then(|mut borrow| get(&mut *borrow).map(|v| f(v)))
+            }
+            _ => panic!("with_refcell_mut only works with writable keypaths"),
         }
     }
 
