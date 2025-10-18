@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "1.0.7"
+version = "1.0.8"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -13,8 +13,8 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-key-paths-core = { path = "key-paths-core", version = "1.0.6", features = ["parking_lot"] }
-key-paths-derive = { path = "key-paths-derive", version = "1.0.0"}
+key-paths-core = { path = "key-paths-core", version = "1.0.7", features = ["parking_lot"] }
+key-paths-derive = { path = "key-paths-derive", version = "1.0.1"}
 
 
 [workspace]
