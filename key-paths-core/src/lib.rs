@@ -132,11 +132,6 @@ pub enum KeyPaths<Root, Value> {
         embed: Arc<dyn Fn(Value) -> Root + Send + Sync>,
     },
 
-    // Reference KeyPath types (for &Root and &mut Root)
-    RefReadable(Arc<dyn for<'a> Fn(&&'a Root) -> &'a Value + Send + Sync>),
-    RefWritable(Arc<dyn for<'a> Fn(&mut &'a Root) -> &'a mut Value + Send + Sync>),
-    RefFailableReadable(Arc<dyn for<'a> Fn(&&'a Root) -> Option<&'a Value> + Send + Sync>),
-    RefFailableWritable(Arc<dyn for<'a> Fn(&mut &'a Root) -> Option<&'a mut Value> + Send + Sync>),
 
     // New Owned KeyPath types (value semantics)
     Owned(Arc<dyn Fn(Root) -> Value + Send + Sync>),
@@ -213,6 +208,64 @@ impl<Root, Value> KeyPaths<Root, Value> {
     pub fn failable_owned_writable(get: impl Fn(Root) -> Option<Value> + Send + Sync + 'static) -> Self {
         Self::FailableOwned(Arc::new(get))
     }
+
+    /// Extract values from a slice of references using this keypath
+    /// This is a convenience method for working with collections of references
+    /// 
+    /// Example:
+    /// ```rust
+    /// let name_path = Person::name_r();
+    /// let people = vec![&person1, &person2, &person3];
+    /// let names: Vec<&String> = name_path.extract_from_ref_slice(&people);
+    /// ```
+    #[inline]
+    pub fn extract_from_ref_slice<'a>(&self, slice: &'a [&Root]) -> Vec<&'a Value>
+    where
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => {
+                slice.iter().map(|item| f(item)).collect()
+            }
+            KeyPaths::FailableReadable(f) => {
+                slice.iter().filter_map(|item| f(item)).collect()
+            }
+            KeyPaths::ReadableEnum { extract, .. } => {
+                slice.iter().filter_map(|item| extract(item)).collect()
+            }
+            _ => panic!("extract_from_ref_slice only works with readable keypaths"),
+        }
+    }
+
+    /// Extract mutable values from a slice of mutable references using this keypath
+    /// This is a convenience method for working with collections of mutable references
+    /// 
+    /// Example:
+    /// ```rust
+    /// let name_path = Person::name_w();
+    /// let mut people = vec![&mut person1, &mut person2, &mut person3];
+    /// let names: Vec<&mut String> = name_path.extract_mut_from_ref_slice(&mut people);
+    /// ```
+    #[inline]
+    pub fn extract_mut_from_ref_slice<'a>(&self, slice: &'a mut [&mut Root]) -> Vec<&'a mut Value>
+    where
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Writable(f) => {
+                slice.iter_mut().map(|item| f(item)).collect()
+            }
+            KeyPaths::FailableWritable(f) => {
+                slice.iter_mut().filter_map(|item| f(item)).collect()
+            }
+            KeyPaths::WritableEnum { extract_mut, .. } => {
+                slice.iter_mut().filter_map(|item| extract_mut(item)).collect()
+            }
+            _ => panic!("extract_mut_from_ref_slice only works with writable keypaths"),
+        }
+    }
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
@@ -239,7 +292,17 @@ impl<Root, Value> KeyPaths<Root, Value> {
     where
         'a: 'b,
     {
-        self.get(*root)
+        match self {
+            KeyPaths::Readable(f) => Some(f(*root)),
+            KeyPaths::Writable(_) => None, // Writable requires mut
+            KeyPaths::FailableReadable(f) => f(*root),
+            KeyPaths::FailableWritable(_) => None, // needs mut
+            KeyPaths::ReadableEnum { extract, .. } => extract(*root),
+            KeyPaths::WritableEnum { extract, .. } => extract(*root),
+            // New owned keypath types (don't work with references)
+            KeyPaths::Owned(_) => None, // Owned keypaths don't work with references
+            KeyPaths::FailableOwned(_) => None, // Owned keypaths don't work with references
+        }
     }
 
     /// Get a mutable reference if possible
@@ -265,7 +328,17 @@ impl<Root, Value> KeyPaths<Root, Value> {
     where
         'a: 'b,
     {
-        self.get_mut(*root)
+        match self {
+            KeyPaths::Readable(_) => None, // immutable only
+            KeyPaths::Writable(f) => Some(f(*root)),
+            KeyPaths::FailableReadable(_) => None, // immutable only
+            KeyPaths::FailableWritable(f) => f(*root),
+            KeyPaths::ReadableEnum { .. } => None, // immutable only
+            KeyPaths::WritableEnum { extract_mut, .. } => extract_mut(*root),
+            // New owned keypath types (don't work with references)
+            KeyPaths::Owned(_) => None, // Owned keypaths don't work with references
+            KeyPaths::FailableOwned(_) => None, // Owned keypaths don't work with references
+        }
     }
 
     // ===== Smart Pointer / Container Adapter Methods =====
@@ -693,13 +766,6 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::FailableWritable(_) => {
                 panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
             }
-            KeyPaths::Owned(f) => KeyPaths::Owned(Arc::new(move |root: Tagged<Root, Tag>| {
-                // Tagged consumes itself and returns the inner value by cloning
-                f((*root).clone())
-            })),
-            KeyPaths::FailableOwned(f) => KeyPaths::FailableOwned(Arc::new(move |root: Tagged<Root, Tag>| {
-                f((*root).clone())
-            })),
             KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
                 extract: Arc::new(move |root: &Tagged<Root, Tag>| {
                     extract(&**root)
@@ -711,6 +777,13 @@ impl<Root, Value> KeyPaths<Root, Value> {
             KeyPaths::WritableEnum { .. } => {
                 panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
             }
+            KeyPaths::Owned(f) => KeyPaths::Owned(Arc::new(move |root: Tagged<Root, Tag>| {
+                // Tagged consumes itself and returns the inner value by cloning
+                f((*root).clone())
+            })),
+            KeyPaths::FailableOwned(f) => KeyPaths::FailableOwned(Arc::new(move |root: Tagged<Root, Tag>| {
+                f((*root).clone())
+            })),
         }
     }
 
