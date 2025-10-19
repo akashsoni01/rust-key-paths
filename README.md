@@ -340,6 +340,16 @@ for product_ref in &products {
 
 ---
 
+## 🌟 Showcase - Crates Using rust-key-paths
+
+The rust-key-paths library is being used by several exciting crates in the Rust ecosystem:
+
+- 🔍 [rust-queries-builder](https://crates.io/crates/rust-queries-builder) - Type-safe, SQL-like queries for in-memory collections
+- 🎭 [rust-overture](https://crates.io/crates/rust-overture) - Functional programming utilities and abstractions  
+- 🚀 [rust-prelude-plus](https://crates.io/crates/rust-prelude-plus) - Enhanced prelude with additional utilities and traits
+
+---
+
 ## 🔗 Helpful Links & Resources
 
 * 📘 [type-safe property paths](https://lodash.com/docs/4.17.15#get)
