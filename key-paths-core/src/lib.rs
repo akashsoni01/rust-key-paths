@@ -1421,6 +1421,7 @@ impl<Root> PartialKeyPath<Root> {
     }
 
     /// Adapt this PartialKeyPath to work with Tagged<Root, Tag>
+    #[cfg(feature = "tagged_core")]
     pub fn for_tagged<Tag>(self) -> PartialKeyPath<Tagged<Root, Tag>>
     where
         Root: Clone + 'static,
@@ -1899,6 +1900,7 @@ impl AnyKeyPath {
     }
 
     /// Adapt this AnyKeyPath to work with Tagged<Root, Tag>
+    #[cfg(feature = "tagged_core")]
     pub fn for_tagged<Root, Tag>(self) -> AnyKeyPath
     where
         Root: Clone + 'static + Send + Sync,
