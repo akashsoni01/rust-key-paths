@@ -132,7 +132,11 @@ pub enum KeyPaths<Root, Value> {
         embed: Arc<dyn Fn(Value) -> Root + Send + Sync>,
     },
 
-
+    // Reference KeyPath types (for &Root and &mut Root)
+    RefReadable(Arc<dyn for<'a> Fn(&&'a Root) -> &'a Value + Send + Sync>),
+    RefWritable(Arc<dyn for<'a> Fn(&mut &'a Root) -> &'a mut Value + Send + Sync>),
+    RefFailableReadable(Arc<dyn for<'a> Fn(&&'a Root) -> Option<&'a Value> + Send + Sync>),
+    RefFailableWritable(Arc<dyn for<'a> Fn(&mut &'a Root) -> Option<&'a mut Value> + Send + Sync>),
 
     // New Owned KeyPath types (value semantics)
     Owned(Arc<dyn Fn(Root) -> Value + Send + Sync>),
@@ -292,6 +296,91 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 embed: Arc::new(move |value| Arc::new(embed(value))),
             },
             other => panic!("Unsupported keypath variant for Arc adapter: {:?}", kind_name(&other)),
+        }
+    }
+
+    /// Helper function to extract values from a slice using this keypath
+    /// This is useful when you have a slice &[T] and want to access fields via references
+    /// 
+    /// Example:
+    /// ```rust
+    /// let people = vec![Person { name: "Alice".to_string(), age: 30 }];
+    /// let names: Vec<&String> = Person::name_r().extract_from_slice(&people);
+    /// ```
+    #[inline]
+    pub fn extract_from_slice<'a>(&self, slice: &'a [Root]) -> Vec<&'a Value>
+    where
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => {
+                slice.iter().map(|item| f(item)).collect()
+            }
+            KeyPaths::FailableReadable(f) => {
+                slice.iter().filter_map(|item| f(item)).collect()
+            }
+            KeyPaths::ReadableEnum { extract, .. } => {
+                slice.iter().filter_map(|item| extract(item)).collect()
+            }
+            _ => panic!("extract_from_slice only works with readable keypaths"),
+        }
+    }
+
+    /// Helper function to extract values from an iterator using this keypath
+    /// This is useful when you have an iterator over &T and want to access fields
+    /// 
+    /// Example:
+    /// ```rust
+    /// let people = vec![Person { name: "Alice".to_string(), age: 30 }];
+    /// let names: Vec<&String> = Person::name_r().extract_from_iter(people.iter());
+    /// ```
+    #[inline]
+    pub fn extract_from_iter<'a, I>(&self, iter: I) -> Vec<&'a Value>
+    where
+        I: Iterator<Item = &'a Root>,
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Readable(f) => {
+                iter.map(|item| f(item)).collect()
+            }
+            KeyPaths::FailableReadable(f) => {
+                iter.filter_map(|item| f(item)).collect()
+            }
+            KeyPaths::ReadableEnum { extract, .. } => {
+                iter.filter_map(|item| extract(item)).collect()
+            }
+            _ => panic!("extract_from_iter only works with readable keypaths"),
+        }
+    }
+
+    /// Helper function to extract mutable values from a mutable slice using this keypath
+    /// This is useful when you have a mutable slice &mut [T] and want to access fields via mutable references
+    /// 
+    /// Example:
+    /// ```rust
+    /// let mut people = vec![Person { name: "Alice".to_string(), age: 30 }];
+    /// let names: Vec<&mut String> = Person::name_w().extract_mut_from_slice(&mut people);
+    /// ```
+    #[inline]
+    pub fn extract_mut_from_slice<'a>(&self, slice: &'a mut [Root]) -> Vec<&'a mut Value>
+    where
+        Root: 'static,
+        Value: 'static,
+    {
+        match self {
+            KeyPaths::Writable(f) => {
+                slice.iter_mut().map(|item| f(item)).collect()
+            }
+            KeyPaths::FailableWritable(f) => {
+                slice.iter_mut().filter_map(|item| f(item)).collect()
+            }
+            KeyPaths::WritableEnum { extract_mut, .. } => {
+                slice.iter_mut().filter_map(|item| extract_mut(item)).collect()
+            }
+            _ => panic!("extract_mut_from_slice only works with writable keypaths"),
         }
     }
 
