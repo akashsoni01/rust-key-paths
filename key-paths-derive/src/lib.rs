@@ -3407,52 +3407,52 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 }
 
 /// A helper macro that provides suggestions when there are type mismatches with container types.
-/// This macro helps users understand when to use adapter methods like for_arc(), for_box(), etc.
-#[proc_macro]
-pub fn keypath_suggestion(input: TokenStream) -> TokenStream {
-    let input_str = input.to_string();
-    
-    // Parse the input to understand what the user is trying to do
-    let suggestion = if input_str.contains("Arc<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Arc<SomeStruct>, Value>, use the .for_arc() adapter method:\n   let arc_keypath = your_keypath.for_arc();"
-    } else if input_str.contains("Box<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Box<SomeStruct>, Value>, use the .for_box() adapter method:\n   let box_keypath = your_keypath.for_box();"
-    } else if input_str.contains("Rc<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Rc<SomeStruct>, Value>, use the .for_rc() adapter method:\n   let rc_keypath = your_keypath.for_rc();"
-    } else if input_str.contains("Option<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Option<SomeStruct>, Value>, use the .for_option() adapter method:\n   let option_keypath = your_keypath.for_option();"
-    } else if input_str.contains("Result<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Result<SomeStruct, E>, Value>, use the .for_result() adapter method:\n   let result_keypath = your_keypath.for_result();"
-    } else if input_str.contains("Mutex<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: For Mutex<T> containers, use the .with_mutex() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_mutex(&mutex, |value| { /* work with value */ });"
-    } else if input_str.contains("RwLock<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: For RwLock<T> containers, use the .with_rwlock() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_rwlock(&rwlock, |value| { /* work with value */ });"
-    } else {
-        "💡 Suggestion: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T>\n   - .for_box() for Box<T>\n   - .for_rc() for Rc<T>\n   - .for_option() for Option<T>\n   - .for_result() for Result<T, E>\n   - .with_mutex() for Mutex<T> (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> (with parking_lot feature)"
-    };
-    
-    let expanded = quote! {
-        compile_error!(#suggestion);
-    };
-    
-    TokenStream::from(expanded)
-}
+// /// This macro helps users understand when to use adapter methods like for_arc(), for_box(), etc.
+// #[proc_macro]
+// pub fn keypath_suggestion(input: TokenStream) -> TokenStream {
+//     let input_str = input.to_string();
+//     
+//     // Parse the input to understand what the user is trying to do
+//     let suggestion = if input_str.contains("Arc<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Arc<SomeStruct>, Value>, use the .for_arc() adapter method:\n   let arc_keypath = your_keypath.for_arc();"
+//     } else if input_str.contains("Box<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Box<SomeStruct>, Value>, use the .for_box() adapter method:\n   let box_keypath = your_keypath.for_box();"
+//     } else if input_str.contains("Rc<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Rc<SomeStruct>, Value>, use the .for_rc() adapter method:\n   let rc_keypath = your_keypath.for_rc();"
+//     } else if input_str.contains("Option<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Option<SomeStruct>, Value>, use the .for_option() adapter method:\n   let option_keypath = your_keypath.for_option();"
+//     } else if input_str.contains("Result<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Result<SomeStruct, E>, Value>, use the .for_result() adapter method:\n   let result_keypath = your_keypath.for_result();"
+//     } else if input_str.contains("Mutex<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: For Mutex<T> containers, use the .with_mutex() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_mutex(&mutex, |value| { /* work with value */ });"
+//     } else if input_str.contains("RwLock<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: For RwLock<T> containers, use the .with_rwlock() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_rwlock(&rwlock, |value| { /* work with value */ });"
+//     } else {
+//         "💡 Suggestion: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T>\n   - .for_box() for Box<T>\n   - .for_rc() for Rc<T>\n   - .for_option() for Option<T>\n   - .for_result() for Result<T, E>\n   - .with_mutex() for Mutex<T> (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> (with parking_lot feature)"
+//     };
+//     
+//     let expanded = quote! {
+//         compile_error!(#suggestion);
+//     };
+//     
+//     TokenStream::from(expanded)
+// }
 
-/// A helper macro that provides compile-time suggestions for common KeyPaths usage patterns.
-/// This macro can be used to get helpful error messages when there are type mismatches.
-#[proc_macro]
-pub fn keypath_help(input: TokenStream) -> TokenStream {
-    let input_str = input.to_string();
-    
-    let help_message = if input_str.is_empty() {
-        "🔧 KeyPaths Help: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T> containers\n   - .for_box() for Box<T> containers\n   - .for_rc() for Rc<T> containers\n   - .for_option() for Option<T> containers\n   - .for_result() for Result<T, E> containers\n   - .with_mutex() for Mutex<T> containers (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> containers (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> containers (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> containers (with parking_lot feature)\n\nExample: let arc_keypath = my_keypath.for_arc();\nFor Mutex/RwLock: use key_paths_core::WithContainer; then my_keypath.with_mutex(&mutex, |value| { ... });\nFor Arc<Mutex>/Arc<RwLock>: let arc_mutex_keypath = my_keypath.for_arc_mutex();".to_string()
-    } else {
-        format!("🔧 KeyPaths Help for '{}': Use adapter methods to work with different container types. See documentation for more details.", input_str)
-    };
-    
-    let expanded = quote! {
-        compile_error!(#help_message);
-    };
-    
-    TokenStream::from(expanded)
-}
+// /// A helper macro that provides compile-time suggestions for common KeyPaths usage patterns.
+// /// This macro can be used to get helpful error messages when there are type mismatches.
+// #[proc_macro]
+// pub fn keypath_help(input: TokenStream) -> TokenStream {
+//     let input_str = input.to_string();
+//     
+//     let help_message = if input_str.is_empty() {
+//         "🔧 KeyPaths Help: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T> containers\n   - .for_box() for Box<T> containers\n   - .for_rc() for Rc<T> containers\n   - .for_option() for Option<T> containers\n   - .for_result() for Result<T, E> containers\n   - .with_mutex() for Mutex<T> containers (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> containers (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> containers (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> containers (with parking_lot feature)\n\nExample: let arc_keypath = my_keypath.for_arc();\nFor Mutex/RwLock: use key_paths_core::WithContainer; then my_keypath.with_mutex(&mutex, |value| { ... });\nFor Arc<Mutex>/Arc<RwLock>: let arc_mutex_keypath = my_keypath.for_arc_mutex();".to_string()
+//     } else {
+//         format!("🔧 KeyPaths Help for '{}': Use adapter methods to work with different container types. See documentation for more details.", input_str)
+//     };
+//     
+//     let expanded = quote! {
+//         compile_error!(#help_message);
+//     };
+//     
+//     TokenStream::from(expanded)
+// }
