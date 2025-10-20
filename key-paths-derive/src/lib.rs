@@ -3406,7 +3406,7 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// A helper macro that provides suggestions when there are type mismatches with container types.
+// /// A helper macro that provides suggestions when there are type mismatches with container types.
 // /// This macro helps users understand when to use adapter methods like for_arc(), for_box(), etc.
 // #[proc_macro]
 // pub fn keypath_suggestion(input: TokenStream) -> TokenStream {
