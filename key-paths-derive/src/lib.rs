@@ -72,7 +72,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -95,7 +95,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #fr_at_fn(index: usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(index))
@@ -124,7 +124,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -176,7 +176,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
@@ -193,7 +193,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -212,7 +212,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 // For now, we'll skip generating these methods to avoid generic constraint issues
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -232,7 +232,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -304,7 +304,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -323,7 +323,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 // For now, we'll skip failable methods for BinaryHeap to avoid type issues
                             });
                         }
-                        (WrapperKind::Result, Some(_inner_ty)) => {
+                        (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -344,7 +344,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -359,7 +359,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -374,7 +374,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::ArcMutex, Some(_inner_ty)) => {
+                        (WrapperKind::ArcMutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -387,7 +387,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::ArcRwLock, Some(_inner_ty)) => {
+                        (WrapperKind::ArcRwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -400,7 +400,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                        (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -637,7 +637,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -660,7 +660,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -689,7 +689,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -741,7 +741,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
@@ -758,7 +758,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -777,7 +777,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 // For now, we'll skip generating these methods to avoid generic constraint issues
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -797,7 +797,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -863,7 +863,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -886,7 +886,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Result, Some(_inner_ty)) => {
+                        (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -907,7 +907,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -922,7 +922,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -937,7 +937,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                        (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -1160,7 +1160,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         let (kind, inner_ty_opt) = extract_wrapper_inner_type(field_ty);
 
                         match (kind, inner_ty_opt) {
-                            (WrapperKind::Option, Some(_inner_ty)) => {
+                            (WrapperKind::Option, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1177,7 +1177,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                            (WrapperKind::Vec, Some(_inner_ty)) => {
+                            (WrapperKind::Vec, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1207,7 +1207,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1265,7 +1265,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                            (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                            (WrapperKind::BTreeMap, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1282,7 +1282,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                            (WrapperKind::HashSet, Some(_inner_ty)) => {
+                            (WrapperKind::HashSet, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1292,7 +1292,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                            (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                            (WrapperKind::BTreeSet, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1336,7 +1336,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                            (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                            (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1353,7 +1353,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                            (WrapperKind::Result, Some(_inner_ty)) => {
+                            (WrapperKind::Result, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1365,7 +1365,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Only providing readable access
                                 });
                             }
-                            (WrapperKind::Mutex, Some(_inner_ty)) => {
+                            (WrapperKind::Mutex, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1377,7 +1377,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Only providing container-level access
                                 });
                             }
-                            (WrapperKind::RwLock, Some(_inner_ty)) => {
+                            (WrapperKind::RwLock, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1389,7 +1389,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Only providing container-level access
                                 });
                             }
-                            (WrapperKind::Weak, Some(_inner_ty)) => {
+                            (WrapperKind::Weak, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -1758,7 +1758,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1768,7 +1768,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1781,7 +1781,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1804,13 +1804,13 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 // Note: Rc/Arc are not writable due to shared ownership
                                 // Only providing readable methods for these types
                             });
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1823,7 +1823,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1832,7 +1832,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1864,7 +1864,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1873,7 +1873,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::Result, Some(_inner_ty)) => {
+                        (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1882,7 +1882,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1891,7 +1891,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
@@ -1900,7 +1900,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                        (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 // Note: Weak<T> doesn't support writable access (it's immutable)
                                 // No methods generated for Weak<T>
@@ -1940,7 +1940,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -1950,7 +1950,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -1963,7 +1963,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -1986,13 +1986,13 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 // Note: Rc/Arc are not writable due to shared ownership
                                 // Only providing readable methods for these types
                             });
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -2005,7 +2005,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -2014,7 +2014,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -2043,7 +2043,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -2052,7 +2052,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::Result, Some(_inner_ty)) => {
+                        (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -2061,7 +2061,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -2070,7 +2070,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
@@ -2079,7 +2079,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level writable access
                             });
                         }
-                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                        (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 // Note: Weak<T> doesn't support writable access (it's immutable)
                                 // No methods generated for Weak<T>
@@ -2140,7 +2140,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             // For Option<T>, return failable readable keypath to inner type
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2148,7 +2148,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             // For Vec<T>, return failable readable keypath to first element
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2156,7 +2156,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             // For HashMap<K,V>, return readable keypath to the container
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2164,7 +2164,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             // For BTreeMap<K,V>, return readable keypath to the container
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2180,7 +2180,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             // For Rc<T>/Arc<T>, return readable keypath to inner type
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2188,7 +2188,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
                             // For HashSet<T>, return failable readable keypath to any element
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2196,7 +2196,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             // For BTreeSet<T>, return failable readable keypath to any element
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2220,7 +2220,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             // For BinaryHeap<T>, return failable readable keypath to peek element
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2228,7 +2228,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Result, Some(_inner_ty)) => {
+                        (WrapperKind::Result, Some(inner_ty)) => {
                             // For Result<T, E>, return failable readable keypath to Ok value
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2236,7 +2236,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             // For Mutex<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2244,7 +2244,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             // For RwLock<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2252,7 +2252,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                        (WrapperKind::Weak, Some(inner_ty)) => {
                             // For Weak<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2290,28 +2290,28 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref())
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.first())
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2325,21 +2325,21 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.iter().next())
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.iter().next())
@@ -2360,35 +2360,35 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.peek())
                                 }
                             });
                         }
-                        (WrapperKind::Result, Some(_inner_ty)) => {
+                        (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref().ok())
                                 }
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
-                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                        (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2439,7 +2439,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
 
                     match (kind, inner_ty.clone()) {
-                                (WrapperKind::Option, Some(_inner_ty)) => {
+                                (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2449,7 +2449,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::Vec, Some(_inner_ty)) => {
+                                (WrapperKind::Vec, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2459,7 +2459,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::HashMap, Some(_inner_ty)) => {
+                                (WrapperKind::HashMap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2469,7 +2469,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                                (WrapperKind::BTreeMap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2489,7 +2489,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                                (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2499,7 +2499,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::HashSet, Some(_inner_ty)) => {
+                                (WrapperKind::HashSet, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2509,7 +2509,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                                (WrapperKind::BTreeSet, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2539,7 +2539,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                                (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2549,7 +2549,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::Result, Some(_inner_ty)) => {
+                                (WrapperKind::Result, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2559,7 +2559,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::Mutex, Some(_inner_ty)) => {
+                                (WrapperKind::Mutex, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2569,7 +2569,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::RwLock, Some(_inner_ty)) => {
+                                (WrapperKind::RwLock, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2579,7 +2579,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::Weak, Some(_inner_ty)) => {
+                                (WrapperKind::Weak, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2673,7 +2673,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2683,7 +2683,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2696,7 +2696,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2719,7 +2719,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
@@ -2729,7 +2729,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2742,7 +2742,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2752,7 +2752,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2785,7 +2785,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2795,7 +2795,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Result, Some(_inner_ty)) => {
+                        (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2805,7 +2805,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2814,7 +2814,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level access
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2823,7 +2823,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level access
                             });
                         }
-                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                        (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
@@ -2866,7 +2866,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2876,7 +2876,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2889,7 +2889,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2912,7 +2912,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(_inner_ty)) | (WrapperKind::Arc, Some(_inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
@@ -2922,7 +2922,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2935,7 +2935,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2945,7 +2945,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2975,7 +2975,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2985,7 +2985,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Result, Some(_inner_ty)) => {
+                        (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -2995,7 +2995,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -3004,7 +3004,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level access
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -3013,7 +3013,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                                 // Only providing container-level access
                             });
                         }
-                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                        (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
@@ -3152,7 +3152,7 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::PartialKeyPath<#name> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_partial()
@@ -3175,7 +3175,7 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #fr_at_fn(index: usize) -> key_paths_core::PartialKeyPath<#name> {
                                     key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(index)).to_partial()
@@ -3204,7 +3204,7 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::PartialKeyPath<#name> {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_partial()
@@ -3292,7 +3292,7 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(_inner_ty)) => {
+                        (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::AnyKeyPath {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_any()
@@ -3315,7 +3315,7 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Vec, Some(_inner_ty)) => {
+                        (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #fr_at_fn(index: usize) -> key_paths_core::AnyKeyPath {
                                     key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(index)).to_any()
@@ -3344,7 +3344,7 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::AnyKeyPath {
                                     key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_any()

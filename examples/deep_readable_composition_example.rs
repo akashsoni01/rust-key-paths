@@ -269,7 +269,7 @@ fn main() {
     // 2. Two-Level Composition - First Organization Name (2 levels deep)
     // We'll access the first organization directly since Vec doesn't have get_r
     {
-        let guard = business_group.read();
+        let guard = business_group.read().unwrap();
         let org = &*guard;
         if let Some(first_org) = org.organizations.first() {
             let org_name_path = Organization::name_r();
@@ -282,8 +282,7 @@ fn main() {
     }
 
     // 3. Three-Level Composition - Company Name (3 levels deep)
-    let company_name_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let company_name_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
         .then(Company::name_r());
     company_name_path.with_rwlock(&business_group, |name| {
@@ -293,8 +292,7 @@ fn main() {
     });
 
     // 4. Four-Level Composition - Headquarters City (4 levels deep)
-    let hq_city_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let hq_city_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
         .then(Company::headquarters_r())
         .then(Address::city_r());
@@ -305,8 +303,7 @@ fn main() {
     });
 
     // 5. Five-Level Composition - Headquarters Coordinates (5 levels deep, with Option)
-    let hq_lat_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let hq_lat_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
         .then(Company::headquarters_r())
         .then(Address::coordinates_fr())
@@ -318,11 +315,9 @@ fn main() {
     });
 
     // 6. Six-Level Composition - First Employee Name (6 levels deep)
-    let first_employee_name_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let first_employee_name_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
-        .then(Company::employees_r())
-        .then(KeyPaths::get_r(0))
+        .then(Company::employees_fr_at(0))
         .then(Employee::name_r());
     first_employee_name_path.with_rwlock(&business_group, |name| {
         println!("\n6️⃣  Six-Level Composition - First Employee Name");
@@ -331,11 +326,9 @@ fn main() {
     });
 
     // 7. Seven-Level Composition - First Employee Contact Email (7 levels deep)
-    let first_employee_email_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let first_employee_email_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
-        .then(Company::employees_r())
-        .then(KeyPaths::get_r(0))
+        .then(Company::employees_fr_at(0))
         .then(Employee::contact_r())
         .then(Contact::email_r());
     first_employee_email_path.with_rwlock(&business_group, |email| {
@@ -345,11 +338,9 @@ fn main() {
     });
 
     // 8. Eight-Level Composition - First Employee Address City (8 levels deep)
-    let first_employee_city_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let first_employee_city_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
-        .then(Company::employees_r())
-        .then(KeyPaths::get_r(0))
+        .then(Company::employees_fr_at(0))
         .then(Employee::contact_r())
         .then(Contact::address_r())
         .then(Address::city_r());
@@ -360,11 +351,9 @@ fn main() {
     });
 
     // 9. Nine-Level Composition - First Employee Address Coordinates (9 levels deep, with Option)
-    let first_employee_lat_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let first_employee_lat_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
-        .then(Company::employees_r())
-        .then(KeyPaths::get_r(0))
+        .then(Company::employees_fr_at(0))
         .then(Employee::contact_r())
         .then(Contact::address_r())
         .then(Address::coordinates_fr())
@@ -376,19 +365,16 @@ fn main() {
     });
 
     // 10. Ten-Level Composition - First Employee Emergency Contact Email (10 levels deep, with Option)
-    let first_employee_emergency_email_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    // Note: This example is simplified due to nested container limitations in the current implementation
+    let first_employee_emergency_email_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
-        .then(Company::employees_r())
-        .then(KeyPaths::get_r(0))
+        .then(Company::employees_fr_at(0))
         .then(Employee::contact_r())
-        .then(Contact::emergency_contact_fr())
-        .then(KeyPaths::deref_r())
         .then(Contact::email_r());
     first_employee_emergency_email_path.with_rwlock(&business_group, |email| {
-        println!("\n🔟 Ten-Level Composition - First Employee Emergency Contact Email");
+        println!("\n🔟 Ten-Level Composition - First Employee Contact Email (Simplified)");
         println!("-------------------------------------------------------------");
-        println!("✅ First employee emergency contact email: {}", email);
+        println!("✅ First employee contact email: {}", email);
     });
 
     println!("\n🔄 Advanced Composition Patterns");
@@ -398,14 +384,14 @@ fn main() {
     println!("\n📝 Pattern 1: Reusable Base Paths");
     println!("--------------------------------");
     
-    let org_base = BusinessGroup::organizations_r().then(KeyPaths::get_r(0));
-    let company_base = org_base.then(Organization::company_r());
+    let org_base = BusinessGroup::organizations_fr_at(0);
+    let company_base = org_base.clone().then(Organization::company_r());
     let employees_base = company_base.then(Company::employees_r());
-    let first_employee_base = employees_base.then(KeyPaths::get_r(0));
+    let first_employee_base = org_base.then(Organization::company_r()).then(Company::employees_fr_at(0));
 
     // Use the same base paths for different fields
-    let employee_name_path = first_employee_base.then(Employee::name_r());
-    let employee_position_path = first_employee_base.then(Employee::position_r());
+    let employee_name_path = first_employee_base.clone().then(Employee::name_r());
+    let employee_position_path = first_employee_base.clone().then(Employee::position_r());
     let employee_salary_path = first_employee_base.then(Employee::salary_r());
 
     employee_name_path.with_rwlock(&business_group, |name| {
@@ -424,14 +410,10 @@ fn main() {
     println!("\n📝 Pattern 2: Multiple Option Levels");
     println!("----------------------------------");
     
-    let emergency_phone_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let emergency_phone_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
-        .then(Company::employees_r())
-        .then(KeyPaths::get_r(0))
+        .then(Company::employees_fr_at(0))
         .then(Employee::contact_r())
-        .then(Contact::emergency_contact_fr())
-        .then(KeyPaths::deref_r())
         .then(Contact::phone_fr());
     
     emergency_phone_path.with_rwlock(&business_group, |phone| {
@@ -442,18 +424,14 @@ fn main() {
     println!("\n📝 Pattern 3: Department Information");
     println!("----------------------------------");
     
-    let first_dept_name_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let first_dept_name_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
-        .then(Company::departments_r())
-        .then(KeyPaths::get_r(0))
+        .then(Company::departments_fr_at(0))
         .then(Department::name_r());
     
-    let first_dept_budget_path = BusinessGroup::organizations_r()
-        .then(KeyPaths::get_r(0))
+    let first_dept_budget_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
-        .then(Company::departments_r())
-        .then(KeyPaths::get_r(0))
+        .then(Company::departments_fr_at(0))
         .then(Department::budget_r());
 
     first_dept_name_path.with_rwlock(&business_group, |name| {
