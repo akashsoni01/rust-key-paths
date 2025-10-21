@@ -1,6 +1,6 @@
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct Person {
     name: String,
     age: u32,
@@ -23,7 +23,7 @@ fn main() {
         },
     };
 
-    println!("=== Smart Keypath Access ===");
+    println!("=== Smart Keypaths Access ===");
     
     // Basic types - readable keypath
     println!("Name: {:?}", Person::name().get(&person));
@@ -44,7 +44,7 @@ fn main() {
         println!("Scores: {:?}", scores);
     }
 
-    println!("\n=== Keypath Types ===");
+    println!("\n=== Keypaths Types ===");
     println!("name() returns: KeyPaths<Person, String> (readable)");
     println!("age() returns: KeyPaths<Person, u32> (readable)");
     println!("email() returns: KeyPaths<Person, String> (failable readable)");

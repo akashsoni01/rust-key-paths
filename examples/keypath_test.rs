@@ -1,9 +1,9 @@
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct User {
     name: String,
     age: u32,
@@ -26,7 +26,7 @@ struct UserProfile {
     location: String,
 }
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct TupleStruct(String, Option<i32>, Vec<f64>);
 
 fn main() {
@@ -84,7 +84,7 @@ fn main() {
         }),
     };
 
-    println!("=== Smart Keypath Access ===");
+    println!("=== Smart Keypaths Access ===");
     
     // Basic types - readable keypath
     println!("Name: {:?}", User::name().get(&user));

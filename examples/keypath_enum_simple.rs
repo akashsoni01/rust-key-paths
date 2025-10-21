@@ -1,6 +1,6 @@
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 enum Status {
     // Unit variant
     Loading,
@@ -18,7 +18,7 @@ enum Status {
 }
 
 fn main() {
-    println!("=== Enum Keypath Access ===");
+    println!("=== Enum Keypaths Access ===");
     
     // Test unit variant
     let loading = Status::Loading;
@@ -65,7 +65,7 @@ fn main() {
         println!("✓ Correctly returned None for non-matching variant");
     }
     
-    println!("\n=== Keypath Types ===");
+    println!("\n=== Keypaths Types ===");
     println!("loading() returns: KeyPaths<Status, Status> (readable)");
     println!("success() returns: KeyPaths<Status, String> (failable readable)");
     println!("error() returns: KeyPaths<Status, String> (failable readable)");

@@ -1,8 +1,8 @@
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 use std::sync::{Mutex, RwLock};
 use std::rc::Weak;
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
@@ -129,7 +129,7 @@ fn main() {
         }
     }
 
-    println!("\n=== Keypath Types ===");
+    println!("\n=== Keypaths Types ===");
     println!("result() returns: KeyPaths<ContainerTest, String> (failable readable)");
     println!("result_int() returns: KeyPaths<ContainerTest, i32> (failable readable)");
     println!("mutex_data() returns: KeyPaths<ContainerTest, Mutex<String>> (readable)");

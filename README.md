@@ -12,7 +12,7 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 - ✅ **Enum CasePaths** (readable and writable prisms)
 - ✅ **Composition** across structs, options and enum cases
 - ✅ **Iteration helpers** over collections via keypaths
-- ✅ **Proc-macros**: `#[derive(Keypath)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
+- ✅ **Proc-macros**: `#[derive(Keypaths)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
 
 ---
 
@@ -26,16 +26,16 @@ key-paths-derive = "0.9"
 
 ## 🎯 Choose Your Macro
 
-### `#[derive(Keypath)]` - Simple & Beginner-Friendly
+### `#[derive(Keypaths)]` - Simple & Beginner-Friendly
 - **One method per field**: `field_name()` 
 - **Smart keypath selection**: Automatically chooses readable or failable readable based on field type
 - **No option chaining**: Perfect for beginners and simple use cases
 - **Clean API**: Just call `Struct::field_name()` and you're done!
 
 ```rust
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 
-#[derive(Keypath)]
+#[derive(Keypaths)]
 struct User {
     name: String,           // -> User::name() returns readable keypath
     email: Option<String>,  // -> User::email() returns failable readable keypath
@@ -72,11 +72,11 @@ let name = name_keypath.get(&user);      // Some("Alice") - readable
 let email = email_keypath.get(&user);   // Some("alice@example.com") - failable readable
 ```
 
-**Recommendation**: Start with `#[derive(Keypath)]` for simplicity, upgrade to `#[derive(Keypaths)]` when you need more control!
+**Recommendation**: Start with `#[derive(Keypaths)]` for simplicity, upgrade to `#[derive(Keypaths)]` when you need more control!
 
-### Keypath vs Keypaths - When to Use Which?
+### Keypaths vs Keypaths - When to Use Which?
 
-| Feature | `#[derive(Keypath)]` | `#[derive(Keypaths)]` |
+| Feature | `#[derive(Keypaths)]` | `#[derive(Keypaths)]` |
 |---------|---------------------|----------------------|
 | **API Complexity** | Simple - one method per field | Advanced - multiple methods per field |
 | **Learning Curve** | Beginner-friendly | Requires understanding of keypath types |
@@ -85,7 +85,7 @@ let email = email_keypath.get(&user);   // Some("alice@example.com") - failable 
 | **Writable Access** | Limited | Full writable support |
 | **Use Case** | Simple field access, beginners | Complex compositions, advanced users |
 
-**When to use `Keypath`:**
+**When to use `Keypaths`:**
 - You're new to keypaths
 - You want simple, clean field access
 - You don't need complex option chaining
@@ -103,11 +103,11 @@ let email = email_keypath.get(&user);   // Some("alice@example.com") - failable 
 
 See `examples/` for many runnable samples. Below are a few highlights.
 
-### Quick Start - Simple Keypath Usage
+### Quick Start - Simple Keypaths Usage
 ```rust
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 
-#[derive(Keypath)]
+#[derive(Keypaths)]
 struct User {
     name: String,
     age: u32,
@@ -139,9 +139,9 @@ fn main() {
 ### Widely used - Deeply nested struct
 ```rust
 use key_paths_core::KeyPaths;
-use key_paths_derive::{Casepaths, Keypath};
+use key_paths_derive::{Casepaths, Keypaths};
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
     // scsf2: Option<SomeOtherStruct>,
@@ -160,7 +160,7 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
@@ -171,13 +171,13 @@ enum SomeEnum {
     B(DarkStruct)
 }
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum
 }
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct DarkStruct {
     dsf: String
 }
@@ -279,10 +279,10 @@ KeyPaths now support smart pointers, containers, and references via adapter meth
 Use `.for_arc()`, `.for_box()`, or `.for_rc()` to adapt keypaths for wrapped types:
 
 ```rust
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 use std::sync::Arc;
 
-#[derive(Keypath)]
+#[derive(Keypaths)]
 struct Product {
     name: String,
     price: f64,
@@ -306,9 +306,9 @@ let affordable: Vec<&Arc<Product>> = products
 Use `.get_ref()` and `.get_mut_ref()` for collections of references:
 
 ```rust
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 
-#[derive(Keypath)]
+#[derive(Keypaths)]
 struct Product {
     name: String,
     price: f64,
@@ -372,7 +372,7 @@ The rust-key-paths library is being used by several exciting crates in the Rust 
 ## 🛠 Roadmap
 
 - [x] Compose across structs, options and enum cases
-- [x] Derive macros for automatic keypath generation (`Keypaths`, `Keypath`, `Casepaths`)
+- [x] Derive macros for automatic keypath generation (`Keypaths`, `Keypaths`, `Casepaths`)
 - [x] Optional chaining with failable keypaths
 - [x] Smart pointer adapters (`.for_arc()`, `.for_box()`, `.for_rc()`)
 - [x] Container support for `Result`, `Mutex`, `RwLock`, `Weak`, and collections

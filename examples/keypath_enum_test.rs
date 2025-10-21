@@ -1,9 +1,9 @@
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 use std::collections::{HashMap, HashSet, VecDeque, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 enum Message {
     // Unit variant
     Ping,
@@ -29,7 +29,7 @@ enum Message {
 }
 
 fn main() {
-    println!("=== Enum Keypath Access ===");
+    println!("=== Enum Keypaths Access ===");
     
     // Test unit variant
     let ping = Message::Ping;
@@ -141,7 +141,7 @@ fn main() {
         println!("✓ Correctly returned None for non-matching variant");
     }
     
-    println!("\n=== Enum Keypath Types ===");
+    println!("\n=== Enum Keypaths Types ===");
     println!("ping() returns: KeyPaths<Message, Message> (readable)");
     println!("text() returns: KeyPaths<Message, String> (failable readable)");
     println!("number() returns: KeyPaths<Message, i32> (failable readable)");
