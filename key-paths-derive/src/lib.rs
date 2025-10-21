@@ -1635,9 +1635,27 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                     }
+                    Fields::Named(named) => {
+                        // Labeled enum variants - generate methods for each field
+                        for field in named.named.iter() {
+                            let field_ident = field.ident.as_ref().unwrap();
+                            let field_ty = &field.ty;
+                            let r_fn = format_ident!("{}_{}_r", snake, field_ident);
+                            let w_fn = format_ident!("{}_{}_w", snake, field_ident);
+                            
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|e: &#name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|e: &mut #name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
+                                }
+                            });
+                        }
+                    }
                     _ => {
                         tokens.extend(quote! {
-                            compile_error!("Keypaths derive supports only unit, single-field, and multi-field tuple variants");
+                            compile_error!("Keypaths derive supports only unit, single-field, multi-field tuple, and labeled variants");
                         });
                     }
                 }
