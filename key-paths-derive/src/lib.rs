@@ -1602,9 +1602,42 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                         }
                     }
+                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() > 1 => {
+                        // Multi-field tuple variants - generate methods for each field
+                        for (index, field) in unnamed.unnamed.iter().enumerate() {
+                            let field_ty = &field.ty;
+                            let field_fn = format_ident!("f{}", index);
+                            let r_fn = format_ident!("{}_{}_r", snake, field_fn);
+                            let w_fn = format_ident!("{}_{}_w", snake, field_fn);
+                            
+                            // Generate pattern matching for this specific field
+                            let mut pattern_parts = Vec::new();
+                            
+                            for i in 0..unnamed.unnamed.len() {
+                                if i == index {
+                                    pattern_parts.push(quote! { v });
+                                } else {
+                                    pattern_parts.push(quote! { _ });
+                                }
+                            }
+                            
+                            let pattern = quote! { #name::#v_ident(#(#pattern_parts),*) };
+                            let match_expr = quote! { match e { #pattern => Some(v), _ => None } };
+                            let match_mut_expr = quote! { match e { #pattern => Some(v), _ => None } };
+                            
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|e: &#name| #match_expr)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|e: &mut #name| #match_mut_expr)
+                                }
+                            });
+                        }
+                    }
                     _ => {
                         tokens.extend(quote! {
-                            compile_error!("Casepaths derive supports only unit and single-field tuple variants");
+                            compile_error!("Keypaths derive supports only unit, single-field, and multi-field tuple variants");
                         });
                     }
                 }
