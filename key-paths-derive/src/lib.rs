@@ -3156,9 +3156,47 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                             }
                         });
                     }
-                    _ => {
+                    // Multi-field tuple variant: Enum::Variant(T1, T2, ...)
+                    Fields::Unnamed(unnamed) => {
+                        let field_types: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
+                        let tuple_ty = quote! { (#(#field_types),*) };
+                        
+                        // Generate pattern matching for tuple fields
+                        let field_patterns: Vec<_> = (0..unnamed.unnamed.len())
+                            .map(|i| format_ident!("f{}", i))
+                            .collect();
+                        
                         tokens.extend(quote! {
-                            compile_error!("Casepaths derive supports only unit and single-field tuple variants");
+                            pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
+                                key_paths_core::KeyPaths::failable_owned(
+                                    |e: #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None }
+                                )
+                            }
+                            pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
+                                key_paths_core::KeyPaths::failable_owned(
+                                    |e: #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None }
+                                )
+                            }
+                        });
+                    }
+                    
+                    // Labeled variant: Enum::Variant { field1: T1, field2: T2, ... }
+                    Fields::Named(named) => {
+                        let field_names: Vec<_> = named.named.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+                        let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
+                        let tuple_ty = quote! { (#(#field_types),*) };
+                        
+                        tokens.extend(quote! {
+                            pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
+                                key_paths_core::KeyPaths::failable_owned(
+                                    |e: #name| match e { #name::#v_ident { #(#field_names),* } => Some((#(#field_names),*)), _ => None }
+                                )
+                            }
+                            pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
+                                key_paths_core::KeyPaths::failable_owned(
+                                    |e: #name| match e { #name::#v_ident { #(#field_names),* } => Some((#(#field_names),*)), _ => None }
+                                )
+                            }
                         });
                     }
                 }
