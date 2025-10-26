@@ -114,7 +114,6 @@ pub trait WithContainer<Root, Value> {
         F: FnOnce(&mut Value) -> R;
 }
 
-#[derive(Clone)]
 /// Go to examples section to see the implementations
 ///
 pub enum KeyPaths<Root, Value> {
@@ -212,6 +211,34 @@ pub enum AnyKeyPath {
         writable: Arc<dyn for<'a> Fn(&'a mut (dyn Any + Send + Sync)) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync>,
         owned: Arc<dyn Fn(Box<dyn Any>) -> Option<Box<dyn Any>> + Send + Sync>, // Takes ownership of Root, moves only the Value
     },
+}
+
+impl<Root, Value> Clone for KeyPaths<Root, Value> {
+    fn clone(&self) -> Self {
+        match self {
+            KeyPaths::Readable(f) => KeyPaths::Readable(f.clone()),
+            KeyPaths::Writable(f) => KeyPaths::Writable(f.clone()),
+            KeyPaths::FailableReadable(f) => KeyPaths::FailableReadable(f.clone()),
+            KeyPaths::FailableWritable(f) => KeyPaths::FailableWritable(f.clone()),
+            KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
+                extract: extract.clone(),
+                embed: embed.clone(),
+            },
+            KeyPaths::WritableEnum { extract, embed, extract_mut } => KeyPaths::WritableEnum {
+                extract: extract.clone(),
+                embed: embed.clone(),
+                extract_mut: extract_mut.clone(),
+            },
+            KeyPaths::ReferenceWritable(f) => KeyPaths::ReferenceWritable(f.clone()),
+            KeyPaths::Owned(f) => KeyPaths::Owned(f.clone()),
+            KeyPaths::FailableOwned(f) => KeyPaths::FailableOwned(f.clone()),
+            KeyPaths::FailableCombined { readable, writable, owned } => KeyPaths::FailableCombined {
+                readable: readable.clone(),
+                writable: writable.clone(),
+                owned: owned.clone(),
+            },
+        }
+    }
 }
 
 impl<Root, Value> KeyPaths<Root, Value> {
