@@ -1,9 +1,10 @@
-use key_paths_derive::Keypaths;
+use key_paths_derive::Keypath;
 use std::collections::{HashMap, HashSet, VecDeque, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Debug, Keypaths)]
+// todo add support for more cointainers for Keypaths macro
+#[derive(Debug, Keypath)]
 enum Message {
     // Unit variant
     Ping,

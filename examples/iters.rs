@@ -5,7 +5,7 @@ struct Garage {
 }
 
 fn main() {
-    let kp = KeyPaths::readable(|g: &Garage| &g.cars);
+    let kp: KeyPaths<Garage, Vec<String>> = KeyPaths::readable(|g: &Garage| &g.cars);
     let mut g = Garage {
         cars: vec!["BMW".into(), "Tesla".into(), "Audi".into()],
     };

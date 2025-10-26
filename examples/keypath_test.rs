@@ -1,9 +1,9 @@
-use key_paths_derive::Keypaths;
+use key_paths_derive::Keypath;
 use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypath)]
 struct User {
     name: String,
     age: u32,
@@ -26,7 +26,7 @@ struct UserProfile {
     location: String,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Keypath)]
 struct TupleStruct(String, Option<i32>, Vec<f64>);
 
 fn main() {
