@@ -292,7 +292,7 @@ name_path.get_ref(&product_ref)
 
 ### Error: "lifetime may not live long enough"
 
-**Problem:** Keypath lifetime doesn't outlive the data
+**Problem:** Keypaths lifetime doesn't outlive the data
 
 **Solution:** Ensure keypath is created before or with the same scope as data:
 ```rust

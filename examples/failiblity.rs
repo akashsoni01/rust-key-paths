@@ -1,7 +1,7 @@
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 
 
-// #[derive(Keypath)]
+// #[derive(Keypaths)]
 struct SomeStruct{
     f1: String
 }

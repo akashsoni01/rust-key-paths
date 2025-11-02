@@ -24,10 +24,10 @@ enum WrapperKind {
     RwLock,
     // Reference counting with weak references
     Weak,
-    // String types
-    String,
-    OsString,
-    PathBuf,
+    // String types (currently unused)
+    // String,
+    // OsString,
+    // PathBuf,
     // Nested container support
     OptionBox,
     OptionRc,
@@ -71,7 +71,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -413,9 +413,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        // Nested container combinations - COMMENTED OUT FOR NOW
-                        // TODO: Fix type mismatch issues in nested combinations
-                        /*
+                        // Nested container combinations
                         (WrapperKind::OptionBox, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -430,6 +428,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.as_mut().map(|b| &mut **b))
                                 }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.map(|b| *b))
+                                }
                             });
                         }
                         (WrapperKind::OptionRc, Some(inner_ty)) => {
@@ -439,6 +444,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref().map(|r| &**r))
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.map(|r| (*r).clone()))
                                 }
                             });
                         }
@@ -450,16 +462,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref().map(|a| &**a))
                                 }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.map(|a| (*a).clone()))
+                                }
                             });
                         }
                         (WrapperKind::BoxOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#field_ident)
-                                }
+                                // Failable access: returns Option<&T> - unwraps the inner Option
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| (*s.#field_ident).as_ref())
                                 }
@@ -470,9 +484,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::RcOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
-                                }
+                                // Failable access: returns Option<&T> - unwraps the inner Option
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| (*s.#field_ident).as_ref())
                                 }
@@ -480,9 +492,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::ArcOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
-                                }
+                                // Failable access: returns Option<&T> - unwraps the inner Option
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| (*s.#field_ident).as_ref())
                                 }
@@ -508,6 +518,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #fw_at_fn(index: usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(index).and_then(|opt| opt.as_mut()))
                                 }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.into_iter().flatten().next())
+                                }
                             });
                         }
                         (WrapperKind::OptionVec, Some(inner_ty)) => {
@@ -529,6 +546,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #fw_at_fn(index: usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.as_mut().and_then(|v| v.get_mut(index)))
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.and_then(|v| v.into_iter().next()))
                                 }
                             });
                         }
@@ -552,6 +576,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(&key).and_then(|opt| opt.as_mut()))
                                 }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.into_values().flatten().next())
+                                }
                             });
                         }
                         (WrapperKind::OptionHashMap, Some(inner_ty)) => {
@@ -574,9 +605,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.as_mut().and_then(|m| m.get_mut(&key)))
                                 }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                }
+                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.and_then(|m| m.into_values().next()))
+                                }
                             });
                         }
-                        */
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -636,7 +673,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -1602,9 +1639,60 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                         }
                     }
+                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() > 1 => {
+                        // Multi-field tuple variants - generate methods for each field
+                        for (index, field) in unnamed.unnamed.iter().enumerate() {
+                            let field_ty = &field.ty;
+                            let field_fn = format_ident!("f{}", index);
+                            let r_fn = format_ident!("{}_{}_r", snake, field_fn);
+                            let w_fn = format_ident!("{}_{}_w", snake, field_fn);
+                            
+                            // Generate pattern matching for this specific field
+                            let mut pattern_parts = Vec::new();
+                            
+                            for i in 0..unnamed.unnamed.len() {
+                                if i == index {
+                                    pattern_parts.push(quote! { v });
+                                } else {
+                                    pattern_parts.push(quote! { _ });
+                                }
+                            }
+                            
+                            let pattern = quote! { #name::#v_ident(#(#pattern_parts),*) };
+                            let match_expr = quote! { match e { #pattern => Some(v), _ => None } };
+                            let match_mut_expr = quote! { match e { #pattern => Some(v), _ => None } };
+                            
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|e: &#name| #match_expr)
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|e: &mut #name| #match_mut_expr)
+                                }
+                            });
+                        }
+                    }
+                    Fields::Named(named) => {
+                        // Labeled enum variants - generate methods for each field
+                        for field in named.named.iter() {
+                            let field_ident = field.ident.as_ref().unwrap();
+                            let field_ty = &field.ty;
+                            let r_fn = format_ident!("{}_{}_r", snake, field_ident);
+                            let w_fn = format_ident!("{}_{}_w", snake, field_ident);
+                            
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|e: &#name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
+                                }
+                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                    key_paths_core::KeyPaths::failable_writable(|e: &mut #name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
+                                }
+                            });
+                        }
+                    }
                     _ => {
                         tokens.extend(quote! {
-                            compile_error!("Casepaths derive supports only unit and single-field tuple variants");
+                            compile_error!("Keypaths derive supports only unit, single-field, multi-field tuple, and labeled variants");
                         });
                     }
                 }
@@ -1640,11 +1728,20 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                     if let (Some(_key_arg), Some(value_arg)) = (args.get(0), args.get(1)) {
                         if let GenericArgument::Type(inner) = value_arg {
                             eprintln!("Detected {} type, extracting value type", ident_str);
-                            return match ident_str.as_str() {
-                                "HashMap" => (WrapperKind::HashMap, Some(inner.clone())),
-                                "BTreeMap" => (WrapperKind::BTreeMap, Some(inner.clone())),
-                                _ => (WrapperKind::None, None),
-                            };
+                            // Check for nested Option in map values
+                            let (inner_kind, inner_inner) = extract_wrapper_inner_type(inner);
+                            match (ident_str.as_str(), inner_kind) {
+                                ("HashMap", WrapperKind::Option) => {
+                                    return (WrapperKind::HashMapOption, inner_inner);
+                                }
+                                _ => {
+                                    return match ident_str.as_str() {
+                                        "HashMap" => (WrapperKind::HashMap, Some(inner.clone())),
+                                        "BTreeMap" => (WrapperKind::BTreeMap, Some(inner.clone())),
+                                        _ => (WrapperKind::None, None),
+                                    };
+                                }
+                            }
                         }
                     }
                 }
@@ -1757,7 +1854,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -1939,7 +2036,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2139,7 +2236,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             // For Option<T>, return failable readable keypath to inner type
                             tokens.extend(quote! {
@@ -2289,7 +2386,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2436,9 +2533,9 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         if unnamed.unnamed.len() == 1 {
                             // Single-field tuple variant - smart keypath selection
                             let field_ty = &unnamed.unnamed[0].ty;
-                            let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
+                    let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
 
-                            match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -2459,7 +2556,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::HashMap, Some(_inner_ty)) => {
+                                (WrapperKind::HashMap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2469,7 +2566,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::BTreeMap, Some(_inner_ty)) => {
+                                (WrapperKind::BTreeMap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -2624,7 +2721,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             });
                         }
                     }
-                    Fields::Named(named) => {
+                    Fields::Named(_named) => {
                         // Named field variant - return failable readable keypath to the variant
                         tokens.extend(quote! {
                             pub fn #snake() -> key_paths_core::KeyPaths<#name, #name> {
@@ -2672,7 +2769,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2865,7 +2962,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty) {
+                    match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -3105,9 +3202,47 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                             }
                         });
                     }
-                    _ => {
+                    // Multi-field tuple variant: Enum::Variant(T1, T2, ...)
+                    Fields::Unnamed(unnamed) => {
+                        let field_types: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
+                        let tuple_ty = quote! { (#(#field_types),*) };
+                        
+                        // Generate pattern matching for tuple fields
+                        let field_patterns: Vec<_> = (0..unnamed.unnamed.len())
+                            .map(|i| format_ident!("f{}", i))
+                            .collect();
+                        
                         tokens.extend(quote! {
-                            compile_error!("Casepaths derive supports only unit and single-field tuple variants");
+                            pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
+                                key_paths_core::KeyPaths::failable_owned(
+                                    |e: #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None }
+                                )
+                            }
+                            pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
+                                key_paths_core::KeyPaths::failable_owned(
+                                    |e: #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None }
+                                )
+                            }
+                        });
+                    }
+                    
+                    // Labeled variant: Enum::Variant { field1: T1, field2: T2, ... }
+                    Fields::Named(named) => {
+                        let field_names: Vec<_> = named.named.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+                        let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
+                        let tuple_ty = quote! { (#(#field_types),*) };
+                        
+                        tokens.extend(quote! {
+                            pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
+                                key_paths_core::KeyPaths::failable_owned(
+                                    |e: #name| match e { #name::#v_ident { #(#field_names),* } => Some((#(#field_names),*)), _ => None }
+                                )
+                            }
+                            pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
+                                key_paths_core::KeyPaths::failable_owned(
+                                    |e: #name| match e { #name::#v_ident { #(#field_names),* } => Some((#(#field_names),*)), _ => None }
+                                )
+                            }
                         });
                     }
                 }
@@ -3126,53 +3261,333 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// A helper macro that provides suggestions when there are type mismatches with container types.
-/// This macro helps users understand when to use adapter methods like for_arc(), for_box(), etc.
-#[proc_macro]
-pub fn keypath_suggestion(input: TokenStream) -> TokenStream {
-    let input_str = input.to_string();
-    
-    // Parse the input to understand what the user is trying to do
-    let suggestion = if input_str.contains("Arc<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Arc<SomeStruct>, Value>, use the .for_arc() adapter method:\n   let arc_keypath = your_keypath.for_arc();"
-    } else if input_str.contains("Box<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Box<SomeStruct>, Value>, use the .for_box() adapter method:\n   let box_keypath = your_keypath.for_box();"
-    } else if input_str.contains("Rc<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Rc<SomeStruct>, Value>, use the .for_rc() adapter method:\n   let rc_keypath = your_keypath.for_rc();"
-    } else if input_str.contains("Option<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Option<SomeStruct>, Value>, use the .for_option() adapter method:\n   let option_keypath = your_keypath.for_option();"
-    } else if input_str.contains("Result<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Result<SomeStruct, E>, Value>, use the .for_result() adapter method:\n   let result_keypath = your_keypath.for_result();"
-    } else if input_str.contains("Mutex<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: For Mutex<T> containers, use the .with_mutex() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_mutex(&mutex, |value| { /* work with value */ });"
-    } else if input_str.contains("RwLock<") && input_str.contains("KeyPaths<") {
-        "💡 Suggestion: For RwLock<T> containers, use the .with_rwlock() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_rwlock(&rwlock, |value| { /* work with value */ });"
-    } else {
-        "💡 Suggestion: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T>\n   - .for_box() for Box<T>\n   - .for_rc() for Rc<T>\n   - .for_option() for Option<T>\n   - .for_result() for Result<T, E>\n   - .with_mutex() for Mutex<T> (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> (with parking_lot feature)"
+#[proc_macro_derive(PartialKeypaths)]
+pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+
+    let methods = match input.data {
+        Data::Struct(data_struct) => match data_struct.fields {
+            Fields::Named(fields_named) => {
+                let mut tokens = proc_macro2::TokenStream::new();
+                for field in fields_named.named.iter() {
+                    let field_ident = field.ident.as_ref().unwrap();
+                    let ty = &field.ty;
+
+                    let r_fn = format_ident!("{}_partial_r", field_ident);
+                    let w_fn = format_ident!("{}_partial_w", field_ident);
+                    let fr_fn = format_ident!("{}_partial_fr", field_ident);
+                    let fw_fn = format_ident!("{}_partial_fw", field_ident);
+                    let fr_at_fn = format_ident!("{}_partial_fr_at", field_ident);
+                    let fw_at_fn = format_ident!("{}_partial_fw_at", field_ident);
+                    // Owned keypath method names
+                    let o_fn = format_ident!("{}_partial_o", field_ident);
+                    let fo_fn = format_ident!("{}_partial_fo", field_ident);
+
+                    let (kind, inner_ty) = extract_wrapper_inner_type(ty);
+
+                    match (kind, inner_ty.clone()) {
+                        (WrapperKind::Option, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_partial()
+                                }
+                                pub fn #w_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident).to_partial()
+                                }
+                                pub fn #fr_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref()).to_partial()
+                                }
+                                pub fn #fw_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.as_mut()).to_partial()
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident).to_partial()
+                                }
+                                pub fn #fo_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident).to_partial()
+                                }
+                            });
+                        }
+                        (WrapperKind::Vec, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #fr_at_fn(index: usize) -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(index)).to_partial()
+                                }
+                                pub fn #fw_at_fn(index: usize) -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(index)).to_partial()
+                                }
+                                pub fn #r_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_partial()
+                                }
+                                pub fn #w_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident).to_partial()
+                                }
+                                pub fn #fr_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.first()).to_partial()
+                                }
+                                pub fn #fw_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.first_mut()).to_partial()
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident).to_partial()
+                                }
+                                pub fn #fo_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.into_iter().next()).to_partial()
+                                }
+                            });
+                        }
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_partial()
+                                }
+                                pub fn #w_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident).to_partial()
+                                }
+                                pub fn #fr_fn(key: String) -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(&key)).to_partial()
+                                }
+                                pub fn #fw_fn(key: String) -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(&key)).to_partial()
+                                }
+                                pub fn #fr_at_fn(key: String) -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(&key)).to_partial()
+                                }
+                                pub fn #fw_at_fn(key: String) -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(&key)).to_partial()
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident).to_partial()
+                                }
+                                pub fn #fo_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.into_iter().next().map(|(_, v)| v)).to_partial()
+                                }
+                            });
+                        }
+                        _ => {
+                            // Default case for simple types
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_partial()
+                                }
+                                pub fn #w_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident).to_partial()
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::PartialKeyPath<#name> {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident).to_partial()
+                                }
+                            });
+                        }
+                    }
+                }
+                tokens
+            }
+            _ => quote! { compile_error!("PartialKeypaths can only be derived for structs with named fields"); },
+        },
+        _ => quote! { compile_error!("PartialKeypaths can only be derived for structs"); },
     };
-    
+
     let expanded = quote! {
-        compile_error!(#suggestion);
+        impl #name {
+            #methods
+        }
     };
-    
+
     TokenStream::from(expanded)
 }
 
-/// A helper macro that provides compile-time suggestions for common KeyPaths usage patterns.
-/// This macro can be used to get helpful error messages when there are type mismatches.
-#[proc_macro]
-pub fn keypath_help(input: TokenStream) -> TokenStream {
-    let input_str = input.to_string();
-    
-    let help_message = if input_str.is_empty() {
-        "🔧 KeyPaths Help: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T> containers\n   - .for_box() for Box<T> containers\n   - .for_rc() for Rc<T> containers\n   - .for_option() for Option<T> containers\n   - .for_result() for Result<T, E> containers\n   - .with_mutex() for Mutex<T> containers (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> containers (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> containers (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> containers (with parking_lot feature)\n\nExample: let arc_keypath = my_keypath.for_arc();\nFor Mutex/RwLock: use key_paths_core::WithContainer; then my_keypath.with_mutex(&mutex, |value| { ... });\nFor Arc<Mutex>/Arc<RwLock>: let arc_mutex_keypath = my_keypath.for_arc_mutex();".to_string()
-    } else {
-        format!("🔧 KeyPaths Help for '{}': Use adapter methods to work with different container types. See documentation for more details.", input_str)
+#[proc_macro_derive(AnyKeypaths)]
+pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+
+    let methods = match input.data {
+        Data::Struct(data_struct) => match data_struct.fields {
+            Fields::Named(fields_named) => {
+                let mut tokens = proc_macro2::TokenStream::new();
+                for field in fields_named.named.iter() {
+                    let field_ident = field.ident.as_ref().unwrap();
+                    let ty = &field.ty;
+
+                    let r_fn = format_ident!("{}_any_r", field_ident);
+                    let w_fn = format_ident!("{}_any_w", field_ident);
+                    let fr_fn = format_ident!("{}_any_fr", field_ident);
+                    let fw_fn = format_ident!("{}_any_fw", field_ident);
+                    let fr_at_fn = format_ident!("{}_any_fr_at", field_ident);
+                    let fw_at_fn = format_ident!("{}_any_fw_at", field_ident);
+                    // Owned keypath method names
+                    let o_fn = format_ident!("{}_any_o", field_ident);
+                    let fo_fn = format_ident!("{}_any_fo", field_ident);
+
+                    let (kind, inner_ty) = extract_wrapper_inner_type(ty);
+
+                    match (kind, inner_ty.clone()) {
+                        (WrapperKind::Option, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_any()
+                                }
+                                pub fn #w_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident).to_any()
+                                }
+                                pub fn #fr_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref()).to_any()
+                                }
+                                pub fn #fw_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.as_mut()).to_any()
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident).to_any()
+                                }
+                                pub fn #fo_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident).to_any()
+                                }
+                            });
+                        }
+                        (WrapperKind::Vec, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #fr_at_fn(index: usize) -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(index)).to_any()
+                                }
+                                pub fn #fw_at_fn(index: usize) -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(index)).to_any()
+                                }
+                                pub fn #r_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_any()
+                                }
+                                pub fn #w_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident).to_any()
+                                }
+                                pub fn #fr_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.first()).to_any()
+                                }
+                                pub fn #fw_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#field_ident.first_mut()).to_any()
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident).to_any()
+                                }
+                                pub fn #fo_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.into_iter().next()).to_any()
+                                }
+                            });
+                        }
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_any()
+                                }
+                                pub fn #w_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident).to_any()
+                                }
+                                pub fn #fr_fn(key: String) -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(&key)).to_any()
+                                }
+                                pub fn #fw_fn(key: String) -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(&key)).to_any()
+                                }
+                                pub fn #fr_at_fn(key: String) -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#field_ident.get(&key)).to_any()
+                                }
+                                pub fn #fw_at_fn(key: String) -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#field_ident.get_mut(&key)).to_any()
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident).to_any()
+                                }
+                                pub fn #fo_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#field_ident.into_iter().next().map(|(_, v)| v)).to_any()
+                                }
+                            });
+                        }
+                        _ => {
+                            // Default case for simple types
+                            tokens.extend(quote! {
+                                pub fn #r_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident).to_any()
+                                }
+                                pub fn #w_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident).to_any()
+                                }
+                                // Owned keypath methods
+                                pub fn #o_fn() -> key_paths_core::AnyKeyPath {
+                                    key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident).to_any()
+                                }
+                            });
+                        }
+                    }
+                }
+                tokens
+            }
+            _ => quote! { compile_error!("AnyKeypaths can only be derived for structs with named fields"); },
+        },
+        _ => quote! { compile_error!("AnyKeypaths can only be derived for structs"); },
     };
-    
+
     let expanded = quote! {
-        compile_error!(#help_message);
+        impl #name {
+            #methods
+        }
     };
-    
+
     TokenStream::from(expanded)
 }
+
+// /// A helper macro that provides suggestions when there are type mismatches with container types.
+// /// This macro helps users understand when to use adapter methods like for_arc(), for_box(), etc.
+// #[proc_macro]
+// pub fn keypath_suggestion(input: TokenStream) -> TokenStream {
+//     let input_str = input.to_string();
+//     
+//     // Parse the input to understand what the user is trying to do
+//     let suggestion = if input_str.contains("Arc<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Arc<SomeStruct>, Value>, use the .for_arc() adapter method:\n   let arc_keypath = your_keypath.for_arc();"
+//     } else if input_str.contains("Box<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Box<SomeStruct>, Value>, use the .for_box() adapter method:\n   let box_keypath = your_keypath.for_box();"
+//     } else if input_str.contains("Rc<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Rc<SomeStruct>, Value>, use the .for_rc() adapter method:\n   let rc_keypath = your_keypath.for_rc();"
+//     } else if input_str.contains("Option<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Option<SomeStruct>, Value>, use the .for_option() adapter method:\n   let option_keypath = your_keypath.for_option();"
+//     } else if input_str.contains("Result<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Result<SomeStruct, E>, Value>, use the .for_result() adapter method:\n   let result_keypath = your_keypath.for_result();"
+//     } else if input_str.contains("Mutex<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: For Mutex<T> containers, use the .with_mutex() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_mutex(&mutex, |value| { /* work with value */ });"
+//     } else if input_str.contains("RwLock<") && input_str.contains("KeyPaths<") {
+//         "💡 Suggestion: For RwLock<T> containers, use the .with_rwlock() method from WithContainer trait (no cloning):\n   use key_paths_core::WithContainer;\n   your_keypath.with_rwlock(&rwlock, |value| { /* work with value */ });"
+//     } else {
+//         "💡 Suggestion: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T>\n   - .for_box() for Box<T>\n   - .for_rc() for Rc<T>\n   - .for_option() for Option<T>\n   - .for_result() for Result<T, E>\n   - .with_mutex() for Mutex<T> (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> (with parking_lot feature)"
+//     };
+//     
+//     let expanded = quote! {
+//         compile_error!(#suggestion);
+//     };
+//     
+//     TokenStream::from(expanded)
+// }
+
+// /// A helper macro that provides compile-time suggestions for common KeyPaths usage patterns.
+// /// This macro can be used to get helpful error messages when there are type mismatches.
+// #[proc_macro]
+// pub fn keypath_help(input: TokenStream) -> TokenStream {
+//     let input_str = input.to_string();
+//     
+//     let help_message = if input_str.is_empty() {
+//         "🔧 KeyPaths Help: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T> containers\n   - .for_box() for Box<T> containers\n   - .for_rc() for Rc<T> containers\n   - .for_option() for Option<T> containers\n   - .for_result() for Result<T, E> containers\n   - .with_mutex() for Mutex<T> containers (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> containers (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> containers (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> containers (with parking_lot feature)\n\nExample: let arc_keypath = my_keypath.for_arc();\nFor Mutex/RwLock: use key_paths_core::WithContainer; then my_keypath.with_mutex(&mutex, |value| { ... });\nFor Arc<Mutex>/Arc<RwLock>: let arc_mutex_keypath = my_keypath.for_arc_mutex();".to_string()
+//     } else {
+//         format!("🔧 KeyPaths Help for '{}': Use adapter methods to work with different container types. See documentation for more details.", input_str)
+//     };
+//     
+//     let expanded = quote! {
+//         compile_error!(#help_message);
+//     };
+//     
+//     TokenStream::from(expanded)
+// }

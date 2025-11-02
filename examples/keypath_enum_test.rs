@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
 
+// todo add support for more cointainers for Keypaths macro
 #[derive(Debug, Keypath)]
 enum Message {
     // Unit variant
@@ -29,7 +30,7 @@ enum Message {
 }
 
 fn main() {
-    println!("=== Enum Keypath Access ===");
+    println!("=== Enum Keypaths Access ===");
     
     // Test unit variant
     let ping = Message::Ping;
@@ -141,7 +142,7 @@ fn main() {
         println!("✓ Correctly returned None for non-matching variant");
     }
     
-    println!("\n=== Enum Keypath Types ===");
+    println!("\n=== Enum Keypaths Types ===");
     println!("ping() returns: KeyPaths<Message, Message> (readable)");
     println!("text() returns: KeyPaths<Message, String> (failable readable)");
     println!("number() returns: KeyPaths<Message, i32> (failable readable)");

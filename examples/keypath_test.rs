@@ -84,7 +84,7 @@ fn main() {
         }),
     };
 
-    println!("=== Smart Keypath Access ===");
+    println!("=== Smart Keypaths Access ===");
     
     // Basic types - readable keypath
     println!("Name: {:?}", User::name().get(&user));

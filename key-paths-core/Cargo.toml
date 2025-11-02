@@ -1,10 +1,10 @@
 [package]
 name = "key-paths-core"
-version = "1.0.8"
+version = "1.6.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
-description = "ReadableKeyPath, WritableKeyPath and EnumKeypath for struct and enums in Rust."
+description = "Keypaths, ReadableKeyPath, WritableKeyPath and EnumKeypath for struct and enums in Rust."
 repository = "https://github.com/codefonsi/rust-key-paths"
 homepage = "https://github.com/codefonsi/rust-key-paths"
 documentation = "https://docs.rs/rust-key-paths"

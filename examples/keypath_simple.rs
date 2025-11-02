@@ -1,6 +1,6 @@
-use key_paths_derive::Keypath;
+use key_paths_derive::Keypaths;
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Keypaths)]
 struct Person {
     name: String,
     age: u32,
@@ -23,28 +23,28 @@ fn main() {
         },
     };
 
-    println!("=== Smart Keypath Access ===");
+    println!("=== Smart Keypaths Access ===");
     
     // Basic types - readable keypath
-    println!("Name: {:?}", Person::name().get(&person));
-    println!("Age: {:?}", Person::age().get(&person));
+    println!("Name: {:?}", Person::name_r().get(&person));
+    println!("Age: {:?}", Person::age_r().get(&person));
 
     // Option<T> - failable readable keypath to inner type
-    if let Some(email) = Person::email().get(&person) {
+    if let Some(email) = Person::email_fr().get(&person) {
         println!("Email: {}", email);
     }
 
     // Vec<T> - failable readable keypath to first element
-    if let Some(hobby) = Person::hobbies().get(&person) {
+    if let Some(hobby) = Person::hobbies_fr().get(&person) {
         println!("First hobby: {}", hobby);
     }
 
     // HashMap<K,V> - readable keypath to container
-    if let Some(scores) = Person::scores().get(&person) {
+    if let Some(scores) = Person::scores_r().get(&person) {
         println!("Scores: {:?}", scores);
     }
 
-    println!("\n=== Keypath Types ===");
+    println!("\n=== Keypaths Types ===");
     println!("name() returns: KeyPaths<Person, String> (readable)");
     println!("age() returns: KeyPaths<Person, u32> (readable)");
     println!("email() returns: KeyPaths<Person, String> (failable readable)");
