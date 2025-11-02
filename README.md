@@ -20,22 +20,22 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 
 ```toml
 [dependencies]
-key-paths-core = "1.0.5"
-key-paths-derive = "0.9"
+key-paths-core = "1.6.0"
+key-paths-derive = "1.0.8"
 ```
 
 ## 🎯 Choose Your Macro
 
-### `#[derive(Keypaths)]` - Simple & Beginner-Friendly
+### `#[derive(Keypath)]` - Simple & Beginner-Friendly
 - **One method per field**: `field_name()` 
 - **Smart keypath selection**: Automatically chooses readable or failable readable based on field type
 - **No option chaining**: Perfect for beginners and simple use cases
 - **Clean API**: Just call `Struct::field_name()` and you're done!
 
 ```rust
-use key_paths_derive::Keypaths;
+use key_paths_derive::Keypath;
 
-#[derive(Keypaths)]
+#[derive(Keypath)]
 struct User {
     name: String,           // -> User::name() returns readable keypath
     email: Option<String>,  // -> User::email() returns failable readable keypath
@@ -71,21 +71,88 @@ let email_keypath = User::email_fr();
 let name = name_keypath.get(&user);      // Some("Alice") - readable
 let email = email_keypath.get(&user);   // Some("alice@example.com") - failable readable
 ```
+---
 
-**Recommendation**: Start with `#[derive(Keypaths)]` for simplicity, upgrade to `#[derive(Keypaths)]` when you need more control!
+### Widely used - Deeply nested struct
+```rust
+use key_paths_derive::{Casepaths, Keypaths};
 
-### Keypaths vs Keypaths - When to Use Which?
+#[derive(Debug, Keypaths)]
+struct SomeComplexStruct {
+    scsf: Option<SomeOtherStruct>,
+}
+
+
+#[derive(Debug, Keypaths)]
+struct SomeOtherStruct {
+    sosf: Option<OneMoreStruct>,
+}
+
+#[derive(Debug, Keypaths)]
+struct OneMoreStruct {
+    omsf: Option<String>,
+    omse: Option<SomeEnum>,
+}
+
+#[derive(Debug, Casepaths)]
+enum SomeEnum {
+    A(String),
+    B(DarkStruct),
+}
+
+#[derive(Debug, Keypaths)]
+struct DarkStruct {
+    dsf: Option<String>,
+}
+
+
+impl SomeComplexStruct {
+    fn new() -> Self {
+        Self {
+            scsf: Some(SomeOtherStruct {
+                sosf: Some(OneMoreStruct {
+                    omsf: Some(String::from("no value for now")),
+                    omse: Some(SomeEnum::B(DarkStruct {
+                        dsf: Some(String::from("dark field")),
+                    })),
+                }),
+            }),
+        }
+    }
+}
+
+
+fn main() {
+    let dsf_kp = SomeComplexStruct::scsf_fw()
+        .then(SomeOtherStruct::sosf_fw())
+        .then(OneMoreStruct::omse_fw())
+        .then(SomeEnum::b_case_w())
+        .then(DarkStruct::dsf_fw());
+
+    let mut instance = SomeComplexStruct::new();
+    
+    if let Some(omsf) = dsf_kp.get_mut(&mut instance) {
+        *omsf = String::from("This is changed 🖖🏿");
+        println!("instance = {:?}", instance);
+
+    }
+}
+```
+
+**Recommendation**: Start with `#[derive(Keypath)]` for simplicity, upgrade to `#[derive(Keypaths)]` when you need more control!
+
+### Keypath vs Keypaths - When to Use Which?
 
 | Feature | `#[derive(Keypath)]` | `#[derive(Keypaths)]` |
 |---------|---------------------|----------------------|
 | **API Complexity** | Simple - one method per field | Advanced - multiple methods per field |
 | **Learning Curve** | Beginner-friendly | Requires understanding of keypath types |
-| **Container Support** | Basic containers only | Full container support including `Result`, `Mutex`, `RwLock`, `Weak` |
+| **Container Support** | Basic containers only | Full container support including `Result`, `Mutex`, `RwLock`, `Wea****k` |
 | **Option Chaining** | No - smart selection only | Yes - full control over failable vs non-failable |
 | **Writable Access** | Limited | Full writable support |
 | **Use Case** | Simple field access, beginners | Complex compositions, advanced users |
 
-**When to use `Keypaths`:**
+**When to use `Keypath`:**
 - You're new to keypaths
 - You want simple, clean field access
 - You don't need complex option chaining
@@ -105,9 +172,9 @@ See `examples/` for many runnable samples. Below are a few highlights.
 
 ### Quick Start - Simple Keypaths Usage
 ```rust
-use key_paths_derive::Keypaths;
+use key_paths_derive::Keypath;
 
-#[derive(Keypaths)]
+#[derive(Keypath)]
 struct User {
     name: String,
     age: u32,
@@ -135,142 +202,6 @@ fn main() {
     println!("Email: {:?}", email);
 }
 ```
-
-### Widely used - Deeply nested struct
-```rust
-use key_paths_derive::{Casepaths, Keypaths};
-
-#[derive(Debug, Keypaths)]
-struct SomeComplexStruct {
-    scsf: Option<SomeOtherStruct>,
-}
-
-
-#[derive(Debug, Keypaths)]
-struct SomeOtherStruct {
-    sosf: Option<OneMoreStruct>,
-}
-
-#[derive(Debug, Casepaths)]
-enum SomeEnum {
-    A(String),
-    B(DarkStruct),
-}
-
-#[derive(Debug, Keypaths)]
-struct OneMoreStruct {
-    omsf: Option<String>,
-    omse: Option<SomeEnum>,
-}
-
-#[derive(Debug, Keypaths)]
-struct DarkStruct {
-    dsf: Option<String>,
-}
-
-
-impl SomeComplexStruct {
-    fn new() -> Self {
-        Self {
-            scsf: Some(SomeOtherStruct {
-                sosf: Some(OneMoreStruct {
-                    omsf: Some(String::from("no value for now")),
-                    omse: Some(SomeEnum::B(DarkStruct {
-                        dsf: Some(String::from("dark field")),
-                    })),
-                }),
-            }),
-        }
-    }
-}
-fn main() {
-    let dsf_kp = SomeComplexStruct::scsf_fw()
-        .then(SomeOtherStruct::sosf_fw())
-        .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_w())
-        .then(DarkStruct::dsf_fw());
-
-    let mut instance = SomeComplexStruct::new();
-    
-    if let Some(omsf) = dsf_kp.get_mut(&mut instance) {
-        *omsf = String::from("This is changed 🖖🏿");
-        println!("instance = {:?}", instance);
-
-    }
-}
-```
-
-### Iteration via keypaths
- ```rust
-use key_paths_core::KeyPaths;
-
-#[derive(Debug)]
-struct Size {
-    width: u32,
-    height: u32,
-}
-#[derive(Debug)]
-enum Color {
-    Red,
-    Green,
-    Blue,
-    Other(RGBU8),
-}
-#[derive(Debug)]
-struct RGBU8(u8, u8, u8);
-
-#[derive(Debug)]
-struct ABox {
-    name: String,
-    size: Size,
-    color: Color,
-}
-#[derive(Debug)]
-struct Rectangle {
-    size: Size,
-    name: String,
-}
-fn main() {
-    let mut a_box = ABox {
-        name: String::from("A box"),
-        size: Size {
-            width: 10,
-            height: 20,
-        },
-        color: Color::Other(
-            RGBU8(10, 20, 30)
-        ),
-    };
-
-    let color_kp: KeyPaths<ABox, Color> = KeyPaths::failable_writable(|x: &mut ABox| Some(&mut x.color));
-    let case_path = KeyPaths::writable_enum(
-        {
-            |v| Color::Other(v)
-        },
-        |p: &Color| match p {
-            Color::Other(rgb) => Some(rgb),
-            _ => None,
-        },
-        |p: &mut Color| match p {
-            Color::Other(rgb) => Some(rgb),
-            _ => None,
-        },
-
-    );
-    
-    println!("{:?}", a_box);
-    let color_rgb_kp = color_kp.compose(case_path);
-    if let Some(value) = color_rgb_kp.get_mut(&mut a_box) {
-        *value = RGBU8(0, 0, 0);
-    }
-    println!("{:?}", a_box);
-}
-/*
-ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(10, 20, 30)) }
-ABox { name: "A box", size: Size { width: 10, height: 20 }, color: Other(RGBU8(0, 0, 0)) }
-*/
-```
-
 ---
 
 ## 📦 Container Adapters & References (NEW!)
