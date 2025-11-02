@@ -76,7 +76,7 @@ let email = email_keypath.get(&user);   // Some("alice@example.com") - failable 
 
 ### Keypaths vs Keypaths - When to Use Which?
 
-| Feature | `#[derive(Keypaths)]` | `#[derive(Keypaths)]` |
+| Feature | `#[derive(Keypath)]` | `#[derive(Keypaths)]` |
 |---------|---------------------|----------------------|
 | **API Complexity** | Simple - one method per field | Advanced - multiple methods per field |
 | **Learning Curve** | Beginner-friendly | Requires understanding of keypath types |
@@ -138,62 +138,65 @@ fn main() {
 
 ### Widely used - Deeply nested struct
 ```rust
-use key_paths_core::KeyPaths;
 use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
-    // scsf2: Option<SomeOtherStruct>,
 }
+
+
+#[derive(Debug, Keypaths)]
+struct SomeOtherStruct {
+    sosf: Option<OneMoreStruct>,
+}
+
+#[derive(Debug, Casepaths)]
+enum SomeEnum {
+    A(String),
+    B(DarkStruct),
+}
+
+#[derive(Debug, Keypaths)]
+struct OneMoreStruct {
+    omsf: Option<String>,
+    omse: Option<SomeEnum>,
+}
+
+#[derive(Debug, Keypaths)]
+struct DarkStruct {
+    dsf: Option<String>,
+}
+
 
 impl SomeComplexStruct {
     fn new() -> Self {
         Self {
             scsf: Some(SomeOtherStruct {
-                sosf: OneMoreStruct {
-                    omsf: String::from("no value for now"),
-                    omse: SomeEnum::B(DarkStruct { dsf: String::from("dark field") }),
-                },
+                sosf: Some(OneMoreStruct {
+                    omsf: Some(String::from("no value for now")),
+                    omse: Some(SomeEnum::B(DarkStruct {
+                        dsf: Some(String::from("dark field")),
+                    })),
+                }),
             }),
         }
     }
 }
-
-#[derive(Debug, Keypaths)]
-struct SomeOtherStruct {
-    sosf: OneMoreStruct,
-}
-
-#[derive(Debug, Casepaths)]
-enum SomeEnum {
-    A(String), 
-    B(DarkStruct)
-}
-
-#[derive(Debug, Keypaths)]
-struct OneMoreStruct {
-    omsf: String,
-    omse: SomeEnum
-}
-
-#[derive(Debug, Keypaths)]
-struct DarkStruct {
-    dsf: String
-}
-
-fn main() {    
-    let op = SomeComplexStruct::scsf()
-        .then(SomeOtherStruct::sosf())
-        .then(OneMoreStruct::omse())
+fn main() {
+    let dsf_kp = SomeComplexStruct::scsf_fw()
+        .then(SomeOtherStruct::sosf_fw())
+        .then(OneMoreStruct::omse_fw())
         .then(SomeEnum::b_case_w())
-        .then(DarkStruct::dsf());
-    let mut instance = SomeComplexStruct::new();
-    let omsf = op.get_mut(&mut instance);
-    *omsf.unwrap() =
-        String::from("we can change the field with the other way unlocked by keypaths");
-    println!("instance = {:?}", instance);
+        .then(DarkStruct::dsf_fw());
 
+    let mut instance = SomeComplexStruct::new();
+    
+    if let Some(omsf) = dsf_kp.get_mut(&mut instance) {
+        *omsf = String::from("This is changed 🖖🏿");
+        println!("instance = {:?}", instance);
+
+    }
 }
 ```
 
