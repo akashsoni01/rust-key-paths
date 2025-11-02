@@ -473,58 +473,28 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BoxOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#field_ident)
-                                }
+                                // Failable access: returns Option<&T> - unwraps the inner Option
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| (*s.#field_ident).as_ref())
                                 }
                                 pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_writable(|s: &mut #name| (*s.#field_ident).as_mut())
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| *s.#field_ident)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| (*s.#field_ident))
-                                }
                             });
                         }
                         (WrapperKind::RcOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
-                                }
+                                // Failable access: returns Option<&T> - unwraps the inner Option
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| (*s.#field_ident).as_ref())
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| (*s.#field_ident).clone())
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| (*s.#field_ident).clone())
                                 }
                             });
                         }
                         (WrapperKind::ArcOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
-                                }
+                                // Failable access: returns Option<&T> - unwraps the inner Option
                                 pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|s: &#name| (*s.#field_ident).as_ref())
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| (*s.#field_ident).clone())
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| (*s.#field_ident).clone())
                                 }
                             });
                         }

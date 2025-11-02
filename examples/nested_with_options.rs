@@ -16,11 +16,11 @@ struct NestedContainerExample {
     // Option<Arc<T>>
     option_arc_field: Option<std::sync::Arc<String>>,
     // Box<Option<T>>
-    // box_option_field: Box<Option<i32>>,
-    // // Rc<Option<T>>
-    // rc_option_field: std::rc::Rc<Option<i32>>,
-    // // Arc<Option<T>>
-    // arc_option_field: std::sync::Arc<Option<i32>>,
+    box_option_field: Box<Option<i32>>,
+    // Rc<Option<T>>
+    rc_option_field: std::rc::Rc<Option<i32>>,
+    // Arc<Option<T>>
+    arc_option_field: std::sync::Arc<Option<i32>>,
     // // Vec<Option<T>>
     // vec_option_field: Vec<Option<f64>>,
     // // Option<Vec<T>>
@@ -42,9 +42,9 @@ fn main() {
         option_box_field: Some(Box::new("jkhkhjhk".to_string())),
         option_rc_field: Some(std::rc::Rc::new("World".to_string())),
         option_arc_field: Some(std::sync::Arc::new("Rust".to_string())),
-        // box_option_field: Box::new(Some(42)),
-        // rc_option_field: std::rc::Rc::new(Some(100)),
-        // arc_option_field: std::sync::Arc::new(Some(200)),
+        box_option_field: Box::new(Some(42)),
+        rc_option_field: std::rc::Rc::new(Some(100)),
+        arc_option_field: std::sync::Arc::new(Some(200)),
         // vec_option_field: vec![Some(3.14), None, Some(2.71)],
         // option_vec_field: Some(vec![true, false, true]),
         // hashmap_option_field: {
@@ -95,32 +95,32 @@ fn main() {
     }
     println!();
 
-    // // Test Box<Option<T>>
-    // println!("4. Box<Option<T>>:");
-    // // Read the inner i32 if Some
-    // if let Some(value) = NestedContainerExample::box_option_field_fr().get(&example) {
-    //     println!("   Inner value: {}", value);
-    // }
-    //
-    // if let Some(value) = NestedContainerExample::box_option_field_fw().get_mut(&mut example) {
-    //     *value = 99;
-    //     println!("   Changed inner value: {}", value);
-    // }
-    // println!();
-    //
-    // // Test Rc<Option<T>>
-    // println!("5. Rc<Option<T>>:");
-    // if let Some(value) = NestedContainerExample::rc_option_field_fr().get(&example) {
-    //     println!("   Inner value: {}", value);
-    // }
-    // println!();
-    //
-    // // Test Arc<Option<T>>
-    // println!("6. Arc<Option<T>>:");
-    // if let Some(value) = NestedContainerExample::arc_option_field_fr().get(&example) {
-    //     println!("   Inner value: {}", value);
-    // }
-    // println!();
+    // Test Box<Option<T>>
+    println!("4. Box<Option<T>>:");
+    // Read the inner i32 if Some
+    if let Some(value) = NestedContainerExample::box_option_field_fr().get(&example) {
+        println!("   Inner value: {}", value);
+    }
+    
+    if let Some(value) = NestedContainerExample::box_option_field_fw().get_mut(&mut example) {
+        *value = 99;
+        println!("   Changed inner value: {}", value);
+    }
+    println!();
+
+    // Test Rc<Option<T>>
+    println!("5. Rc<Option<T>>:");
+    if let Some(value) = NestedContainerExample::rc_option_field_fr().get(&example) {
+        println!("   Inner value: {}", value);
+    }
+    println!();
+
+    // Test Arc<Option<T>>
+    println!("6. Arc<Option<T>>:");
+    if let Some(value) = NestedContainerExample::arc_option_field_fr().get(&example) {
+        println!("   Inner value: {}", value);
+    }
+    println!();
     //
     // // Test Vec<Option<T>>
     // println!("7. Vec<Option<T>>:");
