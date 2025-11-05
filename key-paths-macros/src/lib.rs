@@ -46,11 +46,9 @@ enum WrapperKind {
     Tagged,
 }
 
-
 struct SomeStruct {
     abc: String,
 }
-
 
 #[proc_macro_derive(Keypath)]
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
@@ -67,18 +65,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
         Data::Struct(data) => {
             match &data.fields {
                 Fields::Named(fields) => {
+                    let mut tokens = proc_macro2::TokenStream::new();
                     for field in &fields.named {
-                        let field_name = &field.ident;
-                        let field_type = &field.ty;
-                        let (kind, inner_ty) = extract_wrapper_inner_type(field_type);
-                        match (kind, inner_ty.clone()) {
-                            (WrapperKind::None, None) => {
-
+                        if let Some(field_name) = &field.ident {
+                            let field_type = &field.ty;
+                            let (kind, inner_ty) = extract_wrapper_inner_type(field_type);
+                            match (kind, inner_ty.clone()) {
+                                (WrapperKind::Option, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #field_type> {
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_name)
+                                }
+                            });
+                                }
+                                _ => {}
                             }
-
-                            _ => {}
                         }
-
                     }
                 }
                 Fields::Unnamed(fields) => {
@@ -108,9 +110,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
         impl #impl_generics MyTrait for #name #ty_generics #where_clause {
             // Implementation
         }
-    }.into()
+    }
+    .into()
 }
-
 
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
@@ -217,7 +219,6 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     }
     (WrapperKind::None, None)
 }
-
 
 fn to_snake_case(name: &str) -> String {
     let mut out = String::new();
