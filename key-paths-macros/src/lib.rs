@@ -61,7 +61,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
 
     // Process based on data type
-    match &ast.data {
+    let methods = match &ast.data {
         Data::Struct(data) => {
             match &data.fields {
                 Fields::Named(fields) => {
@@ -82,33 +82,44 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                         }
                     }
+
+                    tokens
                 }
                 Fields::Unnamed(fields) => {
+                    let mut tokens = proc_macro2::TokenStream::new();
                     for (i, field) in fields.unnamed.iter().enumerate() {
                         let field_type = &field.ty;
                         // Process tuple field
                     }
+                    tokens
                 }
                 Fields::Unit => {
+                    let mut tokens = proc_macro2::TokenStream::new();
                     // Unit struct
+                    tokens
                 }
             }
         }
         Data::Enum(data) => {
+            let mut tokens = proc_macro2::TokenStream::new();
             for variant in &data.variants {
                 let variant_name = &variant.ident;
                 // Process variant
             }
+            tokens
         }
         Data::Union(_) => {
+            let mut tokens = proc_macro2::TokenStream::new();
             panic!("Unions not supported");
+            tokens
         }
-    }
+    };
 
     // Generate code
     quote! {
         impl #impl_generics MyTrait for #name #ty_generics #where_clause {
             // Implementation
+            #methods
         }
     }
     .into()

@@ -53,7 +53,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
     let methods = match input.data {
         Data::Struct(data_struct) => match data_struct.fields {
-            Fields::Named(fields_named) => {
+            Fields::Named(fields_named) => {/**/
                 let mut tokens = proc_macro2::TokenStream::new();
                 for field in fields_named.named.iter() {
                     let field_ident = field.ident.as_ref().unwrap();
