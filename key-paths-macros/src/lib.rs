@@ -81,8 +81,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #field_type> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_name)
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_type.as_ref())
                                 }
                             });
                                 }
@@ -261,3 +261,5 @@ fn to_snake_case(name: &str) -> String {
     }
     out
 }
+
+
