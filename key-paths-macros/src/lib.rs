@@ -74,7 +74,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::None, None) => {
                                     tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #field_type> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&s.#field_name))
+                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_name)
                                 }
                             });
                                 }
@@ -82,7 +82,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_type.as_ref())
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_name.as_ref())
                                 }
                             });
                                 }

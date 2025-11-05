@@ -3,14 +3,14 @@ use key_paths_core::KeyPaths;
 
 #[derive(Keypath)]
 struct Person {
-    name: Option<String>,
+    name: String,
     age: i32,
 }
 
 #[test]
 fn test_keypath_generation() {
     let person = Person {
-        name: Some("Alice".to_string()),
+        name: "Alice".to_string(),
         age: 30,
     };
 
