@@ -5,6 +5,8 @@ use syn::{Data, DeriveInput, Fields, Type, parse_macro_input};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WrapperKind {
     None,
+    // Error handling containers
+    Result,
     Option,
     Box,
     Rc,
@@ -17,8 +19,6 @@ enum WrapperKind {
     VecDeque,
     LinkedList,
     BinaryHeap,
-    // Error handling containers
-    Result,
     // Synchronization primitives
     Mutex,
     RwLock,
@@ -71,6 +71,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let field_type = &field.ty;
                             let (kind, inner_ty) = extract_wrapper_inner_type(field_type);
                             match (kind, inner_ty.clone()) {
+                                // Non-Options - simple one
                                 (WrapperKind::None, None) => {
                                     tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #field_type> {
@@ -79,6 +80,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                                 }
 
+                                // Option types 
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -86,6 +88,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                                 }
+                                (WrapperKind::Result, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_name.as_ref().ok())
+                                }
+                            });
+                                }
+
                                 _ => {}
                             }
                         }
