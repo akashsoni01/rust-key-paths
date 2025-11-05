@@ -71,6 +71,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let field_type = &field.ty;
                             let (kind, inner_ty) = extract_wrapper_inner_type(field_type);
                             match (kind, inner_ty.clone()) {
+                                (WrapperKind::None, None) => {
+                                    tokens.extend(quote! {
+                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #field_type> {
+                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&s.#field_name))
+                                }
+                            });
+                                }
+
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                 pub fn #field_name() -> key_paths_core::KeyPaths<#name, #field_type> {
@@ -115,14 +123,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
         }
     };
 
-    // Generate code
-    quote! {
-        impl #impl_generics MyTrait for #name #ty_generics #where_clause {
-            // Implementation
+    // // Generate code
+    // quote! {
+    //     impl #impl_generics MyTrait for #name #ty_generics #where_clause {
+    //         // Implementation
+    //         #methods
+    //     }
+    // }
+    // .into()
+
+    let expanded = quote! {
+        impl #name {
             #methods
         }
-    }
-    .into()
+    };
+
+    TokenStream::from(expanded)
 }
 
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
