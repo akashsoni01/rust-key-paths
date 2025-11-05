@@ -22,7 +22,7 @@ resolver = "3" # or "3"
 members = [
     "key-paths-core",
     "key-paths-derive"
-]
+, "key-paths-macros"]
 
 [patch.crates-io]
 key-paths-core = { path = "key-paths-core" }
