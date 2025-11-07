@@ -79,7 +79,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                                 }
-
                                 // Option types 
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
