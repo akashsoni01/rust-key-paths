@@ -115,7 +115,7 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<MethodScope> {
     Ok(scope)
 }
 
-#[proc_macro_derive(Keypaths)]
+#[proc_macro_derive(Keypaths, attributes(Readable, Writable, Owned))]
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
