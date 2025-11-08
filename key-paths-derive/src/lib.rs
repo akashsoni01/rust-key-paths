@@ -97,25 +97,30 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
     for attr in attrs {
         if attr.path().is_ident("Readable") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
             }
             scope = Some(MethodScope::Readable);
         } else if attr.path().is_ident("Writable") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
             }
             scope = Some(MethodScope::Writable);
         } else if attr.path().is_ident("Owned") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
             }
             scope = Some(MethodScope::Owned);
+        } else if attr.path().is_ident("All") {
+            if scope.is_some() {
+                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+            }
+            scope = Some(MethodScope::All);
         }
     }
     Ok(scope)
 }
 
-#[proc_macro_derive(Keypaths, attributes(Readable, Writable, Owned))]
+#[proc_macro_derive(Keypaths, attributes(Readable, Writable, Owned, All))]
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
