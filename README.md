@@ -21,7 +21,7 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 ```toml
 [dependencies]
 key-paths-core = "1.6.0"
-key-paths-derive = "1.0.8"
+key-paths-derive = "1.0.9"
 ```
 
 ## 🎯 Choose Your Macro
@@ -34,7 +34,6 @@ key-paths-derive = "1.0.8"
 
 ```rust
 use key_paths_derive::Keypath;
-
 #[derive(Keypath)]
 struct User {
     name: String,           // -> User::name() returns readable keypath
@@ -59,6 +58,7 @@ let email = email_keypath.get(&user);      // Some("alice@example.com")
 use key_paths_derive::Keypaths;
 
 #[derive(Keypaths)]
+#[Readable] // Default scope for every field is Readable, others Writable, Owned and All.
 struct User {
     name: String,
     email: Option<String>,
@@ -78,17 +78,20 @@ let email = email_keypath.get(&user);   // Some("alice@example.com") - failable 
 use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
+#[Writable] // Default scope for every field is Readable, others Writable, Owned and All.
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
 }
 
 
 #[derive(Debug, Keypaths)]
+#[Writable] // Default scope for every field is Readable, others Writable, Owned and All.
 struct SomeOtherStruct {
     sosf: Option<OneMoreStruct>,
 }
 
 #[derive(Debug, Keypaths)]
+#[Writable] // Default scope for every field is Readable, others Writable, Owned and All.
 struct OneMoreStruct {
     omsf: Option<String>,
     omse: Option<SomeEnum>,
@@ -101,6 +104,7 @@ enum SomeEnum {
 }
 
 #[derive(Debug, Keypaths)]
+#[Writable] // Default scope for every field is Readable, others Writable, Owned and All.
 struct DarkStruct {
     dsf: Option<String>,
 }
@@ -204,6 +208,51 @@ fn main() {
 ```
 ---
 
+### Attribute-Scoped Generation (NEW!)
+Struct-level and field-level attributes let you control which keypath methods are emitted. The default scope is `Readable`, but you can opt into `Writable`, `Owned`, or `All` on individual fields or the entire type.
+
+```rust
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
+
+#[derive(Clone, Debug, Keypaths)]
+#[Readable] // default scope for every field
+struct Account {
+    nickname: Option<String>, // inherits #[Readable]
+    #[Writable]
+    balance: i64, // writable accessors only
+    #[Owned]
+    recovery_token: Option<String>, // owned accessors only
+}
+
+fn main() {
+    let mut account = Account {
+        nickname: Some("ace".into()),
+        balance: 1_000,
+        recovery_token: Some("token-123".into()),
+    };
+
+    let nickname = Account::nickname_fr().get(&account);
+    let owned_token = Account::recovery_token_fo().get_failable_owned(account.clone());
+
+    if let Some(balance) = Account::balance_w().get_mut(&mut account) {
+        *balance += 500;
+    }
+
+    println!("nickname: {:?}", nickname);
+    println!("balance: {}", account.balance);
+    println!("recovery token: {:?}", owned_token);
+}
+```
+
+Run it yourself:
+
+```
+cargo run --example attribute_scopes
+```
+
+---
+
 ## 📦 Container Adapters & References (NEW!)
 
 KeyPaths now support smart pointers, containers, and references via adapter methods:
@@ -216,7 +265,7 @@ Use `.for_arc()`, `.for_box()`, or `.for_rc()` to adapt keypaths for wrapped typ
 use key_paths_derive::Keypaths;
 use std::sync::Arc;
 
-#[derive(Keypaths)]
+#[derive(Keypath)]
 struct Product {
     name: String,
     price: f64,
@@ -242,7 +291,7 @@ Use `.get_ref()` and `.get_mut_ref()` for collections of references:
 ```rust
 use key_paths_derive::Keypaths;
 
-#[derive(Keypaths)]
+#[derive(Keypath)]
 struct Product {
     name: String,
     price: f64,
