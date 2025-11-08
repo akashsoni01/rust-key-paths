@@ -92,24 +92,24 @@ fn push_method(
     }
 }
 
-fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<MethodScope> {
-    let mut scope = MethodScope::All;
+fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScope>> {
+    let mut scope: Option<MethodScope> = None;
     for attr in attrs {
         if attr.path().is_ident("Readable") {
-            if scope != MethodScope::All {
+            if scope.is_some() {
                 return Err(syn::Error::new(attr.span(), "Only one of #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
             }
-            scope = MethodScope::Readable;
+            scope = Some(MethodScope::Readable);
         } else if attr.path().is_ident("Writable") {
-            if scope != MethodScope::All {
+            if scope.is_some() {
                 return Err(syn::Error::new(attr.span(), "Only one of #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
             }
-            scope = MethodScope::Writable;
+            scope = Some(MethodScope::Writable);
         } else if attr.path().is_ident("Owned") {
-            if scope != MethodScope::All {
+            if scope.is_some() {
                 return Err(syn::Error::new(attr.span(), "Only one of #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
             }
-            scope = MethodScope::Owned;
+            scope = Some(MethodScope::Owned);
         }
     }
     Ok(scope)
@@ -119,6 +119,12 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<MethodScope> {
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
+
+    let default_scope = match method_scope_from_attrs(&input.attrs) {
+        Ok(Some(scope)) => scope,
+        Ok(None) => MethodScope::All,
+        Err(err) => return err.to_compile_error().into(),
+    };
 
     let methods = match input.data {
         Data::Struct(data_struct) => match data_struct.fields {
@@ -139,7 +145,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let fo_fn = format_ident!("{}_fo", field_ident);
 
                     let method_scope = match method_scope_from_attrs(&field.attrs) {
-                        Ok(scope) => scope,
+                        Ok(Some(scope)) => scope,
+                        Ok(None) => default_scope,
                         Err(err) => return err.to_compile_error().into(),
                     };
 
@@ -1709,8 +1716,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let o_fn = format_ident!("f{}_o", idx);
                     let fo_fn = format_ident!("f{}_fo", idx);
 
-                    let method_scope = match method_scope_from_attrs(&field.attrs) {
-                        Ok(scope) => scope,
+                    let _method_scope = match method_scope_from_attrs(&field.attrs) {
+                        Ok(Some(scope)) => scope,
+                        Ok(None) => default_scope,
                         Err(err) => return err.to_compile_error().into(),
                     };
 

@@ -2,13 +2,14 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Clone, Keypaths)]
+#[Readable]
 struct Person {
-    #[Readable]
     name: Option<String>,
     #[Writable]
     age: i32,
     #[Owned]
     nickname: Option<String>,
+    title: String,
 }
 
 #[test]
@@ -17,10 +18,12 @@ fn test_attribute_scoped_keypaths() {
         name: Some("Alice".to_string()),
         age: 30,
         nickname: Some("Ace".to_string()),
+        title: "Engineer".to_string(),
     };
-    
+
     let name_r: KeyPaths<Person, Option<String>> = Person::name_r();
     let name_fr: KeyPaths<Person, String> = Person::name_fr();
+    let title_r: KeyPaths<Person, String> = Person::title_r();
     let readable_value = name_r
         .get(&person)
         .and_then(|opt| opt.as_ref());
@@ -28,6 +31,9 @@ fn test_attribute_scoped_keypaths() {
 
     let failable_read = name_fr.get(&person);
     assert_eq!(failable_read, Some(&"Alice".to_string()));
+
+    let title_value = title_r.get(&person);
+    assert_eq!(title_value, Some(&"Engineer".to_string()));
 
     let age_w: KeyPaths<Person, i32> = Person::age_w();
     if let Some(age_ref) = age_w.get_mut(&mut person) {
