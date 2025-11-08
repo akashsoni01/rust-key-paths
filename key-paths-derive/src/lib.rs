@@ -122,7 +122,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
     let default_scope = match method_scope_from_attrs(&input.attrs) {
         Ok(Some(scope)) => scope,
-        Ok(None) => MethodScope::All,
+        Ok(None) => MethodScope::Readable,
         Err(err) => return err.to_compile_error().into(),
     };
 

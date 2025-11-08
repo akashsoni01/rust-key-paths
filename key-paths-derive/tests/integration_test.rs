@@ -2,12 +2,12 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Clone, Keypaths)]
-#[Readable]
+#[All]
 struct Person {
     name: Option<String>,
-    #[Writable]
+    // #[Writable]
     age: i32,
-    #[Owned]
+    // #[Owned]
     nickname: Option<String>,
     title: String,
 }
@@ -20,7 +20,6 @@ fn test_attribute_scoped_keypaths() {
         nickname: Some("Ace".to_string()),
         title: "Engineer".to_string(),
     };
-
     let name_r: KeyPaths<Person, Option<String>> = Person::name_r();
     let name_fr: KeyPaths<Person, String> = Person::name_fr();
     let title_r: KeyPaths<Person, String> = Person::title_r();
