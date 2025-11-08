@@ -1721,7 +1721,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let o_fn = format_ident!("f{}_o", idx);
                     let fo_fn = format_ident!("f{}_fo", idx);
 
-                    let _method_scope = match method_scope_from_attrs(&field.attrs) {
+                    let method_scope = match method_scope_from_attrs(&field.attrs) {
                         Ok(Some(scope)) => scope,
                         Ok(None) => default_scope,
                         Err(err) => return err.to_compile_error().into(),
@@ -1731,317 +1731,865 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref())
-                                }
-                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.as_mut())
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit)
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref())
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fw> {
+                                        key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.as_mut())
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.first())
-                                }
-                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.first_mut())
-                                }
-                                pub fn #fr_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.get(*index))
-                                }
-                                pub fn #fw_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.get_mut(*index))
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.first())
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fw> {
+                                        key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.first_mut())
+                                    }
+                                },
+                            );
+                            let inner_ty_fr_at = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty_fr_at> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.get(*index))
+                                    }
+                                },
+                            );
+                            let inner_ty_fw_at = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty_fw_at> {
+                                        key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.get_mut(*index))
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#idx_lit.get(&key))
-                                }
-                                pub fn #fw_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#idx_lit.get_mut(&key))
-                                }
-                                pub fn #fr_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#idx_lit.get(&key))
-                                }
-                                pub fn #fw_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#idx_lit.get_mut(&key))
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_values().next())
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#idx_lit.get(&key))
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty_fw> {
+                                        key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#idx_lit.get_mut(&key))
+                                    }
+                                },
+                            );
+                            let inner_ty_fr_at = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty_fr_at> {
+                                        key_paths_core::KeyPaths::failable_readable(move |s: &#name| s.#idx_lit.get(&key))
+                                    }
+                                },
+                            );
+                            let inner_ty_fw_at = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_at_fn(key: String) -> key_paths_core::KeyPaths<#name, #inner_ty_fw_at> {
+                                        key_paths_core::KeyPaths::failable_writable(move |s: &mut #name| s.#idx_lit.get_mut(&key))
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_values().next())
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#idx_lit))
-                                }
-                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut *s.#idx_lit))
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| *s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| Some(*s.#idx_lit))
-                                }
-                            });
+                            let inner_ty_read = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_read> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_write = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_write> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#idx_lit))
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fw> {
+                                        key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut *s.#idx_lit))
+                                    }
+                                },
+                            );
+                            let inner_ty_owned = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_owned> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| *s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| Some(*s.#idx_lit))
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#idx_lit))
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| (*s.#idx_lit).clone())
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| Some((*s.#idx_lit).clone()))
-                                }
-                            });
+                            let inner_ty_read = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_read> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#idx_lit))
+                                    }
+                                },
+                            );
+                            let inner_ty_owned = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_owned> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| (*s.#idx_lit).clone())
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| Some((*s.#idx_lit).clone()))
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_values().next())
-                                }
-                                // Note: Key-based access methods for BTreeMap require the exact key type
-                                // For now, we'll skip generating these methods to avoid generic constraint issues
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_values().next())
+                                    }
+                                    // Note: Key-based access methods for BTreeMap require the exact key type
+                                    // For now, we'll skip generating these methods to avoid generic constraint issues
+                                },
+                            );
                         }
                         (WrapperKind::HashSet, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.iter().next())
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.iter().next())
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::BTreeSet, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.iter().next())
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.iter().next())
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.front())
-                                }
-                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.front_mut())
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.front())
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fw> {
+                                        key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.front_mut())
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::LinkedList, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.front())
-                                }
-                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.front_mut())
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.front())
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fw> {
+                                        key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.front_mut())
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::BinaryHeap, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.peek())
-                                }
-                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.peek_mut().map(|v| &mut **v))
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.peek())
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fw> {
+                                        key_paths_core::KeyPaths::failable_writable(|s: &mut #name| s.#idx_lit.peek_mut().map(|v| &mut **v))
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.into_iter().next())
+                                    }
+                                },
+                            );
                         }
                         (WrapperKind::Result, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref().ok())
-                                }
-                                // Note: Result<T, E> doesn't support failable_writable for inner type
-                                // Only providing container-level writable access
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.ok())
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#idx_lit.as_ref().ok())
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Note: Result<T, E> doesn't support failable_writable for inner type
+                                    // Only providing container-level writable access
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            let inner_ty_fo = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fo> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| s.#idx_lit.ok())
+                                    }
+                                },
+                            );
                         }
-                        (WrapperKind::Mutex, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
-                                // Only providing container-level access
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                            });
+                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
+                                    // Only providing container-level access
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
                         }
-                        (WrapperKind::RwLock, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
-                                // Only providing container-level access
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                            });
+                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
+                                    // Only providing container-level access
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
                         }
-                        (WrapperKind::Weak, Some(inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                // Note: Weak<T> doesn't support writable access (it's immutable)
-                                // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
-                                // Only providing container-level access
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                            });
+                        (WrapperKind::Weak, Some(_inner_ty)) => {
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Note: Weak<T> doesn't support writable access (it's immutable)
+                                    // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
+                                    // Only providing container-level access
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
                         }
                         // Nested container combinations for tuple structs - COMMENTED OUT FOR NOW
                         /*
@@ -2183,38 +2731,90 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         */
                         (WrapperKind::None, None) => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
-                                }
-                                pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&s.#idx_lit))
-                                }
-                                pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut s.#idx_lit))
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                                pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::failable_owned(|s: #name| Some(s.#idx_lit))
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&s.#idx_lit))
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::failable_writable(|s: &mut #name| Some(&mut s.#idx_lit))
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #fo_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::failable_owned(|s: #name| Some(s.#idx_lit))
+                                    }
+                                },
+                            );
                         }
                         _ => {
-                            tokens.extend(quote! {
-                                pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
-                                }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
-                                    key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
-                                }
-                            });
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    // Owned keypath methods
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
                         }
                     }
                 }
