@@ -6,6 +6,7 @@ use std::any::Any;
 /// This example shows how to use the new #[derive(PartialKeypaths)] and #[derive(AnyKeypaths)] macros
 
 #[derive(Debug, Clone, Keypaths, PartialKeypaths, AnyKeypaths)]
+#[All]
 struct User {
     id: u32,
     name: String,

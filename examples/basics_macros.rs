@@ -2,12 +2,14 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct Size {
     width: u32,
     height: u32,
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct Rectangle {
     size: Size,
     name: String,

@@ -40,11 +40,13 @@ impl SomeComplexStruct {
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct OneMoreStruct {
     omsf: String,
 }

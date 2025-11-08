@@ -2,21 +2,25 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
+#[Writable]
 struct Engine {
     horsepower: u32,
 }
 
 #[derive(Debug, Keypaths)]
+#[Writable]
 struct Car {
     engine: Option<Engine>,
 }
 
 #[derive(Debug, Keypaths)]
+#[Writable]
 struct Garage {
     car: Option<Car>,
 }
 
 #[derive(Debug, Keypaths)]
+#[Writable]
 struct City {
     garage: Option<Garage>,
 }

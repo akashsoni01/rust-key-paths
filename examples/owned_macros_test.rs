@@ -2,6 +2,7 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Keypaths, Debug, Clone)]
+#[All]
 struct Person {
     name: String,
     age: u32,

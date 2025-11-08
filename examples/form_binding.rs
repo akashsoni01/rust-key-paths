@@ -11,6 +11,7 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct UserProfile {
     name: String,
     email: String,
@@ -19,6 +20,7 @@ struct UserProfile {
 }
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct UserSettings {
     notifications_enabled: bool,
     theme: String,

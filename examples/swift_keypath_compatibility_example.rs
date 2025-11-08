@@ -11,6 +11,7 @@ use std::any::Any;
 /// - AnyKeyPath (fully type-erased)
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct Person {
     name: String,
     age: u32,
@@ -19,6 +20,7 @@ struct Person {
 }
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct Company {
     name: String,
     employees: Vec<Person>,

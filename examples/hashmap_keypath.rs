@@ -5,6 +5,7 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct SomeComplexStruct {
     scsf: HashMap<String, SomeOtherStruct>,
 }
@@ -79,6 +80,7 @@ impl SomeComplexStruct {
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
@@ -90,12 +92,14 @@ enum SomeEnum {
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct DarkStruct {
     dsf: String,
 }

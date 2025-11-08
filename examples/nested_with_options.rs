@@ -8,6 +8,7 @@ struct SomeStruct {
 
 // Example struct demonstrating all nested container combinations
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct NestedContainerExample {
     // Option<Box<T>>
     option_box_field: Option<Box<String>>,

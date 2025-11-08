@@ -2,6 +2,7 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct Point(u32, Option<u32>, String);
 
 fn main() {

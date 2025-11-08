@@ -11,6 +11,7 @@ use key_paths_derive::Keypaths;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
+#[All]
 struct AppState {
     user: User,
     settings: Settings,
@@ -18,6 +19,7 @@ struct AppState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
+#[All]
 struct User {
     id: u64,
     name: String,
@@ -25,12 +27,14 @@ struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
+#[All]
 struct Settings {
     theme: String,
     language: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
+#[Writable]
 struct Cache {
     last_sync: u64,
 }

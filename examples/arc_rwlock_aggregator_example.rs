@@ -3,6 +3,7 @@ use key_paths_derive::Keypaths;
 use std::sync::{Arc, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
+#[All]
 struct User {
     name: String,
     age: u32,
@@ -10,6 +11,7 @@ struct User {
 }
 
 #[derive(Keypaths, Clone, Debug)]
+#[All]
 struct Profile {
     user: User,
     bio: String,

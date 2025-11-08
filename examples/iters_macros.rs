@@ -2,6 +2,7 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct Garage {
     cars: Vec<String>,
 }

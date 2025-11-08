@@ -3,12 +3,14 @@ use parking_lot::RwLock;
 use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
     scfs2: Arc<RwLock<SomeOtherStruct>>
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct SomeOtherStruct {
     sosf: Option<OneMoreStruct>,
 }
@@ -20,12 +22,14 @@ enum SomeEnum {
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct OneMoreStruct {
     omsf: Option<String>,
     omse: Option<SomeEnum>,
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct DarkStruct {
     dsf: Option<String>,
 }

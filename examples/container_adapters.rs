@@ -13,6 +13,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct Product {
     id: u32,
     name: String,
@@ -22,6 +23,7 @@ struct Product {
 }
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct User {
     id: u32,
     name: String,

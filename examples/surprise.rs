@@ -2,12 +2,14 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct Profile {
     display_name: String,
     age: u32,
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct User {
     id: u64,
     profile: Option<Profile>,
@@ -15,9 +17,11 @@ struct User {
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct DbConfig(u16, String); // (port, url)
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct Settings {
     theme: String,
     db: Option<DbConfig>,
@@ -38,6 +42,7 @@ enum Status {
 }
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct App {
     users: Vec<User>,
     settings: Option<Settings>,
