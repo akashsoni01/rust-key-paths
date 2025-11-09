@@ -149,15 +149,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 for field in fields_named.named.iter() {
                     let field_ident = field.ident.as_ref().unwrap();
                     let ty = &field.ty;
+                    let base_fn = field_ident.clone();
 
-                    let r_fn = format_ident!("{}_r", field_ident);
-                    let w_fn = format_ident!("{}_w", field_ident);
+                    let r_fn = base_fn.clone();
+                    let w_fn = base_fn.clone();
                     let fr_fn = format_ident!("{}_fr", field_ident);
                     let fw_fn = format_ident!("{}_fw", field_ident);
                     let fr_at_fn = format_ident!("{}_fr_at", field_ident);
                     let fw_at_fn = format_ident!("{}_fw_at", field_ident);
                     // Owned keypath method names
-                    let o_fn = format_ident!("{}_o", field_ident);
+                    let o_fn = base_fn.clone();
                     let fo_fn = format_ident!("{}_fo", field_ident);
 
                     let method_scope = match method_scope_from_attrs(&field.attrs) {
@@ -251,7 +252,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -283,7 +284,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -304,7 +305,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
                                     }
                                 },
@@ -327,7 +328,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -359,7 +360,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -391,7 +392,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #field_ident() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1761,14 +1762,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let ty = &field.ty;
 
                     let base_fn = format_ident!("f{}", idx);
-                    let r_fn = format_ident!("f{}_r", idx);
-                    let w_fn = format_ident!("f{}_w", idx);
+                    let r_fn = base_fn.clone();
+                    let w_fn = base_fn.clone();
                     let fr_fn = format_ident!("f{}_fr", idx);
                     let fw_fn = format_ident!("f{}_fw", idx);
                     let fr_at_fn = format_ident!("f{}_fr_at", idx);
                     let fw_at_fn = format_ident!("f{}_fw_at", idx);
                     // Owned keypath method names
-                    let o_fn = format_ident!("f{}_o", idx);
+                    let o_fn = base_fn.clone();
                     let fo_fn = format_ident!("f{}_fo", idx);
 
                     let method_scope = match method_scope_from_attrs(&field.attrs) {
