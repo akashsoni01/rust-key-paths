@@ -427,20 +427,13 @@ fn main() {
     );
     println!(
         "  Min Price: ${:.2}",
-        electronics_query
-            .min_float(Product::price())
-            .unwrap_or(0.0)
+        electronics_query.min_float(Product::price()).unwrap_or(0.0)
     );
     println!(
         "  Max Price: ${:.2}",
-        electronics_query
-            .max_float(Product::price())
-            .unwrap_or(0.0)
+        electronics_query.max_float(Product::price()).unwrap_or(0.0)
     );
-    println!(
-        "  Total Stock: {}",
-        electronics_query.sum(Product::stock())
-    );
+    println!("  Total Stock: {}", electronics_query.sum(Product::stock()));
 
     // Query 6: Complex filtering with ordering
     println!("\n--- Query 6: Electronics Under $200, Ordered by Rating ---");

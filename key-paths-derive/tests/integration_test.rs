@@ -44,12 +44,12 @@ struct InnerInnerStruct {
 #[test]
 fn test_attribute_scoped_keypaths() {
     let mut person = Person::new();
-    let name_kp: KeyPaths<Person, Option<String>> = Person::name();
+    let name_kp: KeyPaths<Person, String> = Person::name();
     let title_r: KeyPaths<Person, String> = Person::title();
-    let readable_value = name_kp.get(&person).and_then(|opt| opt.as_ref());
+    let readable_value = name_kp.get(&person);
     assert_eq!(readable_value, Some(&"Alice".to_string()));
 
-    let failable_read = name_kp.get(&person).and_then(|opt| opt.as_ref());
+    let failable_read = name_kp.get(&person);
     assert_eq!(failable_read, Some(&"Alice".to_string()));
 
     let title_value = title_r.get(&person);
@@ -70,8 +70,8 @@ fn test_attribute_scoped_keypaths() {
     let owned_value = nickname_fo.get_failable_owned(person.clone());
     assert_eq!(owned_value, Some("Ace".to_string()));
 
-    let nickname_owned: KeyPaths<Person, Option<String>> = Person::nickname();
-    let owned_direct = nickname_owned.get_owned(person);
+    let nickname_owned: KeyPaths<Person, String> = Person::nickname();
+    let owned_direct = nickname_owned.get_failable_owned(person);
     assert_eq!(owned_direct, Some("Ace".to_string()));
 
     // let kp = Person::inner_fr();
