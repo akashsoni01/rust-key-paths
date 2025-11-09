@@ -181,6 +181,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            /*
                             let inner_ty_read = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -192,6 +193,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -202,6 +204,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            /*
                             let inner_ty_write = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -213,6 +216,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -415,11 +419,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
                                     }
                                 },
                             );
+                            /*
+                            /*
                             let inner_ty_fr = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -431,16 +437,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#field_ident)
                                     }
                                 },
                             );
+                            /*
                             let inner_ty_fw = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -452,12 +461,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| *s.#field_ident)
                                     }
                                 },
@@ -480,7 +490,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &*s.#field_ident)
                                     }
                                 },
@@ -501,7 +511,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| (*s.#field_ident).clone())
                                     }
                                 },
@@ -1074,19 +1084,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
-                                    }
-                                },
-                            );
-                            let inner_ty_fr = inner_ty.clone();
-                            push_method(
-                                &mut tokens,
-                                method_scope,
-                                MethodKind::Readable,
-                                quote! {
-                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
-                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref().map(|b| &**b))
                                     }
                                 },
                             );
@@ -1095,8 +1094,20 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
+                                    }
+                                },
+                            );
+                            /*
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
+                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref().map(|b| &**b))
                                     }
                                 },
                             );
@@ -1111,12 +1122,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1139,19 +1151,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
-                                    }
-                                },
-                            );
-                            let inner_ty_fr = inner_ty.clone();
-                            push_method(
-                                &mut tokens,
-                                method_scope,
-                                MethodKind::Readable,
-                                quote! {
-                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
-                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_ident.as_ref().map(|r| &**r))
                                     }
                                 },
                             );
@@ -1160,7 +1161,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1183,11 +1184,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
                                     }
                                 },
                             );
+                            /*
                             let inner_ty_fr = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -1199,12 +1201,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1223,6 +1226,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BoxOption, Some(inner_ty)) => {
                             let inner_ty_fr = inner_ty.clone();
+                            /*
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1244,9 +1248,11 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                         }
                         (WrapperKind::RcOption, Some(inner_ty)) => {
                             let inner_ty_fr = inner_ty.clone();
+                            /*
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1257,9 +1263,11 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                         }
                         (WrapperKind::ArcOption, Some(inner_ty)) => {
                             let inner_ty_fr = inner_ty.clone();
+                            /*
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1270,6 +1278,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                         }
                         (WrapperKind::VecOption, Some(inner_ty)) => {
                             push_method(
@@ -1802,6 +1811,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            /*
                             let inner_ty_fr = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -1813,6 +1823,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
+                            /*
                             let inner_ty_fw = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -1824,6 +1836,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -2030,7 +2043,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_read> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_read> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
                                     }
                                 },
@@ -2041,11 +2054,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_write> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_write> {
                                         key_paths_core::KeyPaths::writable(|s: &mut #name| &mut *s.#idx_lit)
                                     }
                                 },
                             );
+                            /*
                             let inner_ty_fr = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -2068,6 +2082,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             let inner_ty_owned = inner_ty.clone();
                             push_method(
                                 &mut tokens,
@@ -2075,7 +2090,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_owned> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_owned> {
                                         key_paths_core::KeyPaths::owned(|s: #name| *s.#idx_lit)
                                     }
                                 },
@@ -2099,19 +2114,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_read> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_read> {
                                         key_paths_core::KeyPaths::readable(|s: &#name| &*s.#idx_lit)
-                                    }
-                                },
-                            );
-                            let inner_ty_fr = inner_ty.clone();
-                            push_method(
-                                &mut tokens,
-                                method_scope,
-                                MethodKind::Readable,
-                                quote! {
-                                    pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_fr> {
-                                        key_paths_core::KeyPaths::failable_readable(|s: &#name| Some(&*s.#idx_lit))
                                     }
                                 },
                             );
@@ -2122,7 +2126,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_owned> {
+                                    pub fn #base_fn() -> key_paths_core::KeyPaths<#name, #inner_ty_owned> {
                                         key_paths_core::KeyPaths::owned(|s: #name| (*s.#idx_lit).clone())
                                     }
                                 },

@@ -34,7 +34,7 @@ fn main() {
     println!("-------------------------------------");
 
     // Test Arc<RwLock<T>> field access
-    let field1_path = SomeStruct::field1_r();
+    let field1_path = SomeStruct::field1();
     if let Some(field1_ref) = field1_path.get_ref(&&some_struct) {
         println!(
             "✅ Arc<RwLock<SomeOtherStruct>> field accessible: {:?}",
@@ -43,7 +43,7 @@ fn main() {
     }
 
     // Test Arc<Mutex<T>> field access
-    let field2_path = SomeStruct::field2_r();
+    let field2_path = SomeStruct::field2();
     if let Some(field2_ref) = field2_path.get_ref(&&some_struct) {
         println!(
             "✅ Arc<Mutex<SomeOtherStruct>> field accessible: {:?}",
@@ -55,8 +55,8 @@ fn main() {
     println!("----------------------------------");
 
     // Test with WithContainer trait for no-clone access
-    let value_path = SomeOtherStruct::value_r();
-    let count_path = SomeOtherStruct::count_r();
+    let value_path = SomeOtherStruct::value();
+    let count_path = SomeOtherStruct::count();
 
     // Access through Arc<RwLock<T>> - we need to get the field first, then use with_rwlock
     if let Some(arc_rwlock_field) = field1_path.get_ref(&&some_struct) {
@@ -140,7 +140,7 @@ fn main() {
     };
 
     // Example 1: Simple composition - Company name
-    let company_name_path = Company::name_r();
+    let company_name_path = Company::name();
     if let Some(name) = company_name_path.get_ref(&&company) {
         println!("✅ Company name: {}", name);
     }
@@ -148,7 +148,7 @@ fn main() {
     // Example 2: Composition through Vec - First department name
     // We need to access the Vec element directly since KeyPaths doesn't have get_r
     if let Some(first_dept) = company.departments.first() {
-        let dept_name_path = Department::name_r();
+        let dept_name_path = Department::name();
         if let Some(dept_name) = dept_name_path.get_ref(&&first_dept) {
             println!("✅ First department: {}", dept_name);
         }
@@ -157,9 +157,9 @@ fn main() {
     // Example 3: Deep composition - Manager name through Arc<RwLock>
     // Get the Arc<RwLock<Employee>> first, then use with_rwlock
     if let Some(first_dept) = company.departments.first() {
-        let manager_arc_path = Department::manager_r();
+        let manager_arc_path = Department::manager();
         if let Some(manager_arc) = manager_arc_path.get_ref(&&first_dept) {
-            let employee_name_path = Employee::name_r();
+            let employee_name_path = Employee::name();
             employee_name_path.with_rwlock(manager_arc, |name| {
                 println!("✅ Engineering manager: {}", name);
             });
@@ -168,14 +168,14 @@ fn main() {
 
     // Example 4: Even deeper composition - Contact email through Arc<Mutex>
     if let Some(first_dept) = company.departments.first() {
-        let manager_arc_path = Department::manager_r();
+        let manager_arc_path = Department::manager();
         if let Some(manager_arc) = manager_arc_path.get_ref(&&first_dept) {
             // Get the contact Arc<Mutex<Contact>> from the employee
-            let contact_arc_path = Employee::contact_r();
+            let contact_arc_path = Employee::contact();
             let contact_arc =
                 contact_arc_path.with_rwlock(manager_arc, |contact_arc| contact_arc.clone());
             if let Some(contact_arc) = contact_arc {
-                let email_path = Contact::email_r();
+                let email_path = Contact::email();
                 email_path.with_mutex(&*contact_arc, |email| {
                     println!("✅ Engineering manager email: {}", email);
                 });
@@ -187,21 +187,21 @@ fn main() {
     println!("\n📊 All Department Information:");
     for dept in &company.departments {
         // Department name
-        let dept_name_path = Department::name_r();
+        let dept_name_path = Department::name();
         if let Some(dept_name) = dept_name_path.get_ref(&&dept) {
             print!("  {}: ", dept_name);
         }
 
         // Department budget
-        let budget_path = Department::budget_r();
+        let budget_path = Department::budget();
         if let Some(budget) = budget_path.get_ref(&&dept) {
             print!("Budget ${} | ", budget);
         }
 
         // Manager name
-        let manager_arc_path = Department::manager_r();
+        let manager_arc_path = Department::manager();
         if let Some(manager_arc) = manager_arc_path.get_ref(&&dept) {
-            let employee_name_path = Employee::name_r();
+            let employee_name_path = Employee::name();
             employee_name_path.with_rwlock(manager_arc, |name| {
                 print!("Manager: {} | ", name);
             });
@@ -209,7 +209,7 @@ fn main() {
 
         // Manager salary
         if let Some(manager_arc) = manager_arc_path.get_ref(&&dept) {
-            let salary_path = Employee::salary_r();
+            let salary_path = Employee::salary();
             salary_path.with_rwlock(manager_arc, |salary| {
                 print!("Salary: ${} | ", salary);
             });
@@ -217,11 +217,11 @@ fn main() {
 
         // Manager email
         if let Some(manager_arc) = manager_arc_path.get_ref(&&dept) {
-            let contact_arc_path = Employee::contact_r();
+            let contact_arc_path = Employee::contact();
             let contact_arc =
                 contact_arc_path.with_rwlock(manager_arc, |contact_arc| contact_arc.clone());
             if let Some(contact_arc) = contact_arc {
-                let email_path = Contact::email_r();
+                let email_path = Contact::email();
                 email_path.with_mutex(&*contact_arc, |email| {
                     println!("Email: {}", email);
                 });
@@ -280,7 +280,7 @@ fn main() {
     println!("\n💡 Key Takeaways");
     println!("================");
     println!("1. Derive macro now supports Arc<RwLock<T>> and Arc<Mutex<T>> fields");
-    println!("2. Generated methods provide container-level access (field1_r(), field2_r())");
+    println!("2. Generated methods provide container-level access (field1(), field2())");
     println!("3. Use WithContainer trait for no-clone access to inner values");
     println!("4. Use aggregator functions (with parking_lot feature) for clone-based access");
     println!(

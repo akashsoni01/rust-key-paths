@@ -44,13 +44,12 @@ struct InnerInnerStruct {
 #[test]
 fn test_attribute_scoped_keypaths() {
     let mut person = Person::new();
-    let name_r: KeyPaths<Person, Option<String>> = Person::name();
-    let name_fr: KeyPaths<Person, String> = Person::name_fr();
+    let name_kp: KeyPaths<Person, Option<String>> = Person::name();
     let title_r: KeyPaths<Person, String> = Person::title();
-    let readable_value = name_r.get(&person).and_then(|opt| opt.as_ref());
+    let readable_value = name_kp.get(&person).and_then(|opt| opt.as_ref());
     assert_eq!(readable_value, Some(&"Alice".to_string()));
 
-    let failable_read = name_fr.get(&person);
+    let failable_read = name_kp.get(&person).and_then(|opt| opt.as_ref());
     assert_eq!(failable_read, Some(&"Alice".to_string()));
 
     let title_value = title_r.get(&person);

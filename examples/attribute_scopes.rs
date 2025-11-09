@@ -21,8 +21,8 @@ fn main() {
         recovery_token: Some("token-123".to_string()),
     };
 
-    let nickname_fr: KeyPaths<Account, String> = Account::nickname_fr();
-    let balance_w: KeyPaths<Account, i64> = Account::balance_w();
+    let nickname_fr: KeyPaths<Account, String> = Account::nickname();
+    let balance_w: KeyPaths<Account, i64> = Account::balance();
     let recovery_token_fo: KeyPaths<Account, String> = Account::recovery_token_fo();
 
     let nickname_value = nickname_fr.get(&account);
