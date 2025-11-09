@@ -140,11 +140,7 @@ impl<T> UndoStack<T> {
             .iter()
             .enumerate()
             .map(|(i, cmd)| {
-                let marker = if i < self.current {
-                    "✓"
-                } else {
-                    " "
-                };
+                let marker = if i < self.current { "✓" } else { " " };
                 format!("{} {}", marker, cmd.description())
             })
             .collect()
@@ -388,8 +384,14 @@ fn main() {
     // Verify we're back to the original state
     println!("\n=== Verification ===");
     println!("Title matches original: {}", doc.title == "My Document");
-    println!("Content matches original: {}", doc.content == "Hello, World!");
-    println!("Author matches original: {}", doc.metadata.author == "Alice");
+    println!(
+        "Content matches original: {}",
+        doc.content == "Hello, World!"
+    );
+    println!(
+        "Author matches original: {}",
+        doc.metadata.author == "Alice"
+    );
     println!("Revision matches original: {}", doc.metadata.revision == 1);
     println!(
         "Tags match original: {}",
@@ -416,4 +418,3 @@ fn main() {
 
     println!("\n✓ Undo/Redo demo complete!");
 }
-

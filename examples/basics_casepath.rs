@@ -1,12 +1,12 @@
-use std::sync::Arc;
-use parking_lot::RwLock;
 use key_paths_derive::{Casepaths, Keypaths};
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 #[derive(Debug, Keypaths)]
 #[All]
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
-    scfs2: Arc<RwLock<SomeOtherStruct>>
+    scfs2: Arc<RwLock<SomeOtherStruct>>,
 }
 
 #[derive(Debug, Keypaths)]
@@ -34,7 +34,6 @@ struct DarkStruct {
     dsf: Option<String>,
 }
 
-
 impl SomeComplexStruct {
     fn new() -> Self {
         Self {
@@ -46,18 +45,14 @@ impl SomeComplexStruct {
                     }))),
                 }),
             }),
-            scfs2: Arc::new(
-                RwLock::new(
-                    SomeOtherStruct {
-                        sosf: Some(OneMoreStruct {
-                            omsf: Some(String::from("no value for now")),
-                            omse: Some(SomeEnum::B(Box::new(DarkStruct {
-                                dsf: Some(String::from("dark field")),
-                            }))),
-                        }),
-                    }
-                )
-            )
+            scfs2: Arc::new(RwLock::new(SomeOtherStruct {
+                sosf: Some(OneMoreStruct {
+                    omsf: Some(String::from("no value for now")),
+                    omse: Some(SomeEnum::B(Box::new(DarkStruct {
+                        dsf: Some(String::from("dark field")),
+                    }))),
+                }),
+            })),
         }
     }
 }
@@ -76,6 +71,5 @@ fn main() {
     if let Some(omsf) = dsf_kp.get_mut(&mut instance) {
         *omsf = String::from("This is changed 🖖🏿");
         println!("instance = {:?}", instance);
-    
     }
 }

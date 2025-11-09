@@ -39,4 +39,3 @@ fn main() {
     // Uncommenting the next line would fail to compile because `nickname` only has readable methods.
     // let _ = Account::nickname_w();
 }
-

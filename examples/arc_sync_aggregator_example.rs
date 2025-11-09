@@ -1,5 +1,5 @@
-use key_paths_derive::Keypaths;
 use key_paths_core::WithContainer;
+use key_paths_derive::Keypaths;
 use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
@@ -90,13 +90,20 @@ fn main() {
         println!("✅ Bio from Arc<RwLock<Profile>> (no clone): {}", bio);
     });
 
-    user_name_keypath.clone().with_rwlock(&arc_rwlock_profile, |name| {
-        println!("✅ User name from Arc<RwLock<Profile>> (no clone): {}", name);
-    });
+    user_name_keypath
+        .clone()
+        .with_rwlock(&arc_rwlock_profile, |name| {
+            println!(
+                "✅ User name from Arc<RwLock<Profile>> (no clone): {}",
+                name
+            );
+        });
 
-    user_age_keypath.clone().with_rwlock(&arc_rwlock_profile, |age| {
-        println!("✅ User age from Arc<RwLock<Profile>> (no clone): {}", age);
-    });
+    user_age_keypath
+        .clone()
+        .with_rwlock(&arc_rwlock_profile, |age| {
+            println!("✅ User age from Arc<RwLock<Profile>> (no clone): {}", age);
+        });
 
     println!("\n🎯 Testing Arc<RwLock<T>> - Aggregator Approach");
     println!("-----------------------------------------------");
@@ -112,11 +119,17 @@ fn main() {
     }
 
     if let Some(name) = user_name_arc_rwlock_path.get_failable_owned(arc_rwlock_profile.clone()) {
-        println!("✅ User name from Arc<RwLock<Profile>> (with clone): {}", name);
+        println!(
+            "✅ User name from Arc<RwLock<Profile>> (with clone): {}",
+            name
+        );
     }
 
     if let Some(age) = user_age_arc_rwlock_path.get_failable_owned(arc_rwlock_profile.clone()) {
-        println!("✅ User age from Arc<RwLock<Profile>> (with clone): {}", age);
+        println!(
+            "✅ User age from Arc<RwLock<Profile>> (with clone): {}",
+            age
+        );
     }
 
     println!("\n🔄 Advanced Composition Examples");
@@ -125,16 +138,19 @@ fn main() {
     // Example 1: Multi-level composition with no-clone approach
     println!("\n📝 Example 1: Multi-level Composition (No Clone)");
     println!("-----------------------------------------------");
-    
+
     let nested_email_path = Profile::user_r().then(User::email_fr());
     nested_email_path.with_rwlock(&arc_rwlock_profile, |email| {
-        println!("✅ Nested email from Arc<RwLock<Profile>> (no clone): {:?}", email);
+        println!(
+            "✅ Nested email from Arc<RwLock<Profile>> (no clone): {:?}",
+            email
+        );
     });
 
     // Example 2: Complex composition with multiple levels
     println!("\n📝 Example 2: Complex Multi-level Composition");
     println!("--------------------------------------------");
-    
+
     // Create a more complex nested structure
     let complex_profile = Arc::new(RwLock::new(Profile {
         user: User {
@@ -146,9 +162,8 @@ fn main() {
     }));
 
     // Multi-level composition: Profile -> User -> Email
-    let complex_email_path = Profile::user_r()
-        .then(User::email_fr());
-    
+    let complex_email_path = Profile::user_r().then(User::email_fr());
+
     complex_email_path.with_rwlock(&complex_profile, |email| {
         println!("✅ Complex nested email (no clone): {:?}", email);
     });
@@ -156,19 +171,20 @@ fn main() {
     // Example 3: Composition with aggregators (with cloning)
     println!("\n📝 Example 3: Composition with Aggregators (With Clone)");
     println!("----------------------------------------------------");
-    
-    let nested_email_aggregator = Profile::user_r()
-        .then(User::email_fr())
-        .for_arc_rwlock();
+
+    let nested_email_aggregator = Profile::user_r().then(User::email_fr()).for_arc_rwlock();
 
     if let Some(email) = nested_email_aggregator.get_failable_owned(arc_rwlock_profile.clone()) {
-        println!("✅ Nested email from Arc<RwLock<Profile>> (with clone): {:?}", email);
+        println!(
+            "✅ Nested email from Arc<RwLock<Profile>> (with clone): {:?}",
+            email
+        );
     }
 
     // Example 4: Reusable composition patterns
     println!("\n📝 Example 4: Reusable Composition Patterns");
     println!("-------------------------------------------");
-    
+
     // Create reusable base paths
     let user_base = Profile::user_r();
     let user_name_path = user_base.clone().then(User::name_r());
@@ -191,15 +207,15 @@ fn main() {
     // Example 5: Composition with different container types
     println!("\n📝 Example 5: Mixed Container Types");
     println!("----------------------------------");
-    
+
     // Use the same keypath with different container types
     let name_path = User::name_r();
-    
+
     // With Arc<Mutex<T>>
     name_path.with_mutex(&arc_mutex_user, |name| {
         println!("✅ Name from Arc<Mutex<User>> (no clone): {}", name);
     });
-    
+
     // With Arc<RwLock<T>> (through Profile)
     let profile_name_path = Profile::user_r().then(User::name_r());
     profile_name_path.with_rwlock(&arc_rwlock_profile, |name| {
@@ -225,28 +241,38 @@ fn main() {
 
     println!("\n📝 Collections - No Clone Approach");
     println!("----------------------------------");
-    
+
     let name_path = User::name_r();
     let email_path = User::email_fr();
 
     for (i, user) in users.iter().enumerate() {
         name_path.clone().with_mutex(user, |name| {
             email_path.clone().with_mutex(user, |email| {
-                println!("✅ User {}: {} (email: {:?}) - no clone", i + 1, name, email);
+                println!(
+                    "✅ User {}: {} (email: {:?}) - no clone",
+                    i + 1,
+                    name,
+                    email
+                );
             });
         });
     }
 
     println!("\n📝 Collections - Aggregator Approach (With Clone)");
     println!("------------------------------------------------");
-    
+
     let name_aggregator = User::name_r().for_arc_mutex();
     let email_aggregator = User::email_fr().for_arc_mutex();
 
     for (i, user) in users.iter().enumerate() {
         if let Some(name) = name_aggregator.clone().get_failable_owned(user.clone()) {
             if let Some(email) = email_aggregator.clone().get_failable_owned(user.clone()) {
-                println!("✅ User {}: {} (email: {:?}) - with clone", i + 1, name, email);
+                println!(
+                    "✅ User {}: {} (email: {:?}) - with clone",
+                    i + 1,
+                    name,
+                    email
+                );
             }
         }
     }

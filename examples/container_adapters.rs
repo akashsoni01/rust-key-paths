@@ -36,7 +36,7 @@ fn main() {
 
     // ===== Example 1: Vec<Arc<T>> =====
     println!("--- Example 1: Vec<Arc<Product>> ---");
-    
+
     let products_arc: Vec<Arc<Product>> = vec![
         Arc::new(Product {
             id: 1,
@@ -275,7 +275,10 @@ fn main() {
 
     // All use the same underlying keypath, just adapted
     println!("Arc:  {}", name_path_arc.get(&product_arc).unwrap());
-    println!("Box:  {}", Product::name_r().for_box().get(&product_box).unwrap());
+    println!(
+        "Box:  {}",
+        Product::name_r().for_box().get(&product_box).unwrap()
+    );
     println!("Rc:   {}", name_path_rc.get(&product_rc).unwrap());
 
     // ===== Example 8: Practical Use Case - Shared State =====
@@ -308,7 +311,15 @@ fn main() {
     for product in &thread1_products {
         if let Some(name) = name_path_arc.get(product) {
             if let Some(&in_stock) = Product::in_stock_r().for_arc().get(product) {
-                println!("  • {} - {}", name, if in_stock { "Available" } else { "Out of stock" });
+                println!(
+                    "  • {} - {}",
+                    name,
+                    if in_stock {
+                        "Available"
+                    } else {
+                        "Out of stock"
+                    }
+                );
             }
         }
     }
@@ -322,4 +333,3 @@ fn main() {
 
     println!("\n✓ Container adapter demo complete!");
 }
-

@@ -1,5 +1,5 @@
 use key_paths_derive::Keypaths;
-use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -9,25 +9,24 @@ struct ComprehensiveTest {
     string_field: String,
     int_field: i32,
     bool_field: bool,
-    
+
     // ✅ Basic containers - all working
     option_string: Option<String>,
     vec_string: Vec<String>,
     box_string: Box<String>,
     rc_string: Rc<String>,
     arc_string: Arc<String>,
-    
+
     // ✅ Collections - all working (after fixes)
     hashset_string: HashSet<String>,
     btreeset_string: BTreeSet<String>,
     vecdeque_string: VecDeque<String>,
     linkedlist_string: LinkedList<String>,
     binaryheap_string: BinaryHeap<String>,
-    
+
     // ✅ Maps - all working (after fixes)
     hashmap_string_int: HashMap<String, i32>,
     btreemap_string_int: BTreeMap<String, i32>,
-    
     // ❌ Nested combinations - still have issues
     // option_box_string: Option<Box<String>>,  // Would work
     // box_option_string: Box<Option<String>>,  // Has type mismatch issues
@@ -37,14 +36,14 @@ struct ComprehensiveTest {
 
 fn main() {
     println!("=== Comprehensive Test Suite ===");
-    
+
     // Test basic types
     println!("Testing basic types...");
     let _string_path = ComprehensiveTest::string_field_r();
     let _int_path = ComprehensiveTest::int_field_r();
     let _bool_path = ComprehensiveTest::bool_field_r();
     println!("✅ Basic types: PASS");
-    
+
     // Test basic containers
     println!("Testing basic containers...");
     let _option_path = ComprehensiveTest::option_string_fr();
@@ -53,7 +52,7 @@ fn main() {
     let _rc_path = ComprehensiveTest::rc_string_r();
     let _arc_path = ComprehensiveTest::arc_string_r();
     println!("✅ Basic containers: PASS");
-    
+
     // Test collections
     println!("Testing collections...");
     let _hashset_path = ComprehensiveTest::hashset_string_r();
@@ -62,20 +61,20 @@ fn main() {
     let _linkedlist_path = ComprehensiveTest::linkedlist_string_r();
     let _binaryheap_path = ComprehensiveTest::binaryheap_string_r();
     println!("✅ Collections: PASS");
-    
+
     // Test maps
     println!("Testing maps...");
     let _hashmap_path = ComprehensiveTest::hashmap_string_int_r();
     let _btreemap_path = ComprehensiveTest::btreemap_string_int_r();
     println!("✅ Maps: PASS");
-    
+
     println!("\n=== Test Results ===");
     println!("✅ Basic types: String, i32, bool");
     println!("✅ Basic containers: Option<T>, Vec<T>, Box<T>, Rc<T>, Arc<T>");
     println!("✅ Collections: HashSet<T>, BTreeSet<T>, VecDeque<T>, LinkedList<T>, BinaryHeap<T>");
     println!("✅ Maps: HashMap<K,V>, BTreeMap<K,V>");
     println!("❌ Nested combinations: Still have type mismatch issues");
-    
+
     println!("\n=== Available KeyPath Methods ===");
     println!("For each field 'field_name' with type 'T':");
     println!("- field_name_r() -> KeyPaths<Struct, T> (readable)");
@@ -83,8 +82,10 @@ fn main() {
     println!("- field_name_fr() -> KeyPaths<Struct, InnerT> (failable readable)");
     println!("- field_name_fw() -> KeyPaths<Struct, InnerT> (failable writable)");
     println!("- field_name_fr_at(key) -> KeyPaths<Struct, InnerT> (indexed/key-based access)");
-    println!("- field_name_fw_at(key) -> KeyPaths<Struct, InnerT> (indexed/key-based mutable access)");
-    
+    println!(
+        "- field_name_fw_at(key) -> KeyPaths<Struct, InnerT> (indexed/key-based mutable access)"
+    );
+
     println!("\n=== Usage Examples ===");
     println!("// Basic usage");
     println!("let path = ComprehensiveTest::string_field_r();");
@@ -96,6 +97,6 @@ fn main() {
     println!();
     println!("// Composition");
     println!("let composed = ComprehensiveTest::option_string_fr().then(OtherStruct::field_r());");
-    
+
     println!("\n🎉 Comprehensive test suite completed successfully!");
 }

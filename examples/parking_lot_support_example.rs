@@ -1,5 +1,5 @@
-use key_paths_derive::Keypaths;
 use key_paths_core::WithContainer;
+use key_paths_derive::Keypaths;
 use std::sync::Arc;
 
 #[cfg(feature = "parking_lot")]
@@ -73,7 +73,8 @@ fn main() {
             println!("✅ Age from Arc<parking_lot::Mutex<User>>: {}", age);
         }
 
-        if let Some(email) = email_parking_mutex_path.get_failable_owned(parking_mutex_user.clone()) {
+        if let Some(email) = email_parking_mutex_path.get_failable_owned(parking_mutex_user.clone())
+        {
             println!("✅ Email from Arc<parking_lot::Mutex<User>>: {:?}", email);
         }
 
@@ -93,20 +94,37 @@ fn main() {
         let settings_theme_parking_rwlock_path = settings_theme_keypath.for_arc_parking_rwlock();
 
         // Test reading values
-        if let Some(bio) = bio_parking_rwlock_path.get_failable_owned(parking_rwlock_profile.clone()) {
+        if let Some(bio) =
+            bio_parking_rwlock_path.get_failable_owned(parking_rwlock_profile.clone())
+        {
             println!("✅ Bio from Arc<parking_lot::RwLock<Profile>>: {}", bio);
         }
 
-        if let Some(name) = user_name_parking_rwlock_path.get_failable_owned(parking_rwlock_profile.clone()) {
-            println!("✅ User name from Arc<parking_lot::RwLock<Profile>>: {}", name);
+        if let Some(name) =
+            user_name_parking_rwlock_path.get_failable_owned(parking_rwlock_profile.clone())
+        {
+            println!(
+                "✅ User name from Arc<parking_lot::RwLock<Profile>>: {}",
+                name
+            );
         }
 
-        if let Some(age) = user_age_parking_rwlock_path.get_failable_owned(parking_rwlock_profile.clone()) {
-            println!("✅ User age from Arc<parking_lot::RwLock<Profile>>: {}", age);
+        if let Some(age) =
+            user_age_parking_rwlock_path.get_failable_owned(parking_rwlock_profile.clone())
+        {
+            println!(
+                "✅ User age from Arc<parking_lot::RwLock<Profile>>: {}",
+                age
+            );
         }
 
-        if let Some(theme) = settings_theme_parking_rwlock_path.get_failable_owned(parking_rwlock_profile.clone()) {
-            println!("✅ Settings theme from Arc<parking_lot::RwLock<Profile>>: {}", theme);
+        if let Some(theme) =
+            settings_theme_parking_rwlock_path.get_failable_owned(parking_rwlock_profile.clone())
+        {
+            println!(
+                "✅ Settings theme from Arc<parking_lot::RwLock<Profile>>: {}",
+                theme
+            );
         }
 
         println!("\n🔄 Testing Composition with Parking Lot Support");
@@ -118,7 +136,10 @@ fn main() {
             .for_arc_parking_rwlock();
 
         if let Some(email) = nested_email_path.get_failable_owned(parking_rwlock_profile.clone()) {
-            println!("✅ Nested email from Arc<parking_lot::RwLock<Profile>>: {:?}", email);
+            println!(
+                "✅ Nested email from Arc<parking_lot::RwLock<Profile>>: {:?}",
+                email
+            );
         }
 
         println!("\n📊 Testing with Collections");
@@ -151,12 +172,18 @@ fn main() {
 
         println!("\n💡 Key Takeaways");
         println!("================");
-        println!("1. for_arc_parking_mutex() adapts keypaths to work with Arc<parking_lot::Mutex<T>>");
-        println!("2. for_arc_parking_rwlock() adapts keypaths to work with Arc<parking_lot::RwLock<T>>");
+        println!(
+            "1. for_arc_parking_mutex() adapts keypaths to work with Arc<parking_lot::Mutex<T>>"
+        );
+        println!(
+            "2. for_arc_parking_rwlock() adapts keypaths to work with Arc<parking_lot::RwLock<T>>"
+        );
         println!("3. Both return FailableOwned keypaths that clone values");
         println!("4. Use get_failable_owned() to access values from these keypaths");
         println!("5. Composition works naturally: path.then(other).for_arc_parking_mutex()");
-        println!("6. Perfect for working with collections of Arc<parking_lot::Mutex<T>> or Arc<parking_lot::RwLock<T>>");
+        println!(
+            "6. Perfect for working with collections of Arc<parking_lot::Mutex<T>> or Arc<parking_lot::RwLock<T>>"
+        );
         println!("7. Parking lot locks are faster than std::sync locks");
         println!("8. Requires the 'parking_lot' feature to be enabled");
     }

@@ -1,31 +1,53 @@
 use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
+use std::sync::{Arc, RwLock};
+
+#[derive(Clone, Keypaths)]
+struct Person {
+    name: Option<String>,
+    #[Writable]
+    age: i32,
+    #[Owned]
+    nickname: Option<String>,
+    title: String,
+    inner: Arc<RwLock<InnerStruct>>,
+}
+
+impl Person {
+    fn new() -> Self {
+        Person {
+            name: Some("Alice".to_string()),
+            age: 30,
+            nickname: Some("Ace".to_string()),
+            title: "Engineer".to_string(),
+            inner: Arc::new(RwLock::new(InnerStruct {
+                inner: Arc::new(RwLock::new(InnerInnerStruct {
+                    name: "Alice".to_string(),
+                })),
+            })),
+        }
+    }
+}
 
 #[derive(Clone, Keypaths)]
 #[All]
-struct Person {
-    name: Option<String>,
-    // #[Writable]
-    age: i32,
-    // #[Owned]
-    nickname: Option<String>,
-    title: String,
+struct InnerStruct {
+    inner: Arc<RwLock<InnerInnerStruct>>,
+}
+
+#[derive(Clone, Keypaths)]
+#[All]
+struct InnerInnerStruct {
+    name: String,
 }
 
 #[test]
 fn test_attribute_scoped_keypaths() {
-    let mut person = Person {
-        name: Some("Alice".to_string()),
-        age: 30,
-        nickname: Some("Ace".to_string()),
-        title: "Engineer".to_string(),
-    };
+    let mut person = Person::new();
     let name_r: KeyPaths<Person, Option<String>> = Person::name_r();
     let name_fr: KeyPaths<Person, String> = Person::name_fr();
     let title_r: KeyPaths<Person, String> = Person::title_r();
-    let readable_value = name_r
-        .get(&person)
-        .and_then(|opt| opt.as_ref());
+    let readable_value = name_r.get(&person).and_then(|opt| opt.as_ref());
     assert_eq!(readable_value, Some(&"Alice".to_string()));
 
     let failable_read = name_fr.get(&person);
@@ -40,8 +62,7 @@ fn test_attribute_scoped_keypaths() {
     }
     assert_eq!(person.age, 31);
 
-    let age_fw: KeyPaths<Person, i32> = Person::age_fw();
-    if let Some(age_ref) = age_fw.get_mut(&mut person) {
+    if let Some(age_ref) = age_w.get_mut(&mut person) {
         *age_ref += 1;
     }
     assert_eq!(person.age, 32);
@@ -53,5 +74,18 @@ fn test_attribute_scoped_keypaths() {
     let nickname_o: KeyPaths<Person, Option<String>> = Person::nickname_o();
     let owned_direct = nickname_o.get_owned(person);
     assert_eq!(owned_direct, Some("Ace".to_string()));
-}
 
+    // let kp = Person::inner_fr();
+    // let kp = InnerStruct::inner_r();
+    // let kp = InnerInnerStruct::name_fr();
+    //
+    let inner_arc_key = InnerStruct::inner_r().for_arc_rwlock();
+    let name_arc_key = InnerInnerStruct::name_r().for_arc_rwlock();
+
+    let person = Person::new();
+    let inner_arc = Person::inner_r().get(&person).cloned().unwrap();
+    let inner_inner_arc = inner_arc_key.clone().get_failable_owned(inner_arc).unwrap();
+    let owned_result = name_arc_key.get_failable_owned(inner_inner_arc);
+
+    assert_eq!(owned_result, Some("Alice".to_string()));
+}

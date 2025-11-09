@@ -1,5 +1,5 @@
-use key_paths_derive::Keypaths;
 use key_paths_core::{KeyPaths, WithContainer};
+use key_paths_derive::Keypaths;
 use std::sync::{Arc, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
@@ -78,154 +78,152 @@ fn main() {
     // Create a deeply nested structure wrapped in RwLock
     let business_group = Arc::new(RwLock::new(BusinessGroup {
         name: "Global Tech Holdings".to_string(),
-        organizations: vec![
-            Organization {
-                name: "TechCorp International".to_string(),
-                company: Company {
-                    name: "TechCorp".to_string(),
-                    founded_year: 2010,
-                    headquarters: Address {
-                        street: "123 Tech Street".to_string(),
-                        city: "San Francisco".to_string(),
-                        country: "USA".to_string(),
-                        postal_code: Some("94105".to_string()),
-                        coordinates: Some(Location {
-                            latitude: 37.7749,
-                            longitude: -122.4194,
-                            altitude: Some(52.0),
-                        }),
-                    },
-                    employees: vec![
-                        Employee {
-                            id: 1,
-                            name: "Alice Johnson".to_string(),
-                            position: "Senior Engineer".to_string(),
-                            salary: 120_000,
-                            contact: Contact {
-                                email: "alice@techcorp.com".to_string(),
-                                phone: Some("+1-555-0101".to_string()),
-                                address: Address {
-                                    street: "456 Employee Ave".to_string(),
-                                    city: "San Francisco".to_string(),
-                                    country: "USA".to_string(),
-                                    postal_code: Some("94110".to_string()),
-                                    coordinates: Some(Location {
-                                        latitude: 37.7849,
-                                        longitude: -122.4094,
-                                        altitude: Some(45.0),
-                                    }),
-                                },
-                                emergency_contact: Some(Box::new(Contact {
-                                    email: "emergency@alice.com".to_string(),
-                                    phone: Some("+1-555-EMERGENCY".to_string()),
-                                    address: Address {
-                                        street: "789 Emergency St".to_string(),
-                                        city: "San Francisco".to_string(),
-                                        country: "USA".to_string(),
-                                        postal_code: None,
-                                        coordinates: None,
-                                    },
-                                    emergency_contact: None,
-                                })),
+        organizations: vec![Organization {
+            name: "TechCorp International".to_string(),
+            company: Company {
+                name: "TechCorp".to_string(),
+                founded_year: 2010,
+                headquarters: Address {
+                    street: "123 Tech Street".to_string(),
+                    city: "San Francisco".to_string(),
+                    country: "USA".to_string(),
+                    postal_code: Some("94105".to_string()),
+                    coordinates: Some(Location {
+                        latitude: 37.7749,
+                        longitude: -122.4194,
+                        altitude: Some(52.0),
+                    }),
+                },
+                employees: vec![
+                    Employee {
+                        id: 1,
+                        name: "Alice Johnson".to_string(),
+                        position: "Senior Engineer".to_string(),
+                        salary: 120_000,
+                        contact: Contact {
+                            email: "alice@techcorp.com".to_string(),
+                            phone: Some("+1-555-0101".to_string()),
+                            address: Address {
+                                street: "456 Employee Ave".to_string(),
+                                city: "San Francisco".to_string(),
+                                country: "USA".to_string(),
+                                postal_code: Some("94110".to_string()),
+                                coordinates: Some(Location {
+                                    latitude: 37.7849,
+                                    longitude: -122.4094,
+                                    altitude: Some(45.0),
+                                }),
                             },
-                            department_id: Some(101),
-                            supervisor_id: None,
-                        },
-                        Employee {
-                            id: 2,
-                            name: "Bob Smith".to_string(),
-                            position: "Marketing Manager".to_string(),
-                            salary: 95_000,
-                            contact: Contact {
-                                email: "bob@techcorp.com".to_string(),
-                                phone: None,
+                            emergency_contact: Some(Box::new(Contact {
+                                email: "emergency@alice.com".to_string(),
+                                phone: Some("+1-555-EMERGENCY".to_string()),
                                 address: Address {
-                                    street: "321 Marketing Blvd".to_string(),
+                                    street: "789 Emergency St".to_string(),
                                     city: "San Francisco".to_string(),
                                     country: "USA".to_string(),
-                                    postal_code: Some("94115".to_string()),
-                                    coordinates: Some(Location {
-                                        latitude: 37.7949,
-                                        longitude: -122.4294,
-                                        altitude: Some(38.0),
-                                    }),
+                                    postal_code: None,
+                                    coordinates: None,
                                 },
                                 emergency_contact: None,
-                            },
-                            department_id: Some(102),
-                            supervisor_id: Some(1),
+                            })),
                         },
-                    ],
-                    departments: vec![
-                        Department {
-                            name: "Engineering".to_string(),
-                            budget: 1_000_000,
-                            manager_id: Some(1),
-                            location: Address {
-                                street: "100 Engineering Way".to_string(),
+                        department_id: Some(101),
+                        supervisor_id: None,
+                    },
+                    Employee {
+                        id: 2,
+                        name: "Bob Smith".to_string(),
+                        position: "Marketing Manager".to_string(),
+                        salary: 95_000,
+                        contact: Contact {
+                            email: "bob@techcorp.com".to_string(),
+                            phone: None,
+                            address: Address {
+                                street: "321 Marketing Blvd".to_string(),
                                 city: "San Francisco".to_string(),
                                 country: "USA".to_string(),
-                                postal_code: Some("94105".to_string()),
+                                postal_code: Some("94115".to_string()),
                                 coordinates: Some(Location {
-                                    latitude: 37.7749,
-                                    longitude: -122.4194,
-                                    altitude: Some(50.0),
+                                    latitude: 37.7949,
+                                    longitude: -122.4294,
+                                    altitude: Some(38.0),
                                 }),
                             },
+                            emergency_contact: None,
                         },
-                        Department {
-                            name: "Marketing".to_string(),
-                            budget: 500_000,
-                            manager_id: Some(2),
-                            location: Address {
-                                street: "200 Marketing Ave".to_string(),
-                                city: "San Francisco".to_string(),
-                                country: "USA".to_string(),
-                                postal_code: Some("94105".to_string()),
-                                coordinates: Some(Location {
-                                    latitude: 37.7749,
-                                    longitude: -122.4194,
-                                    altitude: Some(48.0),
-                                }),
-                            },
-                        },
-                    ],
-                    global_contact: Contact {
-                        email: "global@techcorp.com".to_string(),
-                        phone: Some("+1-555-GLOBAL".to_string()),
-                        address: Address {
-                            street: "1000 Corporate Plaza".to_string(),
+                        department_id: Some(102),
+                        supervisor_id: Some(1),
+                    },
+                ],
+                departments: vec![
+                    Department {
+                        name: "Engineering".to_string(),
+                        budget: 1_000_000,
+                        manager_id: Some(1),
+                        location: Address {
+                            street: "100 Engineering Way".to_string(),
                             city: "San Francisco".to_string(),
                             country: "USA".to_string(),
                             postal_code: Some("94105".to_string()),
                             coordinates: Some(Location {
                                 latitude: 37.7749,
                                 longitude: -122.4194,
-                                altitude: Some(55.0),
+                                altitude: Some(50.0),
                             }),
                         },
-                        emergency_contact: None,
                     },
-                },
-                subsidiaries: vec![],
-                main_contact: Contact {
-                    email: "main@techcorp-intl.com".to_string(),
-                    phone: Some("+1-555-INTL".to_string()),
+                    Department {
+                        name: "Marketing".to_string(),
+                        budget: 500_000,
+                        manager_id: Some(2),
+                        location: Address {
+                            street: "200 Marketing Ave".to_string(),
+                            city: "San Francisco".to_string(),
+                            country: "USA".to_string(),
+                            postal_code: Some("94105".to_string()),
+                            coordinates: Some(Location {
+                                latitude: 37.7749,
+                                longitude: -122.4194,
+                                altitude: Some(48.0),
+                            }),
+                        },
+                    },
+                ],
+                global_contact: Contact {
+                    email: "global@techcorp.com".to_string(),
+                    phone: Some("+1-555-GLOBAL".to_string()),
                     address: Address {
-                        street: "500 International Blvd".to_string(),
+                        street: "1000 Corporate Plaza".to_string(),
                         city: "San Francisco".to_string(),
                         country: "USA".to_string(),
                         postal_code: Some("94105".to_string()),
                         coordinates: Some(Location {
                             latitude: 37.7749,
                             longitude: -122.4194,
-                            altitude: Some(60.0),
+                            altitude: Some(55.0),
                         }),
                     },
                     emergency_contact: None,
                 },
             },
-        ],
+            subsidiaries: vec![],
+            main_contact: Contact {
+                email: "main@techcorp-intl.com".to_string(),
+                phone: Some("+1-555-INTL".to_string()),
+                address: Address {
+                    street: "500 International Blvd".to_string(),
+                    city: "San Francisco".to_string(),
+                    country: "USA".to_string(),
+                    postal_code: Some("94105".to_string()),
+                    coordinates: Some(Location {
+                        latitude: 37.7749,
+                        longitude: -122.4194,
+                        altitude: Some(60.0),
+                    }),
+                },
+                emergency_contact: None,
+            },
+        }],
         headquarters: Address {
             street: "1000 Global Plaza".to_string(),
             city: "San Francisco".to_string(),
@@ -383,11 +381,13 @@ fn main() {
     // Pattern 1: Reusable Base Paths
     println!("\n📝 Pattern 1: Reusable Base Paths");
     println!("--------------------------------");
-    
+
     let org_base = BusinessGroup::organizations_fr_at(0);
     let company_base = org_base.clone().then(Organization::company_r());
     let employees_base = company_base.then(Company::employees_r());
-    let first_employee_base = org_base.then(Organization::company_r()).then(Company::employees_fr_at(0));
+    let first_employee_base = org_base
+        .then(Organization::company_r())
+        .then(Company::employees_fr_at(0));
 
     // Use the same base paths for different fields
     let employee_name_path = first_employee_base.clone().then(Employee::name_r());
@@ -409,13 +409,13 @@ fn main() {
     // Pattern 2: Multiple Option Levels
     println!("\n📝 Pattern 2: Multiple Option Levels");
     println!("----------------------------------");
-    
+
     let emergency_phone_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
         .then(Company::employees_fr_at(0))
         .then(Employee::contact_r())
         .then(Contact::phone_fr());
-    
+
     emergency_phone_path.with_rwlock(&business_group, |phone| {
         println!("✅ Emergency contact phone: {:?}", phone);
     });
@@ -423,12 +423,12 @@ fn main() {
     // Pattern 3: Department Information
     println!("\n📝 Pattern 3: Department Information");
     println!("----------------------------------");
-    
+
     let first_dept_name_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
         .then(Company::departments_fr_at(0))
         .then(Department::name_r());
-    
+
     let first_dept_budget_path = BusinessGroup::organizations_fr_at(0)
         .then(Organization::company_r())
         .then(Company::departments_fr_at(0))
@@ -445,7 +445,7 @@ fn main() {
     // Pattern 4: CEO Contact Information
     println!("\n📝 Pattern 4: CEO Contact Information");
     println!("-----------------------------------");
-    
+
     let ceo_email_path = BusinessGroup::ceo_contact_r().then(Contact::email_r());
     let ceo_phone_path = BusinessGroup::ceo_contact_r().then(Contact::phone_fr());
     let ceo_address_city_path = BusinessGroup::ceo_contact_r()

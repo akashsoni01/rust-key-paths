@@ -1,4 +1,4 @@
-use key_paths_core::{KeyPaths, PartialKeyPath, AnyKeyPath};
+use key_paths_core::{AnyKeyPath, KeyPaths, PartialKeyPath};
 use key_paths_derive::Keypaths;
 use std::any::Any;
 
@@ -83,7 +83,9 @@ fn main() {
     }
 
     // Example 3: ReferenceWritableKeyPath<Root, Value> (Reference-specific writable access)
-    println!("\n--- 3. ReferenceWritableKeyPath<Root, Value> (Reference-specific writable access) ---");
+    println!(
+        "\n--- 3. ReferenceWritableKeyPath<Root, Value> (Reference-specific writable access) ---"
+    );
     let mut person_ref = person.clone();
 
     // Create reference writable keypaths
@@ -103,53 +105,56 @@ fn main() {
 
     // Example 4: PartialKeyPath<Root> (Type-erased Value)
     println!("\n--- 4. PartialKeyPath<Root> (Type-erased Value) ---");
-    
+
     // Convert typed keypaths to partial keypaths
     let name_partial = name_path.clone().to_partial();
     let age_partial = age_path.clone().to_partial();
     let email_partial = email_path.clone().to_partial();
 
     // Store different keypaths in the same collection
-    let partial_keypaths: Vec<PartialKeyPath<Person>> = vec![
-        name_partial,
-        age_partial,
-        email_partial,
-    ];
+    let partial_keypaths: Vec<PartialKeyPath<Person>> =
+        vec![name_partial, age_partial, email_partial];
 
     // Use partial keypaths with type erasure
     for (i, keypath) in partial_keypaths.iter().enumerate() {
         if let Some(value) = keypath.get(&person) {
-            println!("Partial keypath {}: {:?} (type: {})", i, value, keypath.kind_name());
+            println!(
+                "Partial keypath {}: {:?} (type: {})",
+                i,
+                value,
+                keypath.kind_name()
+            );
         }
     }
 
     // Example 5: AnyKeyPath (Fully type-erased)
     println!("\n--- 5. AnyKeyPath (Fully type-erased) ---");
-    
+
     // Convert typed keypaths to any keypaths
     let name_any = name_path.clone().to_any();
     let age_any = age_path.clone().to_any();
     let email_any = email_path.clone().to_any();
 
     // Store different keypaths from different types in the same collection
-    let any_keypaths: Vec<AnyKeyPath> = vec![
-        name_any,
-        age_any,
-        email_any,
-    ];
+    let any_keypaths: Vec<AnyKeyPath> = vec![name_any, age_any, email_any];
 
     // Use any keypaths with full type erasure
     for (i, keypath) in any_keypaths.iter().enumerate() {
         // We need to box the person to use with AnyKeyPath
         let person_boxed: Box<dyn Any + Send + Sync> = Box::new(person.clone());
         if let Some(value) = keypath.get(&*person_boxed) {
-            println!("Any keypath {}: {:?} (type: {})", i, value, keypath.kind_name());
+            println!(
+                "Any keypath {}: {:?} (type: {})",
+                i,
+                value,
+                keypath.kind_name()
+            );
         }
     }
 
     // Example 6: Composition with type-erased keypaths
     println!("\n--- 6. Composition with type-erased keypaths ---");
-    
+
     let company = Company {
         name: "TechCorp".to_string(),
         employees: vec![person.clone()],
@@ -158,7 +163,7 @@ fn main() {
 
     // Create composed keypaths
     let company_name_path = Company::name_r();
-    
+
     // Use the company name keypath
     if let Some(name) = company_name_path.get(&company) {
         println!("Company name: {}", name);
@@ -173,7 +178,7 @@ fn main() {
 
     // Example 7: Mixed keypath types in collections
     println!("\n--- 7. Mixed keypath types in collections ---");
-    
+
     // Create a collection of different keypath types
     let mixed_keypaths: Vec<Box<dyn Any>> = vec![
         Box::new(name_path.clone().to_partial()),
@@ -192,12 +197,15 @@ fn main() {
 
     // Example 8: Dynamic keypath selection
     println!("\n--- 8. Dynamic keypath selection ---");
-    
+
     let keypath_map: std::collections::HashMap<String, PartialKeyPath<Person>> = [
         ("name".to_string(), name_path.clone().to_partial()),
         ("age".to_string(), age_path.clone().to_partial()),
         ("email".to_string(), email_path.clone().to_partial()),
-    ].iter().cloned().collect();
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     // Dynamically select and use keypaths
     for field_name in ["name", "age", "email"] {

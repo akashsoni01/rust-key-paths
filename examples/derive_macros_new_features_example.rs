@@ -1,5 +1,5 @@
-use key_paths_derive::{Keypaths, PartialKeypaths, AnyKeypaths};
-use key_paths_core::{KeyPaths, PartialKeyPath, AnyKeyPath};
+use key_paths_core::{AnyKeyPath, KeyPaths, PartialKeyPath};
+use key_paths_derive::{AnyKeypaths, Keypaths, PartialKeypaths};
 use std::any::Any;
 
 /// Example demonstrating the new derive macros for PartialKeyPath and AnyKeyPath
@@ -50,7 +50,7 @@ fn main() {
 
     // Example 1: Using regular KeyPaths (existing functionality)
     println!("--- 1. Regular KeyPaths (existing functionality) ---");
-    
+
     let name_path = User::name_r();
     let email_path = User::email_fr();
     let tags_path = User::tags_r();
@@ -69,7 +69,7 @@ fn main() {
 
     // Example 2: Using PartialKeyPath derive macros
     println!("\n--- 2. PartialKeyPath derive macros ---");
-    
+
     // Generated methods: field_partial_r(), field_partial_w(), field_partial_fr(), etc.
     let name_partial = User::name_partial_r();
     let email_partial = User::email_partial_fr();
@@ -77,23 +77,24 @@ fn main() {
     let metadata_partial = User::metadata_partial_r();
 
     // Store different keypaths in the same collection (type-erased Value)
-    let partial_keypaths: Vec<PartialKeyPath<User>> = vec![
-        name_partial,
-        email_partial,
-        tags_partial,
-        metadata_partial,
-    ];
+    let partial_keypaths: Vec<PartialKeyPath<User>> =
+        vec![name_partial, email_partial, tags_partial, metadata_partial];
 
     // Use partial keypaths with type erasure
     for (i, keypath) in partial_keypaths.iter().enumerate() {
         if let Some(value) = keypath.get(&user) {
-            println!("Partial keypath {}: {:?} (type: {})", i, value, keypath.kind_name());
+            println!(
+                "Partial keypath {}: {:?} (type: {})",
+                i,
+                value,
+                keypath.kind_name()
+            );
         }
     }
 
     // Example 3: Using AnyKeyPath derive macros
     println!("\n--- 3. AnyKeyPath derive macros ---");
-    
+
     // Generated methods: field_any_r(), field_any_w(), field_any_fr(), etc.
     let user_name_any = User::name_any_r();
     let user_email_any = User::email_any_fr();
@@ -113,23 +114,33 @@ fn main() {
         // We need to box the data to use with AnyKeyPath
         let user_boxed: Box<dyn Any + Send + Sync> = Box::new(user.clone());
         let product_boxed: Box<dyn Any + Send + Sync> = Box::new(product.clone());
-        
+
         // Try with user first (for user keypaths)
         if i < 2 {
             if let Some(value) = keypath.get(&*user_boxed) {
-                println!("Any keypath {} (user): {:?} (type: {})", i, value, keypath.kind_name());
+                println!(
+                    "Any keypath {} (user): {:?} (type: {})",
+                    i,
+                    value,
+                    keypath.kind_name()
+                );
             }
         } else {
             // Try with product (for product keypaths)
             if let Some(value) = keypath.get(&*product_boxed) {
-                println!("Any keypath {} (product): {:?} (type: {})", i, value, keypath.kind_name());
+                println!(
+                    "Any keypath {} (product): {:?} (type: {})",
+                    i,
+                    value,
+                    keypath.kind_name()
+                );
             }
         }
     }
 
     // Example 4: Collection access with derive macros
     println!("\n--- 4. Collection access with derive macros ---");
-    
+
     // Vec access with partial keypaths
     let first_tag_partial = User::tags_partial_fr_at(0);
     if let Some(tag) = first_tag_partial.get(&user) {
@@ -151,9 +162,9 @@ fn main() {
 
     // Example 5: Writable keypaths with derive macros
     println!("\n--- 5. Writable keypaths with derive macros ---");
-    
+
     let mut user_mut = user.clone();
-    
+
     // Using regular writable keypaths (not type-erased)
     let name_w = User::name_w();
     if let Some(name_ref) = name_w.get_mut(&mut user_mut) {
@@ -164,7 +175,7 @@ fn main() {
     // Note: Type-erased keypaths (PartialKeyPath, AnyKeyPath) return &dyn Any
     // which cannot be directly assigned to. They are primarily for read-only access
     // and dynamic keypath selection. For mutation, use regular KeyPaths.
-    
+
     // Demonstrate that partial keypaths work for reading
     let name_partial_r = User::name_partial_r();
     if let Some(name_ref) = name_partial_r.get(&user_mut) {
@@ -173,7 +184,7 @@ fn main() {
 
     // Example 6: Owned keypaths with derive macros
     println!("\n--- 6. Owned keypaths with derive macros ---");
-    
+
     // Using partial owned keypaths
     let name_partial_o = User::name_partial_o();
     let owned_name = name_partial_o.get_owned(user.clone());
@@ -187,12 +198,12 @@ fn main() {
 
     // Example 7: Mixed keypath types in collections
     println!("\n--- 7. Mixed keypath types in collections ---");
-    
+
     // Create a collection of different keypath types
     let mixed_keypaths: Vec<Box<dyn Any>> = vec![
         Box::new(User::name_partial_r()),
         Box::new(User::email_partial_fr()),
-        Box::new(User::name_any_r()),  // Use User keypath instead of Product
+        Box::new(User::name_any_r()), // Use User keypath instead of Product
         Box::new(Product::title_any_r()),
     ];
 
@@ -204,12 +215,14 @@ fn main() {
             }
         } else if let Some(any_keypath) = keypath_box.downcast_ref::<AnyKeyPath>() {
             // Use the correct data type for each keypath
-            if i == 2 { // User::name_any_r()
+            if i == 2 {
+                // User::name_any_r()
                 let user_boxed: Box<dyn Any + Send + Sync> = Box::new(user.clone());
                 if let Some(value) = any_keypath.get(&*user_boxed) {
                     println!("Mixed keypath {} (any, user): {:?}", i, value);
                 }
-            } else if i == 3 { // Product::title_any_r()
+            } else if i == 3 {
+                // Product::title_any_r()
                 let product_boxed: Box<dyn Any + Send + Sync> = Box::new(product.clone());
                 if let Some(value) = any_keypath.get(&*product_boxed) {
                     println!("Mixed keypath {} (any, product): {:?}", i, value);
@@ -220,13 +233,16 @@ fn main() {
 
     // Example 8: Dynamic keypath selection with derive macros
     println!("\n--- 8. Dynamic keypath selection with derive macros ---");
-    
+
     let partial_keypath_map: std::collections::HashMap<String, PartialKeyPath<User>> = [
         ("name".to_string(), User::name_partial_r()),
         ("email".to_string(), User::email_partial_fr()),
         ("tags".to_string(), User::tags_partial_r()),
         ("metadata".to_string(), User::metadata_partial_r()),
-    ].iter().cloned().collect();
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     // Dynamically select and use partial keypaths
     for field_name in ["name", "email", "tags", "metadata"] {
@@ -242,7 +258,9 @@ fn main() {
     println!("   • #[derive(PartialKeypaths)] - Generates field_partial_*() methods");
     println!("   • #[derive(AnyKeypaths)] - Generates field_any_*() methods");
     println!("   • Type-erased keypaths for collections of same Root type (PartialKeyPath)");
-    println!("   • Fully type-erased keypaths for collections of different Root types (AnyKeyPath)");
+    println!(
+        "   • Fully type-erased keypaths for collections of different Root types (AnyKeyPath)"
+    );
     println!("   • Collection access with indexed methods (field_partial_fr_at, field_any_fr_at)");
     println!("   • Writable and owned keypath variants");
     println!("   • Dynamic keypath selection and usage");

@@ -1,5 +1,5 @@
 use key_paths_derive::WritableKeypaths;
-use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
+use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -121,7 +121,7 @@ fn main() {
         *tag_ref = "senior_developer".to_string();
         println!("Updated first tag to: {}", tag_ref);
     }
-    
+
     let tag_at_1_path = User::tags_fw_at(1);
     if let Some(tag_ref) = tag_at_1_path.get_mut(&mut user) {
         *tag_ref = "rustacean".to_string();
@@ -179,19 +179,19 @@ fn main() {
     // Test tuple struct
     println!("\n=== Tuple Struct ===");
     let mut tuple = TupleStruct("test".to_string(), Some(42), vec![1.0, 2.0, 3.0]);
-    
+
     let f0_path = TupleStruct::f0_w();
     if let Some(f0_ref) = f0_path.get_mut(&mut tuple) {
         *f0_ref = "updated_test".to_string();
         println!("Updated tuple f0 to: {}", f0_ref);
     }
-    
+
     let f1_fw_path = TupleStruct::f1_fw();
     if let Some(f1_ref) = f1_fw_path.get_mut(&mut tuple) {
         *f1_ref = 100;
         println!("Updated tuple f1 (Option) to: {}", f1_ref);
     }
-    
+
     let f2_fw_path = TupleStruct::f2_fw();
     if let Some(f2_ref) = f2_fw_path.get_mut(&mut tuple) {
         *f2_ref = 99.9;

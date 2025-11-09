@@ -83,7 +83,9 @@ fn main() {
     let affordable: Vec<&&Product> = product_refs
         .iter()
         .filter(|&product_ref| {
-            price_path.get_ref(product_ref).map_or(false, |&p| p < 100.0)
+            price_path
+                .get_ref(product_ref)
+                .map_or(false, |&p| p < 100.0)
                 && in_stock_path.get_ref(product_ref).map_or(false, |&s| s)
         })
         .collect();
@@ -131,23 +133,22 @@ fn main() {
 
     // Example 5: Using with Arc<RwLock<HashMap>> pattern
     println!("\n--- Example 5: Simulated Lock-Aware Pattern ---");
-    
+
     // Simulate reading from a shared HashMap
-    let shared_products: HashMap<u32, Product> = products
-        .iter()
-        .map(|p| (p.id, p.clone()))
-        .collect();
+    let shared_products: HashMap<u32, Product> =
+        products.iter().map(|p| (p.id, p.clone())).collect();
 
     // Collect references from the HashMap
     let values_refs: Vec<&Product> = shared_products.values().collect();
-    println!("Collected {} references from shared HashMap", values_refs.len());
+    println!(
+        "Collected {} references from shared HashMap",
+        values_refs.len()
+    );
 
     // Query the references without cloning
     let expensive: Vec<&&Product> = values_refs
         .iter()
-        .filter(|&prod_ref| {
-            price_path.get_ref(prod_ref).map_or(false, |&p| p > 200.0)
-        })
+        .filter(|&prod_ref| price_path.get_ref(prod_ref).map_or(false, |&p| p > 200.0))
         .collect();
 
     println!("Found {} expensive products:", expensive.len());
@@ -159,7 +160,7 @@ fn main() {
 
     // Example 6: Nested references (Vec<&Vec<&Product>>)
     println!("\n--- Example 6: Nested References ---");
-    
+
     let batches = vec![
         products[0..2].iter().collect::<Vec<&Product>>(),
         products[2..4].iter().collect::<Vec<&Product>>(),
@@ -176,7 +177,7 @@ fn main() {
 
     // Example 7: Comparison with owned data (showing the difference)
     println!("\n--- Example 7: Owned vs Reference Comparison ---");
-    
+
     // Owned: uses .get()
     println!("With owned data (using .get()):");
     for product in &products {
@@ -195,7 +196,7 @@ fn main() {
 
     // Example 8: Working with Users and multiple field accesses
     println!("\n--- Example 8: Multiple Field Access on References ---");
-    
+
     let users = vec![
         User {
             id: 1,
@@ -236,7 +237,7 @@ fn main() {
 
     // Example 9: Practical use case - Avoid cloning in queries
     println!("\n--- Example 9: Performance Benefit (No Cloning) ---");
-    
+
     // Without get_ref, you might be tempted to clone
     let _cloned_products: Vec<Product> = products
         .iter()
@@ -246,12 +247,8 @@ fn main() {
     println!("❌ Cloned approach: Creates new copies");
 
     // With get_ref, work with references directly
-    let _filtered_refs: Vec<&Product> = products
-        .iter()
-        .filter(|p| p.price < 100.0)
-        .collect();
+    let _filtered_refs: Vec<&Product> = products.iter().filter(|p| p.price < 100.0).collect();
     println!("✓ Reference approach: No cloning needed");
 
     println!("\n✓ Reference keypaths demo complete!");
 }
-

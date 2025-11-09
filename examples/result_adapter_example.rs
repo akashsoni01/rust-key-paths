@@ -27,7 +27,7 @@ fn main() {
 
     // ===== Example 1: Basic Result Usage =====
     println!("--- Example 1: Basic Result Usage ---");
-    
+
     let ok_result = Ok(user.clone());
     let err_result: Result<User, String> = Err("User not found".to_string());
 
@@ -60,7 +60,7 @@ fn main() {
 
     // ===== Example 2: Collection of Results =====
     println!("--- Example 2: Collection of Results ---");
-    
+
     let results: Vec<Result<User, String>> = vec![
         Ok(User {
             name: "Bob".to_string(),
@@ -114,7 +114,7 @@ fn main() {
 
     // ===== Example 3: Error Handling Patterns =====
     println!("--- Example 3: Error Handling Patterns ---");
-    
+
     let api_results: Vec<Result<User, &str>> = vec![
         Ok(User {
             name: "Eve".to_string(),

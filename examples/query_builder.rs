@@ -242,7 +242,10 @@ fn main() {
         |cat| cat == "Furniture",
     );
 
-    println!("Electronics: {} products", electronics_query.count(&products));
+    println!(
+        "Electronics: {} products",
+        electronics_query.count(&products)
+    );
     println!("Furniture: {} products", furniture_query.count(&products));
 
     // Query 6: Complex query - Mid-range products
@@ -307,4 +310,3 @@ fn main() {
 
     println!("\n✓ Query builder demo complete!");
 }
-

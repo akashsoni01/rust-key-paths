@@ -24,7 +24,7 @@ fn main() {
     };
 
     println!("=== Smart Keypaths Access ===");
-    
+
     // Basic types - readable keypath
     println!("Name: {:?}", Person::name_r().get(&person));
     println!("Age: {:?}", Person::age_r().get(&person));

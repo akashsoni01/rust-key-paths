@@ -139,12 +139,7 @@ impl<T> FormBinding<T> {
     }
 
     // Update a string field by name
-    fn update_string(
-        &self,
-        model: &mut T,
-        field_name: &str,
-        value: String,
-    ) -> Result<(), String> {
+    fn update_string(&self, model: &mut T, field_name: &str, value: String) -> Result<(), String> {
         for field in &self.string_fields {
             if field.field_name == field_name {
                 return field.write(model, value);
@@ -290,10 +285,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Bool field: notifications (nested)
     form.add_bool_field(FormField::new(
-        UserProfile::settings_r()
-            .then(UserSettings::notifications_enabled_r()),
-        UserProfile::settings_w()
-            .then(UserSettings::notifications_enabled_w()),
+        UserProfile::settings_r().then(UserSettings::notifications_enabled_r()),
+        UserProfile::settings_w().then(UserSettings::notifications_enabled_w()),
         "Notifications",
         "notifications",
         |_| Ok(()), // No validation needed for bool
@@ -346,7 +339,11 @@ fn main() {
     }
 
     // Update email
-    match form.update_string(&mut profile, "email", "alice.johnson@example.com".to_string()) {
+    match form.update_string(
+        &mut profile,
+        "email",
+        "alice.johnson@example.com".to_string(),
+    ) {
         Ok(_) => println!("✓ Updated email successfully"),
         Err(e) => println!("✗ Failed to update email: {}", e),
     }
@@ -440,4 +437,3 @@ fn main() {
 
     println!("\n✓ Form binding demo complete!");
 }
-

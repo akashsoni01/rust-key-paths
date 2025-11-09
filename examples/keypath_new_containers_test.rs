@@ -1,20 +1,20 @@
 use key_paths_derive::Keypaths;
-use std::sync::{Mutex, RwLock};
 use std::rc::Weak;
+use std::sync::{Mutex, RwLock};
 
 #[derive(Debug, Keypaths)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
     result_int: Result<i32, String>,
-    
+
     // Synchronization primitives
     mutex_data: Mutex<String>,
     rwlock_data: RwLock<i32>,
-    
+
     // Reference counting with weak references
     weak_ref: Weak<String>,
-    
+
     // Basic types for comparison
     name: String,
     age: u32,
@@ -22,7 +22,7 @@ struct ContainerTest {
 
 fn main() {
     println!("=== New Container Types Test ===");
-    
+
     let container = ContainerTest {
         result: Ok("Success!".to_string()),
         result_int: Ok(42),
@@ -90,7 +90,7 @@ fn main() {
 
     // Test with error cases
     println!("\n=== Error Cases ===");
-    
+
     let error_container = ContainerTest {
         result: Err("Something went wrong".to_string()),
         result_int: Err("Invalid number".to_string()),

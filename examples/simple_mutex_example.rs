@@ -25,7 +25,7 @@ fn main() {
 
     // ===== Example 1: Basic Mutex Usage =====
     println!("--- Example 1: Basic Mutex Usage ---");
-    
+
     let mutex_user = Mutex::new(user.clone());
 
     // Note: We'll create the adapted keypaths inline since they can't be cloned
@@ -37,7 +37,7 @@ fn main() {
 
     // ===== Example 2: Collection of Mutex =====
     println!("--- Example 2: Collection of Mutex ---");
-    
+
     let mutex_users: Vec<Mutex<User>> = vec![
         Mutex::new(User {
             name: "Bob".to_string(),

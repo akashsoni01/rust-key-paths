@@ -1,7 +1,7 @@
-use std::sync::{Arc, Mutex, RwLock};
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::any::Any;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex, RwLock};
 
 #[cfg(feature = "tagged_core")]
 use tagged_core::Tagged;
@@ -138,7 +138,7 @@ pub enum KeyPaths<Root, Value> {
     // New Owned KeyPath types (value semantics)
     Owned(Arc<dyn Fn(Root) -> Value + Send + Sync>),
     FailableOwned(Arc<dyn Fn(Root) -> Option<Value> + Send + Sync>),
-    
+
     // Combined failable keypath that supports all three access patterns
     FailableCombined {
         readable: Arc<dyn for<'a> Fn(&'a Root) -> Option<&'a Value> + Send + Sync>,
@@ -157,25 +157,36 @@ pub enum PartialKeyPath<Root> {
         extract: Arc<dyn for<'a> Fn(&'a Root) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>,
         embed: Arc<dyn Fn(Box<dyn Any>) -> Root + Send + Sync>,
     },
-    FailableReadable(Arc<dyn for<'a> Fn(&'a Root) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>),
+    FailableReadable(
+        Arc<dyn for<'a> Fn(&'a Root) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>,
+    ),
 
     Writable(Arc<dyn for<'a> Fn(&'a mut Root) -> &'a mut (dyn Any + Send + Sync) + Send + Sync>),
-    FailableWritable(Arc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync>),
+    FailableWritable(
+        Arc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync>,
+    ),
     WritableEnum {
         extract: Arc<dyn for<'a> Fn(&'a Root) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>,
-        extract_mut: Arc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync>,
+        extract_mut: Arc<
+            dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync,
+        >,
         embed: Arc<dyn Fn(Box<dyn Any>) -> Root + Send + Sync>,
     },
 
-    ReferenceWritable(Arc<dyn for<'a> Fn(&'a mut Root) -> &'a mut (dyn Any + Send + Sync) + Send + Sync>),
+    ReferenceWritable(
+        Arc<dyn for<'a> Fn(&'a mut Root) -> &'a mut (dyn Any + Send + Sync) + Send + Sync>,
+    ),
 
     Owned(Arc<dyn Fn(Root) -> Box<dyn Any> + Send + Sync>),
     FailableOwned(Arc<dyn Fn(Root) -> Option<Box<dyn Any>> + Send + Sync>),
-    
+
     // Combined failable keypath that supports all three access patterns
     FailableCombined {
-        readable: Arc<dyn for<'a> Fn(&'a Root) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>,
-        writable: Arc<dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync>,
+        readable:
+            Arc<dyn for<'a> Fn(&'a Root) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>,
+        writable: Arc<
+            dyn for<'a> Fn(&'a mut Root) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync,
+        >,
         owned: Arc<dyn Fn(Root) -> Option<Box<dyn Any>> + Send + Sync>, // Takes ownership of Root, moves only the Value
     },
 }
@@ -185,30 +196,86 @@ pub enum PartialKeyPath<Root> {
 /// Useful when Root and Value types are unknown or need to be hidden
 #[derive(Clone)]
 pub enum AnyKeyPath {
-    Readable(Arc<dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> &'a (dyn Any + Send + Sync) + Send + Sync>),
+    Readable(
+        Arc<
+            dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> &'a (dyn Any + Send + Sync)
+                + Send
+                + Sync,
+        >,
+    ),
     ReadableEnum {
-        extract: Arc<dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>,
+        extract: Arc<
+            dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)>
+                + Send
+                + Sync,
+        >,
         embed: Arc<dyn Fn(Box<dyn Any>) -> Box<dyn Any> + Send + Sync>,
     },
-    FailableReadable(Arc<dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>),
+    FailableReadable(
+        Arc<
+            dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)>
+                + Send
+                + Sync,
+        >,
+    ),
 
-    Writable(Arc<dyn for<'a> Fn(&'a mut (dyn Any + Send + Sync)) -> &'a mut (dyn Any + Send + Sync) + Send + Sync>),
-    FailableWritable(Arc<dyn for<'a> Fn(&'a mut (dyn Any + Send + Sync)) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync>),
+    Writable(
+        Arc<
+            dyn for<'a> Fn(&'a mut (dyn Any + Send + Sync)) -> &'a mut (dyn Any + Send + Sync)
+                + Send
+                + Sync,
+        >,
+    ),
+    FailableWritable(
+        Arc<
+            dyn for<'a> Fn(
+                    &'a mut (dyn Any + Send + Sync),
+                ) -> Option<&'a mut (dyn Any + Send + Sync)>
+                + Send
+                + Sync,
+        >,
+    ),
     WritableEnum {
-        extract: Arc<dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>,
-        extract_mut: Arc<dyn for<'a> Fn(&'a mut (dyn Any + Send + Sync)) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync>,
+        extract: Arc<
+            dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)>
+                + Send
+                + Sync,
+        >,
+        extract_mut: Arc<
+            dyn for<'a> Fn(
+                    &'a mut (dyn Any + Send + Sync),
+                ) -> Option<&'a mut (dyn Any + Send + Sync)>
+                + Send
+                + Sync,
+        >,
         embed: Arc<dyn Fn(Box<dyn Any>) -> Box<dyn Any> + Send + Sync>,
     },
 
-    ReferenceWritable(Arc<dyn for<'a> Fn(&'a mut (dyn Any + Send + Sync)) -> &'a mut (dyn Any + Send + Sync) + Send + Sync>),
+    ReferenceWritable(
+        Arc<
+            dyn for<'a> Fn(&'a mut (dyn Any + Send + Sync)) -> &'a mut (dyn Any + Send + Sync)
+                + Send
+                + Sync,
+        >,
+    ),
 
     Owned(Arc<dyn Fn(Box<dyn Any>) -> Box<dyn Any> + Send + Sync>),
     FailableOwned(Arc<dyn Fn(Box<dyn Any>) -> Option<Box<dyn Any>> + Send + Sync>),
-    
+
     // Combined failable keypath that supports all three access patterns
     FailableCombined {
-        readable: Arc<dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)> + Send + Sync>,
-        writable: Arc<dyn for<'a> Fn(&'a mut (dyn Any + Send + Sync)) -> Option<&'a mut (dyn Any + Send + Sync)> + Send + Sync>,
+        readable: Arc<
+            dyn for<'a> Fn(&'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)>
+                + Send
+                + Sync,
+        >,
+        writable: Arc<
+            dyn for<'a> Fn(
+                    &'a mut (dyn Any + Send + Sync),
+                ) -> Option<&'a mut (dyn Any + Send + Sync)>
+                + Send
+                + Sync,
+        >,
         owned: Arc<dyn Fn(Box<dyn Any>) -> Option<Box<dyn Any>> + Send + Sync>, // Takes ownership of Root, moves only the Value
     },
 }
@@ -224,7 +291,11 @@ impl<Root, Value> Clone for KeyPaths<Root, Value> {
                 extract: extract.clone(),
                 embed: embed.clone(),
             },
-            KeyPaths::WritableEnum { extract, embed, extract_mut } => KeyPaths::WritableEnum {
+            KeyPaths::WritableEnum {
+                extract,
+                embed,
+                extract_mut,
+            } => KeyPaths::WritableEnum {
                 extract: extract.clone(),
                 embed: embed.clone(),
                 extract_mut: extract_mut.clone(),
@@ -232,7 +303,11 @@ impl<Root, Value> Clone for KeyPaths<Root, Value> {
             KeyPaths::ReferenceWritable(f) => KeyPaths::ReferenceWritable(f.clone()),
             KeyPaths::Owned(f) => KeyPaths::Owned(f.clone()),
             KeyPaths::FailableOwned(f) => KeyPaths::FailableOwned(f.clone()),
-            KeyPaths::FailableCombined { readable, writable, owned } => KeyPaths::FailableCombined {
+            KeyPaths::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => KeyPaths::FailableCombined {
                 readable: readable.clone(),
                 writable: writable.clone(),
                 owned: owned.clone(),
@@ -248,7 +323,9 @@ impl<Root, Value> KeyPaths<Root, Value> {
     }
 
     #[inline]
-    pub fn writable(get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + Send + Sync + 'static) -> Self {
+    pub fn writable(
+        get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + Send + Sync + 'static,
+    ) -> Self {
         Self::Writable(Arc::new(get_mut))
     }
 
@@ -290,7 +367,6 @@ impl<Root, Value> KeyPaths<Root, Value> {
         }
     }
 
-
     // New Owned KeyPath constructors
     #[inline]
     pub fn owned(get: impl Fn(Root) -> Value + Send + Sync + 'static) -> Self {
@@ -319,14 +395,18 @@ impl<Root, Value> KeyPaths<Root, Value> {
     pub fn owned_writable(get: impl Fn(Root) -> Value + Send + Sync + 'static) -> Self {
         Self::Owned(Arc::new(get))
     }
-    
+
     #[inline]
-    pub fn failable_owned_writable(get: impl Fn(Root) -> Option<Value> + Send + Sync + 'static) -> Self {
+    pub fn failable_owned_writable(
+        get: impl Fn(Root) -> Option<Value> + Send + Sync + 'static,
+    ) -> Self {
         Self::FailableOwned(Arc::new(get))
     }
 
     #[inline]
-    pub fn reference_writable(get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + Send + Sync + 'static) -> Self {
+    pub fn reference_writable(
+        get_mut: impl for<'a> Fn(&'a mut Root) -> &'a mut Value + Send + Sync + 'static,
+    ) -> Self {
         Self::ReferenceWritable(Arc::new(get_mut))
     }
 
@@ -338,25 +418,59 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static + Send + Sync,
     {
         match self {
-            KeyPaths::Readable(f) => PartialKeyPath::Readable(Arc::new(move |root| f(root) as &(dyn Any + Send + Sync))),
-            KeyPaths::Writable(f) => PartialKeyPath::Writable(Arc::new(move |root| f(root) as &mut (dyn Any + Send + Sync))),
-            KeyPaths::FailableReadable(f) => PartialKeyPath::FailableReadable(Arc::new(move |root| f(root).map(|v| v as &(dyn Any + Send + Sync)))),
-            KeyPaths::FailableWritable(f) => PartialKeyPath::FailableWritable(Arc::new(move |root| f(root).map(|v| v as &mut (dyn Any + Send + Sync)))),
+            KeyPaths::Readable(f) => {
+                PartialKeyPath::Readable(Arc::new(move |root| f(root) as &(dyn Any + Send + Sync)))
+            }
+            KeyPaths::Writable(f) => PartialKeyPath::Writable(Arc::new(move |root| {
+                f(root) as &mut (dyn Any + Send + Sync)
+            })),
+            KeyPaths::FailableReadable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |root| {
+                    f(root).map(|v| v as &(dyn Any + Send + Sync))
+                }))
+            }
+            KeyPaths::FailableWritable(f) => {
+                PartialKeyPath::FailableWritable(Arc::new(move |root| {
+                    f(root).map(|v| v as &mut (dyn Any + Send + Sync))
+                }))
+            }
             KeyPaths::ReadableEnum { extract, embed } => PartialKeyPath::ReadableEnum {
                 extract: Arc::new(move |root| extract(root).map(|v| v as &(dyn Any + Send + Sync))),
                 embed: Arc::new(move |value| embed(*value.downcast::<Value>().unwrap())),
             },
-            KeyPaths::WritableEnum { extract, extract_mut, embed } => PartialKeyPath::WritableEnum {
+            KeyPaths::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => PartialKeyPath::WritableEnum {
                 extract: Arc::new(move |root| extract(root).map(|v| v as &(dyn Any + Send + Sync))),
-                extract_mut: Arc::new(move |root| extract_mut(root).map(|v| v as &mut (dyn Any + Send + Sync))),
+                extract_mut: Arc::new(move |root| {
+                    extract_mut(root).map(|v| v as &mut (dyn Any + Send + Sync))
+                }),
                 embed: Arc::new(move |value| embed(*value.downcast::<Value>().unwrap())),
             },
-            KeyPaths::ReferenceWritable(f) => PartialKeyPath::ReferenceWritable(Arc::new(move |root| f(root) as &mut (dyn Any + Send + Sync))),
-            KeyPaths::Owned(f) => PartialKeyPath::Owned(Arc::new(move |root| Box::new(f(root)) as Box<dyn Any>)),
-            KeyPaths::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |root| f(root).map(|v| Box::new(v) as Box<dyn Any>))),
-            KeyPaths::FailableCombined { readable, writable, owned } => PartialKeyPath::FailableCombined {
-                readable: Arc::new(move |root| readable(root).map(|v| v as &(dyn Any + Send + Sync))),
-                writable: Arc::new(move |root| writable(root).map(|v| v as &mut (dyn Any + Send + Sync))),
+            KeyPaths::ReferenceWritable(f) => {
+                PartialKeyPath::ReferenceWritable(Arc::new(move |root| {
+                    f(root) as &mut (dyn Any + Send + Sync)
+                }))
+            }
+            KeyPaths::Owned(f) => {
+                PartialKeyPath::Owned(Arc::new(move |root| Box::new(f(root)) as Box<dyn Any>))
+            }
+            KeyPaths::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |root| {
+                f(root).map(|v| Box::new(v) as Box<dyn Any>)
+            })),
+            KeyPaths::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => PartialKeyPath::FailableCombined {
+                readable: Arc::new(move |root| {
+                    readable(root).map(|v| v as &(dyn Any + Send + Sync))
+                }),
+                writable: Arc::new(move |root| {
+                    writable(root).map(|v| v as &mut (dyn Any + Send + Sync))
+                }),
                 owned: Arc::new(move |root| owned(root).map(|v| Box::new(v) as Box<dyn Any>)),
             },
         }
@@ -396,7 +510,11 @@ impl<Root, Value> KeyPaths<Root, Value> {
                     Box::new(embed(typed_value)) as Box<dyn Any>
                 }),
             },
-            KeyPaths::WritableEnum { extract, extract_mut, embed } => AnyKeyPath::WritableEnum {
+            KeyPaths::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => AnyKeyPath::WritableEnum {
                 extract: Arc::new(move |root| {
                     let typed_root = root.downcast_ref::<Root>().unwrap();
                     extract(typed_root).map(|v| v as &(dyn Any + Send + Sync))
@@ -410,10 +528,12 @@ impl<Root, Value> KeyPaths<Root, Value> {
                     Box::new(embed(typed_value)) as Box<dyn Any>
                 }),
             },
-            KeyPaths::ReferenceWritable(f) => AnyKeyPath::ReferenceWritable(Arc::new(move |root| {
-                let typed_root = root.downcast_mut::<Root>().unwrap();
-                f(typed_root) as &mut (dyn Any + Send + Sync)
-            })),
+            KeyPaths::ReferenceWritable(f) => {
+                AnyKeyPath::ReferenceWritable(Arc::new(move |root| {
+                    let typed_root = root.downcast_mut::<Root>().unwrap();
+                    f(typed_root) as &mut (dyn Any + Send + Sync)
+                }))
+            }
             KeyPaths::Owned(f) => AnyKeyPath::Owned(Arc::new(move |root| {
                 let typed_root = *root.downcast::<Root>().unwrap();
                 Box::new(f(typed_root)) as Box<dyn Any>
@@ -422,7 +542,11 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 let typed_root = *root.downcast::<Root>().unwrap();
                 f(typed_root).map(|v| Box::new(v) as Box<dyn Any>)
             })),
-            KeyPaths::FailableCombined { readable, writable, owned } => AnyKeyPath::FailableCombined {
+            KeyPaths::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => AnyKeyPath::FailableCombined {
                 readable: Arc::new(move |root| {
                     let typed_root = root.downcast_ref::<Root>().unwrap();
                     readable(typed_root).map(|v| v as &(dyn Any + Send + Sync))
@@ -442,7 +566,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
 
     /// Extract values from a slice of references using this keypath
     /// This is a convenience method for working with collections of references
-    /// 
+    ///
     /// Example:
     /// ```rust
     /// let name_path = Person::name_r();
@@ -456,12 +580,8 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => {
-                slice.iter().map(|item| f(item)).collect()
-            }
-            KeyPaths::FailableReadable(f) => {
-                slice.iter().filter_map(|item| f(item)).collect()
-            }
+            KeyPaths::Readable(f) => slice.iter().map(|item| f(item)).collect(),
+            KeyPaths::FailableReadable(f) => slice.iter().filter_map(|item| f(item)).collect(),
             KeyPaths::ReadableEnum { extract, .. } => {
                 slice.iter().filter_map(|item| extract(item)).collect()
             }
@@ -471,7 +591,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
 
     /// Extract mutable values from a slice of mutable references using this keypath
     /// This is a convenience method for working with collections of mutable references
-    /// 
+    ///
     /// Example:
     /// ```rust
     /// let name_path = Person::name_w();
@@ -485,15 +605,12 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Writable(f) => {
-                slice.iter_mut().map(|item| f(item)).collect()
-            }
-            KeyPaths::FailableWritable(f) => {
-                slice.iter_mut().filter_map(|item| f(item)).collect()
-            }
-            KeyPaths::WritableEnum { extract_mut, .. } => {
-                slice.iter_mut().filter_map(|item| extract_mut(item)).collect()
-            }
+            KeyPaths::Writable(f) => slice.iter_mut().map(|item| f(item)).collect(),
+            KeyPaths::FailableWritable(f) => slice.iter_mut().filter_map(|item| f(item)).collect(),
+            KeyPaths::WritableEnum { extract_mut, .. } => slice
+                .iter_mut()
+                .filter_map(|item| extract_mut(item))
+                .collect(),
             _ => panic!("extract_mut_from_ref_slice only works with writable keypaths"),
         }
     }
@@ -521,7 +638,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     /// Get an immutable reference when Root is itself a reference (&T)
     /// This enables using keypaths with collections of references like Vec<&T>
     #[inline]
-    pub fn get_ref<'a, 'b>(&'a self, root: &'b &Root) -> Option<&'b Value> 
+    pub fn get_ref<'a, 'b>(&'a self, root: &'b &Root) -> Option<&'b Value>
     where
         'a: 'b,
     {
@@ -561,7 +678,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     /// Get a mutable reference when Root is itself a mutable reference (&mut T)
     /// This enables using writable keypaths with collections of mutable references
     #[inline]
-    pub fn get_mut_ref<'a, 'b>(&'a self, root: &'b mut &mut Root) -> Option<&'b mut Value> 
+    pub fn get_mut_ref<'a, 'b>(&'a self, root: &'b mut &mut Root) -> Option<&'b mut Value>
     where
         'a: 'b,
     {
@@ -593,9 +710,9 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::Readable(Arc::new(move |root: &Arc<Root>| {
-                f(&**root)
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::Readable(Arc::new(move |root: &Arc<Root>| f(&**root)))
+            }
             KeyPaths::Writable(_) => {
                 // Writable doesn't work with Arc (no mutable access)
                 panic!("Cannot create writable keypath for Arc (Arc is immutable)")
@@ -607,13 +724,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 extract: Arc::new(move |root: &Arc<Root>| extract(&**root)),
                 embed: Arc::new(move |value| Arc::new(embed(value))),
             },
-            other => panic!("Unsupported keypath variant for Arc adapter: {:?}", kind_name(&other)),
+            other => panic!(
+                "Unsupported keypath variant for Arc adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
     /// Helper function to extract values from a slice using this keypath
     /// This is useful when you have a slice &[T] and want to access fields via references
-    /// 
+    ///
     /// Example:
     /// ```rust
     /// let people = vec![Person { name: "Alice".to_string(), age: 30 }];
@@ -626,12 +746,8 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => {
-                slice.iter().map(|item| f(item)).collect()
-            }
-            KeyPaths::FailableReadable(f) => {
-                slice.iter().filter_map(|item| f(item)).collect()
-            }
+            KeyPaths::Readable(f) => slice.iter().map(|item| f(item)).collect(),
+            KeyPaths::FailableReadable(f) => slice.iter().filter_map(|item| f(item)).collect(),
             KeyPaths::ReadableEnum { extract, .. } => {
                 slice.iter().filter_map(|item| extract(item)).collect()
             }
@@ -641,7 +757,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
 
     /// Helper function to extract values from an iterator using this keypath
     /// This is useful when you have an iterator over &T and want to access fields
-    /// 
+    ///
     /// Example:
     /// ```rust
     /// let people = vec![Person { name: "Alice".to_string(), age: 30 }];
@@ -655,12 +771,8 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => {
-                iter.map(|item| f(item)).collect()
-            }
-            KeyPaths::FailableReadable(f) => {
-                iter.filter_map(|item| f(item)).collect()
-            }
+            KeyPaths::Readable(f) => iter.map(|item| f(item)).collect(),
+            KeyPaths::FailableReadable(f) => iter.filter_map(|item| f(item)).collect(),
             KeyPaths::ReadableEnum { extract, .. } => {
                 iter.filter_map(|item| extract(item)).collect()
             }
@@ -670,7 +782,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
 
     /// Helper function to extract mutable values from a mutable slice using this keypath
     /// This is useful when you have a mutable slice &mut [T] and want to access fields via mutable references
-    /// 
+    ///
     /// Example:
     /// ```rust
     /// let mut people = vec![Person { name: "Alice".to_string(), age: 30 }];
@@ -683,15 +795,12 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Writable(f) => {
-                slice.iter_mut().map(|item| f(item)).collect()
-            }
-            KeyPaths::FailableWritable(f) => {
-                slice.iter_mut().filter_map(|item| f(item)).collect()
-            }
-            KeyPaths::WritableEnum { extract_mut, .. } => {
-                slice.iter_mut().filter_map(|item| extract_mut(item)).collect()
-            }
+            KeyPaths::Writable(f) => slice.iter_mut().map(|item| f(item)).collect(),
+            KeyPaths::FailableWritable(f) => slice.iter_mut().filter_map(|item| f(item)).collect(),
+            KeyPaths::WritableEnum { extract_mut, .. } => slice
+                .iter_mut()
+                .filter_map(|item| extract_mut(item))
+                .collect(),
             _ => panic!("extract_mut_from_slice only works with writable keypaths"),
         }
     }
@@ -705,12 +814,12 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::Readable(Arc::new(move |root: &Box<Root>| {
-                f(&**root)
-            })),
-            KeyPaths::Writable(f) => KeyPaths::Writable(Arc::new(move |root: &mut Box<Root>| {
-                f(&mut **root)
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::Readable(Arc::new(move |root: &Box<Root>| f(&**root)))
+            }
+            KeyPaths::Writable(f) => {
+                KeyPaths::Writable(Arc::new(move |root: &mut Box<Root>| f(&mut **root)))
+            }
             KeyPaths::FailableReadable(f) => {
                 KeyPaths::FailableReadable(Arc::new(move |root: &Box<Root>| f(&**root)))
             }
@@ -721,12 +830,19 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 extract: Arc::new(move |root: &Box<Root>| extract(&**root)),
                 embed: Arc::new(move |value| Box::new(embed(value))),
             },
-            KeyPaths::WritableEnum { extract, extract_mut, embed } => KeyPaths::WritableEnum {
+            KeyPaths::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => KeyPaths::WritableEnum {
                 extract: Arc::new(move |root: &Box<Root>| extract(&**root)),
                 extract_mut: Arc::new(move |root: &mut Box<Root>| extract_mut(&mut **root)),
                 embed: Arc::new(move |value| Box::new(embed(value))),
             },
-            other => panic!("Unsupported keypath variant for Box adapter: {:?}", kind_name(&other)),
+            other => panic!(
+                "Unsupported keypath variant for Box adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
@@ -739,9 +855,9 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::Readable(Arc::new(move |root: &Rc<Root>| {
-                f(&**root)
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::Readable(Arc::new(move |root: &Rc<Root>| f(&**root)))
+            }
             KeyPaths::Writable(_) => {
                 // Writable doesn't work with Rc (no mutable access)
                 panic!("Cannot create writable keypath for Rc (Rc is immutable)")
@@ -753,7 +869,10 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 extract: Arc::new(move |root: &Rc<Root>| extract(&**root)),
                 embed: Arc::new(move |value| Rc::new(embed(value))),
             },
-            other => panic!("Unsupported keypath variant for Rc adapter: {:?}", kind_name(&other)),
+            other => panic!(
+                "Unsupported keypath variant for Rc adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
@@ -768,12 +887,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
         E: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::FailableReadable(Arc::new(move |root: &Result<Root, E>| {
-                root.as_ref().ok().map(|r| f(r))
-            })),
-            KeyPaths::Writable(f) => KeyPaths::FailableWritable(Arc::new(move |root: &mut Result<Root, E>| {
-                root.as_mut().ok().map(|r| f(r))
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::FailableReadable(Arc::new(move |root: &Result<Root, E>| {
+                    root.as_ref().ok().map(|r| f(r))
+                }))
+            }
+            KeyPaths::Writable(f) => {
+                KeyPaths::FailableWritable(Arc::new(move |root: &mut Result<Root, E>| {
+                    root.as_mut().ok().map(|r| f(r))
+                }))
+            }
             KeyPaths::FailableReadable(f) => {
                 KeyPaths::FailableReadable(Arc::new(move |root: &Result<Root, E>| {
                     root.as_ref().ok().and_then(|r| f(r))
@@ -790,7 +913,11 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 }),
                 embed: Arc::new(move |value| Ok(embed(value))),
             },
-            KeyPaths::WritableEnum { extract, extract_mut, embed } => KeyPaths::WritableEnum {
+            KeyPaths::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => KeyPaths::WritableEnum {
                 extract: Arc::new(move |root: &Result<Root, E>| {
                     root.as_ref().ok().and_then(|r| extract(r))
                 }),
@@ -799,7 +926,10 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 }),
                 embed: Arc::new(move |value| Ok(embed(value))),
             },
-            other => panic!("Unsupported keypath variant for Result adapter: {:?}", kind_name(&other)),
+            other => panic!(
+                "Unsupported keypath variant for Result adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
@@ -813,12 +943,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::FailableReadable(Arc::new(move |root: &Option<Root>| {
-                root.as_ref().map(|r| f(r))
-            })),
-            KeyPaths::Writable(f) => KeyPaths::FailableWritable(Arc::new(move |root: &mut Option<Root>| {
-                root.as_mut().map(|r| f(r))
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::FailableReadable(Arc::new(move |root: &Option<Root>| {
+                    root.as_ref().map(|r| f(r))
+                }))
+            }
+            KeyPaths::Writable(f) => {
+                KeyPaths::FailableWritable(Arc::new(move |root: &mut Option<Root>| {
+                    root.as_mut().map(|r| f(r))
+                }))
+            }
             KeyPaths::FailableReadable(f) => {
                 KeyPaths::FailableReadable(Arc::new(move |root: &Option<Root>| {
                     root.as_ref().and_then(|r| f(r))
@@ -835,7 +969,11 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 }),
                 embed: Arc::new(move |value| Some(embed(value))),
             },
-            KeyPaths::WritableEnum { extract, extract_mut, embed } => KeyPaths::WritableEnum {
+            KeyPaths::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => KeyPaths::WritableEnum {
                 extract: Arc::new(move |root: &Option<Root>| {
                     root.as_ref().and_then(|r| extract(r))
                 }),
@@ -844,7 +982,10 @@ impl<Root, Value> KeyPaths<Root, Value> {
                 }),
                 embed: Arc::new(move |value| Some(embed(value))),
             },
-            other => panic!("Unsupported keypath variant for Option adapter: {:?}", kind_name(&other)),
+            other => panic!(
+                "Unsupported keypath variant for Option adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
@@ -858,13 +999,17 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: Clone + 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::FailableOwned(Arc::new(move |root: Arc<RwLock<Root>>| {
-                let guard = root.read().ok()?;
-                Some(f(&*guard).clone())
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Arc<RwLock<Root>>| {
+                    let guard = root.read().ok()?;
+                    Some(f(&*guard).clone())
+                }))
+            }
             KeyPaths::Writable(_) => {
                 // Writable doesn't work with Arc<RwLock> (Arc is immutable, need write guard)
-                panic!("Cannot create writable keypath for Arc<RwLock> (use with_arc_rwlock_mut instead)")
+                panic!(
+                    "Cannot create writable keypath for Arc<RwLock> (use with_arc_rwlock_mut instead)"
+                )
             }
             KeyPaths::FailableReadable(f) => {
                 KeyPaths::FailableOwned(Arc::new(move |root: Arc<RwLock<Root>>| {
@@ -872,11 +1017,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
                     f(&*guard).map(|v| v.clone())
                 }))
             }
-            KeyPaths::ReadableEnum { extract, embed: _ } => KeyPaths::FailableOwned(Arc::new(move |root: Arc<RwLock<Root>>| {
-                let guard = root.read().ok()?;
-                extract(&*guard).map(|v| v.clone())
-            })),
-            other => panic!("Unsupported keypath variant for Arc<RwLock> adapter: {:?}", kind_name(&other)),
+            KeyPaths::ReadableEnum { extract, embed: _ } => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Arc<RwLock<Root>>| {
+                    let guard = root.read().ok()?;
+                    extract(&*guard).map(|v| v.clone())
+                }))
+            }
+            other => panic!(
+                "Unsupported keypath variant for Arc<RwLock> adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
@@ -890,13 +1040,17 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: Clone + 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::FailableOwned(Arc::new(move |root: Arc<Mutex<Root>>| {
-                let guard = root.lock().ok()?;
-                Some(f(&*guard).clone())
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Arc<Mutex<Root>>| {
+                    let guard = root.lock().ok()?;
+                    Some(f(&*guard).clone())
+                }))
+            }
             KeyPaths::Writable(_) => {
                 // Writable doesn't work with Arc<Mutex> (Arc is immutable, need write guard)
-                panic!("Cannot create writable keypath for Arc<Mutex> (use with_arc_mutex_mut instead)")
+                panic!(
+                    "Cannot create writable keypath for Arc<Mutex> (use with_arc_mutex_mut instead)"
+                )
             }
             KeyPaths::FailableReadable(f) => {
                 KeyPaths::FailableOwned(Arc::new(move |root: Arc<Mutex<Root>>| {
@@ -904,11 +1058,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
                     f(&*guard).map(|v| v.clone())
                 }))
             }
-            KeyPaths::ReadableEnum { extract, embed: _ } => KeyPaths::FailableOwned(Arc::new(move |root: Arc<Mutex<Root>>| {
-                let guard = root.lock().ok()?;
-                extract(&*guard).map(|v| v.clone())
-            })),
-            other => panic!("Unsupported keypath variant for Arc<Mutex> adapter: {:?}", kind_name(&other)),
+            KeyPaths::ReadableEnum { extract, embed: _ } => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Arc<Mutex<Root>>| {
+                    let guard = root.lock().ok()?;
+                    extract(&*guard).map(|v| v.clone())
+                }))
+            }
+            other => panic!(
+                "Unsupported keypath variant for Arc<Mutex> adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
@@ -924,13 +1083,17 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: Clone + 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::Mutex<Root>>| {
-                let guard = root.lock();
-                Some(f(&*guard).clone())
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::Mutex<Root>>| {
+                    let guard = root.lock();
+                    Some(f(&*guard).clone())
+                }))
+            }
             KeyPaths::Writable(_) => {
                 // Writable doesn't work with Arc<parking_lot::Mutex> (Arc is immutable, need write guard)
-                panic!("Cannot create writable keypath for Arc<parking_lot::Mutex> (use with_arc_parking_mutex_mut instead)")
+                panic!(
+                    "Cannot create writable keypath for Arc<parking_lot::Mutex> (use with_arc_parking_mutex_mut instead)"
+                )
             }
             KeyPaths::FailableReadable(f) => {
                 KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::Mutex<Root>>| {
@@ -938,11 +1101,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
                     f(&*guard).map(|v| v.clone())
                 }))
             }
-            KeyPaths::ReadableEnum { extract, embed: _ } => KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::Mutex<Root>>| {
-                let guard = root.lock();
-                extract(&*guard).map(|v| v.clone())
-            })),
-            other => panic!("Unsupported keypath variant for Arc<parking_lot::Mutex> adapter: {:?}", kind_name(&other)),
+            KeyPaths::ReadableEnum { extract, embed: _ } => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::Mutex<Root>>| {
+                    let guard = root.lock();
+                    extract(&*guard).map(|v| v.clone())
+                }))
+            }
+            other => panic!(
+                "Unsupported keypath variant for Arc<parking_lot::Mutex> adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
@@ -958,13 +1126,17 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Value: Clone + 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::RwLock<Root>>| {
-                let guard = root.read();
-                Some(f(&*guard).clone())
-            })),
+            KeyPaths::Readable(f) => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::RwLock<Root>>| {
+                    let guard = root.read();
+                    Some(f(&*guard).clone())
+                }))
+            }
             KeyPaths::Writable(_) => {
                 // Writable doesn't work with Arc<parking_lot::RwLock> (Arc is immutable, need write guard)
-                panic!("Cannot create writable keypath for Arc<parking_lot::RwLock> (use with_arc_parking_rwlock_mut instead)")
+                panic!(
+                    "Cannot create writable keypath for Arc<parking_lot::RwLock> (use with_arc_parking_rwlock_mut instead)"
+                )
             }
             KeyPaths::FailableReadable(f) => {
                 KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::RwLock<Root>>| {
@@ -972,11 +1144,16 @@ impl<Root, Value> KeyPaths<Root, Value> {
                     f(&*guard).map(|v| v.clone())
                 }))
             }
-            KeyPaths::ReadableEnum { extract, embed: _ } => KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::RwLock<Root>>| {
-                let guard = root.read();
-                extract(&*guard).map(|v| v.clone())
-            })),
-            other => panic!("Unsupported keypath variant for Arc<parking_lot::RwLock> adapter: {:?}", kind_name(&other)),
+            KeyPaths::ReadableEnum { extract, embed: _ } => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Arc<parking_lot::RwLock<Root>>| {
+                    let guard = root.read();
+                    extract(&*guard).map(|v| v.clone())
+                }))
+            }
+            other => panic!(
+                "Unsupported keypath variant for Arc<parking_lot::RwLock> adapter: {:?}",
+                kind_name(&other)
+            ),
         }
     }
 
@@ -993,45 +1170,57 @@ impl<Root, Value> KeyPaths<Root, Value> {
         Tag: 'static,
     {
         match self {
-            KeyPaths::Readable(f) => KeyPaths::Readable(Arc::new(move |root: &Tagged<Root, Tag>| {
-                f(&**root)
-            })),
-            KeyPaths::Writable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+            KeyPaths::Readable(f) => {
+                KeyPaths::Readable(Arc::new(move |root: &Tagged<Root, Tag>| f(&**root)))
             }
-            KeyPaths::FailableReadable(f) => KeyPaths::FailableReadable(Arc::new(move |root: &Tagged<Root, Tag>| {
-                f(&**root)
-            })),
+            KeyPaths::Writable(_) => {
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
+            }
+            KeyPaths::FailableReadable(f) => {
+                KeyPaths::FailableReadable(Arc::new(move |root: &Tagged<Root, Tag>| f(&**root)))
+            }
             KeyPaths::FailableWritable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
             KeyPaths::ReadableEnum { extract, embed } => KeyPaths::ReadableEnum {
-                extract: Arc::new(move |root: &Tagged<Root, Tag>| {
-                    extract(&**root)
-                }),
-                embed: Arc::new(move |value: Value| {
-                    Tagged::new(embed(value))
-                }),
+                extract: Arc::new(move |root: &Tagged<Root, Tag>| extract(&**root)),
+                embed: Arc::new(move |value: Value| Tagged::new(embed(value))),
             },
             KeyPaths::WritableEnum { .. } => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
             KeyPaths::ReferenceWritable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
             KeyPaths::Owned(f) => KeyPaths::Owned(Arc::new(move |root: Tagged<Root, Tag>| {
                 // Tagged consumes itself and returns the inner value by cloning
                 f((*root).clone())
             })),
-            KeyPaths::FailableOwned(f) => KeyPaths::FailableOwned(Arc::new(move |root: Tagged<Root, Tag>| {
-                f((*root).clone())
-            })),
-            KeyPaths::FailableCombined { readable, writable, owned } => KeyPaths::FailableCombined {
+            KeyPaths::FailableOwned(f) => {
+                KeyPaths::FailableOwned(Arc::new(move |root: Tagged<Root, Tag>| f((*root).clone())))
+            }
+            KeyPaths::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => KeyPaths::FailableCombined {
                 readable: Arc::new(move |root: &Tagged<Root, Tag>| readable(&**root)),
                 writable: Arc::new(move |root: &mut Tagged<Root, Tag>| {
-                    panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                    panic!(
+                        "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                    )
                 }),
-                owned: Arc::new(move |_root: Tagged<Root, Tag>| panic!("Tagged does not support owned keypaths")),
+                owned: Arc::new(move |_root: Tagged<Root, Tag>| {
+                    panic!("Tagged does not support owned keypaths")
+                }),
             },
         }
     }
@@ -1058,7 +1247,6 @@ impl<Root, Value> KeyPaths<Root, Value> {
             _ => None,
         }
     }
-
 
     // ===== Owned KeyPath Accessor Methods =====
 
@@ -1193,14 +1381,18 @@ impl<Root> PartialKeyPath<Root> {
                 let typed_root = root.downcast_mut::<Root>().unwrap();
                 f(typed_root)
             })),
-            PartialKeyPath::FailableReadable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
-                let typed_root = root.downcast_ref::<Root>().unwrap();
-                f(typed_root)
-            })),
-            PartialKeyPath::FailableWritable(f) => AnyKeyPath::FailableWritable(Arc::new(move |root| {
-                let typed_root = root.downcast_mut::<Root>().unwrap();
-                f(typed_root)
-            })),
+            PartialKeyPath::FailableReadable(f) => {
+                AnyKeyPath::FailableReadable(Arc::new(move |root| {
+                    let typed_root = root.downcast_ref::<Root>().unwrap();
+                    f(typed_root)
+                }))
+            }
+            PartialKeyPath::FailableWritable(f) => {
+                AnyKeyPath::FailableWritable(Arc::new(move |root| {
+                    let typed_root = root.downcast_mut::<Root>().unwrap();
+                    f(typed_root)
+                }))
+            }
             PartialKeyPath::ReadableEnum { extract, embed } => AnyKeyPath::ReadableEnum {
                 extract: Arc::new(move |root| {
                     let typed_root = root.downcast_ref::<Root>().unwrap();
@@ -1211,7 +1403,11 @@ impl<Root> PartialKeyPath<Root> {
                     Box::new(embed(Box::new(typed_value))) as Box<dyn Any>
                 }),
             },
-            PartialKeyPath::WritableEnum { extract, extract_mut, embed } => AnyKeyPath::WritableEnum {
+            PartialKeyPath::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => AnyKeyPath::WritableEnum {
                 extract: Arc::new(move |root| {
                     let typed_root = root.downcast_ref::<Root>().unwrap();
                     extract(typed_root)
@@ -1225,10 +1421,12 @@ impl<Root> PartialKeyPath<Root> {
                     Box::new(embed(Box::new(typed_value))) as Box<dyn Any>
                 }),
             },
-            PartialKeyPath::ReferenceWritable(f) => AnyKeyPath::ReferenceWritable(Arc::new(move |root| {
-                let typed_root = root.downcast_mut::<Root>().unwrap();
-                f(typed_root)
-            })),
+            PartialKeyPath::ReferenceWritable(f) => {
+                AnyKeyPath::ReferenceWritable(Arc::new(move |root| {
+                    let typed_root = root.downcast_mut::<Root>().unwrap();
+                    f(typed_root)
+                }))
+            }
             PartialKeyPath::Owned(f) => AnyKeyPath::Owned(Arc::new(move |root| {
                 let typed_root = *root.downcast::<Root>().unwrap();
                 f(typed_root)
@@ -1237,7 +1435,11 @@ impl<Root> PartialKeyPath<Root> {
                 let typed_root = *root.downcast::<Root>().unwrap();
                 f(typed_root)
             })),
-            PartialKeyPath::FailableCombined { readable, writable, owned } => AnyKeyPath::FailableCombined {
+            PartialKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => AnyKeyPath::FailableCombined {
                 readable: Arc::new(move |root| {
                     let typed_root = root.downcast_ref::<Root>().unwrap();
                     readable(typed_root)
@@ -1280,27 +1482,47 @@ impl<Root> PartialKeyPath<Root> {
         Root: 'static + Clone,
     {
         match self {
-            PartialKeyPath::Readable(f) => PartialKeyPath::Readable(Arc::new(move |arc: &Arc<Root>| f(&**arc))),
-            PartialKeyPath::Writable(_) => {
-                panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+            PartialKeyPath::Readable(f) => {
+                PartialKeyPath::Readable(Arc::new(move |arc: &Arc<Root>| f(&**arc)))
             }
-            PartialKeyPath::FailableReadable(f) => PartialKeyPath::FailableReadable(Arc::new(move |arc: &Arc<Root>| f(&**arc))),
+            PartialKeyPath::Writable(_) => {
+                panic!(
+                    "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                )
+            }
+            PartialKeyPath::FailableReadable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |arc: &Arc<Root>| f(&**arc)))
+            }
             PartialKeyPath::FailableWritable(_) => {
-                panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+                panic!(
+                    "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                )
             }
             PartialKeyPath::ReadableEnum { extract, embed } => PartialKeyPath::ReadableEnum {
                 extract: Arc::new(move |arc: &Arc<Root>| extract(&**arc)),
                 embed: Arc::new(move |value| Arc::new(embed(value))),
             },
             PartialKeyPath::WritableEnum { .. } => {
-                panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+                panic!(
+                    "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                )
             }
             PartialKeyPath::ReferenceWritable(_) => {
-                panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+                panic!(
+                    "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                )
             }
-            PartialKeyPath::Owned(f) => PartialKeyPath::Owned(Arc::new(move |arc: Arc<Root>| f((*arc).clone()))),
-            PartialKeyPath::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |arc: Arc<Root>| f((*arc).clone()))),
-            PartialKeyPath::FailableCombined { readable, writable, owned } => PartialKeyPath::FailableCombined {
+            PartialKeyPath::Owned(f) => {
+                PartialKeyPath::Owned(Arc::new(move |arc: Arc<Root>| f((*arc).clone())))
+            }
+            PartialKeyPath::FailableOwned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |arc: Arc<Root>| f((*arc).clone())))
+            }
+            PartialKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => PartialKeyPath::FailableCombined {
                 readable: Arc::new(move |root| readable(&**root)),
                 writable: Arc::new(move |_root| panic!("Arc does not support mutable access")),
                 owned: Arc::new(move |root| panic!("Arc does not support owned keypaths")),
@@ -1314,23 +1536,49 @@ impl<Root> PartialKeyPath<Root> {
         Root: 'static,
     {
         match self {
-            PartialKeyPath::Readable(f) => PartialKeyPath::Readable(Arc::new(move |boxed: &Box<Root>| f(&**boxed))),
-            PartialKeyPath::Writable(f) => PartialKeyPath::Writable(Arc::new(move |boxed: &mut Box<Root>| f(&mut **boxed))),
-            PartialKeyPath::FailableReadable(f) => PartialKeyPath::FailableReadable(Arc::new(move |boxed: &Box<Root>| f(&**boxed))),
-            PartialKeyPath::FailableWritable(f) => PartialKeyPath::FailableWritable(Arc::new(move |boxed: &mut Box<Root>| f(&mut **boxed))),
+            PartialKeyPath::Readable(f) => {
+                PartialKeyPath::Readable(Arc::new(move |boxed: &Box<Root>| f(&**boxed)))
+            }
+            PartialKeyPath::Writable(f) => {
+                PartialKeyPath::Writable(Arc::new(move |boxed: &mut Box<Root>| f(&mut **boxed)))
+            }
+            PartialKeyPath::FailableReadable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |boxed: &Box<Root>| f(&**boxed)))
+            }
+            PartialKeyPath::FailableWritable(f) => {
+                PartialKeyPath::FailableWritable(Arc::new(move |boxed: &mut Box<Root>| {
+                    f(&mut **boxed)
+                }))
+            }
             PartialKeyPath::ReadableEnum { extract, embed } => PartialKeyPath::ReadableEnum {
                 extract: Arc::new(move |boxed: &Box<Root>| extract(&**boxed)),
                 embed: Arc::new(move |value| Box::new(embed(value))),
             },
-            PartialKeyPath::WritableEnum { extract, extract_mut, embed } => PartialKeyPath::WritableEnum {
+            PartialKeyPath::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => PartialKeyPath::WritableEnum {
                 extract: Arc::new(move |boxed: &Box<Root>| extract(&**boxed)),
                 extract_mut: Arc::new(move |boxed: &mut Box<Root>| extract_mut(&mut **boxed)),
                 embed: Arc::new(move |value| Box::new(embed(value))),
             },
-            PartialKeyPath::ReferenceWritable(f) => PartialKeyPath::ReferenceWritable(Arc::new(move |boxed: &mut Box<Root>| f(&mut **boxed))),
-            PartialKeyPath::Owned(f) => PartialKeyPath::Owned(Arc::new(move |boxed: Box<Root>| f(*boxed))),
-            PartialKeyPath::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |boxed: Box<Root>| f(*boxed))),
-            PartialKeyPath::FailableCombined { readable, writable, owned } => PartialKeyPath::FailableCombined {
+            PartialKeyPath::ReferenceWritable(f) => {
+                PartialKeyPath::ReferenceWritable(Arc::new(move |boxed: &mut Box<Root>| {
+                    f(&mut **boxed)
+                }))
+            }
+            PartialKeyPath::Owned(f) => {
+                PartialKeyPath::Owned(Arc::new(move |boxed: Box<Root>| f(*boxed)))
+            }
+            PartialKeyPath::FailableOwned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |boxed: Box<Root>| f(*boxed)))
+            }
+            PartialKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => PartialKeyPath::FailableCombined {
                 readable: Arc::new(move |root| readable(&**root)),
                 writable: Arc::new(move |_root| panic!("Arc does not support mutable access")),
                 owned: Arc::new(move |root| panic!("Arc does not support owned keypaths")),
@@ -1344,27 +1592,47 @@ impl<Root> PartialKeyPath<Root> {
         Root: 'static + Clone,
     {
         match self {
-            PartialKeyPath::Readable(f) => PartialKeyPath::Readable(Arc::new(move |rc: &Rc<Root>| f(&**rc))),
-            PartialKeyPath::Writable(_) => {
-                panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+            PartialKeyPath::Readable(f) => {
+                PartialKeyPath::Readable(Arc::new(move |rc: &Rc<Root>| f(&**rc)))
             }
-            PartialKeyPath::FailableReadable(f) => PartialKeyPath::FailableReadable(Arc::new(move |rc: &Rc<Root>| f(&**rc))),
+            PartialKeyPath::Writable(_) => {
+                panic!(
+                    "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                )
+            }
+            PartialKeyPath::FailableReadable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |rc: &Rc<Root>| f(&**rc)))
+            }
             PartialKeyPath::FailableWritable(_) => {
-                panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+                panic!(
+                    "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                )
             }
             PartialKeyPath::ReadableEnum { extract, embed } => PartialKeyPath::ReadableEnum {
                 extract: Arc::new(move |rc: &Rc<Root>| extract(&**rc)),
                 embed: Arc::new(move |value| Rc::new(embed(value))),
             },
             PartialKeyPath::WritableEnum { .. } => {
-                panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+                panic!(
+                    "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                )
             }
             PartialKeyPath::ReferenceWritable(_) => {
-                panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+                panic!(
+                    "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                )
             }
-            PartialKeyPath::Owned(f) => PartialKeyPath::Owned(Arc::new(move |rc: Rc<Root>| f((*rc).clone()))),
-            PartialKeyPath::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |rc: Rc<Root>| f((*rc).clone()))),
-            PartialKeyPath::FailableCombined { readable, writable, owned } => PartialKeyPath::FailableCombined {
+            PartialKeyPath::Owned(f) => {
+                PartialKeyPath::Owned(Arc::new(move |rc: Rc<Root>| f((*rc).clone())))
+            }
+            PartialKeyPath::FailableOwned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |rc: Rc<Root>| f((*rc).clone())))
+            }
+            PartialKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => PartialKeyPath::FailableCombined {
                 readable: Arc::new(move |root| readable(&**root)),
                 writable: Arc::new(move |_root| panic!("Arc does not support mutable access")),
                 owned: Arc::new(move |root| panic!("Arc does not support owned keypaths")),
@@ -1378,25 +1646,43 @@ impl<Root> PartialKeyPath<Root> {
         Root: 'static,
     {
         match self {
-            PartialKeyPath::Readable(f) => PartialKeyPath::FailableReadable(Arc::new(move |result: &Result<Root, E>| {
-                result.as_ref().ok().map(|root| f(root) as &(dyn Any + Send + Sync))
-            })),
-            PartialKeyPath::Writable(f) => PartialKeyPath::FailableWritable(Arc::new(move |result: &mut Result<Root, E>| {
-                result.as_mut().ok().map(|root| f(root) as &mut (dyn Any + Send + Sync))
-            })),
-            PartialKeyPath::FailableReadable(f) => PartialKeyPath::FailableReadable(Arc::new(move |result: &Result<Root, E>| {
-                result.as_ref().ok().and_then(|root| f(root))
-            })),
-            PartialKeyPath::FailableWritable(f) => PartialKeyPath::FailableWritable(Arc::new(move |result: &mut Result<Root, E>| {
-                result.as_mut().ok().and_then(|root| f(root))
-            })),
+            PartialKeyPath::Readable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |result: &Result<Root, E>| {
+                    result
+                        .as_ref()
+                        .ok()
+                        .map(|root| f(root) as &(dyn Any + Send + Sync))
+                }))
+            }
+            PartialKeyPath::Writable(f) => {
+                PartialKeyPath::FailableWritable(Arc::new(move |result: &mut Result<Root, E>| {
+                    result
+                        .as_mut()
+                        .ok()
+                        .map(|root| f(root) as &mut (dyn Any + Send + Sync))
+                }))
+            }
+            PartialKeyPath::FailableReadable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |result: &Result<Root, E>| {
+                    result.as_ref().ok().and_then(|root| f(root))
+                }))
+            }
+            PartialKeyPath::FailableWritable(f) => {
+                PartialKeyPath::FailableWritable(Arc::new(move |result: &mut Result<Root, E>| {
+                    result.as_mut().ok().and_then(|root| f(root))
+                }))
+            }
             PartialKeyPath::ReadableEnum { extract, embed } => PartialKeyPath::ReadableEnum {
                 extract: Arc::new(move |result: &Result<Root, E>| {
                     result.as_ref().ok().and_then(|root| extract(root))
                 }),
                 embed: Arc::new(move |value| Ok(embed(value))),
             },
-            PartialKeyPath::WritableEnum { extract, extract_mut, embed } => PartialKeyPath::WritableEnum {
+            PartialKeyPath::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => PartialKeyPath::WritableEnum {
                 extract: Arc::new(move |result: &Result<Root, E>| {
                     result.as_ref().ok().and_then(|root| extract(root))
                 }),
@@ -1405,16 +1691,29 @@ impl<Root> PartialKeyPath<Root> {
                 }),
                 embed: Arc::new(move |value| Ok(embed(value))),
             },
-            PartialKeyPath::ReferenceWritable(f) => PartialKeyPath::FailableWritable(Arc::new(move |result: &mut Result<Root, E>| {
-                result.as_mut().ok().map(|root| f(root) as &mut (dyn Any + Send + Sync))
-            })),
-            PartialKeyPath::Owned(f) => PartialKeyPath::FailableOwned(Arc::new(move |result: Result<Root, E>| {
-                result.ok().map(|root| f(root))
-            })),
-            PartialKeyPath::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |result: Result<Root, E>| {
-                result.ok().and_then(|root| f(root))
-            })),
-            PartialKeyPath::FailableCombined { readable, writable, owned } => PartialKeyPath::FailableCombined {
+            PartialKeyPath::ReferenceWritable(f) => {
+                PartialKeyPath::FailableWritable(Arc::new(move |result: &mut Result<Root, E>| {
+                    result
+                        .as_mut()
+                        .ok()
+                        .map(|root| f(root) as &mut (dyn Any + Send + Sync))
+                }))
+            }
+            PartialKeyPath::Owned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |result: Result<Root, E>| {
+                    result.ok().map(|root| f(root))
+                }))
+            }
+            PartialKeyPath::FailableOwned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |result: Result<Root, E>| {
+                    result.ok().and_then(|root| f(root))
+                }))
+            }
+            PartialKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => PartialKeyPath::FailableCombined {
                 readable: Arc::new(move |result: &Result<Root, E>| {
                     result.as_ref().ok().and_then(|root| readable(root))
                 }),
@@ -1434,25 +1733,41 @@ impl<Root> PartialKeyPath<Root> {
         Root: 'static,
     {
         match self {
-            PartialKeyPath::Readable(f) => PartialKeyPath::FailableReadable(Arc::new(move |option: &Option<Root>| {
-                option.as_ref().map(|root| f(root) as &(dyn Any + Send + Sync))
-            })),
-            PartialKeyPath::Writable(f) => PartialKeyPath::FailableWritable(Arc::new(move |option: &mut Option<Root>| {
-                option.as_mut().map(|root| f(root) as &mut (dyn Any + Send + Sync))
-            })),
-            PartialKeyPath::FailableReadable(f) => PartialKeyPath::FailableReadable(Arc::new(move |option: &Option<Root>| {
-                option.as_ref().and_then(|root| f(root))
-            })),
-            PartialKeyPath::FailableWritable(f) => PartialKeyPath::FailableWritable(Arc::new(move |option: &mut Option<Root>| {
-                option.as_mut().and_then(|root| f(root))
-            })),
+            PartialKeyPath::Readable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |option: &Option<Root>| {
+                    option
+                        .as_ref()
+                        .map(|root| f(root) as &(dyn Any + Send + Sync))
+                }))
+            }
+            PartialKeyPath::Writable(f) => {
+                PartialKeyPath::FailableWritable(Arc::new(move |option: &mut Option<Root>| {
+                    option
+                        .as_mut()
+                        .map(|root| f(root) as &mut (dyn Any + Send + Sync))
+                }))
+            }
+            PartialKeyPath::FailableReadable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |option: &Option<Root>| {
+                    option.as_ref().and_then(|root| f(root))
+                }))
+            }
+            PartialKeyPath::FailableWritable(f) => {
+                PartialKeyPath::FailableWritable(Arc::new(move |option: &mut Option<Root>| {
+                    option.as_mut().and_then(|root| f(root))
+                }))
+            }
             PartialKeyPath::ReadableEnum { extract, embed } => PartialKeyPath::ReadableEnum {
                 extract: Arc::new(move |option: &Option<Root>| {
                     option.as_ref().and_then(|root| extract(root))
                 }),
                 embed: Arc::new(move |value| Some(embed(value))),
             },
-            PartialKeyPath::WritableEnum { extract, extract_mut, embed } => PartialKeyPath::WritableEnum {
+            PartialKeyPath::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => PartialKeyPath::WritableEnum {
                 extract: Arc::new(move |option: &Option<Root>| {
                     option.as_ref().and_then(|root| extract(root))
                 }),
@@ -1461,25 +1776,35 @@ impl<Root> PartialKeyPath<Root> {
                 }),
                 embed: Arc::new(move |value| Some(embed(value))),
             },
-            PartialKeyPath::ReferenceWritable(f) => PartialKeyPath::FailableWritable(Arc::new(move |option: &mut Option<Root>| {
-                option.as_mut().map(|root| f(root) as &mut (dyn Any + Send + Sync))
-            })),
-            PartialKeyPath::Owned(f) => PartialKeyPath::FailableOwned(Arc::new(move |option: Option<Root>| {
-                option.map(|root| f(root))
-            })),
-            PartialKeyPath::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |option: Option<Root>| {
-                option.and_then(|root| f(root))
-            })),
-            PartialKeyPath::FailableCombined { readable, writable, owned } => PartialKeyPath::FailableCombined {
+            PartialKeyPath::ReferenceWritable(f) => {
+                PartialKeyPath::FailableWritable(Arc::new(move |option: &mut Option<Root>| {
+                    option
+                        .as_mut()
+                        .map(|root| f(root) as &mut (dyn Any + Send + Sync))
+                }))
+            }
+            PartialKeyPath::Owned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |option: Option<Root>| {
+                    option.map(|root| f(root))
+                }))
+            }
+            PartialKeyPath::FailableOwned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |option: Option<Root>| {
+                    option.and_then(|root| f(root))
+                }))
+            }
+            PartialKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => PartialKeyPath::FailableCombined {
                 readable: Arc::new(move |option: &Option<Root>| {
                     option.as_ref().and_then(|root| readable(root))
                 }),
                 writable: Arc::new(move |option: &mut Option<Root>| {
                     option.as_mut().and_then(|root| writable(root))
                 }),
-                owned: Arc::new(move |option: Option<Root>| {
-                    option.and_then(|root| owned(root))
-                }),
+                owned: Arc::new(move |option: Option<Root>| option.and_then(|root| owned(root))),
             },
         }
     }
@@ -1492,44 +1817,64 @@ impl<Root> PartialKeyPath<Root> {
     {
         match self {
             PartialKeyPath::Readable(_) => {
-                panic!("Arc<RwLock> does not support readable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support readable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::Writable(_) => {
-                panic!("Arc<RwLock> does not support writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::FailableReadable(_) => {
-                panic!("Arc<RwLock> does not support failable readable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support failable readable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::FailableWritable(_) => {
-                panic!("Arc<RwLock> does not support failable writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support failable writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::ReadableEnum { .. } => {
-                panic!("Arc<RwLock> does not support readable enum keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support readable enum keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::WritableEnum { .. } => {
-                panic!("Arc<RwLock> does not support writable enum keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support writable enum keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::ReferenceWritable(_) => {
-                panic!("Arc<RwLock> does not support reference writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support reference writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
-            PartialKeyPath::Owned(f) => PartialKeyPath::Owned(Arc::new(move |arc_rwlock: Arc<RwLock<Root>>| {
-                let guard = arc_rwlock.read().unwrap();
-                let value = f((*guard).clone());
-                drop(guard); // Ensure guard is dropped before returning
-                value
-            })),
-            PartialKeyPath::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |arc_rwlock: Arc<RwLock<Root>>| {
-                let guard = arc_rwlock.read().unwrap();
-                let value = f((*guard).clone());
-                drop(guard); // Ensure guard is dropped before returning
-                value
-            })),
-            PartialKeyPath::FailableCombined { owned, .. } => PartialKeyPath::FailableOwned(Arc::new(move |arc_rwlock: Arc<RwLock<Root>>| {
-                let guard = arc_rwlock.read().unwrap();
-                let value = owned((*guard).clone());
-                drop(guard); // Ensure guard is dropped before returning
-                value
-            })),
+            PartialKeyPath::Owned(f) => {
+                PartialKeyPath::Owned(Arc::new(move |arc_rwlock: Arc<RwLock<Root>>| {
+                    let guard = arc_rwlock.read().unwrap();
+                    let value = f((*guard).clone());
+                    drop(guard); // Ensure guard is dropped before returning
+                    value
+                }))
+            }
+            PartialKeyPath::FailableOwned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |arc_rwlock: Arc<RwLock<Root>>| {
+                    let guard = arc_rwlock.read().unwrap();
+                    let value = f((*guard).clone());
+                    drop(guard); // Ensure guard is dropped before returning
+                    value
+                }))
+            }
+            PartialKeyPath::FailableCombined { owned, .. } => {
+                PartialKeyPath::FailableOwned(Arc::new(move |arc_rwlock: Arc<RwLock<Root>>| {
+                    let guard = arc_rwlock.read().unwrap();
+                    let value = owned((*guard).clone());
+                    drop(guard); // Ensure guard is dropped before returning
+                    value
+                }))
+            }
         }
     }
 
@@ -1541,44 +1886,64 @@ impl<Root> PartialKeyPath<Root> {
     {
         match self {
             PartialKeyPath::Readable(_) => {
-                panic!("Arc<Mutex> does not support readable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support readable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::Writable(_) => {
-                panic!("Arc<Mutex> does not support writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::FailableReadable(_) => {
-                panic!("Arc<Mutex> does not support failable readable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support failable readable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::FailableWritable(_) => {
-                panic!("Arc<Mutex> does not support failable writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support failable writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::ReadableEnum { .. } => {
-                panic!("Arc<Mutex> does not support readable enum keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support readable enum keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::WritableEnum { .. } => {
-                panic!("Arc<Mutex> does not support writable enum keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support writable enum keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             PartialKeyPath::ReferenceWritable(_) => {
-                panic!("Arc<Mutex> does not support reference writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support reference writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
-            PartialKeyPath::Owned(f) => PartialKeyPath::Owned(Arc::new(move |arc_mutex: Arc<Mutex<Root>>| {
-                let guard = arc_mutex.lock().unwrap();
-                let value = f((*guard).clone());
-                drop(guard); // Ensure guard is dropped before returning
-                value
-            })),
-            PartialKeyPath::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |arc_mutex: Arc<Mutex<Root>>| {
-                let guard = arc_mutex.lock().unwrap();
-                let value = f((*guard).clone());
-                drop(guard); // Ensure guard is dropped before returning
-                value
-            })),
-            PartialKeyPath::FailableCombined { owned, .. } => PartialKeyPath::FailableOwned(Arc::new(move |arc_mutex: Arc<Mutex<Root>>| {
-                let guard = arc_mutex.lock().unwrap();
-                let value = owned((*guard).clone());
-                drop(guard); // Ensure guard is dropped before returning
-                value
-            })),
+            PartialKeyPath::Owned(f) => {
+                PartialKeyPath::Owned(Arc::new(move |arc_mutex: Arc<Mutex<Root>>| {
+                    let guard = arc_mutex.lock().unwrap();
+                    let value = f((*guard).clone());
+                    drop(guard); // Ensure guard is dropped before returning
+                    value
+                }))
+            }
+            PartialKeyPath::FailableOwned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |arc_mutex: Arc<Mutex<Root>>| {
+                    let guard = arc_mutex.lock().unwrap();
+                    let value = f((*guard).clone());
+                    drop(guard); // Ensure guard is dropped before returning
+                    value
+                }))
+            }
+            PartialKeyPath::FailableCombined { owned, .. } => {
+                PartialKeyPath::FailableOwned(Arc::new(move |arc_mutex: Arc<Mutex<Root>>| {
+                    let guard = arc_mutex.lock().unwrap();
+                    let value = owned((*guard).clone());
+                    drop(guard); // Ensure guard is dropped before returning
+                    value
+                }))
+            }
         }
     }
 
@@ -1589,46 +1954,62 @@ impl<Root> PartialKeyPath<Root> {
         Root: Clone + 'static,
     {
         match self {
-            PartialKeyPath::Readable(f) => PartialKeyPath::Readable(Arc::new(move |tagged: &Tagged<Root, Tag>| {
-                f(&*tagged) as &(dyn Any + Send + Sync)
-            })),
-            PartialKeyPath::Writable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+            PartialKeyPath::Readable(f) => {
+                PartialKeyPath::Readable(Arc::new(move |tagged: &Tagged<Root, Tag>| {
+                    f(&*tagged) as &(dyn Any + Send + Sync)
+                }))
             }
-            PartialKeyPath::FailableReadable(f) => PartialKeyPath::FailableReadable(Arc::new(move |tagged: &Tagged<Root, Tag>| {
-                f(&*tagged)
-            })),
+            PartialKeyPath::Writable(_) => {
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
+            }
+            PartialKeyPath::FailableReadable(f) => {
+                PartialKeyPath::FailableReadable(Arc::new(move |tagged: &Tagged<Root, Tag>| {
+                    f(&*tagged)
+                }))
+            }
             PartialKeyPath::FailableWritable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
             PartialKeyPath::ReadableEnum { extract, embed } => PartialKeyPath::ReadableEnum {
-                extract: Arc::new(move |tagged: &Tagged<Root, Tag>| {
-                    extract(&*tagged)
-                }),
+                extract: Arc::new(move |tagged: &Tagged<Root, Tag>| extract(&*tagged)),
                 embed: Arc::new(move |value| embed(value).into()),
             },
             PartialKeyPath::WritableEnum { .. } => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
             PartialKeyPath::ReferenceWritable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
-            PartialKeyPath::Owned(f) => PartialKeyPath::Owned(Arc::new(move |tagged: Tagged<Root, Tag>| {
-                f((*tagged).clone())
-            })),
-            PartialKeyPath::FailableOwned(f) => PartialKeyPath::FailableOwned(Arc::new(move |tagged: Tagged<Root, Tag>| {
-                f((*tagged).clone())
-            })),
-            PartialKeyPath::FailableCombined { readable, writable, owned } => PartialKeyPath::FailableCombined {
-                readable: Arc::new(move |tagged: &Tagged<Root, Tag>| {
-                    readable(&*tagged)
-                }),
+            PartialKeyPath::Owned(f) => {
+                PartialKeyPath::Owned(Arc::new(move |tagged: Tagged<Root, Tag>| {
+                    f((*tagged).clone())
+                }))
+            }
+            PartialKeyPath::FailableOwned(f) => {
+                PartialKeyPath::FailableOwned(Arc::new(move |tagged: Tagged<Root, Tag>| {
+                    f((*tagged).clone())
+                }))
+            }
+            PartialKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => PartialKeyPath::FailableCombined {
+                readable: Arc::new(move |tagged: &Tagged<Root, Tag>| readable(&*tagged)),
                 writable: Arc::new(move |_tagged: &mut Tagged<Root, Tag>| {
-                    panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                    panic!(
+                        "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                    )
                 }),
-                owned: Arc::new(move |tagged: Tagged<Root, Tag>| {
-                    owned((*tagged).clone())
-                }),
+                owned: Arc::new(move |tagged: Tagged<Root, Tag>| owned((*tagged).clone())),
             },
         }
     }
@@ -1638,7 +2019,10 @@ impl<Root> PartialKeyPath<Root> {
 impl AnyKeyPath {
     /// Get an immutable reference if possible
     #[inline]
-    pub fn get<'a>(&'a self, root: &'a (dyn Any + Send + Sync)) -> Option<&'a (dyn Any + Send + Sync)> {
+    pub fn get<'a>(
+        &'a self,
+        root: &'a (dyn Any + Send + Sync),
+    ) -> Option<&'a (dyn Any + Send + Sync)> {
         match self {
             AnyKeyPath::Readable(f) => Some(f(root)),
             AnyKeyPath::Writable(_) => None, // Writable requires mut
@@ -1647,15 +2031,18 @@ impl AnyKeyPath {
             AnyKeyPath::ReadableEnum { extract, .. } => extract(root),
             AnyKeyPath::WritableEnum { extract, .. } => extract(root),
             AnyKeyPath::ReferenceWritable(_) => None, // ReferenceWritable requires mut
-            AnyKeyPath::Owned(_) => None, // Owned keypaths don't work with references
-            AnyKeyPath::FailableOwned(_) => None, // Owned keypaths don't work with references
+            AnyKeyPath::Owned(_) => None,             // Owned keypaths don't work with references
+            AnyKeyPath::FailableOwned(_) => None,     // Owned keypaths don't work with references
             AnyKeyPath::FailableCombined { readable, .. } => readable(root),
         }
     }
 
     /// Get a mutable reference if possible
     #[inline]
-    pub fn get_mut<'a>(&'a self, root: &'a mut (dyn Any + Send + Sync)) -> Option<&'a mut (dyn Any + Send + Sync)> {
+    pub fn get_mut<'a>(
+        &'a self,
+        root: &'a mut (dyn Any + Send + Sync),
+    ) -> Option<&'a mut (dyn Any + Send + Sync)> {
         match self {
             AnyKeyPath::Readable(_) => None, // immutable only
             AnyKeyPath::Writable(f) => Some(f(root)),
@@ -1719,14 +2106,20 @@ impl AnyKeyPath {
                 f(&**arc as &(dyn Any + Send + Sync))
             })),
             AnyKeyPath::Writable(_) => {
-                panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+                panic!(
+                    "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                )
             }
-            AnyKeyPath::FailableReadable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
-                let arc = root.downcast_ref::<Arc<Root>>().unwrap();
-                f(&**arc as &(dyn Any + Send + Sync))
-            })),
+            AnyKeyPath::FailableReadable(f) => {
+                AnyKeyPath::FailableReadable(Arc::new(move |root| {
+                    let arc = root.downcast_ref::<Arc<Root>>().unwrap();
+                    f(&**arc as &(dyn Any + Send + Sync))
+                }))
+            }
             AnyKeyPath::FailableWritable(_) => {
-                panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+                panic!(
+                    "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::ReadableEnum { extract, embed } => AnyKeyPath::ReadableEnum {
                 extract: Arc::new(move |root| {
@@ -1739,10 +2132,14 @@ impl AnyKeyPath {
                 }),
             },
             AnyKeyPath::WritableEnum { .. } => {
-                panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+                panic!(
+                    "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::ReferenceWritable(_) => {
-                panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+                panic!(
+                    "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::Owned(f) => AnyKeyPath::Owned(Arc::new(move |root| {
                 let arc = *root.downcast::<Arc<Root>>().unwrap();
@@ -1752,13 +2149,19 @@ impl AnyKeyPath {
                 let arc = *root.downcast::<Arc<Root>>().unwrap();
                 f(Box::new((*arc).clone()) as Box<dyn Any>)
             })),
-            AnyKeyPath::FailableCombined { readable, writable, owned } => AnyKeyPath::FailableCombined {
+            AnyKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => AnyKeyPath::FailableCombined {
                 readable: Arc::new(move |root| {
                     let arc = root.downcast_ref::<Arc<Root>>().unwrap();
                     readable(&**arc as &(dyn Any + Send + Sync))
                 }),
                 writable: Arc::new(move |_root| {
-                    panic!("Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)")
+                    panic!(
+                        "Arc does not support writable keypaths (Arc only implements Deref, not DerefMut)"
+                    )
                 }),
                 owned: Arc::new(move |root| {
                     let arc = *root.downcast::<Arc<Root>>().unwrap();
@@ -1782,14 +2185,18 @@ impl AnyKeyPath {
                 let boxed = root.downcast_mut::<Box<Root>>().unwrap();
                 f(&mut **boxed as &mut (dyn Any + Send + Sync))
             })),
-            AnyKeyPath::FailableReadable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
-                let boxed = root.downcast_ref::<Box<Root>>().unwrap();
-                f(&**boxed as &(dyn Any + Send + Sync))
-            })),
-            AnyKeyPath::FailableWritable(f) => AnyKeyPath::FailableWritable(Arc::new(move |root| {
-                let boxed = root.downcast_mut::<Box<Root>>().unwrap();
-                f(&mut **boxed as &mut (dyn Any + Send + Sync))
-            })),
+            AnyKeyPath::FailableReadable(f) => {
+                AnyKeyPath::FailableReadable(Arc::new(move |root| {
+                    let boxed = root.downcast_ref::<Box<Root>>().unwrap();
+                    f(&**boxed as &(dyn Any + Send + Sync))
+                }))
+            }
+            AnyKeyPath::FailableWritable(f) => {
+                AnyKeyPath::FailableWritable(Arc::new(move |root| {
+                    let boxed = root.downcast_mut::<Box<Root>>().unwrap();
+                    f(&mut **boxed as &mut (dyn Any + Send + Sync))
+                }))
+            }
             AnyKeyPath::ReadableEnum { extract, embed } => AnyKeyPath::ReadableEnum {
                 extract: Arc::new(move |root| {
                     let boxed = root.downcast_ref::<Box<Root>>().unwrap();
@@ -1800,7 +2207,11 @@ impl AnyKeyPath {
                     Box::new(Box::new(*inner.downcast::<Root>().unwrap())) as Box<dyn Any>
                 }),
             },
-            AnyKeyPath::WritableEnum { extract, extract_mut, embed } => AnyKeyPath::WritableEnum {
+            AnyKeyPath::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => AnyKeyPath::WritableEnum {
                 extract: Arc::new(move |root| {
                     let boxed = root.downcast_ref::<Box<Root>>().unwrap();
                     extract(&**boxed as &(dyn Any + Send + Sync))
@@ -1814,10 +2225,12 @@ impl AnyKeyPath {
                     Box::new(Box::new(*inner.downcast::<Root>().unwrap())) as Box<dyn Any>
                 }),
             },
-            AnyKeyPath::ReferenceWritable(f) => AnyKeyPath::ReferenceWritable(Arc::new(move |root| {
-                let boxed = root.downcast_mut::<Box<Root>>().unwrap();
-                f(&mut **boxed as &mut (dyn Any + Send + Sync))
-            })),
+            AnyKeyPath::ReferenceWritable(f) => {
+                AnyKeyPath::ReferenceWritable(Arc::new(move |root| {
+                    let boxed = root.downcast_mut::<Box<Root>>().unwrap();
+                    f(&mut **boxed as &mut (dyn Any + Send + Sync))
+                }))
+            }
             AnyKeyPath::Owned(f) => AnyKeyPath::Owned(Arc::new(move |root| {
                 let boxed = *root.downcast::<Box<Root>>().unwrap();
                 f(Box::new(*boxed) as Box<dyn Any>)
@@ -1826,7 +2239,11 @@ impl AnyKeyPath {
                 let boxed = *root.downcast::<Box<Root>>().unwrap();
                 f(Box::new(*boxed) as Box<dyn Any>)
             })),
-            AnyKeyPath::FailableCombined { readable, writable, owned } => AnyKeyPath::FailableCombined {
+            AnyKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => AnyKeyPath::FailableCombined {
                 readable: Arc::new(move |root| {
                     let boxed = root.downcast_ref::<Box<Root>>().unwrap();
                     readable(&**boxed as &(dyn Any + Send + Sync))
@@ -1854,14 +2271,20 @@ impl AnyKeyPath {
                 f(&**rc as &(dyn Any + Send + Sync))
             })),
             AnyKeyPath::Writable(_) => {
-                panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+                panic!(
+                    "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                )
             }
-            AnyKeyPath::FailableReadable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
-                let rc = root.downcast_ref::<Rc<Root>>().unwrap();
-                f(&**rc as &(dyn Any + Send + Sync))
-            })),
+            AnyKeyPath::FailableReadable(f) => {
+                AnyKeyPath::FailableReadable(Arc::new(move |root| {
+                    let rc = root.downcast_ref::<Rc<Root>>().unwrap();
+                    f(&**rc as &(dyn Any + Send + Sync))
+                }))
+            }
             AnyKeyPath::FailableWritable(_) => {
-                panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+                panic!(
+                    "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::ReadableEnum { extract, embed } => AnyKeyPath::ReadableEnum {
                 extract: Arc::new(move |root| {
@@ -1874,10 +2297,14 @@ impl AnyKeyPath {
                 }),
             },
             AnyKeyPath::WritableEnum { .. } => {
-                panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+                panic!(
+                    "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::ReferenceWritable(_) => {
-                panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+                panic!(
+                    "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::Owned(f) => AnyKeyPath::Owned(Arc::new(move |root| {
                 let rc = *root.downcast::<Rc<Root>>().unwrap();
@@ -1887,13 +2314,19 @@ impl AnyKeyPath {
                 let rc = *root.downcast::<Rc<Root>>().unwrap();
                 f(Box::new((*rc).clone()) as Box<dyn Any>)
             })),
-            AnyKeyPath::FailableCombined { readable, writable, owned } => AnyKeyPath::FailableCombined {
+            AnyKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => AnyKeyPath::FailableCombined {
                 readable: Arc::new(move |root| {
                     let rc = root.downcast_ref::<Rc<Root>>().unwrap();
                     readable(&**rc as &(dyn Any + Send + Sync))
                 }),
                 writable: Arc::new(move |_root| {
-                    panic!("Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)")
+                    panic!(
+                        "Rc does not support writable keypaths (Rc only implements Deref, not DerefMut)"
+                    )
                 }),
                 owned: Arc::new(move |root| {
                     let rc = *root.downcast::<Rc<Root>>().unwrap();
@@ -1912,68 +2345,116 @@ impl AnyKeyPath {
         match self {
             AnyKeyPath::Readable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
                 let result = root.downcast_ref::<Result<Root, E>>().unwrap();
-                result.as_ref().ok().map(|inner| f(inner as &(dyn Any + Send + Sync)))
+                result
+                    .as_ref()
+                    .ok()
+                    .map(|inner| f(inner as &(dyn Any + Send + Sync)))
             })),
             AnyKeyPath::Writable(f) => AnyKeyPath::FailableWritable(Arc::new(move |root| {
                 let result = root.downcast_mut::<Result<Root, E>>().unwrap();
-                result.as_mut().ok().map(|inner| f(inner as &mut (dyn Any + Send + Sync)))
+                result
+                    .as_mut()
+                    .ok()
+                    .map(|inner| f(inner as &mut (dyn Any + Send + Sync)))
             })),
-            AnyKeyPath::FailableReadable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
-                let result = root.downcast_ref::<Result<Root, E>>().unwrap();
-                result.as_ref().ok().and_then(|inner| f(inner as &(dyn Any + Send + Sync)))
-            })),
-            AnyKeyPath::FailableWritable(f) => AnyKeyPath::FailableWritable(Arc::new(move |root| {
-                let result = root.downcast_mut::<Result<Root, E>>().unwrap();
-                result.as_mut().ok().and_then(|inner| f(inner as &mut (dyn Any + Send + Sync)))
-            })),
+            AnyKeyPath::FailableReadable(f) => {
+                AnyKeyPath::FailableReadable(Arc::new(move |root| {
+                    let result = root.downcast_ref::<Result<Root, E>>().unwrap();
+                    result
+                        .as_ref()
+                        .ok()
+                        .and_then(|inner| f(inner as &(dyn Any + Send + Sync)))
+                }))
+            }
+            AnyKeyPath::FailableWritable(f) => {
+                AnyKeyPath::FailableWritable(Arc::new(move |root| {
+                    let result = root.downcast_mut::<Result<Root, E>>().unwrap();
+                    result
+                        .as_mut()
+                        .ok()
+                        .and_then(|inner| f(inner as &mut (dyn Any + Send + Sync)))
+                }))
+            }
             AnyKeyPath::ReadableEnum { extract, embed } => AnyKeyPath::ReadableEnum {
                 extract: Arc::new(move |root| {
                     let result = root.downcast_ref::<Result<Root, E>>().unwrap();
-                    result.as_ref().ok().and_then(|inner| extract(inner as &(dyn Any + Send + Sync)))
+                    result
+                        .as_ref()
+                        .ok()
+                        .and_then(|inner| extract(inner as &(dyn Any + Send + Sync)))
                 }),
                 embed: Arc::new(move |value| {
                     let inner = embed(value);
                     Box::new(Ok::<Root, E>(*inner.downcast::<Root>().unwrap())) as Box<dyn Any>
                 }),
             },
-            AnyKeyPath::WritableEnum { extract, extract_mut, embed } => AnyKeyPath::WritableEnum {
+            AnyKeyPath::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => AnyKeyPath::WritableEnum {
                 extract: Arc::new(move |root| {
                     let result = root.downcast_ref::<Result<Root, E>>().unwrap();
-                    result.as_ref().ok().and_then(|inner| extract(inner as &(dyn Any + Send + Sync)))
+                    result
+                        .as_ref()
+                        .ok()
+                        .and_then(|inner| extract(inner as &(dyn Any + Send + Sync)))
                 }),
                 extract_mut: Arc::new(move |root| {
                     let result = root.downcast_mut::<Result<Root, E>>().unwrap();
-                    result.as_mut().ok().and_then(|inner| extract_mut(inner as &mut (dyn Any + Send + Sync)))
+                    result
+                        .as_mut()
+                        .ok()
+                        .and_then(|inner| extract_mut(inner as &mut (dyn Any + Send + Sync)))
                 }),
                 embed: Arc::new(move |value| {
                     let inner = embed(value);
                     Box::new(Ok::<Root, E>(*inner.downcast::<Root>().unwrap())) as Box<dyn Any>
                 }),
             },
-            AnyKeyPath::ReferenceWritable(f) => AnyKeyPath::FailableWritable(Arc::new(move |root| {
-                let result = root.downcast_mut::<Result<Root, E>>().unwrap();
-                result.as_mut().ok().map(|inner| f(inner as &mut (dyn Any + Send + Sync)))
-            })),
+            AnyKeyPath::ReferenceWritable(f) => {
+                AnyKeyPath::FailableWritable(Arc::new(move |root| {
+                    let result = root.downcast_mut::<Result<Root, E>>().unwrap();
+                    result
+                        .as_mut()
+                        .ok()
+                        .map(|inner| f(inner as &mut (dyn Any + Send + Sync)))
+                }))
+            }
             AnyKeyPath::Owned(f) => AnyKeyPath::FailableOwned(Arc::new(move |root| {
                 let result = *root.downcast::<Result<Root, E>>().unwrap();
                 result.ok().map(|inner| f(Box::new(inner) as Box<dyn Any>))
             })),
             AnyKeyPath::FailableOwned(f) => AnyKeyPath::FailableOwned(Arc::new(move |root| {
                 let result = *root.downcast::<Result<Root, E>>().unwrap();
-                result.ok().and_then(|inner| f(Box::new(inner) as Box<dyn Any>))
+                result
+                    .ok()
+                    .and_then(|inner| f(Box::new(inner) as Box<dyn Any>))
             })),
-            AnyKeyPath::FailableCombined { readable, writable, owned } => AnyKeyPath::FailableCombined {
+            AnyKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => AnyKeyPath::FailableCombined {
                 readable: Arc::new(move |root| {
                     let result = root.downcast_ref::<Result<Root, E>>().unwrap();
-                    result.as_ref().ok().and_then(|inner| readable(inner as &(dyn Any + Send + Sync)))
+                    result
+                        .as_ref()
+                        .ok()
+                        .and_then(|inner| readable(inner as &(dyn Any + Send + Sync)))
                 }),
                 writable: Arc::new(move |root| {
                     let result = root.downcast_mut::<Result<Root, E>>().unwrap();
-                    result.as_mut().ok().and_then(|inner| writable(inner as &mut (dyn Any + Send + Sync)))
+                    result
+                        .as_mut()
+                        .ok()
+                        .and_then(|inner| writable(inner as &mut (dyn Any + Send + Sync)))
                 }),
                 owned: Arc::new(move |root| {
                     let result = *root.downcast::<Result<Root, E>>().unwrap();
-                    result.ok().and_then(|inner| owned(Box::new(inner) as Box<dyn Any>))
+                    result
+                        .ok()
+                        .and_then(|inner| owned(Box::new(inner) as Box<dyn Any>))
                 }),
             },
         }
@@ -1987,48 +2468,74 @@ impl AnyKeyPath {
         match self {
             AnyKeyPath::Readable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
                 let option = root.downcast_ref::<Option<Root>>().unwrap();
-                option.as_ref().map(|inner| f(inner as &(dyn Any + Send + Sync)))
+                option
+                    .as_ref()
+                    .map(|inner| f(inner as &(dyn Any + Send + Sync)))
             })),
             AnyKeyPath::Writable(f) => AnyKeyPath::FailableWritable(Arc::new(move |root| {
                 let option = root.downcast_mut::<Option<Root>>().unwrap();
-                option.as_mut().map(|inner| f(inner as &mut (dyn Any + Send + Sync)))
+                option
+                    .as_mut()
+                    .map(|inner| f(inner as &mut (dyn Any + Send + Sync)))
             })),
-            AnyKeyPath::FailableReadable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
-                let option = root.downcast_ref::<Option<Root>>().unwrap();
-                option.as_ref().and_then(|inner| f(inner as &(dyn Any + Send + Sync)))
-            })),
-            AnyKeyPath::FailableWritable(f) => AnyKeyPath::FailableWritable(Arc::new(move |root| {
-                let option = root.downcast_mut::<Option<Root>>().unwrap();
-                option.as_mut().and_then(|inner| f(inner as &mut (dyn Any + Send + Sync)))
-            })),
+            AnyKeyPath::FailableReadable(f) => {
+                AnyKeyPath::FailableReadable(Arc::new(move |root| {
+                    let option = root.downcast_ref::<Option<Root>>().unwrap();
+                    option
+                        .as_ref()
+                        .and_then(|inner| f(inner as &(dyn Any + Send + Sync)))
+                }))
+            }
+            AnyKeyPath::FailableWritable(f) => {
+                AnyKeyPath::FailableWritable(Arc::new(move |root| {
+                    let option = root.downcast_mut::<Option<Root>>().unwrap();
+                    option
+                        .as_mut()
+                        .and_then(|inner| f(inner as &mut (dyn Any + Send + Sync)))
+                }))
+            }
             AnyKeyPath::ReadableEnum { extract, embed } => AnyKeyPath::ReadableEnum {
                 extract: Arc::new(move |root| {
                     let option = root.downcast_ref::<Option<Root>>().unwrap();
-                    option.as_ref().and_then(|inner| extract(inner as &(dyn Any + Send + Sync)))
+                    option
+                        .as_ref()
+                        .and_then(|inner| extract(inner as &(dyn Any + Send + Sync)))
                 }),
                 embed: Arc::new(move |value| {
                     let inner = embed(value);
                     Box::new(Some(*inner.downcast::<Root>().unwrap())) as Box<dyn Any>
                 }),
             },
-            AnyKeyPath::WritableEnum { extract, extract_mut, embed } => AnyKeyPath::WritableEnum {
+            AnyKeyPath::WritableEnum {
+                extract,
+                extract_mut,
+                embed,
+            } => AnyKeyPath::WritableEnum {
                 extract: Arc::new(move |root| {
                     let option = root.downcast_ref::<Option<Root>>().unwrap();
-                    option.as_ref().and_then(|inner| extract(inner as &(dyn Any + Send + Sync)))
+                    option
+                        .as_ref()
+                        .and_then(|inner| extract(inner as &(dyn Any + Send + Sync)))
                 }),
                 extract_mut: Arc::new(move |root| {
                     let option = root.downcast_mut::<Option<Root>>().unwrap();
-                    option.as_mut().and_then(|inner| extract_mut(inner as &mut (dyn Any + Send + Sync)))
+                    option
+                        .as_mut()
+                        .and_then(|inner| extract_mut(inner as &mut (dyn Any + Send + Sync)))
                 }),
                 embed: Arc::new(move |value| {
                     let inner = embed(value);
                     Box::new(Some(*inner.downcast::<Root>().unwrap())) as Box<dyn Any>
                 }),
             },
-            AnyKeyPath::ReferenceWritable(f) => AnyKeyPath::FailableWritable(Arc::new(move |root| {
-                let option = root.downcast_mut::<Option<Root>>().unwrap();
-                option.as_mut().map(|inner| f(inner as &mut (dyn Any + Send + Sync)))
-            })),
+            AnyKeyPath::ReferenceWritable(f) => {
+                AnyKeyPath::FailableWritable(Arc::new(move |root| {
+                    let option = root.downcast_mut::<Option<Root>>().unwrap();
+                    option
+                        .as_mut()
+                        .map(|inner| f(inner as &mut (dyn Any + Send + Sync)))
+                }))
+            }
             AnyKeyPath::Owned(f) => AnyKeyPath::FailableOwned(Arc::new(move |root| {
                 let option = *root.downcast::<Option<Root>>().unwrap();
                 option.map(|inner| f(Box::new(inner) as Box<dyn Any>))
@@ -2037,14 +2544,22 @@ impl AnyKeyPath {
                 let option = *root.downcast::<Option<Root>>().unwrap();
                 option.and_then(|inner| f(Box::new(inner) as Box<dyn Any>))
             })),
-            AnyKeyPath::FailableCombined { readable, writable, owned } => AnyKeyPath::FailableCombined {
+            AnyKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => AnyKeyPath::FailableCombined {
                 readable: Arc::new(move |root| {
                     let option = root.downcast_ref::<Option<Root>>().unwrap();
-                    option.as_ref().and_then(|inner| readable(inner as &(dyn Any + Send + Sync)))
+                    option
+                        .as_ref()
+                        .and_then(|inner| readable(inner as &(dyn Any + Send + Sync)))
                 }),
                 writable: Arc::new(move |root| {
                     let option = root.downcast_mut::<Option<Root>>().unwrap();
-                    option.as_mut().and_then(|inner| writable(inner as &mut (dyn Any + Send + Sync)))
+                    option
+                        .as_mut()
+                        .and_then(|inner| writable(inner as &mut (dyn Any + Send + Sync)))
                 }),
                 owned: Arc::new(move |root| {
                     let option = *root.downcast::<Option<Root>>().unwrap();
@@ -2062,25 +2577,39 @@ impl AnyKeyPath {
     {
         match self {
             AnyKeyPath::Readable(_) => {
-                panic!("Arc<RwLock> does not support readable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support readable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::Writable(_) => {
-                panic!("Arc<RwLock> does not support writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::FailableReadable(_) => {
-                panic!("Arc<RwLock> does not support failable readable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support failable readable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::FailableWritable(_) => {
-                panic!("Arc<RwLock> does not support failable writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support failable writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::ReadableEnum { .. } => {
-                panic!("Arc<RwLock> does not support readable enum keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support readable enum keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::WritableEnum { .. } => {
-                panic!("Arc<RwLock> does not support writable enum keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support writable enum keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::ReferenceWritable(_) => {
-                panic!("Arc<RwLock> does not support reference writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<RwLock> does not support reference writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::Owned(f) => AnyKeyPath::Owned(Arc::new(move |root| {
                 let arc_rwlock = *root.downcast::<Arc<RwLock<Root>>>().unwrap();
@@ -2096,13 +2625,15 @@ impl AnyKeyPath {
                 drop(guard); // Ensure guard is dropped before returning
                 value
             })),
-            AnyKeyPath::FailableCombined { owned, .. } => AnyKeyPath::FailableOwned(Arc::new(move |root| {
-                let arc_rwlock = *root.downcast::<Arc<RwLock<Root>>>().unwrap();
-                let guard = arc_rwlock.read().unwrap();
-                let value = owned(Box::new((*guard).clone()) as Box<dyn Any>);
-                drop(guard); // Ensure guard is dropped before returning
-                value
-            })),
+            AnyKeyPath::FailableCombined { owned, .. } => {
+                AnyKeyPath::FailableOwned(Arc::new(move |root| {
+                    let arc_rwlock = *root.downcast::<Arc<RwLock<Root>>>().unwrap();
+                    let guard = arc_rwlock.read().unwrap();
+                    let value = owned(Box::new((*guard).clone()) as Box<dyn Any>);
+                    drop(guard); // Ensure guard is dropped before returning
+                    value
+                }))
+            }
         }
     }
 
@@ -2114,25 +2645,39 @@ impl AnyKeyPath {
     {
         match self {
             AnyKeyPath::Readable(_) => {
-                panic!("Arc<Mutex> does not support readable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support readable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::Writable(_) => {
-                panic!("Arc<Mutex> does not support writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::FailableReadable(_) => {
-                panic!("Arc<Mutex> does not support failable readable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support failable readable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::FailableWritable(_) => {
-                panic!("Arc<Mutex> does not support failable writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support failable writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::ReadableEnum { .. } => {
-                panic!("Arc<Mutex> does not support readable enum keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support readable enum keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::WritableEnum { .. } => {
-                panic!("Arc<Mutex> does not support writable enum keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support writable enum keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::ReferenceWritable(_) => {
-                panic!("Arc<Mutex> does not support reference writable keypaths due to guard lifetime constraints. Use owned keypaths instead.")
+                panic!(
+                    "Arc<Mutex> does not support reference writable keypaths due to guard lifetime constraints. Use owned keypaths instead."
+                )
             }
             AnyKeyPath::Owned(f) => AnyKeyPath::Owned(Arc::new(move |root| {
                 let arc_mutex = *root.downcast::<Arc<Mutex<Root>>>().unwrap();
@@ -2148,13 +2693,15 @@ impl AnyKeyPath {
                 drop(guard); // Ensure guard is dropped before returning
                 value
             })),
-            AnyKeyPath::FailableCombined { owned, .. } => AnyKeyPath::FailableOwned(Arc::new(move |root| {
-                let arc_mutex = *root.downcast::<Arc<Mutex<Root>>>().unwrap();
-                let guard = arc_mutex.lock().unwrap();
-                let value = owned(Box::new((*guard).clone()) as Box<dyn Any>);
-                drop(guard); // Ensure guard is dropped before returning
-                value
-            })),
+            AnyKeyPath::FailableCombined { owned, .. } => {
+                AnyKeyPath::FailableOwned(Arc::new(move |root| {
+                    let arc_mutex = *root.downcast::<Arc<Mutex<Root>>>().unwrap();
+                    let guard = arc_mutex.lock().unwrap();
+                    let value = owned(Box::new((*guard).clone()) as Box<dyn Any>);
+                    drop(guard); // Ensure guard is dropped before returning
+                    value
+                }))
+            }
         }
     }
 
@@ -2171,14 +2718,20 @@ impl AnyKeyPath {
                 f(&*tagged as &(dyn Any + Send + Sync))
             })),
             AnyKeyPath::Writable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
-            AnyKeyPath::FailableReadable(f) => AnyKeyPath::FailableReadable(Arc::new(move |root| {
-                let tagged = root.downcast_ref::<Tagged<Root, Tag>>().unwrap();
-                f(&*tagged as &(dyn Any + Send + Sync))
-            })),
+            AnyKeyPath::FailableReadable(f) => {
+                AnyKeyPath::FailableReadable(Arc::new(move |root| {
+                    let tagged = root.downcast_ref::<Tagged<Root, Tag>>().unwrap();
+                    f(&*tagged as &(dyn Any + Send + Sync))
+                }))
+            }
             AnyKeyPath::FailableWritable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::ReadableEnum { extract, embed } => AnyKeyPath::ReadableEnum {
                 extract: Arc::new(move |root| {
@@ -2187,14 +2740,19 @@ impl AnyKeyPath {
                 }),
                 embed: Arc::new(move |value| {
                     let inner = embed(value);
-                    Box::new(Tagged::<Root, Tag>::new(*inner.downcast::<Root>().unwrap())) as Box<dyn Any>
+                    Box::new(Tagged::<Root, Tag>::new(*inner.downcast::<Root>().unwrap()))
+                        as Box<dyn Any>
                 }),
             },
             AnyKeyPath::WritableEnum { .. } => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::ReferenceWritable(_) => {
-                panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                panic!(
+                    "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                )
             }
             AnyKeyPath::Owned(f) => AnyKeyPath::Owned(Arc::new(move |root| {
                 let tagged = *root.downcast::<Tagged<Root, Tag>>().unwrap();
@@ -2204,13 +2762,19 @@ impl AnyKeyPath {
                 let tagged = *root.downcast::<Tagged<Root, Tag>>().unwrap();
                 f(Box::new((*tagged).clone()) as Box<dyn Any>)
             })),
-            AnyKeyPath::FailableCombined { readable, writable, owned } => AnyKeyPath::FailableCombined {
+            AnyKeyPath::FailableCombined {
+                readable,
+                writable,
+                owned,
+            } => AnyKeyPath::FailableCombined {
                 readable: Arc::new(move |root| {
                     let tagged = root.downcast_ref::<Tagged<Root, Tag>>().unwrap();
                     readable(&*tagged as &(dyn Any + Send + Sync))
                 }),
                 writable: Arc::new(move |_root| {
-                    panic!("Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)")
+                    panic!(
+                        "Tagged does not support writable keypaths (Tagged only implements Deref, not DerefMut)"
+                    )
                 }),
                 owned: Arc::new(move |root| {
                     let tagged = *root.downcast::<Tagged<Root, Tag>>().unwrap();
@@ -2311,12 +2875,11 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&Value) -> R,
     {
         match self {
-            KeyPaths::Readable(get) => {
-                result.as_ref().ok().map(|root| f(get(root)))
-            }
-            KeyPaths::FailableReadable(get) => {
-                result.as_ref().ok().and_then(|root| get(root).map(|v| f(v)))
-            }
+            KeyPaths::Readable(get) => result.as_ref().ok().map(|root| f(get(root))),
+            KeyPaths::FailableReadable(get) => result
+                .as_ref()
+                .ok()
+                .and_then(|root| get(root).map(|v| f(v))),
             _ => panic!("with_result only works with readable keypaths"),
         }
     }
@@ -2329,12 +2892,11 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&mut Value) -> R,
     {
         match self {
-            KeyPaths::Writable(get) => {
-                result.as_mut().ok().map(|root| f(get(root)))
-            }
-            KeyPaths::FailableWritable(get) => {
-                result.as_mut().ok().and_then(|root| get(root).map(|v| f(v)))
-            }
+            KeyPaths::Writable(get) => result.as_mut().ok().map(|root| f(get(root))),
+            KeyPaths::FailableWritable(get) => result
+                .as_mut()
+                .ok()
+                .and_then(|root| get(root).map(|v| f(v))),
             _ => panic!("with_result_mut only works with writable keypaths"),
         }
     }
@@ -2347,9 +2909,7 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&Value) -> R,
     {
         match self {
-            KeyPaths::Readable(get) => {
-                option.as_ref().map(|root| f(get(root)))
-            }
+            KeyPaths::Readable(get) => option.as_ref().map(|root| f(get(root))),
             KeyPaths::FailableReadable(get) => {
                 option.as_ref().and_then(|root| get(root).map(|v| f(v)))
             }
@@ -2365,9 +2925,7 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&mut Value) -> R,
     {
         match self {
-            KeyPaths::Writable(get) => {
-                option.as_mut().map(|root| f(get(root)))
-            }
+            KeyPaths::Writable(get) => option.as_mut().map(|root| f(get(root))),
             KeyPaths::FailableWritable(get) => {
                 option.as_mut().and_then(|root| get(root).map(|v| f(v)))
             }
@@ -2383,12 +2941,11 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&Value) -> R,
     {
         match self {
-            KeyPaths::Readable(get) => {
-                refcell.try_borrow().ok().map(|borrow| f(get(&*borrow)))
-            }
-            KeyPaths::FailableReadable(get) => {
-                refcell.try_borrow().ok().and_then(|borrow| get(&*borrow).map(|v| f(v)))
-            }
+            KeyPaths::Readable(get) => refcell.try_borrow().ok().map(|borrow| f(get(&*borrow))),
+            KeyPaths::FailableReadable(get) => refcell
+                .try_borrow()
+                .ok()
+                .and_then(|borrow| get(&*borrow).map(|v| f(v))),
             _ => panic!("with_refcell only works with readable keypaths"),
         }
     }
@@ -2401,12 +2958,14 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&mut Value) -> R,
     {
         match self {
-            KeyPaths::Writable(get) => {
-                refcell.try_borrow_mut().ok().map(|mut borrow| f(get(&mut *borrow)))
-            }
-            KeyPaths::FailableWritable(get) => {
-                refcell.try_borrow_mut().ok().and_then(|mut borrow| get(&mut *borrow).map(|v| f(v)))
-            }
+            KeyPaths::Writable(get) => refcell
+                .try_borrow_mut()
+                .ok()
+                .map(|mut borrow| f(get(&mut *borrow))),
+            KeyPaths::FailableWritable(get) => refcell
+                .try_borrow_mut()
+                .ok()
+                .and_then(|mut borrow| get(&mut *borrow).map(|v| f(v))),
             _ => panic!("with_refcell_mut only works with writable keypaths"),
         }
     }
@@ -2439,12 +2998,11 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&Value) -> R,
     {
         match self {
-            KeyPaths::Readable(get) => {
-                mutex.try_lock().ok().map(|guard| f(get(&*guard)))
-            }
-            KeyPaths::FailableReadable(get) => {
-                mutex.try_lock().ok().and_then(|guard| get(&*guard).map(|v| f(v)))
-            }
+            KeyPaths::Readable(get) => mutex.try_lock().ok().map(|guard| f(get(&*guard))),
+            KeyPaths::FailableReadable(get) => mutex
+                .try_lock()
+                .ok()
+                .and_then(|guard| get(&*guard).map(|v| f(v))),
             _ => panic!("with_mutex only works with readable keypaths"),
         }
     }
@@ -2457,12 +3015,11 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&mut Value) -> R,
     {
         match self {
-            KeyPaths::Writable(get) => {
-                mutex.try_lock().ok().map(|mut guard| f(get(&mut *guard)))
-            }
-            KeyPaths::FailableWritable(get) => {
-                mutex.try_lock().ok().and_then(|mut guard| get(&mut *guard).map(|v| f(v)))
-            }
+            KeyPaths::Writable(get) => mutex.try_lock().ok().map(|mut guard| f(get(&mut *guard))),
+            KeyPaths::FailableWritable(get) => mutex
+                .try_lock()
+                .ok()
+                .and_then(|mut guard| get(&mut *guard).map(|v| f(v))),
             _ => panic!("with_mutex_mut only works with writable keypaths"),
         }
     }
@@ -2475,12 +3032,11 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&Value) -> R,
     {
         match self {
-            KeyPaths::Readable(get) => {
-                rwlock.try_read().ok().map(|guard| f(get(&*guard)))
-            }
-            KeyPaths::FailableReadable(get) => {
-                rwlock.try_read().ok().and_then(|guard| get(&*guard).map(|v| f(v)))
-            }
+            KeyPaths::Readable(get) => rwlock.try_read().ok().map(|guard| f(get(&*guard))),
+            KeyPaths::FailableReadable(get) => rwlock
+                .try_read()
+                .ok()
+                .and_then(|guard| get(&*guard).map(|v| f(v))),
             _ => panic!("with_rwlock only works with readable keypaths"),
         }
     }
@@ -2493,12 +3049,11 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&mut Value) -> R,
     {
         match self {
-            KeyPaths::Writable(get) => {
-                rwlock.try_write().ok().map(|mut guard| f(get(&mut *guard)))
-            }
-            KeyPaths::FailableWritable(get) => {
-                rwlock.try_write().ok().and_then(|mut guard| get(&mut *guard).map(|v| f(v)))
-            }
+            KeyPaths::Writable(get) => rwlock.try_write().ok().map(|mut guard| f(get(&mut *guard))),
+            KeyPaths::FailableWritable(get) => rwlock
+                .try_write()
+                .ok()
+                .and_then(|mut guard| get(&mut *guard).map(|v| f(v))),
             _ => panic!("with_rwlock_mut only works with writable keypaths"),
         }
     }
@@ -2510,12 +3065,11 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&Value) -> R,
     {
         match self {
-            KeyPaths::Readable(get) => {
-                arc_rwlock.try_read().ok().map(|guard| f(get(&*guard)))
-            }
-            KeyPaths::FailableReadable(get) => {
-                arc_rwlock.try_read().ok().and_then(|guard| get(&*guard).map(|v| f(v)))
-            }
+            KeyPaths::Readable(get) => arc_rwlock.try_read().ok().map(|guard| f(get(&*guard))),
+            KeyPaths::FailableReadable(get) => arc_rwlock
+                .try_read()
+                .ok()
+                .and_then(|guard| get(&*guard).map(|v| f(v))),
             _ => panic!("with_arc_rwlock only works with readable keypaths"),
         }
     }
@@ -2527,12 +3081,14 @@ impl<Root, Value> WithContainer<Root, Value> for KeyPaths<Root, Value> {
         F: FnOnce(&mut Value) -> R,
     {
         match self {
-            KeyPaths::Writable(get) => {
-                arc_rwlock.try_write().ok().map(|mut guard| f(get(&mut *guard)))
-            }
-            KeyPaths::FailableWritable(get) => {
-                arc_rwlock.try_write().ok().and_then(|mut guard| get(&mut *guard).map(|v| f(v)))
-            }
+            KeyPaths::Writable(get) => arc_rwlock
+                .try_write()
+                .ok()
+                .map(|mut guard| f(get(&mut *guard))),
+            KeyPaths::FailableWritable(get) => arc_rwlock
+                .try_write()
+                .ok()
+                .and_then(|mut guard| get(&mut *guard).map(|v| f(v))),
             _ => panic!("with_arc_rwlock_mut only works with writable keypaths"),
         }
     }
@@ -2684,17 +3240,12 @@ where
                 embed: Arc::new(move |v| em1(em2(v))),
             },
 
-
             // New owned keypath compositions
-            (Owned(f1), Owned(f2)) => {
-                Owned(Arc::new(move |r| f2(f1(r))))
-            }
+            (Owned(f1), Owned(f2)) => Owned(Arc::new(move |r| f2(f1(r)))),
             (FailableOwned(f1), Owned(f2)) => {
                 FailableOwned(Arc::new(move |r| f1(r).map(|m| f2(m))))
             }
-            (Owned(f1), FailableOwned(f2)) => {
-                FailableOwned(Arc::new(move |r| f2(f1(r))))
-            }
+            (Owned(f1), FailableOwned(f2)) => FailableOwned(Arc::new(move |r| f2(f1(r)))),
             (FailableOwned(f1), FailableOwned(f2)) => {
                 FailableOwned(Arc::new(move |r| f1(r).and_then(|m| f2(m))))
             }
@@ -2702,7 +3253,6 @@ where
             // Cross-composition between owned and regular keypaths
             // Note: These compositions require Clone bounds which may not always be available
             // For now, we'll skip these complex compositions
-
             (a, b) => panic!(
                 "Unsupported composition: {:?} then {:?}",
                 kind_name(&a),

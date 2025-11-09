@@ -1,8 +1,8 @@
-use key_paths_core::{PartialKeyPath, AnyKeyPath};
-use key_paths_derive::{Keypaths, PartialKeypaths, AnyKeypaths};
-use std::sync::{Arc, Mutex, RwLock};
-use std::rc::Rc;
+use key_paths_core::{AnyKeyPath, PartialKeyPath};
+use key_paths_derive::{AnyKeypaths, Keypaths, PartialKeypaths};
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Debug, Clone, Keypaths, PartialKeypaths, AnyKeypaths)]
 struct Person {
@@ -74,7 +74,10 @@ fn main() {
     let person_result: Result<Person, String> = Ok(person.clone());
     let name_result_partial = name_partial.clone().for_result::<String>();
     if let Some(value) = name_result_partial.get(&person_result) {
-        println!("Person name via Result<Person, String> (partial): {:?}", value);
+        println!(
+            "Person name via Result<Person, String> (partial): {:?}",
+            value
+        );
     }
 
     // Test Arc<RwLock> aggregator (owned only - requires owned keypath)
@@ -82,13 +85,19 @@ fn main() {
     let name_owned = Person::name_partial_o();
     let name_arc_rwlock_partial = name_owned.clone().for_arc_rwlock();
     let owned_value = name_arc_rwlock_partial.get_owned(person_arc_rwlock);
-    println!("Person name via Arc<RwLock<Person>> (partial, owned): {:?}", owned_value);
+    println!(
+        "Person name via Arc<RwLock<Person>> (partial, owned): {:?}",
+        owned_value
+    );
 
     // Test Arc<Mutex> aggregator (owned only - requires owned keypath)
     let person_arc_mutex = Arc::new(Mutex::new(person.clone()));
     let name_arc_mutex_partial = name_owned.clone().for_arc_mutex();
     let owned_value = name_arc_mutex_partial.get_owned(person_arc_mutex);
-    println!("Person name via Arc<Mutex<Person>> (partial, owned): {:?}", owned_value);
+    println!(
+        "Person name via Arc<Mutex<Person>> (partial, owned): {:?}",
+        owned_value
+    );
 
     // ===== AnyKeyPath Aggregator Examples =====
     println!("\n--- 2. AnyKeyPath Aggregator Functions ---");
@@ -111,7 +120,8 @@ fn main() {
     }
 
     // Test Rc aggregator (using Arc since Rc is not Send + Sync)
-    let person_arc_boxed2: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(person.clone()));
+    let person_arc_boxed2: Box<dyn std::any::Any + Send + Sync> =
+        Box::new(Arc::new(person.clone()));
     let name_arc_any2 = name_any.clone().for_arc::<Person>();
     if let Some(value) = name_arc_any2.get(&*person_arc_boxed2) {
         println!("Person name via Arc<Person> #2 (any): {:?}", value);
@@ -125,24 +135,33 @@ fn main() {
     }
 
     // Test Result aggregator
-    let person_result_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Ok::<Person, String>(person.clone()));
+    let person_result_boxed: Box<dyn std::any::Any + Send + Sync> =
+        Box::new(Ok::<Person, String>(person.clone()));
     let name_result_any = name_any.clone().for_result::<Person, String>();
     if let Some(value) = name_result_any.get(&*person_result_boxed) {
         println!("Person name via Result<Person, String> (any): {:?}", value);
     }
 
     // Test Arc<RwLock> aggregator (owned only - requires owned keypath)
-    let person_arc_rwlock_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(RwLock::new(person.clone())));
+    let person_arc_rwlock_boxed: Box<dyn std::any::Any + Send + Sync> =
+        Box::new(Arc::new(RwLock::new(person.clone())));
     let name_owned_any = Person::name_any_o();
     let name_arc_rwlock_any = name_owned_any.clone().for_arc_rwlock::<Person>();
     let owned_value = name_arc_rwlock_any.get_owned(person_arc_rwlock_boxed);
-    println!("Person name via Arc<RwLock<Person>> (any, owned): {:?}", owned_value);
+    println!(
+        "Person name via Arc<RwLock<Person>> (any, owned): {:?}",
+        owned_value
+    );
 
     // Test Arc<Mutex> aggregator (owned only - requires owned keypath)
-    let person_arc_mutex_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(Mutex::new(person.clone())));
+    let person_arc_mutex_boxed: Box<dyn std::any::Any + Send + Sync> =
+        Box::new(Arc::new(Mutex::new(person.clone())));
     let name_arc_mutex_any = name_owned_any.clone().for_arc_mutex::<Person>();
     let owned_value = name_arc_mutex_any.get_owned(person_arc_mutex_boxed);
-    println!("Person name via Arc<Mutex<Person>> (any, owned): {:?}", owned_value);
+    println!(
+        "Person name via Arc<Mutex<Person>> (any, owned): {:?}",
+        owned_value
+    );
 
     // ===== Mixed Container Types =====
     println!("\n--- 3. Mixed Container Types ---");
@@ -226,7 +245,10 @@ fn main() {
                 if let Some(arc_rwlock_ref) = container.downcast_ref::<Arc<RwLock<Person>>>() {
                     let name_arc_rwlock_partial = name_owned.clone().for_arc_rwlock();
                     let owned_value = name_arc_rwlock_partial.get_owned(arc_rwlock_ref.clone());
-                    println!("Container {} (Arc<RwLock<Person>>, owned): {:?}", i, owned_value);
+                    println!(
+                        "Container {} (Arc<RwLock<Person>>, owned): {:?}",
+                        i, owned_value
+                    );
                 }
             }
             7 => {
@@ -234,7 +256,10 @@ fn main() {
                 if let Some(arc_mutex_ref) = container.downcast_ref::<Arc<Mutex<Person>>>() {
                     let name_arc_mutex_partial = name_owned.clone().for_arc_mutex();
                     let owned_value = name_arc_mutex_partial.get_owned(arc_mutex_ref.clone());
-                    println!("Container {} (Arc<Mutex<Person>>, owned): {:?}", i, owned_value);
+                    println!(
+                        "Container {} (Arc<Mutex<Person>>, owned): {:?}",
+                        i, owned_value
+                    );
                 }
             }
             _ => {}

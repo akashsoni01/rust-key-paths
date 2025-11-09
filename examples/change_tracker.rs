@@ -251,14 +251,16 @@ fn main() {
 
     // Demonstrate deserializing and applying changes
     println!("\n--- Deserializing Changes from JSON ---");
-    let deserialized_changes: Vec<FieldChange> =
-        serde_json::from_str(&outgoing_json).unwrap();
-    println!("Successfully deserialized {} changes", deserialized_changes.len());
+    let deserialized_changes: Vec<FieldChange> = serde_json::from_str(&outgoing_json).unwrap();
+    println!(
+        "Successfully deserialized {} changes",
+        deserialized_changes.len()
+    );
 
     // Apply to a new state (simulating server receiving changes)
     let mut server_state = remote_state.clone();
     tracker.apply_changes(&mut server_state, &deserialized_changes);
-    
+
     println!("\nServer state after applying changes:");
     println!("{:#?}", server_state);
 
@@ -268,4 +270,3 @@ fn main() {
         println!("\n✓ Full bidirectional sync successful!");
     }
 }
-

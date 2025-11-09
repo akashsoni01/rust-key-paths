@@ -137,8 +137,8 @@ fn main() {
     };
 
     let invalid_inputs = vec![
-        "Jo".to_string(),               // Too short
-        "not-an-email".to_string(),     // No @ symbol
+        "Jo".to_string(),           // Too short
+        "not-an-email".to_string(), // No @ symbol
         "dark".to_string(),
     ];
 
@@ -157,7 +157,7 @@ fn main() {
     // Demonstrate the power of keypaths: accessing nested fields directly
     println!("\n--- Direct keypath access demonstration ---");
     let theme_path = UserProfile::settings_w().then(UserSettings::theme_w());
-    
+
     if let Some(theme) = theme_path.get_mut(&mut profile) {
         println!("Current theme: {}", theme);
         *theme = "midnight".to_string();
@@ -165,7 +165,8 @@ fn main() {
     }
 
     // Access boolean field through composed keypath
-    let notifications_path = UserProfile::settings_w().then(UserSettings::notifications_enabled_w());
+    let notifications_path =
+        UserProfile::settings_w().then(UserSettings::notifications_enabled_w());
     if let Some(enabled) = notifications_path.get_mut(&mut profile) {
         println!("Notifications enabled: {}", enabled);
         *enabled = false;
@@ -174,4 +175,3 @@ fn main() {
 
     println!("\nFinal profile: {:#?}", profile);
 }
-

@@ -1,5 +1,5 @@
-use key_paths_macros::Keypath;
 use key_paths_core::KeyPaths;
+use key_paths_macros::Keypath;
 
 #[derive(Keypath)]
 struct Person {
@@ -30,10 +30,9 @@ fn test_keypath_generation() {
     assert_eq!(name_value, Some(&"Alice".to_string()));
     assert_eq!(age_value, Some(&30));
     assert_eq!(name_result, Some(&"Bob".to_string()));
-    
+
     // Verify the keypaths are the correct type
     let _: KeyPaths<Person, String> = name_keypath;
     let _: KeyPaths<Person, i32> = age_keypath;
     let _: KeyPaths<Person, String> = name_keypath;
 }
-

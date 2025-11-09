@@ -28,12 +28,12 @@ fn main() {
 
     // ===== Example 1: Basic Option Usage =====
     println!("--- Example 1: Basic Option Usage ---");
-    
+
     let option_user: Option<User> = Some(user.clone());
 
     // Use for_option to create a keypath that works with Option<User>
     let name_option_path = name_path.clone().for_option();
-    
+
     // Access name from Option<User> - returns Option<&String>
     if let Some(name) = name_option_path.get_ref(&&option_user) {
         println!("  Name from Option: {}", name);
@@ -41,12 +41,12 @@ fn main() {
 
     // ===== Example 2: Writable Option Usage =====
     println!("--- Example 2: Writable Option Usage ---");
-    
+
     let mut option_user_mut: Option<User> = Some(user.clone());
 
     // Use for_option with writable keypath
     let name_option_path_w = name_path_w.clone().for_option();
-    
+
     // Modify name in Option<User>
     if let Some(name) = name_option_path_w.get_mut(&mut &mut option_user_mut) {
         *name = "Alice Updated".to_string();
@@ -55,7 +55,7 @@ fn main() {
 
     // ===== Example 3: Failable KeyPath with Option =====
     println!("--- Example 3: Failable KeyPath with Option ---");
-    
+
     let option_user_with_email: Option<User> = Some(User {
         name: "Bob".to_string(),
         age: 25,
@@ -64,7 +64,7 @@ fn main() {
 
     // Use failable keypath with for_option
     let email_option_path = email_path.clone().for_option();
-    
+
     // Access email from Option<User> - returns Option<Option<&String>>
     if let Some(email) = email_option_path.get_ref(&&option_user_with_email) {
         println!("  Email from Option: {}", email);
@@ -74,7 +74,7 @@ fn main() {
 
     // ===== Example 4: None Option Handling =====
     println!("--- Example 4: None Option Handling ---");
-    
+
     let none_user: Option<User> = None;
 
     // Try to access name from None Option
@@ -86,7 +86,7 @@ fn main() {
 
     // ===== Example 5: Collection of Options =====
     println!("--- Example 5: Collection of Options ---");
-    
+
     let option_users: Vec<Option<User>> = vec![
         Some(User {
             name: "Charlie".to_string(),
@@ -112,17 +112,19 @@ fn main() {
 
     // ===== Example 6: Using with_option (No-Clone Approach) =====
     println!("--- Example 6: Using with_option (No-Clone Approach) ---");
-    
+
     let option_user_for_with: Option<User> = Some(user.clone());
 
     // Use the original keypath with with_option for no-clone access
-    name_path.clone().with_option(&option_user_for_with, |name| {
-        println!("  Name from Option (no-clone): {}", name);
-    });
+    name_path
+        .clone()
+        .with_option(&option_user_for_with, |name| {
+            println!("  Name from Option (no-clone): {}", name);
+        });
 
     // ===== Example 7: Comparison: for_option vs with_option =====
     println!("--- Example 7: Comparison: for_option vs with_option ---");
-    
+
     let option_user_comp: Option<User> = Some(user.clone());
 
     // Method 1: for_option + get_ref (creates new keypath type)

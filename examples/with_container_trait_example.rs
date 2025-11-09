@@ -2,9 +2,9 @@
 // Run with: cargo run --example with_container_trait_example
 
 use key_paths_core::{KeyPaths, WithContainer};
-use std::sync::{Arc, Mutex, RwLock};
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Debug, Clone)]
 struct User {
@@ -30,7 +30,7 @@ fn main() {
 
     // ===== Example 1: Trait Usage with Arc =====
     println!("--- Example 1: Trait Usage with Arc ---");
-    
+
     let arc_user = Arc::new(user.clone());
 
     // Using the trait method
@@ -40,7 +40,7 @@ fn main() {
 
     // ===== Example 2: Trait Usage with Box =====
     println!("--- Example 2: Trait Usage with Box ---");
-    
+
     let mut boxed_user = Box::new(user.clone());
 
     // Read via trait
@@ -56,7 +56,7 @@ fn main() {
 
     // ===== Example 3: Trait Usage with Rc =====
     println!("--- Example 3: Trait Usage with Rc ---");
-    
+
     let rc_user = Rc::new(user.clone());
 
     // Using the trait method
@@ -66,47 +66,62 @@ fn main() {
 
     // ===== Example 4: Trait Usage with Result =====
     println!("--- Example 4: Trait Usage with Result ---");
-    
+
     let mut result_user: Result<User, String> = Ok(user.clone());
 
     // Read via trait
-    if let Some(name) = name_path.clone().with_result(&result_user, |name| name.clone()) {
+    if let Some(name) = name_path
+        .clone()
+        .with_result(&result_user, |name| name.clone())
+    {
         println!("  Name from Result (via trait): {}", name);
     }
 
     // Write via trait
-    if let Some(()) = name_path_w.clone().with_result_mut(&mut result_user, |name| {
-        *name = "Alice Result".to_string();
-        println!("  Updated name in Result (via trait): {}", name);
-    }) {
+    if let Some(()) = name_path_w
+        .clone()
+        .with_result_mut(&mut result_user, |name| {
+            *name = "Alice Result".to_string();
+            println!("  Updated name in Result (via trait): {}", name);
+        })
+    {
         println!("  Successfully updated Result via trait");
     }
 
     // ===== Example 5: Trait Usage with Option =====
     println!("--- Example 5: Trait Usage with Option ---");
-    
+
     let mut option_user: Option<User> = Some(user.clone());
 
     // Read via trait
-    if let Some(name) = name_path.clone().with_option(&option_user, |name| name.clone()) {
+    if let Some(name) = name_path
+        .clone()
+        .with_option(&option_user, |name| name.clone())
+    {
         println!("  Name from Option (via trait): {}", name);
     }
 
     // Write via trait
-    if let Some(()) = name_path_w.clone().with_option_mut(&mut option_user, |name| {
-        *name = "Alice Option".to_string();
-        println!("  Updated name in Option (via trait): {}", name);
-    }) {
+    if let Some(()) = name_path_w
+        .clone()
+        .with_option_mut(&mut option_user, |name| {
+            *name = "Alice Option".to_string();
+            println!("  Updated name in Option (via trait): {}", name);
+        })
+    {
         println!("  Successfully updated Option via trait");
     }
 
     // ===== Example 6: Trait Usage with RefCell =====
     println!("--- Example 6: Trait Usage with RefCell ---");
-    
+
     let refcell_user = RefCell::new(user.clone());
 
     // Read via trait
-    if let Some(name) = name_path.clone().with_refcell(&refcell_user, |name| name.clone()) {
+    if let Some(name) = name_path
+        .clone()
+        .with_refcell(&refcell_user, |name| name.clone())
+    {
         println!("  Name from RefCell (via trait): {}", name);
     }
 
@@ -120,7 +135,7 @@ fn main() {
 
     // ===== Example 7: Trait Usage with Mutex =====
     println!("--- Example 7: Trait Usage with Mutex ---");
-    
+
     let mutex_user = Mutex::new(user.clone());
 
     // Read via trait
@@ -130,14 +145,16 @@ fn main() {
 
     // Write via trait
     let mut mutex_user_mut = Mutex::new(user.clone());
-    name_path_w.clone().with_mutex_mut(&mut mutex_user_mut, |name| {
-        *name = "Alice Mutexed".to_string();
-        println!("  Updated name in Mutex (via trait): {}", name);
-    });
+    name_path_w
+        .clone()
+        .with_mutex_mut(&mut mutex_user_mut, |name| {
+            *name = "Alice Mutexed".to_string();
+            println!("  Updated name in Mutex (via trait): {}", name);
+        });
 
     // ===== Example 8: Trait Usage with RwLock =====
     println!("--- Example 8: Trait Usage with RwLock ---");
-    
+
     let rwlock_user = RwLock::new(user.clone());
 
     // Read via trait
@@ -148,14 +165,16 @@ fn main() {
     // Write via trait
     let mut rwlock_user_mut = RwLock::new(user.clone());
     let age_path_w = KeyPaths::writable(|u: &mut User| &mut u.age);
-    age_path_w.clone().with_rwlock_mut(&mut rwlock_user_mut, |age| {
-        *age += 1;
-        println!("  Updated age in RwLock (via trait): {}", age);
-    });
+    age_path_w
+        .clone()
+        .with_rwlock_mut(&mut rwlock_user_mut, |age| {
+            *age += 1;
+            println!("  Updated age in RwLock (via trait): {}", age);
+        });
 
     // ===== Example 9: Generic Function Using Trait =====
     println!("--- Example 9: Generic Function Using Trait ---");
-    
+
     fn process_user_name<T>(keypath: KeyPaths<User, String>, container: T)
     where
         T: WithContainer<User, String>,
@@ -167,7 +186,7 @@ fn main() {
 
     // ===== Example 10: Trait Benefits =====
     println!("--- Example 10: Trait Benefits ---");
-    
+
     println!("  ✅ Clean API: All with_* methods are organized under one trait");
     println!("  ✅ Extensibility: Easy to add new container types");
     println!("  ✅ Consistency: All methods follow the same pattern");

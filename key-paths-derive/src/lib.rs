@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Data, DeriveInput, Fields, Type, Attribute, parse_macro_input, spanned::Spanned};
+use syn::{Attribute, Data, DeriveInput, Fields, Type, parse_macro_input, spanned::Spanned};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WrapperKind {
@@ -48,7 +48,7 @@ enum WrapperKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MethodScope {
-    All,
+    // All,
     Readable,
     Writable,
     Owned,
@@ -56,15 +56,15 @@ enum MethodScope {
 
 impl MethodScope {
     fn includes_read(self) -> bool {
-        matches!(self, MethodScope::All | MethodScope::Readable)
+        matches!(self, MethodScope::Readable)
     }
 
     fn includes_write(self) -> bool {
-        matches!(self, MethodScope::All | MethodScope::Writable)
+        matches!(self, MethodScope::Writable)
     }
 
     fn includes_owned(self) -> bool {
-        matches!(self, MethodScope::All | MethodScope::Owned)
+        matches!(self, MethodScope::Owned)
     }
 }
 
@@ -97,25 +97,35 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
     for attr in attrs {
         if attr.path().is_ident("Readable") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(
+                    attr.span(),
+                    "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant",
+                ));
             }
             scope = Some(MethodScope::Readable);
         } else if attr.path().is_ident("Writable") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(
+                    attr.span(),
+                    "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant",
+                ));
             }
             scope = Some(MethodScope::Writable);
         } else if attr.path().is_ident("Owned") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(
+                    attr.span(),
+                    "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant",
+                ));
             }
             scope = Some(MethodScope::Owned);
-        } else if attr.path().is_ident("All") {
-            if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
-            }
-            scope = Some(MethodScope::All);
         }
+        // else if attr.path().is_ident("All") {
+        //     if scope.is_some() {
+        //         return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+        //     }
+        //     scope = Some(MethodScope::All);
+        // }
     }
     Ok(scope)
 }
@@ -133,7 +143,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
     let methods = match input.data {
         Data::Struct(data_struct) => match data_struct.fields {
-            Fields::Named(fields_named) => {/**/
+            Fields::Named(fields_named) => {
+                /**/
                 let mut tokens = proc_macro2::TokenStream::new();
                 for field in fields_named.named.iter() {
                     let field_ident = field.ident.as_ref().unwrap();
@@ -1618,6 +1629,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            /*
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1628,6 +1640,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1638,6 +1651,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            /*
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1648,6 +1662,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1658,6 +1673,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            /*
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1668,6 +1684,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                         }
                         _ => {
                             push_method(
@@ -1700,6 +1717,38 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            /*
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#field_ident)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#field_ident)
+                                    }
+                                },
+                            );
+                            */
                         }
                     }
                 }
@@ -2754,6 +2803,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             push_method(
                                 &mut tokens,
                                 method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            /*
+                            push_method(
+                                &mut tokens,
+                                method_scope,
                                 MethodKind::Readable,
                                 quote! {
                                     pub fn #fr_fn() -> key_paths_core::KeyPaths<#name, #ty> {
@@ -2776,7 +2836,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    // Owned keypath methods
                                     pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
                                     }
@@ -2792,6 +2851,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            */
                         }
                         _ => {
                             push_method(
@@ -2807,14 +2867,45 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             push_method(
                                 &mut tokens,
                                 method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::writable(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    // Owned keypath methods
                                     pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
                                         key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
                                     }
                                 },
                             );
+                            /*
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::readable(|s: &#name| &s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #o_fn() -> key_paths_core::KeyPaths<#name, #ty> {
+                                        key_paths_core::KeyPaths::owned(|s: #name| s.#idx_lit)
+                                    }
+                                },
+                            );
+                            */
                         }
                     }
                 }
@@ -2900,8 +2991,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                        (WrapperKind::HashMap, Some(inner_ty)) => {
-                            tokens.extend(quote! {
+                            (WrapperKind::HashMap, Some(inner_ty)) => {
+                                tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
                                             #name::#v_ident,
@@ -3302,10 +3393,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let field_fn = format_ident!("f{}", index);
                             let r_fn = format_ident!("{}_{}_r", snake, field_fn);
                             let w_fn = format_ident!("{}_{}_w", snake, field_fn);
-                            
+
                             // Generate pattern matching for this specific field
                             let mut pattern_parts = Vec::new();
-                            
+
                             for i in 0..unnamed.unnamed.len() {
                                 if i == index {
                                     pattern_parts.push(quote! { v });
@@ -3313,11 +3404,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     pattern_parts.push(quote! { _ });
                                 }
                             }
-                            
+
                             let pattern = quote! { #name::#v_ident(#(#pattern_parts),*) };
                             let match_expr = quote! { match e { #pattern => Some(v), _ => None } };
-                            let match_mut_expr = quote! { match e { #pattern => Some(v), _ => None } };
-                            
+                            let match_mut_expr =
+                                quote! { match e { #pattern => Some(v), _ => None } };
+
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|e: &#name| #match_expr)
@@ -3335,7 +3427,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let field_ty = &field.ty;
                             let r_fn = format_ident!("{}_{}_r", snake, field_ident);
                             let w_fn = format_ident!("{}_{}_w", snake, field_ident);
-                            
+
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
                                     key_paths_core::KeyPaths::failable_readable(|e: &#name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
@@ -3371,14 +3463,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
-    
+
     if let Type::Path(tp) = ty {
         if let Some(seg) = tp.path.segments.last() {
             let ident_str = seg.ident.to_string();
-            
+
             if let PathArguments::AngleBracketed(ab) = &seg.arguments {
                 let args: Vec<_> = ab.args.iter().collect();
-                
+
                 // Handle map types (HashMap, BTreeMap) - they have K, V parameters
                 if ident_str == "HashMap" || ident_str == "BTreeMap" {
                     if let (Some(_key_arg), Some(value_arg)) = (args.get(0), args.get(1)) {
@@ -3406,7 +3498,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                     if let GenericArgument::Type(inner) = arg {
                         // Check for nested containers first
                         let (inner_kind, inner_inner) = extract_wrapper_inner_type(inner);
-                        
+
                         // Handle nested combinations
                         match (ident_str.as_str(), inner_kind) {
                             ("Option", WrapperKind::Box) => {
@@ -3474,7 +3566,6 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     }
     (WrapperKind::None, None)
 }
-
 
 fn to_snake_case(name: &str) -> String {
     let mut out = String::new();
@@ -4189,9 +4280,9 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         if unnamed.unnamed.len() == 1 {
                             // Single-field tuple variant - smart keypath selection
                             let field_ty = &unnamed.unnamed[0].ty;
-                    let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
+                            let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
 
-                    match (kind, inner_ty.clone()) {
+                            match (kind, inner_ty.clone()) {
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
@@ -4242,7 +4333,8 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
+                                (WrapperKind::Rc, Some(inner_ty))
+                                | (WrapperKind::Arc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                             key_paths_core::KeyPaths::failable_readable(|s: &#name| match s {
@@ -4862,12 +4954,12 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                     Fields::Unnamed(unnamed) => {
                         let field_types: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
                         let tuple_ty = quote! { (#(#field_types),*) };
-                        
+
                         // Generate pattern matching for tuple fields
                         let field_patterns: Vec<_> = (0..unnamed.unnamed.len())
                             .map(|i| format_ident!("f{}", i))
                             .collect();
-                        
+
                         tokens.extend(quote! {
                             pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
                                 key_paths_core::KeyPaths::failable_owned(
@@ -4881,13 +4973,17 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                             }
                         });
                     }
-                    
+
                     // Labeled variant: Enum::Variant { field1: T1, field2: T2, ... }
                     Fields::Named(named) => {
-                        let field_names: Vec<_> = named.named.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+                        let field_names: Vec<_> = named
+                            .named
+                            .iter()
+                            .map(|f| f.ident.as_ref().unwrap())
+                            .collect();
                         let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
                         let tuple_ty = quote! { (#(#field_types),*) };
-                        
+
                         tokens.extend(quote! {
                             pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #tuple_ty> {
                                 key_paths_core::KeyPaths::failable_owned(
@@ -5043,7 +5139,9 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                 }
                 tokens
             }
-            _ => quote! { compile_error!("PartialKeypaths can only be derived for structs with named fields"); },
+            _ => {
+                quote! { compile_error!("PartialKeypaths can only be derived for structs with named fields"); }
+            }
         },
         _ => quote! { compile_error!("PartialKeypaths can only be derived for structs"); },
     };
@@ -5183,7 +5281,9 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                 }
                 tokens
             }
-            _ => quote! { compile_error!("AnyKeypaths can only be derived for structs with named fields"); },
+            _ => {
+                quote! { compile_error!("AnyKeypaths can only be derived for structs with named fields"); }
+            }
         },
         _ => quote! { compile_error!("AnyKeypaths can only be derived for structs"); },
     };
@@ -5202,7 +5302,7 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 // #[proc_macro]
 // pub fn keypath_suggestion(input: TokenStream) -> TokenStream {
 //     let input_str = input.to_string();
-//     
+//
 //     // Parse the input to understand what the user is trying to do
 //     let suggestion = if input_str.contains("Arc<") && input_str.contains("KeyPaths<") {
 //         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Arc<SomeStruct>, Value>, use the .for_arc() adapter method:\n   let arc_keypath = your_keypath.for_arc();"
@@ -5221,11 +5321,11 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 //     } else {
 //         "💡 Suggestion: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T>\n   - .for_box() for Box<T>\n   - .for_rc() for Rc<T>\n   - .for_option() for Option<T>\n   - .for_result() for Result<T, E>\n   - .with_mutex() for Mutex<T> (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> (with parking_lot feature)"
 //     };
-//     
+//
 //     let expanded = quote! {
 //         compile_error!(#suggestion);
 //     };
-//     
+//
 //     TokenStream::from(expanded)
 // }
 
@@ -5234,16 +5334,16 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 // #[proc_macro]
 // pub fn keypath_help(input: TokenStream) -> TokenStream {
 //     let input_str = input.to_string();
-//     
+//
 //     let help_message = if input_str.is_empty() {
 //         "🔧 KeyPaths Help: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T> containers\n   - .for_box() for Box<T> containers\n   - .for_rc() for Rc<T> containers\n   - .for_option() for Option<T> containers\n   - .for_result() for Result<T, E> containers\n   - .with_mutex() for Mutex<T> containers (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> containers (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> containers (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> containers (with parking_lot feature)\n\nExample: let arc_keypath = my_keypath.for_arc();\nFor Mutex/RwLock: use key_paths_core::WithContainer; then my_keypath.with_mutex(&mutex, |value| { ... });\nFor Arc<Mutex>/Arc<RwLock>: let arc_mutex_keypath = my_keypath.for_arc_mutex();".to_string()
 //     } else {
 //         format!("🔧 KeyPaths Help for '{}': Use adapter methods to work with different container types. See documentation for more details.", input_str)
 //     };
-//     
+//
 //     let expanded = quote! {
 //         compile_error!(#help_message);
 //     };
-//     
+//
 //     TokenStream::from(expanded)
 // }

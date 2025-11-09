@@ -79,7 +79,11 @@ fn main() {
     println!("\n--- Example 4: Extract Active Status ---");
     let active_status: Vec<&bool> = Person::active_r().extract_from_slice(&people);
     for (i, status) in active_status.iter().enumerate() {
-        println!("  • Person {}: {}", i + 1, if **status { "Active" } else { "Inactive" });
+        println!(
+            "  • Person {}: {}",
+            i + 1,
+            if **status { "Active" } else { "Inactive" }
+        );
     }
 
     // Example 5: Filter active people and extract their names
@@ -153,7 +157,8 @@ fn main() {
     ];
 
     // Extract nicknames (only those that exist)
-    let nicknames: Vec<&String> = PersonWithOptional::nickname_fr().extract_from_slice(&people_with_nicknames);
+    let nicknames: Vec<&String> =
+        PersonWithOptional::nickname_fr().extract_from_slice(&people_with_nicknames);
     println!("  Nicknames found: {}", nicknames.len());
     for nickname in &nicknames {
         println!("    • {}", nickname);
@@ -194,7 +199,9 @@ fn main() {
 
     // Example 11: Performance comparison
     println!("\n--- Example 11: Performance Note ---");
-    println!("  Using extract_from_slice(), extract_from_iter(), and extract_mut_from_slice() is efficient because:");
+    println!(
+        "  Using extract_from_slice(), extract_from_iter(), and extract_mut_from_slice() is efficient because:"
+    );
     println!("  • No cloning of the original data");
     println!("  • Direct reference access to fields");
     println!("  • Works with any slice or iterator");

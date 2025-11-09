@@ -1,5 +1,5 @@
-use key_paths_derive::Keypaths;
 use key_paths_core::WithContainer;
+use key_paths_derive::Keypaths;
 use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
@@ -36,13 +36,19 @@ fn main() {
     // Test Arc<RwLock<T>> field access
     let field1_path = SomeStruct::field1_r();
     if let Some(field1_ref) = field1_path.get_ref(&&some_struct) {
-        println!("✅ Arc<RwLock<SomeOtherStruct>> field accessible: {:?}", field1_ref);
+        println!(
+            "✅ Arc<RwLock<SomeOtherStruct>> field accessible: {:?}",
+            field1_ref
+        );
     }
 
     // Test Arc<Mutex<T>> field access
     let field2_path = SomeStruct::field2_r();
     if let Some(field2_ref) = field2_path.get_ref(&&some_struct) {
-        println!("✅ Arc<Mutex<SomeOtherStruct>> field accessible: {:?}", field2_ref);
+        println!(
+            "✅ Arc<Mutex<SomeOtherStruct>> field accessible: {:?}",
+            field2_ref
+        );
     }
 
     println!("\n🎯 Testing with WithContainer Trait");
@@ -166,9 +172,8 @@ fn main() {
         if let Some(manager_arc) = manager_arc_path.get_ref(&&first_dept) {
             // Get the contact Arc<Mutex<Contact>> from the employee
             let contact_arc_path = Employee::contact_r();
-            let contact_arc = contact_arc_path.with_rwlock(manager_arc, |contact_arc| {
-                contact_arc.clone()
-            });
+            let contact_arc =
+                contact_arc_path.with_rwlock(manager_arc, |contact_arc| contact_arc.clone());
             if let Some(contact_arc) = contact_arc {
                 let email_path = Contact::email_r();
                 email_path.with_mutex(&*contact_arc, |email| {
@@ -213,9 +218,8 @@ fn main() {
         // Manager email
         if let Some(manager_arc) = manager_arc_path.get_ref(&&dept) {
             let contact_arc_path = Employee::contact_r();
-            let contact_arc = contact_arc_path.with_rwlock(manager_arc, |contact_arc| {
-                contact_arc.clone()
-            });
+            let contact_arc =
+                contact_arc_path.with_rwlock(manager_arc, |contact_arc| contact_arc.clone());
             if let Some(contact_arc) = contact_arc {
                 let email_path = Contact::email_r();
                 email_path.with_mutex(&*contact_arc, |email| {
@@ -237,26 +241,40 @@ fn main() {
         let count_arc_mutex_path = count_path.for_arc_mutex();
 
         if let Some(value) = value_arc_rwlock_path.get_failable_owned(some_struct.field1.clone()) {
-            println!("✅ Value from Arc<RwLock<SomeOtherStruct>> (aggregator): {}", value);
+            println!(
+                "✅ Value from Arc<RwLock<SomeOtherStruct>> (aggregator): {}",
+                value
+            );
         }
 
         if let Some(count) = count_arc_rwlock_path.get_failable_owned(some_struct.field1.clone()) {
-            println!("✅ Count from Arc<RwLock<SomeOtherStruct>> (aggregator): {}", count);
+            println!(
+                "✅ Count from Arc<RwLock<SomeOtherStruct>> (aggregator): {}",
+                count
+            );
         }
 
         if let Some(value) = value_arc_mutex_path.get_failable_owned(some_struct.field2.clone()) {
-            println!("✅ Value from Arc<Mutex<SomeOtherStruct>> (aggregator): {}", value);
+            println!(
+                "✅ Value from Arc<Mutex<SomeOtherStruct>> (aggregator): {}",
+                value
+            );
         }
 
         if let Some(count) = count_arc_mutex_path.get_failable_owned(some_struct.field2.clone()) {
-            println!("✅ Count from Arc<Mutex<SomeOtherStruct>> (aggregator): {}", count);
+            println!(
+                "✅ Count from Arc<Mutex<SomeOtherStruct>> (aggregator): {}",
+                count
+            );
         }
     }
 
     #[cfg(not(feature = "parking_lot"))]
     {
         println!("⚠️  Parking lot feature not enabled - aggregator functions not available");
-        println!("   Enable with: cargo run --example arc_sync_derive_example --features parking_lot");
+        println!(
+            "   Enable with: cargo run --example arc_sync_derive_example --features parking_lot"
+        );
     }
 
     println!("\n💡 Key Takeaways");
@@ -265,8 +283,12 @@ fn main() {
     println!("2. Generated methods provide container-level access (field1_r(), field2_r())");
     println!("3. Use WithContainer trait for no-clone access to inner values");
     println!("4. Use aggregator functions (with parking_lot feature) for clone-based access");
-    println!("5. Arc<Mutex<T>> and Arc<RwLock<T>> don't support writable access (Arc is immutable)");
+    println!(
+        "5. Arc<Mutex<T>> and Arc<RwLock<T>> don't support writable access (Arc is immutable)"
+    );
     println!("6. Direct access to inner types requires proper lock handling");
     println!("7. Composition works by chaining keypaths with .then() and using with_* methods");
-    println!("8. For deep nesting, access each level step by step using get_ref() and with_* methods");
+    println!(
+        "8. For deep nesting, access each level step by step using get_ref() and with_* methods"
+    );
 }
