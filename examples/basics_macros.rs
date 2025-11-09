@@ -2,16 +2,17 @@ use key_paths_core::KeyPaths;
 use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
-#[All]
+#[Writable]
 struct Size {
     width: u32,
     height: u32,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
+#[Writable]
 struct Rectangle {
     size: Size,
+    #[Readable]
     name: String,
 }
 
@@ -47,15 +48,15 @@ fn main() {
     println!("Updated rectangle: {:?}", rect);
 
     // Keypaths from derive-generated methods
-    let rect_size_fw = Rectangle::size_fw();
-    let rect_name_fw = Rectangle::name_fw();
-    let size_width_fw = Size::width_fw();
-    let size_height_fw = Size::height_fw();
+    let rect_size_fw = Rectangle::size();
+    let rect_name_fw = Rectangle::name();
+    let size_width_fw = Size::width();
+    let size_height_fw = Size::height();
 
-    let name_readable = Rectangle::name_r();
+    let name_readable = Rectangle::name();
     println!("Name (readable): {:?}", name_readable.get(&rect));
 
-    let size_writable = Rectangle::size_w();
+    let size_writable = Rectangle::size();
     if let Some(s) = size_writable.get_mut(&mut rect) {
         s.width += 1;
     }

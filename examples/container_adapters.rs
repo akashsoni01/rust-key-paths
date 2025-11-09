@@ -23,10 +23,11 @@ struct Product {
 }
 
 #[derive(Debug, Clone, Keypaths)]
-#[All]
 struct User {
     id: u32,
+    #[Writable]
     name: String,
+    #[Writable]
     email: String,
     age: u32,
 }
@@ -62,10 +63,10 @@ fn main() {
     ];
 
     // Create adapted keypaths for Arc<Product>
-    let name_path_arc = Product::name_r().for_arc();
-    let price_path_arc = Product::price_r().for_arc();
-    let category_path_arc = Product::category_r().for_arc();
-    let in_stock_path_arc = Product::in_stock_r().for_arc();
+    let name_path_arc = Product::name().for_arc();
+    let price_path_arc = Product::price().for_arc();
+    let category_path_arc = Product::category().for_arc();
+    let in_stock_path_arc = Product::in_stock().for_arc();
 
     println!("All products:");
     for product in &products_arc {
@@ -117,11 +118,11 @@ fn main() {
     ];
 
     // Create adapted keypaths for Box<User>
-    let name_path_box = User::name_r().for_box();
-    let age_path_box = User::age_r().for_box();
-    let email_path_box = User::email_r().for_box();
+    let name_path_box = User::name().for_box();
+    let age_path_box = User::age().for_box();
+    let email_path_box = User::email().for_box();
 
-    println!("All users:");
+    println!("///////////////////// All users:");
     for user in &users_box {
         if let Some(name) = name_path_box.get(user) {
             if let Some(&age) = age_path_box.get(user) {
@@ -166,9 +167,9 @@ fn main() {
     ];
 
     // Create adapted keypaths for Rc<Product>
-    let name_path_rc = Product::name_r().for_rc();
-    let price_path_rc = Product::price_r().for_rc();
-    let category_path_rc = Product::category_r().for_rc();
+    let name_path_rc = Product::name().for_rc();
+    let price_path_rc = Product::price().for_rc();
+    let category_path_rc = Product::category().for_rc();
 
     println!("Rc products:");
     for product in &products_rc {
@@ -183,8 +184,8 @@ fn main() {
     println!("\n--- Example 4: Mutable Access with Box ---");
 
     let mut users_box_mut = users_box;
-    let name_path_box_w = User::name_w().for_box();
-    let age_path_box_w = User::age_w().for_box();
+    let name_path_box_w = User::name().for_box();
+    let age_path_box_w = User::age().for_box();
 
     // Modify through Box keypath
     if let Some(user) = users_box_mut.get_mut(0) {
@@ -277,7 +278,7 @@ fn main() {
     println!("Arc:  {}", name_path_arc.get(&product_arc).unwrap());
     println!(
         "Box:  {}",
-        Product::name_r().for_box().get(&product_box).unwrap()
+        Product::name().for_box().get(&product_box).unwrap()
     );
     println!("Rc:   {}", name_path_rc.get(&product_rc).unwrap());
 
@@ -310,7 +311,7 @@ fn main() {
     println!("Thread 1 view:");
     for product in &thread1_products {
         if let Some(name) = name_path_arc.get(product) {
-            if let Some(&in_stock) = Product::in_stock_r().for_arc().get(product) {
+            if let Some(&in_stock) = Product::in_stock().for_arc().get(product) {
                 println!(
                     "  • {} - {}",
                     name,
@@ -327,7 +328,7 @@ fn main() {
     println!("Thread 2 view (same data):");
     let available_count = thread2_products
         .iter()
-        .filter(|p| Product::in_stock_r().for_arc().get(p).map_or(false, |&s| s))
+        .filter(|p| Product::in_stock().for_arc().get(p).map_or(false, |&s| s))
         .count();
     println!("  Available products: {}", available_count);
 
