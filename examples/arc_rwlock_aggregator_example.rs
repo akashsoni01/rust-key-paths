@@ -1,9 +1,8 @@
-use key_paths_core::{KeyPaths, WithContainer};
+use key_paths_core::WithContainer;
 use key_paths_derive::Keypaths;
 use std::sync::{Arc, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
-#[All]
 struct User {
     name: String,
     age: u32,
@@ -11,10 +10,11 @@ struct User {
 }
 
 #[derive(Keypaths, Clone, Debug)]
-#[All]
 struct Profile {
     user: User,
+    #[Writable]
     bio: String,
+    #[Writable]
     settings: Settings,
 }
 
@@ -37,7 +37,7 @@ fn main() {
 
     let arc_rwlock_profile = Arc::new(RwLock::new(Profile {
         user: User {
-            name: "Bob Smith".to_string(),
+            name: "Akash Soni".to_string(),
             age: 25,
             email: None,
         },
@@ -55,7 +55,7 @@ fn main() {
     println!("\n1️⃣  Simple Field Access");
     println!("----------------------");
 
-    let name_keypath = User::name_r();
+    let name_keypath = User::name();
     let arc_rwlock_name_keypath = name_keypath.for_arc_rwlock();
 
     // Use get_failable_owned() since for_arc_rwlock() returns FailableOwned
@@ -67,33 +67,36 @@ fn main() {
     println!("\n2️⃣  Optional Field Access");
     println!("-------------------------");
 
-    let email_keypath = User::email_fr();
+    let email_keypath = User::email();
     let arc_rwlock_email_keypath = email_keypath.for_arc_rwlock();
 
     if let Some(email) = arc_rwlock_email_keypath.get_failable_owned(arc_rwlock_user.clone()) {
         println!("✅ User email from Arc<RwLock>: {}", email);
     }
 
-    // Test 3: Nested field access
+    // Test 3: Nested field access (readable chain)
     println!("\n3️⃣  Nested Field Access");
     println!("----------------------");
 
-    let bio_keypath = Profile::bio_r();
-    let arc_rwlock_bio_keypath = bio_keypath.for_arc_rwlock();
+    let profile_user_name_keypath = Profile::user().then(User::name());
+    let arc_rwlock_user_name_keypath = profile_user_name_keypath.for_arc_rwlock();
 
-    if let Some(bio) = arc_rwlock_bio_keypath.get_failable_owned(arc_rwlock_profile.clone()) {
-        println!("✅ Profile bio from Arc<RwLock>: {}", bio);
+    if let Some(name) = arc_rwlock_user_name_keypath.get_failable_owned(arc_rwlock_profile.clone())
+    {
+        println!("✅ Nested user name from Arc<RwLock>: {}", name);
     }
 
     // Test 4: Deeply nested field access
     println!("\n4️⃣  Deeply Nested Field Access");
     println!("-----------------------------");
 
-    let theme_keypath = Profile::settings_r().then(Settings::theme_r());
-    let arc_rwlock_theme_keypath = theme_keypath.for_arc_rwlock();
+    let nested_email_keypath = Profile::user().then(User::email());
+    let arc_rwlock_email_nested_keypath = nested_email_keypath.for_arc_rwlock();
 
-    if let Some(theme) = arc_rwlock_theme_keypath.get_failable_owned(arc_rwlock_profile.clone()) {
-        println!("✅ Profile theme from Arc<RwLock>: {}", theme);
+    if let Some(email) =
+        arc_rwlock_email_nested_keypath.get_failable_owned(arc_rwlock_profile.clone())
+    {
+        println!("✅ Nested user email from Arc<RwLock>: {}", email);
     }
 
     println!("\n🔄 Testing with_arc_rwlock() Methods");
@@ -103,7 +106,7 @@ fn main() {
     println!("\n5️⃣  Read Access with with_arc_rwlock()");
     println!("-------------------------------------");
 
-    let name_keypath = User::name_r();
+    let name_keypath = User::name();
     if let Some(name) = name_keypath.with_arc_rwlock(&arc_rwlock_user, |name| name.clone()) {
         println!("✅ User name via with_arc_rwlock(): {}", name);
     }
@@ -112,7 +115,7 @@ fn main() {
     println!("\n6️⃣  Nested Access with with_arc_rwlock()");
     println!("---------------------------------------");
 
-    let user_name_keypath = Profile::user_r().then(User::name_r());
+    let user_name_keypath = Profile::user().then(User::name());
     if let Some(name) = user_name_keypath.with_arc_rwlock(&arc_rwlock_profile, |name| name.clone())
     {
         println!("✅ Profile user name via with_arc_rwlock(): {}", name);
@@ -122,7 +125,7 @@ fn main() {
     println!("\n7️⃣  Write Access with with_arc_rwlock_mut()");
     println!("-----------------------------------------");
 
-    let bio_keypath = Profile::bio_w();
+    let bio_keypath = Profile::bio();
     if let Some(new_bio) = bio_keypath.with_arc_rwlock_mut(&arc_rwlock_profile, |bio| {
         let old_bio = bio.clone();
         *bio =
@@ -133,8 +136,9 @@ fn main() {
     }
 
     // Verify the change
-    let bio_keypath = Profile::bio_r();
-    if let Some(bio) = bio_keypath.with_arc_rwlock(&arc_rwlock_profile, |bio| bio.clone()) {
+    println!("///////========================================================================");
+    let bio_keypath = Profile::bio();
+    if let Some(bio) = bio_keypath.with_arc_rwlock_mut(&arc_rwlock_profile, |bio| bio.clone()) {
         println!("✅ New bio after update: {}", bio);
     }
 
@@ -143,7 +147,7 @@ fn main() {
     println!("-----------------------------------------------");
 
     // We need to use a writable keypath for the entire path
-    let settings_keypath = Profile::settings_w();
+    let settings_keypath = Profile::settings();
     if let Some(old_theme) = settings_keypath.with_arc_rwlock_mut(&arc_rwlock_profile, |settings| {
         let old_theme = settings.theme.clone();
         settings.theme = "light".to_string();
@@ -153,8 +157,11 @@ fn main() {
     }
 
     // Verify the change
-    let theme_keypath = Profile::settings_r().then(Settings::theme_r());
-    if let Some(theme) = theme_keypath.with_arc_rwlock(&arc_rwlock_profile, |theme| theme.clone()) {
+    println!("///////========================================================================");
+    let settings_keypath = Profile::settings();
+    if let Some(theme) =
+        settings_keypath.with_arc_rwlock_mut(&arc_rwlock_profile, |settings| settings.theme.clone())
+    {
         println!("✅ New theme after update: {}", theme);
     }
 
@@ -165,7 +172,7 @@ fn main() {
     println!("\n9️⃣  Performance Comparison");
     println!("-------------------------");
 
-    let name_keypath = User::name_r();
+    let name_keypath = User::name();
 
     // Method 1: Using for_arc_rwlock() (clones the value)
     let start = std::time::Instant::now();
