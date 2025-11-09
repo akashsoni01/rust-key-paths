@@ -39,7 +39,7 @@ fn main() {
     println!("----------------------------------");
 
     // Method 1: Direct access with parking_lot::Mutex
-    let name_keypath = User::name_r();
+    let name_keypath = User::name();
 
     // Access name through parking_lot::Mutex
     {
@@ -62,8 +62,8 @@ fn main() {
     println!("-----------------------------------");
 
     // Method 2: Direct access with parking_lot::RwLock
-    let bio_keypath = Profile::bio_r();
-    let user_name_keypath = Profile::user_r().then(User::name_r());
+    let bio_keypath = Profile::bio();
+    let user_name_keypath = Profile::user().then(User::name());
 
     // Read access through parking_lot::RwLock
     {
@@ -91,7 +91,7 @@ fn main() {
     println!("-----------------------------------");
 
     // Method 3: Create adapter functions for universal locks
-    let name_keypath = User::name_r();
+    let name_keypath = User::name();
 
     // Adapter for parking_lot::Mutex
     fn parking_mutex_adapter<F>(keypath: KeyPaths<User, String>, mutex: &Mutex<User>, f: F)
@@ -165,7 +165,7 @@ fn main() {
     println!("----------------------------------------");
 
     // Demonstrate composition with nested keypaths using direct access
-    let nested_name_keypath = Profile::user_r().then(User::name_r());
+    let nested_name_keypath = Profile::user().then(User::name());
     {
         let guard = parking_rwlock_profile.read();
         if let Some(name) = nested_name_keypath.get_ref(&&*guard) {

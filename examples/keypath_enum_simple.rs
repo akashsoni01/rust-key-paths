@@ -24,18 +24,18 @@ fn main() {
 
     // Test unit variant
     let loading = Status::Loading;
-    if let Some(status) = Status::loading_case_r().get(&loading) {
+    if let Some(status) = Status::loading_case().get(&loading) {
         println!("Status: {:?}", status);
     }
 
     // Test single-field tuple variants
     let success = Status::Success("Operation completed".to_string());
-    if let Some(message) = Status::success_case_r().get(&success) {
+    if let Some(message) = Status::success_case().get(&success) {
         println!("Success message: {}", message);
     }
 
     let error = Status::Error("Something went wrong".to_string());
-    if let Some(error_msg) = Status::error_case_r().get(&error) {
+    if let Some(error_msg) = Status::error_case().get(&error) {
         println!("Error message: {}", error_msg);
     }
 
@@ -46,7 +46,7 @@ fn main() {
 
     // Test multi-field tuple variant
     let position = Status::Position(10.5, 20.3);
-    if let Some(pos) = Status::position_f0_r().get(&position) {
+    if let Some(pos) = Status::position_f0().get(&position) {
         println!("Position: {:?}", pos);
     }
 
@@ -55,13 +55,13 @@ fn main() {
         name: "Alice".to_string(),
         age: 30,
     };
-    if let Some(user_status_name) = Status::user_name_r().get(&user) {
+    if let Some(user_status_name) = Status::user_name().get(&user) {
         println!("User status name : {:?}", user_status_name);
     }
 
     // Test non-matching variants
     let loading_status = Status::Loading;
-    if let Some(message) = Status::success_case_r().get(&loading_status) {
+    if let Some(message) = Status::success_case().get(&loading_status) {
         println!("This should not print: {}", message);
     } else {
         println!("✓ Correctly returned None for non-matching variant");

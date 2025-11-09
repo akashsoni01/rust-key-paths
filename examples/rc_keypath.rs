@@ -48,11 +48,11 @@ struct DarkStruct {
 
 fn main() {
     // let x = SomeComplexStruct::scsf2_fw().then(SomeOtherStruct::sosf_fw());
-    let op = SomeComplexStruct::scsf_fr()
-        .then(SomeOtherStruct::sosf_fr())
-        .then(OneMoreStruct::omse_fr())
+    let op = SomeComplexStruct::scsf()
+        .then(SomeOtherStruct::sosf())
+        .then(OneMoreStruct::omse())
         .then(SomeEnum::b_case_r())
-        .then(DarkStruct::dsf_fr());
+        .then(DarkStruct::dsf());
     let mut instance = SomeComplexStruct::new();
     if let Some(omsf) = op.get(&instance) {
         // *omsf =

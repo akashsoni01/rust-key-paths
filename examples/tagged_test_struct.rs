@@ -37,11 +37,11 @@ fn main() {
 
     // Test direct keypath access to Tagged fields
     println!("\n1. Direct access to Tagged fields:");
-    if let Some(id) = SomeStruct::id_r().get_ref(&&test_struct) {
+    if let Some(id) = SomeStruct::id().get_ref(&&test_struct) {
         println!("   ID: {}", id);
     }
 
-    if let Some(time) = SomeStruct::time_id_r().get_ref(&&test_struct) {
+    if let Some(time) = SomeStruct::time_id().get_ref(&&test_struct) {
         println!("   Time: {}", time);
     }
 
@@ -51,24 +51,24 @@ fn main() {
     let tagged_struct: Tagged<SomeStruct, ()> = Tagged::new(test_struct.clone());
 
     // Now we can use for_tagged to adapt the keypath to work with Tagged<SomeStruct, ()>
-    let id_path = SomeStruct::id_r().for_tagged::<()>();
+    let id_path = SomeStruct::id().for_tagged::<()>();
     if let Some(id) = id_path.get_ref(&&tagged_struct) {
         println!("   ID from Tagged<SomeStruct>: {}", id);
     }
 
     // Test using with_tagged for no-clone access
     println!("\n3. Using with_tagged for no-clone access:");
-    SomeStruct::id_r().with_tagged(&tagged_struct, |id| {
+    SomeStruct::id().with_tagged(&tagged_struct, |id| {
         println!("   ID: {}", id);
     });
 
-    SomeStruct::time_id_r().with_tagged(&tagged_struct, |time| {
+    SomeStruct::time_id().with_tagged(&tagged_struct, |time| {
         println!("   Time: {}", time);
     });
 
     // Test composition with Tagged wrapper
     println!("\n4. Testing composition with Tagged wrapper:");
-    let id_string_path = SomeStruct::id_r().for_tagged::<()>();
+    let id_string_path = SomeStruct::id().for_tagged::<()>();
     if let Some(id) = id_string_path.get_ref(&&tagged_struct) {
         println!("   ID as string: {}", id.to_string());
     }
@@ -76,7 +76,7 @@ fn main() {
     // Test with Option<Tagged<T>>
     println!("\n5. Testing with Option<Tagged<T>>:");
     let maybe_struct: Option<Tagged<SomeStruct, ()>> = Some(Tagged::new(test_struct.clone()));
-    let option_id_path = SomeStruct::id_r().for_tagged::<()>().for_option();
+    let option_id_path = SomeStruct::id().for_tagged::<()>().for_option();
 
     if let Some(id) = option_id_path.get_ref(&&maybe_struct) {
         println!("   Optional ID: {}", id);
@@ -89,7 +89,7 @@ fn main() {
         Tagged::new(SomeStruct::new(Uuid::new_v4(), Utc::now())),
     ];
 
-    let id_path = SomeStruct::id_r();
+    let id_path = SomeStruct::id();
     for (i, tagged_struct) in structs.iter().enumerate() {
         id_path.clone().with_tagged(tagged_struct, |id| {
             println!("   Struct {} ID: {}", i + 1, id);

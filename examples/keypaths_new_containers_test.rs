@@ -39,26 +39,26 @@ fn main() {
     }
 
     // Test Mutex<T> with Keypaths
-    if let Some(mutex_ref) = ContainerTest::mutex_data_r().get(&container) {
+    if let Some(mutex_ref) = ContainerTest::mutex_data().get(&container) {
         println!("✅ Mutex reference: {:?}", mutex_ref);
     }
 
     // Test RwLock<T> with Keypaths
-    if let Some(rwlock_ref) = ContainerTest::rwlock_data_r().get(&container) {
+    if let Some(rwlock_ref) = ContainerTest::rwlock_data().get(&container) {
         println!("✅ RwLock reference: {:?}", rwlock_ref);
     }
 
     // Test Weak<T> with Keypaths
-    if let Some(weak_ref) = ContainerTest::weak_ref_r().get(&container) {
+    if let Some(weak_ref) = ContainerTest::weak_ref().get(&container) {
         println!("✅ Weak reference: {:?}", weak_ref);
     }
 
     // Test basic types
-    if let Some(name) = ContainerTest::name_r().get(&container) {
+    if let Some(name) = ContainerTest::name().get(&container) {
         println!("✅ Name: {}", name);
     }
 
-    if let Some(age) = ContainerTest::age_r().get(&container) {
+    if let Some(age) = ContainerTest::age().get(&container) {
         println!("✅ Age: {}", age);
     }
 

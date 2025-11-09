@@ -24,8 +24,8 @@ fn main() {
     };
 
     // Basic readable keypaths
-    println!("Name: {:?}", Person::name_r().get(&person));
-    println!("Age: {:?}", Person::age_r().get(&person));
+    println!("Name: {:?}", Person::name().get(&person));
+    println!("Age: {:?}", Person::age().get(&person));
 
     // Failable readable keypaths
     if let Some(email) = Person::email_fr().get(&person) {

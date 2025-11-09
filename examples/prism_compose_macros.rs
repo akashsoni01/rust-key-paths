@@ -37,7 +37,7 @@ fn main() {
         color: Color::Other(RGBU8(10, 20, 30)),
     };
 
-    let color_kp = ABox::color_w();
+    let color_kp = ABox::color();
     let case_path = KeyPaths::writable_enum(
         |v| Color::Other(v),
         |c: &Color| match c {

@@ -160,17 +160,16 @@ fn main() {
     // Query 1: Electronics, in stock, price < 1000, rating > 4.0
     println!("--- Query 1: Premium Electronics in Stock ---");
     let query1 = Query::new()
+        .where_(Product::details().then(ProductDetails::category()), |cat| {
+            cat == "Electronics"
+        })
         .where_(
-            Product::details_r().then(ProductDetails::category_r()),
-            |cat| cat == "Electronics",
-        )
-        .where_(
-            Product::details_r().then(ProductDetails::in_stock_r()),
+            Product::details().then(ProductDetails::in_stock()),
             |&in_stock| in_stock,
         )
-        .where_(Product::price_r(), |&price| price < 1000.0)
+        .where_(Product::price(), |&price| price < 1000.0)
         .where_(
-            Product::details_r().then(ProductDetails::rating_r()),
+            Product::details().then(ProductDetails::rating()),
             |&rating| rating > 4.0,
         );
 
@@ -185,7 +184,7 @@ fn main() {
 
     // Query 2: Budget items under $50
     println!("\n--- Query 2: Budget Items Under $50 ---");
-    let query2 = Query::new().where_(Product::price_r(), |&price| price < 50.0);
+    let query2 = Query::new().where_(Product::price(), |&price| price < 50.0);
 
     let results2 = query2.execute(&products);
     println!("Found {} products:", results2.len());
@@ -199,7 +198,7 @@ fn main() {
     // Query 3: Out of stock items
     println!("\n--- Query 3: Out of Stock Items ---");
     let query3 = Query::new().where_(
-        Product::details_r().then(ProductDetails::in_stock_r()),
+        Product::details().then(ProductDetails::in_stock()),
         |&in_stock| !in_stock,
     );
 
@@ -212,12 +211,11 @@ fn main() {
     // Query 4: Highly rated furniture (rating >= 4.0)
     println!("\n--- Query 4: Highly Rated Furniture ---");
     let query4 = Query::new()
+        .where_(Product::details().then(ProductDetails::category()), |cat| {
+            cat == "Furniture"
+        })
         .where_(
-            Product::details_r().then(ProductDetails::category_r()),
-            |cat| cat == "Furniture",
-        )
-        .where_(
-            Product::details_r().then(ProductDetails::rating_r()),
+            Product::details().then(ProductDetails::rating()),
             |&rating| rating >= 4.0,
         );
 
@@ -232,15 +230,15 @@ fn main() {
 
     // Query 5: Count products by category
     println!("\n--- Query 5: Products by Category ---");
-    let electronics_query = Query::new().where_(
-        Product::details_r().then(ProductDetails::category_r()),
-        |cat| cat == "Electronics",
-    );
+    let electronics_query = Query::new()
+        .where_(Product::details().then(ProductDetails::category()), |cat| {
+            cat == "Electronics"
+        });
 
-    let furniture_query = Query::new().where_(
-        Product::details_r().then(ProductDetails::category_r()),
-        |cat| cat == "Furniture",
-    );
+    let furniture_query = Query::new()
+        .where_(Product::details().then(ProductDetails::category()), |cat| {
+            cat == "Furniture"
+        });
 
     println!(
         "Electronics: {} products",
@@ -251,13 +249,13 @@ fn main() {
     // Query 6: Complex query - Mid-range products
     println!("\n--- Query 6: Mid-Range Products ($30-$300) with Good Ratings ---");
     let query6 = Query::new()
-        .where_(Product::price_r(), |&price| price >= 30.0 && price <= 300.0)
+        .where_(Product::price(), |&price| price >= 30.0 && price <= 300.0)
         .where_(
-            Product::details_r().then(ProductDetails::rating_r()),
+            Product::details().then(ProductDetails::rating()),
             |&rating| rating >= 4.0,
         )
         .where_(
-            Product::details_r().then(ProductDetails::in_stock_r()),
+            Product::details().then(ProductDetails::in_stock()),
             |&in_stock| in_stock,
         );
 
@@ -275,11 +273,10 @@ fn main() {
     let mut products_mut = products.clone();
 
     let discount_query = Query::new()
-        .where_(
-            Product::details_r().then(ProductDetails::category_r()),
-            |cat| cat == "Electronics",
-        )
-        .where_(Product::price_r(), |&price| price > 100.0);
+        .where_(Product::details().then(ProductDetails::category()), |cat| {
+            cat == "Electronics"
+        })
+        .where_(Product::price(), |&price| price > 100.0);
 
     let to_discount = discount_query.execute_mut(&mut products_mut);
     println!("Applying 10% discount to {} products:", to_discount.len());
@@ -296,11 +293,10 @@ fn main() {
     // Verify the changes
     println!("\n--- Verification: Electronics Over $100 (After Discount) ---");
     let verify_query = Query::new()
-        .where_(
-            Product::details_r().then(ProductDetails::category_r()),
-            |cat| cat == "Electronics",
-        )
-        .where_(Product::price_r(), |&price| price > 100.0);
+        .where_(Product::details().then(ProductDetails::category()), |cat| {
+            cat == "Electronics"
+        })
+        .where_(Product::price(), |&price| price > 100.0);
 
     let after_discount = verify_query.execute(&products_mut);
     println!("Products still over $100: {}", after_discount.len());

@@ -288,10 +288,10 @@ fn main() {
     consumer.enable_debug_mode();
 
     // Register fields
-    consumer.register_field("id", User::id_r());
-    consumer.register_field("name", User::name_r());
+    consumer.register_field("id", User::id());
+    consumer.register_field("name", User::name());
     consumer.register_field("email", User::email_fr());
-    consumer.register_field("active", User::is_active_r());
+    consumer.register_field("active", User::is_active());
 
     // Debug information
     println!("Debug Info: {:?}", consumer.debug_info());
@@ -326,11 +326,11 @@ fn main() {
     product_consumer.enable_debug_mode();
 
     // Register product fields
-    product_consumer.register_field("id", Product::id_r());
-    product_consumer.register_field("name", Product::name_r());
-    product_consumer.register_field("price", Product::price_r());
-    product_consumer.register_field("category", Product::category_r());
-    product_consumer.register_field("in_stock", Product::in_stock_r());
+    product_consumer.register_field("id", Product::id());
+    product_consumer.register_field("name", Product::name());
+    product_consumer.register_field("price", Product::price());
+    product_consumer.register_field("category", Product::category());
+    product_consumer.register_field("in_stock", Product::in_stock());
 
     // Borrow product fields
     if let Some(name) = product_consumer.borrow_field("name") {
@@ -361,11 +361,11 @@ fn main() {
     order_consumer.enable_debug_mode();
 
     // Register order fields
-    order_consumer.register_field("id", Order::id_r());
-    order_consumer.register_field("user_id", Order::user_id_r());
-    order_consumer.register_field("total", Order::total_r());
-    order_consumer.register_field("status", Order::status_r());
-    order_consumer.register_field("quantity", Order::quantity_r());
+    order_consumer.register_field("id", Order::id());
+    order_consumer.register_field("user_id", Order::user_id());
+    order_consumer.register_field("total", Order::total());
+    order_consumer.register_field("status", Order::status());
+    order_consumer.register_field("quantity", Order::quantity());
 
     // Borrow order fields
     if let Some(total) = order_consumer.borrow_field("total") {
@@ -410,9 +410,9 @@ fn main() {
     test_consumer.enable_debug_mode();
 
     // Register fields
-    test_consumer.register_field("name", User::name_r());
+    test_consumer.register_field("name", User::name());
     test_consumer.register_field("email", User::email_fr());
-    test_consumer.register_field("active", User::is_active_r());
+    test_consumer.register_field("active", User::is_active());
 
     // Demonstrate field borrowing
     if let Some(name) = test_consumer.borrow_field("name") {

@@ -324,17 +324,16 @@ fn main() {
 
     // Join 1: Inner join Users and Orders
     println!("--- Join 1: Users with Their Orders ---");
-    let user_orders = JoinQuery::new(&users, &orders).inner_join(
-        User::id_r(),
-        Order::user_id_r(),
-        |user, order| UserOrder {
-            user_name: user.name.clone(),
-            user_email: user.email.clone(),
-            order_id: order.id,
-            quantity: order.quantity,
-            total: order.total,
-        },
-    );
+    let user_orders =
+        JoinQuery::new(&users, &orders).inner_join(User::id(), Order::user_id(), |user, order| {
+            UserOrder {
+                user_name: user.name.clone(),
+                user_email: user.email.clone(),
+                order_id: order.id,
+                quantity: order.quantity,
+                total: order.total,
+            }
+        });
 
     for uo in &user_orders {
         println!(
@@ -348,11 +347,10 @@ fn main() {
     println!("\n--- Join 2: Complete Order Details (3-Way Join) ---");
 
     // First join: Orders with Users
-    let orders_with_users = JoinQuery::new(&orders, &users).inner_join(
-        Order::user_id_r(),
-        User::id_r(),
-        |order, user| (order.clone(), user.clone()),
-    );
+    let orders_with_users =
+        JoinQuery::new(&orders, &users).inner_join(Order::user_id(), User::id(), |order, user| {
+            (order.clone(), user.clone())
+        });
 
     // Second join: (Orders+Users) with Products
     let mut order_details = Vec::new();
@@ -382,11 +380,10 @@ fn main() {
     println!("\n--- Join 3: All Users with Order Count (Left Join) ---");
 
     // Use left_join to get all users with their orders (or None)
-    let user_order_pairs = JoinQuery::new(&users, &orders).left_join(
-        User::id_r(),
-        Order::user_id_r(),
-        |user, order| (user.clone(), order.map(|o| o.clone())),
-    );
+    let user_order_pairs =
+        JoinQuery::new(&users, &orders).left_join(User::id(), Order::user_id(), |user, order| {
+            (user.clone(), order.map(|o| o.clone()))
+        });
 
     // Group by user to count orders
     let mut user_stats: HashMap<u32, (String, String, usize, f64)> = HashMap::new();
@@ -431,8 +428,8 @@ fn main() {
 
     // Join orders with products to get category information
     let order_products = JoinQuery::new(&orders, &products).inner_join(
-        Order::product_id_r(),
-        Product::id_r(),
+        Order::product_id(),
+        Product::id(),
         |order, product| (order.clone(), product.clone()),
     );
 
@@ -475,8 +472,8 @@ fn main() {
     // Join 5: Filtered join - High value orders
     println!("\n--- Join 5: High Value Orders (>$100) with User Details ---");
     let high_value_orders = JoinQuery::new(&orders, &users).inner_join_where(
-        Order::user_id_r(),
-        User::id_r(),
+        Order::user_id(),
+        User::id(),
         |order, _user| order.total > 100.0,
         |order, user| (user.name.clone(), order.id, order.total),
     );
@@ -488,8 +485,8 @@ fn main() {
     // Join 6: Users in same city analysis
     println!("\n--- Join 6: Users from Same City ---");
     let user_pairs = JoinQuery::new(&users, &users).inner_join_where(
-        User::city_r(),
-        User::city_r(),
+        User::city(),
+        User::city(),
         |u1, u2| u1.id < u2.id, // Avoid duplicates and self-pairs
         |u1, u2| (u1.name.clone(), u2.name.clone(), u1.city.clone()),
     );
@@ -503,8 +500,8 @@ fn main() {
 
     // Join orders with products
     let product_order_pairs = JoinQuery::new(&products, &orders).inner_join(
-        Product::id_r(),
-        Order::product_id_r(),
+        Product::id(),
+        Order::product_id(),
         |product, order| (product.clone(), order.clone()),
     );
 
@@ -533,11 +530,10 @@ fn main() {
     println!("\n--- Join 8: Total Spending by City ---");
 
     // Join users with orders to get city and spending info
-    let user_city_orders = JoinQuery::new(&users, &orders).inner_join(
-        User::id_r(),
-        Order::user_id_r(),
-        |user, order| (user.city.clone(), order.total, user.id),
-    );
+    let user_city_orders =
+        JoinQuery::new(&users, &orders).inner_join(User::id(), Order::user_id(), |user, order| {
+            (user.city.clone(), order.total, user.id)
+        });
 
     // Aggregate by city
     let mut city_spending: HashMap<String, (f64, std::collections::HashSet<u32>)> = HashMap::new();

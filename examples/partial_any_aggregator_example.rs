@@ -40,7 +40,7 @@ fn main() {
     println!("--- 1. PartialKeyPath Aggregator Functions ---");
 
     // Create a partial keypath for Person::name
-    let name_partial = Person::name_partial_r();
+    let name_partial = Person::name_partial();
 
     // Test Arc aggregator
     let person_arc = Arc::new(person.clone());
@@ -82,7 +82,7 @@ fn main() {
 
     // Test Arc<RwLock> aggregator (owned only - requires owned keypath)
     let person_arc_rwlock = Arc::new(RwLock::new(person.clone()));
-    let name_owned = Person::name_partial_o();
+    let name_owned = Person::name_partial_owned();
     let name_arc_rwlock_partial = name_owned.clone().for_arc_rwlock();
     let owned_value = name_arc_rwlock_partial.get_owned(person_arc_rwlock);
     println!(
@@ -103,7 +103,7 @@ fn main() {
     println!("\n--- 2. AnyKeyPath Aggregator Functions ---");
 
     // Create an any keypath for Person::name
-    let name_any = Person::name_any_r();
+    let name_any = Person::name_any();
 
     // Test Arc aggregator
     let person_arc_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(person.clone()));
@@ -145,7 +145,7 @@ fn main() {
     // Test Arc<RwLock> aggregator (owned only - requires owned keypath)
     let person_arc_rwlock_boxed: Box<dyn std::any::Any + Send + Sync> =
         Box::new(Arc::new(RwLock::new(person.clone())));
-    let name_owned_any = Person::name_any_o();
+    let name_owned_any = Person::name_any_owned();
     let name_arc_rwlock_any = name_owned_any.clone().for_arc_rwlock::<Person>();
     let owned_value = name_arc_rwlock_any.get_owned(person_arc_rwlock_boxed);
     println!(
@@ -179,9 +179,9 @@ fn main() {
     ];
 
     // Create different keypaths
-    let name_partial = Person::name_partial_r();
-    let name_owned = Person::name_partial_o();
-    let age_partial = Person::age_partial_r();
+    let name_partial = Person::name_partial();
+    let name_owned = Person::name_partial_owned();
+    let age_partial = Person::age_partial();
     let email_partial = Person::email_partial_fr();
 
     // Test with different aggregators
@@ -278,8 +278,8 @@ fn main() {
     };
 
     // Create keypaths for company name and first employee name
-    let company_name_partial = Company::name_partial_r();
-    let employee_name_partial = Person::name_partial_r();
+    let company_name_partial = Company::name_partial();
+    let employee_name_partial = Person::name_partial();
 
     // Access company name directly
     if let Some(value) = company_name_partial.get(&company_with_arc_employees) {

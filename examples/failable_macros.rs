@@ -38,7 +38,7 @@ fn main() {
     let city_hp = City::garage_fr()
         .compose(Garage::car_fr())
         .compose(Car::engine_fr())
-        .compose(Engine::horsepower_r());
+        .compose(Engine::horsepower());
 
     println!("Horsepower (read) = {:?}", city_hp.get(&city));
 
@@ -46,7 +46,7 @@ fn main() {
     let garage_fw = City::garage_fw();
     let car_fw = Garage::car_fw();
     let engine_fw = Car::engine_fw();
-    let hp_w = Engine::horsepower_w();
+    let hp_w = Engine::horsepower();
 
     if let Some(garage) = garage_fw.get_mut(&mut city) {
         if let Some(car) = car_fw.get_mut(garage) {

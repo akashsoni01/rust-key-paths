@@ -46,11 +46,11 @@ fn main() {
 
     // 1. Direct access to Tagged fields (most common use case)
     println!("\n1. Direct access to Tagged fields:");
-    if let Some(id) = SomeStruct::id_r().get_ref(&&struct1) {
+    if let Some(id) = SomeStruct::id().get_ref(&&struct1) {
         println!("   Struct 1 ID: {}", id);
     }
 
-    if let Some(time) = SomeStruct::time_id_r().get_ref(&&struct1) {
+    if let Some(time) = SomeStruct::time_id().get_ref(&&struct1) {
         println!("   Struct 1 Time: {}", time);
     }
 
@@ -59,7 +59,7 @@ fn main() {
     let structs = vec![struct1.clone(), struct2.clone()];
 
     for (i, s) in structs.iter().enumerate() {
-        if let Some(id) = SomeStruct::id_r().get_ref(&&s) {
+        if let Some(id) = SomeStruct::id().get_ref(&&s) {
             println!("   Struct {} ID: {}", i + 1, id);
         }
     }
@@ -68,8 +68,8 @@ fn main() {
     println!("\n3. Using for_tagged when struct is wrapped in Tagged:");
     let tagged_struct: Tagged<SomeStruct, ()> = Tagged::new(struct1.clone());
 
-    let id_path = SomeStruct::id_r().for_tagged::<()>();
-    let time_path = SomeStruct::time_id_r().for_tagged::<()>();
+    let id_path = SomeStruct::id().for_tagged::<()>();
+    let time_path = SomeStruct::time_id().for_tagged::<()>();
 
     if let Some(id) = id_path.get_ref(&&tagged_struct) {
         println!("   Wrapped ID: {}", id);
@@ -81,18 +81,18 @@ fn main() {
 
     // 4. Using with_tagged for no-clone access
     println!("\n4. Using with_tagged for no-clone access:");
-    SomeStruct::id_r().with_tagged(&tagged_struct, |id| {
+    SomeStruct::id().with_tagged(&tagged_struct, |id| {
         println!("   ID via with_tagged: {}", id);
     });
 
-    SomeStruct::time_id_r().with_tagged(&tagged_struct, |time| {
+    SomeStruct::time_id().with_tagged(&tagged_struct, |time| {
         println!("   Time via with_tagged: {}", time);
     });
 
     // 5. Composition with other containers
     println!("\n5. Composition with Option<Tagged<SomeStruct>>:");
     let maybe_struct: Option<Tagged<SomeStruct, ()>> = Some(Tagged::new(struct2.clone()));
-    let option_id_path = SomeStruct::id_r().for_tagged::<()>().for_option();
+    let option_id_path = SomeStruct::id().for_tagged::<()>().for_option();
 
     if let Some(id) = option_id_path.get_ref(&&maybe_struct) {
         println!("   Optional wrapped ID: {}", id);
@@ -105,7 +105,7 @@ fn main() {
         Tagged::new(SomeStruct::new(Uuid::new_v4(), Utc::now())),
     ];
 
-    let id_path = SomeStruct::id_r();
+    let id_path = SomeStruct::id();
     for (i, tagged_struct) in tagged_structs.iter().enumerate() {
         id_path.clone().with_tagged(tagged_struct, |id| {
             println!("   Tagged Struct {} ID: {}", i + 1, id);
@@ -128,7 +128,7 @@ fn main() {
     let maybe_wrapped: Option<Tagged<SomeStruct, ()>> = Some(wrapped_complex);
 
     // Chain multiple adapters
-    let complex_path = SomeStruct::id_r()
+    let complex_path = SomeStruct::id()
         .for_tagged::<()>() // Adapt to work with Tagged<SomeStruct, ()>
         .for_option(); // Then adapt to work with Option<Tagged<...>>
 

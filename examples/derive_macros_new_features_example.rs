@@ -70,7 +70,7 @@ fn main() {
     // Example 2: Using PartialKeyPath derive macros
     println!("\n--- 2. PartialKeyPath derive macros ---");
 
-    // Generated methods: field_partial(), field_partial_w(), field_partial(), etc.
+    // Generated methods: field_partial(), field_partial_mut(), field_partial_owned(), etc.
     let name_partial = User::name_partial();
     let email_partial = User::email_partial();
     let tags_partial = User::tags_partial();
@@ -95,7 +95,7 @@ fn main() {
     // Example 3: Using AnyKeyPath derive macros
     println!("\n--- 3. AnyKeyPath derive macros ---");
 
-    // Generated methods: field_any(), field_any_w(), field_any(), etc.
+    // Generated methods: field_any(), field_any_mut(), field_any_owned(), etc.
     let user_name_any = User::name_any();
     let user_email_any = User::email_any();
     let product_title_any = Product::title_any();
@@ -166,7 +166,7 @@ fn main() {
     let mut user_mut = user.clone();
 
     // Using regular writable keypaths (not type-erased)
-    let name_w = User::name_w();
+    let name_w = User::name();
     if let Some(name_ref) = name_w.get_mut(&mut user_mut) {
         *name_ref = "Alice Updated".to_string();
         println!("Updated name (regular): {}", name_ref);
@@ -177,8 +177,8 @@ fn main() {
     // and dynamic keypath selection. For mutation, use regular KeyPaths.
 
     // Demonstrate that partial keypaths work for reading
-    let name_partial_r = User::name_partial();
-    if let Some(name_ref) = name_partial_r.get(&user_mut) {
+    let name_partial = User::name_partial();
+    if let Some(name_ref) = name_partial.get(&user_mut) {
         println!("Name via partial keypath: {:?}", name_ref);
     }
 
@@ -186,14 +186,14 @@ fn main() {
     println!("\n--- 6. Owned keypaths with derive macros ---");
 
     // Using partial owned keypaths
-    let name_partial_o = User::name_partial_o();
-    let owned_name = name_partial_o.get_owned(user.clone());
+    let name_partial_owned = User::name_partial_owned();
+    let owned_name = name_partial_owned.get_owned(user.clone());
     println!("Owned name (partial): {:?}", owned_name);
 
     // Using any owned keypaths
-    let name_any_o = User::name_any_o();
+    let name_any_owned = User::name_any_owned();
     let user_boxed: Box<dyn Any + Send + Sync> = Box::new(user.clone());
-    let owned_name_any = name_any_o.get_owned(user_boxed);
+    let owned_name_any = name_any_owned.get_owned(user_boxed);
     println!("Owned name (any): {:?}", owned_name_any);
 
     // Example 7: Mixed keypath types in collections

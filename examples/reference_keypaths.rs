@@ -68,7 +68,7 @@ fn main() {
     println!("Created {} product references", product_refs.len());
 
     // Use get_ref() to access fields from references
-    let name_path = Product::name_r();
+    let name_path = Product::name();
     for product_ref in &product_refs {
         if let Some(name) = name_path.get_ref(product_ref) {
             println!("  Product: {}", name);
@@ -77,8 +77,8 @@ fn main() {
 
     // Example 2: Filtering references using keypaths
     println!("\n--- Example 2: Filtering References ---");
-    let price_path = Product::price_r();
-    let in_stock_path = Product::in_stock_r();
+    let price_path = Product::price();
+    let in_stock_path = Product::in_stock();
 
     let affordable: Vec<&&Product> = product_refs
         .iter()
@@ -115,7 +115,7 @@ fn main() {
 
     // Example 4: Grouping references by category
     println!("\n--- Example 4: Grouping References by Category ---");
-    let category_path = Product::category_r();
+    let category_path = Product::category();
 
     let mut by_category: HashMap<String, Vec<&Product>> = HashMap::new();
     for product_ref in &product_refs {
@@ -220,9 +220,9 @@ fn main() {
 
     let user_refs: Vec<&User> = users.iter().collect();
 
-    let user_name_path = User::name_r();
-    let user_email_path = User::email_r();
-    let user_active_path = User::is_active_r();
+    let user_name_path = User::name();
+    let user_email_path = User::email();
+    let user_active_path = User::is_active();
 
     println!("Active users:");
     for user_ref in &user_refs {

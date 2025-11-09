@@ -3,15 +3,16 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct SomeComplexStruct {
+    #[Writable]
     scsf: Option<SomeOtherStruct>,
+    #[Writable]
     scfs2: Arc<RwLock<SomeOtherStruct>>,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct SomeOtherStruct {
+    #[Writable]
     sosf: Option<OneMoreStruct>,
 }
 
@@ -22,15 +23,16 @@ enum SomeEnum {
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct OneMoreStruct {
+    #[Writable]
     omsf: Option<String>,
+    #[Writable]
     omse: Option<SomeEnum>,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct DarkStruct {
+    #[Writable]
     dsf: Option<String>,
 }
 
@@ -57,11 +59,11 @@ impl SomeComplexStruct {
     }
 }
 fn main() {
-    let dsf_kp = SomeComplexStruct::scsf_fw()
-        .then(SomeOtherStruct::sosf_fw())
-        .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_w())
-        .then(DarkStruct::dsf_fw().for_box());
+    let dsf_kp = SomeComplexStruct::scsf()
+        .then(SomeOtherStruct::sosf())
+        .then(OneMoreStruct::omse())
+        .then(SomeEnum::b_case())
+        .then(DarkStruct::dsf().for_box());
 
     let mut instance = SomeComplexStruct::new();
     // let omsf = dsf_kp.get_mut(&mut instance);

@@ -8,7 +8,7 @@ struct Garage {
 }
 
 fn main() {
-    let cars_kp = Garage::cars_r();
+    let cars_kp = Garage::cars();
     let mut g = Garage {
         cars: vec!["BMW".into(), "Tesla".into(), "Audi".into()],
     };
@@ -21,7 +21,7 @@ fn main() {
     }
 
     // Mutable iteration via writable keypath
-    let cars_kp_mut = Garage::cars_w();
+    let cars_kp_mut = Garage::cars();
     if let Some(iter) = cars_kp_mut.iter_mut::<String>(&mut g) {
         for c in iter {
             c.push_str(" 🚗");

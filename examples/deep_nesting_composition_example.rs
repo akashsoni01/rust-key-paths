@@ -157,7 +157,7 @@ fn main() {
     // Example 1: Simple composition - Company name
     println!("\n1️⃣  Simple Composition - Company Name");
     println!("-------------------------------------");
-    let company_name_path = Organization::company_r().then(Company::name_r());
+    let company_name_path = Organization::company().then(Company::name());
 
     {
         let guard = organization.read();
@@ -169,9 +169,9 @@ fn main() {
     // Example 2: Two-level composition - Headquarters city
     println!("\n2️⃣  Two-Level Composition - Headquarters City");
     println!("---------------------------------------------");
-    let hq_city_path = Organization::company_r()
-        .then(Company::headquarters_r())
-        .then(Address::city_r());
+    let hq_city_path = Organization::company()
+        .then(Company::headquarters())
+        .then(Address::city());
 
     {
         let guard = organization.read();
@@ -183,10 +183,10 @@ fn main() {
     // Example 3: Three-level composition - Headquarters coordinates
     println!("\n3️⃣  Three-Level Composition - Headquarters Coordinates");
     println!("----------------------------------------------------");
-    let hq_lat_path = Organization::company_r()
-        .then(Company::headquarters_r())
-        .then(Address::coordinates_fr())
-        .then(Coordinates::latitude_r());
+    let hq_lat_path = Organization::company()
+        .then(Company::headquarters())
+        .then(Address::coordinates())
+        .then(Coordinates::latitude());
 
     {
         let guard = organization.read();
@@ -198,7 +198,7 @@ fn main() {
     // Example 4: Four-level composition - Global contact email
     println!("\n4️⃣  Four-Level Composition - Global Contact Email");
     println!("------------------------------------------------");
-    let global_email_path = Organization::global_contact_r().then(Contact::email_r());
+    let global_email_path = Organization::global_contact().then(Contact::email());
 
     {
         let guard = organization.read();
@@ -210,10 +210,10 @@ fn main() {
     // Example 5: Five-level composition - Global contact address coordinates
     println!("\n5️⃣  Five-Level Composition - Global Contact Address Coordinates");
     println!("-------------------------------------------------------------");
-    let global_coords_path = Organization::global_contact_r()
-        .then(Contact::address_r())
-        .then(Address::coordinates_fr())
-        .then(Coordinates::latitude_r());
+    let global_coords_path = Organization::global_contact()
+        .then(Contact::address())
+        .then(Address::coordinates())
+        .then(Coordinates::latitude());
 
     {
         let guard = organization.read();
@@ -232,7 +232,7 @@ fn main() {
         let guard = organization.read();
         let org = &*guard;
         if let Some(first_dept) = org.company.departments.first() {
-            let dept_budget_path = Department::budget_r();
+            let dept_budget_path = Department::budget();
             if let Some(budget) = dept_budget_path.get_ref(&first_dept) {
                 println!("✅ First department budget: ${}", budget);
             }
@@ -247,7 +247,7 @@ fn main() {
         let guard = organization.read();
         let org = &*guard;
         if let Some(first_employee) = org.company.employees.first() {
-            let employee_contact_path = Employee::contact_r().then(Contact::email_r());
+            let employee_contact_path = Employee::contact().then(Contact::email());
             if let Some(email) = employee_contact_path.get_ref(&first_employee) {
                 println!("✅ First employee email: {}", email);
             }
@@ -257,7 +257,7 @@ fn main() {
     // Example 8: Global contact with optional phone
     println!("\n8️⃣  Global Contact with Optional Phone");
     println!("-------------------------------------");
-    let global_phone_path = Organization::global_contact_r().then(Contact::phone_fr());
+    let global_phone_path = Organization::global_contact().then(Contact::phone());
 
     {
         let guard = organization.read();
@@ -274,13 +274,13 @@ fn main() {
     println!("--------------------------------------");
 
     // Start with organization
-    let org_path = Organization::company_r();
+    let org_path = Organization::company();
 
     // Add company level
-    let company_path = org_path.then(Company::headquarters_r());
+    let company_path = org_path.then(Company::headquarters());
 
     // Add headquarters level
-    let hq_path = company_path.then(Address::city_r());
+    let hq_path = company_path.then(Address::city());
 
     {
         let guard = organization.read();
@@ -293,9 +293,9 @@ fn main() {
     println!("\n📝 Pattern 2: Fluent Composition");
     println!("-------------------------------");
 
-    let fluent_path = Organization::company_r()
-        .then(Company::headquarters_r())
-        .then(Address::country_r());
+    let fluent_path = Organization::company()
+        .then(Company::headquarters())
+        .then(Address::country());
 
     {
         let guard = organization.read();
@@ -309,13 +309,13 @@ fn main() {
     println!("-------------------------------------------");
 
     // Create reusable base paths
-    let company_base = Organization::company_r();
-    let hq_base = company_base.then(Company::headquarters_r());
-    let address_base = hq_base.then(Address::coordinates_fr());
+    let company_base = Organization::company();
+    let hq_base = company_base.then(Company::headquarters());
+    let address_base = hq_base.then(Address::coordinates());
 
     // Compose different paths using the same base
-    let hq_lat_path = address_base.clone().then(Coordinates::latitude_r());
-    let hq_lng_path = address_base.then(Coordinates::longitude_r());
+    let hq_lat_path = address_base.clone().then(Coordinates::latitude());
+    let hq_lng_path = address_base.then(Coordinates::longitude());
 
     {
         let guard = organization.read();
@@ -331,10 +331,10 @@ fn main() {
     println!("\n📝 Pattern 4: Multiple Levels of Option");
     println!("-------------------------------------");
 
-    let optional_coords_path = Organization::company_r()
-        .then(Company::headquarters_r())
-        .then(Address::coordinates_fr())
-        .then(Coordinates::latitude_r());
+    let optional_coords_path = Organization::company()
+        .then(Company::headquarters())
+        .then(Address::coordinates())
+        .then(Coordinates::latitude());
 
     {
         let guard = organization.read();
@@ -355,8 +355,8 @@ fn main() {
 
         // Iterate through employees and use keypaths on each
         for (i, employee) in org.company.employees.iter().enumerate() {
-            let employee_name_path = Employee::name_r();
-            let employee_email_path = Employee::contact_r().then(Contact::email_r());
+            let employee_name_path = Employee::name();
+            let employee_email_path = Employee::contact().then(Contact::email());
 
             if let Some(name) = employee_name_path.get_ref(&employee) {
                 if let Some(email) = employee_email_path.get_ref(&employee) {

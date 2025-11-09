@@ -39,7 +39,7 @@ fn main() {
     let people_refs = vec![&person1, &person2, &person3];
 
     // Extract names using the new extract_from_ref_slice method
-    let name_path = Person::name_r();
+    let name_path = Person::name();
     let names: Vec<&String> = name_path.extract_from_ref_slice(&people_refs);
 
     println!("  Names from references:");
@@ -56,7 +56,7 @@ fn main() {
     let mut people_mut_refs = vec![&mut person1_mut, &mut person2_mut, &mut person3_mut];
 
     // Extract mutable names using the new extract_mut_from_ref_slice method
-    let name_mut_path = Person::name_w();
+    let name_mut_path = Person::name();
     let names_mut: Vec<&mut String> =
         name_mut_path.extract_mut_from_ref_slice(&mut people_mut_refs);
 
@@ -75,7 +75,7 @@ fn main() {
     let people_owned = vec![person1.clone(), person2.clone(), person3.clone()];
 
     // Extract ages using the existing method
-    let age_path = Person::age_r();
+    let age_path = Person::age();
     let ages: Vec<&u32> = age_path.extract_from_slice(&people_owned);
 
     println!("  Ages from owned values:");
@@ -88,7 +88,7 @@ fn main() {
     let mut people_owned_mut = vec![person1.clone(), person2.clone(), person3.clone()];
 
     // Extract mutable ages using the existing method
-    let age_mut_path = Person::age_w();
+    let age_mut_path = Person::age();
     let ages_mut: Vec<&mut u32> = age_mut_path.extract_mut_from_slice(&mut people_owned_mut);
 
     // Modify the ages

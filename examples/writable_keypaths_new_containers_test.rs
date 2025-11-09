@@ -34,28 +34,28 @@ fn main() {
     };
 
     // Test Result<T, E> with WritableKeypaths
-    if let Some(result_ref) = ContainerTest::result_w().get(&mut container) {
+    if let Some(result_ref) = ContainerTest::result().get(&mut container) {
         println!("✅ Result reference: {:?}", result_ref);
     }
 
     // Test Mutex<T> with WritableKeypaths
-    if let Some(mutex_ref) = ContainerTest::mutex_data_w().get(&mut container) {
+    if let Some(mutex_ref) = ContainerTest::mutex_data().get(&mut container) {
         println!("✅ Mutex reference: {:?}", mutex_ref);
     }
 
     // Test RwLock<T> with WritableKeypaths
-    if let Some(rwlock_ref) = ContainerTest::rwlock_data_w().get(&mut container) {
+    if let Some(rwlock_ref) = ContainerTest::rwlock_data().get(&mut container) {
         println!("✅ RwLock reference: {:?}", rwlock_ref);
     }
 
     // Note: Weak<T> doesn't have writable methods (it's immutable)
 
     // Test basic types
-    if let Some(name_ref) = ContainerTest::name_w().get(&mut container) {
+    if let Some(name_ref) = ContainerTest::name().get(&mut container) {
         println!("✅ Name reference: {:?}", name_ref);
     }
 
-    if let Some(age_ref) = ContainerTest::age_w().get(&mut container) {
+    if let Some(age_ref) = ContainerTest::age().get(&mut container) {
         println!("✅ Age reference: {:?}", age_ref);
     }
 

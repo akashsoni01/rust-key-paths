@@ -37,5 +37,5 @@ fn main() {
     println!("recovery token (owned): {:?}", owned_token);
 
     // Uncommenting the next line would fail to compile because `nickname` only has readable methods.
-    // let _ = Account::nickname_w();
+    // let _ = Account::nickname();
 }

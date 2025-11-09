@@ -222,8 +222,8 @@ fn main() {
     println!("--- Change 1: Update title ---");
     let cmd = make_string_change(
         &doc,
-        Document::title_w(),
-        Document::title_r(),
+        Document::title(),
+        Document::title(),
         "Updated Document".to_string(),
         "Change title to 'Updated Document'".to_string(),
     );
@@ -234,8 +234,8 @@ fn main() {
     println!("\n--- Change 2: Update content ---");
     let cmd = make_string_change(
         &doc,
-        Document::content_w(),
-        Document::content_r(),
+        Document::content(),
+        Document::content(),
         "Hello, Rust!".to_string(),
         "Change content to 'Hello, Rust!'".to_string(),
     );
@@ -246,8 +246,8 @@ fn main() {
     println!("\n--- Change 3: Update author (nested field) ---");
     let cmd = make_string_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::author_w()),
-        Document::metadata_r().then(DocumentMetadata::author_r()),
+        Document::metadata().then(DocumentMetadata::author()),
+        Document::metadata().then(DocumentMetadata::author()),
         "Bob".to_string(),
         "Change author to 'Bob'".to_string(),
     );
@@ -258,8 +258,8 @@ fn main() {
     println!("\n--- Change 4: Update revision ---");
     let cmd = make_u32_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::revision_w()),
-        Document::metadata_r().then(DocumentMetadata::revision_r()),
+        Document::metadata().then(DocumentMetadata::revision()),
+        Document::metadata().then(DocumentMetadata::revision()),
         2,
         "Increment revision to 2".to_string(),
     );
@@ -270,8 +270,8 @@ fn main() {
     println!("\n--- Change 5: Update tags ---");
     let cmd = make_vec_string_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::tags_w()),
-        Document::metadata_r().then(DocumentMetadata::tags_r()),
+        Document::metadata().then(DocumentMetadata::tags()),
+        Document::metadata().then(DocumentMetadata::tags()),
         vec!["draft".to_string(), "reviewed".to_string()],
         "Add 'reviewed' tag".to_string(),
     );
@@ -355,8 +355,8 @@ fn main() {
     println!("\n=== Making New Change (clears redo history) ===");
     let cmd = make_string_change(
         &doc,
-        Document::content_w(),
-        Document::content_r(),
+        Document::content(),
+        Document::content(),
         "Hello, KeyPaths!".to_string(),
         "Change content to 'Hello, KeyPaths!'".to_string(),
     );

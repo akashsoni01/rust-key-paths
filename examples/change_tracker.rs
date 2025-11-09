@@ -153,20 +153,20 @@ fn main() {
 
     // Add paths to track (need both readable for comparison and writable for updates)
     tracker.add_path(
-        AppState::user_r().then(User::name_r()),
-        AppState::user_w().then(User::name_w()),
+        AppState::user().then(User::name()),
+        AppState::user().then(User::name()),
         vec!["user".into(), "name".into()],
     );
 
     tracker.add_path(
-        AppState::settings_r().then(Settings::theme_r()),
-        AppState::settings_w().then(Settings::theme_w()),
+        AppState::settings().then(Settings::theme()),
+        AppState::settings().then(Settings::theme()),
         vec!["settings".into(), "theme".into()],
     );
 
     tracker.add_path(
-        AppState::settings_r().then(Settings::language_r()),
-        AppState::settings_w().then(Settings::language_w()),
+        AppState::settings().then(Settings::language()),
+        AppState::settings().then(Settings::language()),
         vec!["settings".into(), "language".into()],
     );
 
@@ -218,15 +218,15 @@ fn main() {
 
     // Make local changes
     println!("Making local changes...");
-    if let Some(name) = AppState::user_w()
-        .then(User::name_w())
+    if let Some(name) = AppState::user()
+        .then(User::name())
         .get_mut(&mut local_state)
     {
         *name = "Alice C. Johnson".to_string();
     }
 
-    if let Some(language) = AppState::settings_w()
-        .then(Settings::language_w())
+    if let Some(language) = AppState::settings()
+        .then(Settings::language())
         .get_mut(&mut local_state)
     {
         *language = "es".to_string();

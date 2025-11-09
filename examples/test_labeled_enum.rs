@@ -31,21 +31,21 @@ fn main() {
 
     // Test unit variant
     let unit_enum = TestEnum::Unit;
-    let unit_case = TestEnum::unit_case_r();
+    let unit_case = TestEnum::unit_case();
     if let Some(()) = unit_case.get(&unit_enum) {
         println!("Unit variant works!");
     }
 
     // Test single-field tuple variant
     let single_enum = TestEnum::Single(42.0);
-    let single_case = TestEnum::single_case_r();
+    let single_case = TestEnum::single_case();
     if let Some(value) = single_case.get(&single_enum) {
         println!("Single variant: {}", value);
     }
 
     // Test multi-field tuple variant
     let color_enum = TestEnum::Color(1.0, 0.5, 0.0, 1.0);
-    let color_case = TestEnum::color_case_r();
+    let color_case = TestEnum::color_case();
     if let Some((r, g, b, a)) = color_case.get(&color_enum) {
         println!("Color: RGBA({}, {}, {}, {})", r, g, b, a);
     }
@@ -60,7 +60,7 @@ fn main() {
         name: "Charlie".to_string(),
         age: 35,
     };
-    let user_case_w = TestEnum::user_case_w();
+    let user_case_w = TestEnum::user_case();
 
     // Extract the fields, modify them, and reconstruct
     if let Some((name, age)) = user_case_w.get_failable_owned(user_enum) {
@@ -73,7 +73,7 @@ fn main() {
         name: "David".to_string(),
         age: 40,
     };
-    let user_case_r = TestEnum::user_case_r();
+    let user_case_r = TestEnum::user_case();
     if let Some((name, age)) = user_case_r.get_failable_owned(user_enum2) {
         let updated_user = TestEnum::User { name, age: 41 };
         println!("Updated user via readable keypath: {:?}", updated_user);

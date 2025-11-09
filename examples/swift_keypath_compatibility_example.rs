@@ -40,8 +40,8 @@ fn main() {
     };
 
     // Create readable keypaths
-    let name_path = Person::name_r();
-    let age_path = Person::age_r();
+    let name_path = Person::name();
+    let age_path = Person::age();
     let email_path = Person::email_fr(); // FailableReadable for Option<String>
 
     // Use keypaths for read-only access
@@ -62,9 +62,9 @@ fn main() {
     let mut person_mut = person.clone();
 
     // Create writable keypaths
-    let name_writable = Person::name_w();
-    let age_writable = Person::age_w();
-    let active_writable = Person::is_active_w();
+    let name_writable = Person::name();
+    let age_writable = Person::age();
+    let active_writable = Person::is_active();
 
     // Use keypaths for read-write access
     if let Some(name_ref) = name_writable.get_mut(&mut person_mut) {
@@ -162,7 +162,7 @@ fn main() {
     };
 
     // Create composed keypaths
-    let company_name_path = Company::name_r();
+    let company_name_path = Company::name();
 
     // Use the company name keypath
     if let Some(name) = company_name_path.get(&company) {
@@ -171,7 +171,7 @@ fn main() {
 
     // Access first employee directly
     if let Some(first_employee) = company.employees.first() {
-        if let Some(name) = Person::name_r().get(first_employee) {
+        if let Some(name) = Person::name().get(first_employee) {
             println!("First employee name: {}", name);
         }
     }

@@ -86,10 +86,10 @@ fn main() {
 
     // Test basic readable keypaths
     println!("=== Basic Readable Keypaths ===");
-    let name_path = User::name_r();
+    let name_path = User::name();
     println!("Name: {:?}", name_path.get(&user));
 
-    let age_path = User::age_r();
+    let age_path = User::age();
     println!("Age: {:?}", age_path.get(&user));
 
     // Test failable readable keypaths for Option
@@ -157,21 +157,21 @@ fn main() {
 
     // Test Box dereferencing
     println!("\n=== Box Dereferencing ===");
-    let bio_path = User::profile_r();
+    let bio_path = User::profile();
     if let Some(profile) = bio_path.get(&user) {
         println!("Profile bio: {}", profile.bio);
     }
 
     // Test Rc dereferencing
     println!("\n=== Rc Dereferencing ===");
-    let avatar_path = User::avatar_r();
+    let avatar_path = User::avatar();
     if let Some(avatar) = avatar_path.get(&user) {
         println!("Avatar: {}", avatar);
     }
 
     // Test Arc dereferencing
     println!("\n=== Arc Dereferencing ===");
-    let metadata_path = User::metadata_r();
+    let metadata_path = User::metadata();
     if let Some(metadata) = metadata_path.get(&user) {
         println!("Metadata keys: {:?}", metadata.keys().collect::<Vec<_>>());
     }
@@ -180,7 +180,7 @@ fn main() {
     println!("\n=== Tuple Struct ===");
     let tuple = TupleStruct("test".to_string(), Some(42), vec![1.0, 2.0, 3.0]);
 
-    let f0_path = TupleStruct::f0_r();
+    let f0_path = TupleStruct::f0();
     println!("Tuple f0: {:?}", f0_path.get(&tuple));
 
     let f1_fr_path = TupleStruct::f1_fr();

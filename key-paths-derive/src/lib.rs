@@ -48,7 +48,7 @@ enum WrapperKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MethodScope {
-    // All,
+    All,
     Readable,
     Writable,
     Owned,
@@ -56,15 +56,15 @@ enum MethodScope {
 
 impl MethodScope {
     fn includes_read(self) -> bool {
-        matches!(self, MethodScope::Readable)
+        matches!(self, MethodScope::Readable | MethodScope::All)
     }
 
     fn includes_write(self) -> bool {
-        matches!(self, MethodScope::Writable)
+        matches!(self, MethodScope::Writable | MethodScope::All)
     }
 
     fn includes_owned(self) -> bool {
-        matches!(self, MethodScope::Owned)
+        matches!(self, MethodScope::Owned | MethodScope::All)
     }
 }
 
@@ -119,13 +119,15 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
                 ));
             }
             scope = Some(MethodScope::Owned);
+        } else if attr.path().is_ident("All") {
+            if scope.is_some() {
+                return Err(syn::Error::new(
+                    attr.span(),
+                    "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant",
+                ));
+            }
+            scope = Some(MethodScope::All);
         }
-        // else if attr.path().is_ident("All") {
-        //     if scope.is_some() {
-        //         return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
-        //     }
-        //     scope = Some(MethodScope::All);
-        // }
     }
     Ok(scope)
 }
@@ -2902,6 +2904,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
                 let r_fn = format_ident!("{}_case_r", snake);
                 let w_fn = format_ident!("{}_case_w", snake);
+                let base_r_fn = format_ident!("{}_case", snake);
+                let base_w_fn = format_ident!("{}_case_mut", snake);
                 let _fr_fn = format_ident!("{}_case_fr", snake);
                 let _fw_fn = format_ident!("{}_case_fw", snake);
                 let fr_at_fn = format_ident!("{}_case_fr_at", snake);
@@ -2916,6 +2920,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     |_| #name::#v_ident,
                                     |e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None }
                                 )
+                            }
+                            pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, ()> {
+                                Self::#r_fn()
                             }
                         });
                     }
@@ -2932,12 +2939,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref(), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref(), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.as_mut(), _ => None },
                                         )
+                                    }
+                                    pub fn #base_w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#w_fn()
                                     }
                                 });
                             }
@@ -2949,12 +2962,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut(), _ => None },
                                         )
+                                    }
+                                    pub fn #base_w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#w_fn()
                                     }
                                     pub fn #fr_at_fn(index: &'static usize) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -2979,12 +2998,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut().map(|(_, v)| v), _ => None },
                                         )
+                                    }
+                                    pub fn #base_w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#w_fn()
                                     }
                                     pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
@@ -3009,12 +3034,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => Some(&mut *v), _ => None },
                                         )
+                                    }
+                                    pub fn #base_w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#w_fn()
                                     }
                                 });
                             }
@@ -3027,6 +3058,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                 });
                             }
                             (WrapperKind::BTreeMap, Some(inner_ty)) => {
@@ -3037,12 +3071,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut().map(|(_, v)| v), _ => None },
                                         )
+                                    }
+                                    pub fn #base_w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#w_fn()
                                     }
                                 });
                             }
@@ -3054,6 +3094,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => v.iter().next(), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                 });
                             }
                             (WrapperKind::BTreeSet, Some(inner_ty)) => {
@@ -3063,6 +3106,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.iter().next(), _ => None }
                                         )
+                                    }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
                                     }
                                 });
                             }
@@ -3074,12 +3120,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.front_mut(), _ => None },
                                         )
+                                    }
+                                    pub fn #base_w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#w_fn()
                                     }
                                 });
                             }
@@ -3091,12 +3143,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.front_mut(), _ => None },
                                         )
+                                    }
+                                    pub fn #base_w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#w_fn()
                                     }
                                 });
                             }
@@ -3108,6 +3166,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => v.peek(), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#r_fn()
+                                    }
                                     pub fn #w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::writable_enum(
                                             #name::#v_ident,
@@ -3115,11 +3176,20 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.peek_mut().map(|v| &mut **v), _ => None },
                                         )
                                     }
+                                    pub fn #base_w_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        Self::#w_fn()
+                                    }
                                 });
                             }
                             (WrapperKind::Result, Some(inner_ty)) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
+                                        key_paths_core::KeyPaths::readable_enum(
+                                            #name::#v_ident,
+                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().ok(), _ => None }
+                                        )
+                                    }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #inner_ty> {
                                         key_paths_core::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().ok(), _ => None }
@@ -3137,6 +3207,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                        Self::#r_fn()
+                                    }
                                     // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
                                     // Only providing container-level access
                                 });
@@ -3149,6 +3222,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
                                         )
                                     }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                        Self::#r_fn()
+                                    }
                                     // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
                                     // Only providing container-level access
                                 });
@@ -3160,6 +3236,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
                                         )
+                                    }
+                                    pub fn #base_r_fn() -> key_paths_core::KeyPaths<#name, #field_ty> {
+                                        Self::#r_fn()
                                     }
                                     // Note: Weak<T> doesn't support writable access (it's immutable)
                                     // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
@@ -5015,6 +5094,9 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                     // Owned keypath method names
                     let o_fn = format_ident!("{}_partial_o", field_ident);
                     let fo_fn = format_ident!("{}_partial_fo", field_ident);
+                    let base_r_fn = format_ident!("{}_partial", field_ident);
+                    let base_w_fn = format_ident!("{}_partial_mut", field_ident);
+                    let base_o_fn = format_ident!("{}_partial_owned", field_ident);
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
@@ -5116,6 +5198,17 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                     }
+                    tokens.extend(quote! {
+                        pub fn #base_r_fn() -> key_paths_core::PartialKeyPath<#name> {
+                            Self::#r_fn()
+                        }
+                        pub fn #base_w_fn() -> key_paths_core::PartialKeyPath<#name> {
+                            Self::#w_fn()
+                        }
+                        pub fn #base_o_fn() -> key_paths_core::PartialKeyPath<#name> {
+                            Self::#o_fn()
+                        }
+                    });
                 }
                 tokens
             }
@@ -5157,6 +5250,9 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                     // Owned keypath method names
                     let o_fn = format_ident!("{}_any_o", field_ident);
                     let fo_fn = format_ident!("{}_any_fo", field_ident);
+                    let base_r_fn = format_ident!("{}_any", field_ident);
+                    let base_w_fn = format_ident!("{}_any_mut", field_ident);
+                    let base_o_fn = format_ident!("{}_any_owned", field_ident);
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
@@ -5258,6 +5354,17 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                     }
+                    tokens.extend(quote! {
+                        pub fn #base_r_fn() -> key_paths_core::AnyKeyPath {
+                            Self::#r_fn()
+                        }
+                        pub fn #base_w_fn() -> key_paths_core::AnyKeyPath {
+                            Self::#w_fn()
+                        }
+                        pub fn #base_o_fn() -> key_paths_core::AnyKeyPath {
+                            Self::#o_fn()
+                        }
+                    });
                 }
                 tokens
             }

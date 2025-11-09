@@ -19,15 +19,15 @@ fn main() {
         name: "Ada".into(),
     });
 
-    let kp_active = Status::active_case_r();
-    let active_name = Status::active_case_r().compose(User::name_r());
+    let kp_active = Status::active_case();
+    let active_name = Status::active_case().compose(User::name());
     println!("Active name = {:?}", active_name.get(&status));
 
     let mut status2 = Status::Active(User {
         id: 2,
         name: "Bob".into(),
     });
-    let kp_active_w = Status::active_case_w();
+    let kp_active_w = Status::active_case();
     if let Some(user) = kp_active_w.get_mut(&mut status2) {
         user.name.push_str("_edited");
     }

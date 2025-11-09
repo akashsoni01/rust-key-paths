@@ -56,28 +56,28 @@ fn main() {
 
     // Example 1: Extract names from slice using extract_from_slice
     println!("\n--- Example 1: Extract Names from Slice ---");
-    let names: Vec<&String> = Person::name_r().extract_from_slice(&people);
+    let names: Vec<&String> = Person::name().extract_from_slice(&people);
     for name in &names {
         println!("  • {}", name);
     }
 
     // Example 2: Extract ages from slice
     println!("\n--- Example 2: Extract Ages from Slice ---");
-    let ages: Vec<&u32> = Person::age_r().extract_from_slice(&people);
+    let ages: Vec<&u32> = Person::age().extract_from_slice(&people);
     for age in &ages {
         println!("  • Age: {}", age);
     }
 
     // Example 3: Extract emails from iterator
     println!("\n--- Example 3: Extract Emails from Iterator ---");
-    let emails: Vec<&String> = Person::email_r().extract_from_iter(people.iter());
+    let emails: Vec<&String> = Person::email().extract_from_iter(people.iter());
     for email in &emails {
         println!("  • {}", email);
     }
 
     // Example 4: Extract active status (boolean)
     println!("\n--- Example 4: Extract Active Status ---");
-    let active_status: Vec<&bool> = Person::active_r().extract_from_slice(&people);
+    let active_status: Vec<&bool> = Person::active().extract_from_slice(&people);
     for (i, status) in active_status.iter().enumerate() {
         println!(
             "  • Person {}: {}",
@@ -111,18 +111,18 @@ fn main() {
     };
 
     // Extract company name
-    if let Some(company_name) = Company::name_r().get_ref(&&company) {
+    if let Some(company_name) = Company::name().get_ref(&&company) {
         println!("  Company: {}", company_name);
     }
 
     // Extract founded year
-    if let Some(year) = Company::founded_year_r().get_ref(&&company) {
+    if let Some(year) = Company::founded_year().get_ref(&&company) {
         println!("  Founded: {}", year);
     }
 
     // Example 8: Chain operations with references
     println!("\n--- Example 8: Chain Operations ---");
-    let all_ages: Vec<&u32> = Person::age_r().extract_from_slice(&people);
+    let all_ages: Vec<&u32> = Person::age().extract_from_slice(&people);
     let total_age: u32 = all_ages.iter().map(|&&age| age).sum();
     let average_age = total_age as f64 / all_ages.len() as f64;
     println!("  Total age: {}", total_age);
@@ -187,7 +187,7 @@ fn main() {
     }
 
     // Extract mutable references to names and modify them
-    let mut names: Vec<&mut String> = Person::name_w().extract_mut_from_slice(&mut mutable_people);
+    let mut names: Vec<&mut String> = Person::name().extract_mut_from_slice(&mut mutable_people);
     for name in &mut names {
         name.push_str(" (Updated)");
     }

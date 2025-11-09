@@ -40,14 +40,14 @@ impl SomeComplexStruct {
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct SomeOtherStruct {
+    #[Writable]
     sosf: OneMoreStruct,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct OneMoreStruct {
+    #[Writable]
     omsf: String,
 }
 
@@ -78,8 +78,8 @@ fn main() {
     // SomeComplexStruct -> SomeOtherStruct -> OneMoreStruct -> omsf
 
     let op = SomeComplexStruct::scsf_fw()
-        .then(SomeOtherStruct::sosf_fw())
-        .then(OneMoreStruct::omsf_fw());
+        .then(SomeOtherStruct::sosf())
+        .then(OneMoreStruct::omsf());
     let mut instance = SomeComplexStruct::new();
     let omsf = op.get_mut(&mut instance);
     *omsf.unwrap() =

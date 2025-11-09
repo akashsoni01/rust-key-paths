@@ -55,8 +55,8 @@ fn main() {
         println!("--------------------------------------------");
 
         // Test for_arc_parking_mutex aggregator
-        let name_keypath = User::name_r();
-        let age_keypath = User::age_r();
+        let name_keypath = User::name();
+        let age_keypath = User::age();
         let email_keypath = User::email_fr();
 
         // Convert to Arc<parking_lot::Mutex<T>> keypaths
@@ -82,10 +82,10 @@ fn main() {
         println!("---------------------------------------------");
 
         // Test for_arc_parking_rwlock aggregator
-        let bio_keypath = Profile::bio_r();
-        let user_name_keypath = Profile::user_r().then(User::name_r());
-        let user_age_keypath = Profile::user_r().then(User::age_r());
-        let settings_theme_keypath = Profile::settings_fr().then(Settings::theme_r());
+        let bio_keypath = Profile::bio();
+        let user_name_keypath = Profile::user().then(User::name());
+        let user_age_keypath = Profile::user().then(User::age());
+        let settings_theme_keypath = Profile::settings_fr().then(Settings::theme());
 
         // Convert to Arc<parking_lot::RwLock<T>> keypaths
         let bio_parking_rwlock_path = bio_keypath.for_arc_parking_rwlock();
@@ -131,7 +131,7 @@ fn main() {
         println!("-----------------------------------------------");
 
         // Test composition with parking lot aggregators
-        let nested_email_path = Profile::user_r()
+        let nested_email_path = Profile::user()
             .then(User::email_fr())
             .for_arc_parking_rwlock();
 
@@ -159,7 +159,7 @@ fn main() {
             })),
         ];
 
-        let name_aggregator = User::name_r().for_arc_parking_mutex();
+        let name_aggregator = User::name().for_arc_parking_mutex();
         let email_aggregator = User::email_fr().for_arc_parking_mutex();
 
         for (i, user) in users.iter().enumerate() {

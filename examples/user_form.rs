@@ -35,7 +35,7 @@ struct FormField<T: 'static, F: 'static> {
 fn create_profile_form() -> Vec<FormField<UserProfile, String>> {
     vec![
         FormField {
-            path: UserProfile::name_w(),
+            path: UserProfile::name(),
             label: "Full Name",
             validator: |s| {
                 if s.len() > 2 {
@@ -46,7 +46,7 @@ fn create_profile_form() -> Vec<FormField<UserProfile, String>> {
             },
         },
         FormField {
-            path: UserProfile::email_w(),
+            path: UserProfile::email(),
             label: "Email Address",
             validator: |s| {
                 if s.contains('@') {
@@ -57,7 +57,7 @@ fn create_profile_form() -> Vec<FormField<UserProfile, String>> {
             },
         },
         FormField {
-            path: UserProfile::settings_w().then(UserSettings::theme_w()),
+            path: UserProfile::settings().then(UserSettings::theme()),
             label: "Theme",
             validator: |_s| Ok(()),
         },
@@ -156,7 +156,7 @@ fn main() {
 
     // Demonstrate the power of keypaths: accessing nested fields directly
     println!("\n--- Direct keypath access demonstration ---");
-    let theme_path = UserProfile::settings_w().then(UserSettings::theme_w());
+    let theme_path = UserProfile::settings().then(UserSettings::theme());
 
     if let Some(theme) = theme_path.get_mut(&mut profile) {
         println!("Current theme: {}", theme);
@@ -165,8 +165,7 @@ fn main() {
     }
 
     // Access boolean field through composed keypath
-    let notifications_path =
-        UserProfile::settings_w().then(UserSettings::notifications_enabled_w());
+    let notifications_path = UserProfile::settings().then(UserSettings::notifications_enabled());
     if let Some(enabled) = notifications_path.get_mut(&mut profile) {
         println!("Notifications enabled: {}", enabled);
         *enabled = false;

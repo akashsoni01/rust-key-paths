@@ -39,33 +39,33 @@ fn main() {
 
     // Test basic types
     println!("Testing basic types...");
-    let _string_path = ComprehensiveTest::string_field_r();
-    let _int_path = ComprehensiveTest::int_field_r();
-    let _bool_path = ComprehensiveTest::bool_field_r();
+    let _string_path = ComprehensiveTest::string_field();
+    let _int_path = ComprehensiveTest::int_field();
+    let _bool_path = ComprehensiveTest::bool_field();
     println!("✅ Basic types: PASS");
 
     // Test basic containers
     println!("Testing basic containers...");
     let _option_path = ComprehensiveTest::option_string_fr();
-    let _vec_path = ComprehensiveTest::vec_string_r();
-    let _box_path = ComprehensiveTest::box_string_r();
-    let _rc_path = ComprehensiveTest::rc_string_r();
-    let _arc_path = ComprehensiveTest::arc_string_r();
+    let _vec_path = ComprehensiveTest::vec_string();
+    let _box_path = ComprehensiveTest::box_string();
+    let _rc_path = ComprehensiveTest::rc_string();
+    let _arc_path = ComprehensiveTest::arc_string();
     println!("✅ Basic containers: PASS");
 
     // Test collections
     println!("Testing collections...");
-    let _hashset_path = ComprehensiveTest::hashset_string_r();
-    let _btreeset_path = ComprehensiveTest::btreeset_string_r();
-    let _vecdeque_path = ComprehensiveTest::vecdeque_string_r();
-    let _linkedlist_path = ComprehensiveTest::linkedlist_string_r();
-    let _binaryheap_path = ComprehensiveTest::binaryheap_string_r();
+    let _hashset_path = ComprehensiveTest::hashset_string();
+    let _btreeset_path = ComprehensiveTest::btreeset_string();
+    let _vecdeque_path = ComprehensiveTest::vecdeque_string();
+    let _linkedlist_path = ComprehensiveTest::linkedlist_string();
+    let _binaryheap_path = ComprehensiveTest::binaryheap_string();
     println!("✅ Collections: PASS");
 
     // Test maps
     println!("Testing maps...");
-    let _hashmap_path = ComprehensiveTest::hashmap_string_int_r();
-    let _btreemap_path = ComprehensiveTest::btreemap_string_int_r();
+    let _hashmap_path = ComprehensiveTest::hashmap_string_int();
+    let _btreemap_path = ComprehensiveTest::btreemap_string_int();
     println!("✅ Maps: PASS");
 
     println!("\n=== Test Results ===");
@@ -88,7 +88,7 @@ fn main() {
 
     println!("\n=== Usage Examples ===");
     println!("// Basic usage");
-    println!("let path = ComprehensiveTest::string_field_r();");
+    println!("let path = ComprehensiveTest::string_field();");
     println!("let value = path.get(&instance);");
     println!();
     println!("// Failable access");
@@ -96,7 +96,7 @@ fn main() {
     println!("let value = failable_path.get(&instance);");
     println!();
     println!("// Composition");
-    println!("let composed = ComprehensiveTest::option_string_fr().then(OtherStruct::field_r());");
+    println!("let composed = ComprehensiveTest::option_string_fr().then(OtherStruct::field());");
 
     println!("\n🎉 Comprehensive test suite completed successfully!");
 }

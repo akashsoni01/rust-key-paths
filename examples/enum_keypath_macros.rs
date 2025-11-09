@@ -21,8 +21,8 @@ enum SomeOtherStatus {
 
 fn main() {
     // Derive-generated keypaths for struct fields
-    let user_name_kp = User::name_r();
-    let user_id_kp = User::id_r();
+    let user_name_kp = User::name();
+    let user_id_kp = User::id();
 
     let user = User {
         id: 7,
@@ -61,7 +61,7 @@ fn main() {
         Status::Active(u) => Some(u),
         _ => None,
     })
-    .compose(User::name_r());
+    .compose(User::name());
 
     println!("Active user name = {:?}", active_user_name.get(&status));
 

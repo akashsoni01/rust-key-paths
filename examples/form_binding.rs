@@ -210,8 +210,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: name
     form.add_string_field(FormField::new(
-        UserProfile::name_r(),
-        UserProfile::name_w(),
+        UserProfile::name(),
+        UserProfile::name(),
         "Full Name",
         "name",
         |s| {
@@ -225,8 +225,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: email
     form.add_string_field(FormField::new(
-        UserProfile::email_r(),
-        UserProfile::email_w(),
+        UserProfile::email(),
+        UserProfile::email(),
         "Email Address",
         "email",
         |s| {
@@ -240,8 +240,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Number field: age
     form.add_u32_field(FormField::new(
-        UserProfile::age_r(),
-        UserProfile::age_w(),
+        UserProfile::age(),
+        UserProfile::age(),
         "Age",
         "age",
         |&age| {
@@ -255,8 +255,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: theme (nested)
     form.add_string_field(FormField::new(
-        UserProfile::settings_r().then(UserSettings::theme_r()),
-        UserProfile::settings_w().then(UserSettings::theme_w()),
+        UserProfile::settings().then(UserSettings::theme()),
+        UserProfile::settings().then(UserSettings::theme()),
         "Theme",
         "theme",
         |s| {
@@ -270,8 +270,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Number field: font_size (nested)
     form.add_u32_field(FormField::new(
-        UserProfile::settings_r().then(UserSettings::font_size_r()),
-        UserProfile::settings_w().then(UserSettings::font_size_w()),
+        UserProfile::settings().then(UserSettings::font_size()),
+        UserProfile::settings().then(UserSettings::font_size()),
         "Font Size",
         "font_size",
         |&size| {
@@ -285,8 +285,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Bool field: notifications (nested)
     form.add_bool_field(FormField::new(
-        UserProfile::settings_r().then(UserSettings::notifications_enabled_r()),
-        UserProfile::settings_w().then(UserSettings::notifications_enabled_w()),
+        UserProfile::settings().then(UserSettings::notifications_enabled()),
+        UserProfile::settings().then(UserSettings::notifications_enabled()),
         "Notifications",
         "notifications",
         |_| Ok(()), // No validation needed for bool

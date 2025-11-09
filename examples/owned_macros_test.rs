@@ -6,7 +6,9 @@ use key_paths_derive::Keypaths;
 struct Person {
     name: String,
     age: u32,
+    #[Owned]
     address: Option<Address>,
+    #[Owned]
     tags: Vec<String>,
 }
 
@@ -31,7 +33,7 @@ fn main() {
 
     // Test owned keypath methods
     println!("1. Basic owned keypath usage:");
-    let name_kp = Person::name_o();
+    let name_kp = Person::name();
     let extracted_name = name_kp.get_owned(person.clone());
     println!("  Extracted name: {}", extracted_name);
 
@@ -41,7 +43,7 @@ fn main() {
     println!("  Extracted address: {:?}", extracted_address);
 
     println!("\n3. Vec owned keypath usage:");
-    let tags_kp = Person::tags_o();
+    let tags_kp = Person::tags();
     let extracted_tags = tags_kp.get_owned(person.clone());
     println!("  Extracted tags: {:?}", extracted_tags);
 
@@ -53,17 +55,17 @@ fn main() {
     println!("\n5. Owned keypath composition:");
     // Create a keypath that gets the length of a string
     let string_length_kp = KeyPaths::owned(|s: String| s.len());
-    let name_length_kp = Person::name_o().then(string_length_kp);
+    let name_length_kp = Person::name().then(string_length_kp);
     let name_length = name_length_kp.get_owned(person.clone());
     println!("  Name length via composition: {}", name_length);
 
     println!("\n6. KeyPath kind information:");
-    println!("  Name keypath kind: {}", Person::name_o().kind_name());
+    println!("  Name keypath kind: {}", Person::name().kind_name());
     println!(
         "  Address failable keypath kind: {}",
         Person::address_fo().kind_name()
     );
-    println!("  Tags keypath kind: {}", Person::tags_o().kind_name());
+    println!("  Tags keypath kind: {}", Person::tags().kind_name());
 
     println!("\n=== All Tests Completed Successfully! ===");
 }

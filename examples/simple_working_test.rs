@@ -17,14 +17,14 @@ fn main() {
     println!("Simple working test");
 
     // Test basic types
-    let _string_path = SimpleTest::string_field_r();
-    let _int_path = SimpleTest::int_field_r();
-    let _bool_path = SimpleTest::bool_field_r();
+    let _string_path = SimpleTest::string_field();
+    let _int_path = SimpleTest::int_field();
+    let _bool_path = SimpleTest::bool_field();
 
     // Test simple containers
     let _option_path = SimpleTest::option_string_fr();
-    let _vec_path = SimpleTest::vec_string_r();
-    let _box_path = SimpleTest::box_string_r();
+    let _vec_path = SimpleTest::vec_string();
+    let _box_path = SimpleTest::box_string();
 
     println!("All simple keypaths generated successfully!");
 }

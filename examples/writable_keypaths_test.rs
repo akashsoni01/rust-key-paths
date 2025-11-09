@@ -94,13 +94,13 @@ fn main() {
 
     // Test basic writable keypaths
     println!("\n=== Basic Writable Keypaths ===");
-    let name_path = User::name_w();
+    let name_path = User::name();
     if let Some(name_ref) = name_path.get_mut(&mut user) {
         *name_ref = "Alice Updated".to_string();
         println!("Updated name to: {}", name_ref);
     }
 
-    let age_path = User::age_w();
+    let age_path = User::age();
     if let Some(age_ref) = age_path.get_mut(&mut user) {
         *age_ref = 31;
         println!("Updated age to: {}", age_ref);
@@ -162,7 +162,7 @@ fn main() {
 
     // Test writable keypaths for BinaryHeap (container-level only)
     println!("\n=== Writable Keypaths (BinaryHeap) ===");
-    let priority_queue_path = User::priority_queue_w();
+    let priority_queue_path = User::priority_queue();
     if let Some(queue_ref) = priority_queue_path.get_mut(&mut user) {
         queue_ref.push(20);
         println!("Added new priority to queue: 20");
@@ -170,7 +170,7 @@ fn main() {
 
     // Test Box dereferencing
     println!("\n=== Box Dereferencing ===");
-    let bio_path = User::profile_w();
+    let bio_path = User::profile();
     if let Some(profile_ref) = bio_path.get_mut(&mut user) {
         profile_ref.bio = "Senior Software Developer".to_string();
         println!("Updated profile bio to: {}", profile_ref.bio);
@@ -180,7 +180,7 @@ fn main() {
     println!("\n=== Tuple Struct ===");
     let mut tuple = TupleStruct("test".to_string(), Some(42), vec![1.0, 2.0, 3.0]);
 
-    let f0_path = TupleStruct::f0_w();
+    let f0_path = TupleStruct::f0();
     if let Some(f0_ref) = f0_path.get_mut(&mut tuple) {
         *f0_ref = "updated_test".to_string();
         println!("Updated tuple f0 to: {}", f0_ref);
