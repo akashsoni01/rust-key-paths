@@ -106,27 +106,25 @@ fn bench_write_nested_option(c: &mut Criterion) {
         .then(OneMoreStruct::omsf_fw());
     
     group.bench_function("keypath", |b| {
+        let mut instance = SomeComplexStruct::new();
         b.iter(|| {
-            let mut instance = SomeComplexStruct::new();
-            if let Some(value) = keypath.get_mut(&mut instance) {
-                *value = black_box(String::from("updated"));
-            }
-            black_box(instance)
+            let result = keypath.get_mut(black_box(&mut instance));
+            // Use the result without returning the reference
+            black_box(result.is_some())
         })
     });
     
     // Direct unwrap approach
     group.bench_function("direct_unwrap", |b| {
+        let mut instance = SomeComplexStruct::new();
         b.iter(|| {
-            let mut instance = SomeComplexStruct::new();
-            if let Some(sos) = instance.scsf.as_mut() {
-                if let Some(oms) = sos.sosf.as_mut() {
-                    if let Some(omsf) = oms.omsf.as_mut() {
-                        *omsf = black_box(String::from("updated"));
-                    }
-                }
-            }
-            black_box(instance)
+            let result = instance
+                .scsf
+                .as_mut()
+                .and_then(|s| s.sosf.as_mut())
+                .and_then(|o| o.omsf.as_mut());
+            // Use the result without returning the reference
+            black_box(result.is_some())
         })
     });
     
@@ -185,29 +183,30 @@ fn bench_write_deep_nested_with_enum(c: &mut Criterion) {
         .then(DarkStruct::dsf_fw().for_box());
     
     group.bench_function("keypath", |b| {
+        let mut instance = SomeComplexStruct::new();
         b.iter(|| {
-            let mut instance = SomeComplexStruct::new();
-            if let Some(value) = keypath.get_mut(&mut instance) {
-                *value = black_box(String::from("updated"));
-            }
-            black_box(instance)
+            let result = keypath.get_mut(black_box(&mut instance));
+            // Use the result without returning the reference
+            black_box(result.is_some())
         })
     });
     
     // Direct unwrap approach
     group.bench_function("direct_unwrap", |b| {
+        let mut instance = SomeComplexStruct::new();
         b.iter(|| {
-            let mut instance = SomeComplexStruct::new();
-            if let Some(sos) = instance.scsf.as_mut() {
-                if let Some(oms) = sos.sosf.as_mut() {
-                    if let Some(SomeEnum::B(ds)) = oms.omse.as_mut() {
-                        if let Some(dsf) = ds.dsf.as_mut() {
-                            *dsf = black_box(String::from("updated"));
-                        }
-                    }
-                }
-            }
-            black_box(instance)
+            let result = instance
+                .scsf
+                .as_mut()
+                .and_then(|s| s.sosf.as_mut())
+                .and_then(|o| o.omse.as_mut())
+                .and_then(|e| match e {
+                    SomeEnum::B(ds) => Some(ds),
+                    _ => None,
+                })
+                .and_then(|ds| ds.dsf.as_mut());
+            // Use the result without returning the reference
+            black_box(result.is_some())
         })
     });
     
