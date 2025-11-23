@@ -1,6 +1,6 @@
 [package]
 name = "key-paths-macros"
-version = "1.0.8"
+version = "1.0.9"
 edition = "2024"
 description = "Proc-macro derive to generate keypath methods"
 license = "MPL-2.0"
@@ -21,5 +21,5 @@ quote = "1"
 syn = { version = "2", features = ["full"] }
 
 [dev-dependencies]
-key-paths-core = { path = "../key-paths-core", version = "1.6.0" }
-key-paths-derive = "1.0.8"
+key-paths-core = { path = "../key-paths-core", version = "1.7.0" }
+key-paths-derive = "1.1.0"
