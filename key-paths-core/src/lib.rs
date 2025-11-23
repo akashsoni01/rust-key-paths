@@ -501,7 +501,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
 
 impl<Root, Value> KeyPaths<Root, Value> {
     /// Get an immutable reference if possible
-    #[inline]
+    #[inline(always)]
     pub fn get<'a>(&'a self, root: &'a Root) -> Option<&'a Value> {
         match self {
             KeyPaths::Readable(f) => Some(f(root)),
@@ -541,7 +541,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     }
 
     /// Get a mutable reference if possible
-    #[inline]
+    #[inline(always)]
     pub fn get_mut<'a>(&'a self, root: &'a mut Root) -> Option<&'a mut Value> {
         match self {
             KeyPaths::Readable(_) => None, // immutable only
@@ -2552,6 +2552,7 @@ where
         self.compose(mid)
     }
 
+    #[inline]
     pub fn compose<Value>(self, mid: KeyPaths<Mid, Value>) -> KeyPaths<Root, Value>
     where
         Value: 'static,
@@ -2570,7 +2571,14 @@ where
             (Readable(f1), FailableReadable(f2)) => FailableReadable(Arc::new(move |r| f2(f1(r)))),
 
             (FailableReadable(f1), FailableReadable(f2)) => {
-                FailableReadable(Arc::new(move |r| f1(r).and_then(|m| f2(m))))
+                let f1 = f1.clone();
+                let f2 = f2.clone();
+                FailableReadable(Arc::new(move |r| {
+                    match f1(r) {
+                        Some(m) => f2(m),
+                        None => None,
+                    }
+                }))
             }
 
             (FailableWritable(f1), Writable(f2)) => {
@@ -2580,10 +2588,24 @@ where
             (Writable(f1), FailableWritable(f2)) => FailableWritable(Arc::new(move |r| f2(f1(r)))),
 
             (FailableWritable(f1), FailableWritable(f2)) => {
-                FailableWritable(Arc::new(move |r| f1(r).and_then(|m| f2(m))))
+                let f1 = f1.clone();
+                let f2 = f2.clone();
+                FailableWritable(Arc::new(move |r| {
+                    match f1(r) {
+                        Some(m) => f2(m),
+                        None => None,
+                    }
+                }))
             }
             (FailableReadable(f1), ReadableEnum { extract, .. }) => {
-                FailableReadable(Arc::new(move |r| f1(r).and_then(|m| extract(m))))
+                let f1 = f1.clone();
+                let extract = extract.clone();
+                FailableReadable(Arc::new(move |r| {
+                    match f1(r) {
+                        Some(m) => extract(m),
+                        None => None,
+                    }
+                }))
             }
             // (ReadableEnum { extract, .. }, FailableReadable(f2)) => {
             //     FailableReadable(Arc::new(move |r| extract(r).map(|m| f2(m).unwrap())))
@@ -2593,7 +2615,14 @@ where
             }
 
             (ReadableEnum { extract, .. }, FailableReadable(f2)) => {
-                FailableReadable(Arc::new(move |r| extract(r).and_then(|m| f2(m))))
+                let extract = extract.clone();
+                let f2 = f2.clone();
+                FailableReadable(Arc::new(move |r| {
+                    match extract(r) {
+                        Some(m) => f2(m),
+                        None => None,
+                    }
+                }))
             }
 
             (WritableEnum { extract, .. }, Readable(f2)) => {
@@ -2601,7 +2630,14 @@ where
             }
 
             (WritableEnum { extract, .. }, FailableReadable(f2)) => {
-                FailableReadable(Arc::new(move |r| extract(r).and_then(|m| f2(m))))
+                let extract = extract.clone();
+                let f2 = f2.clone();
+                FailableReadable(Arc::new(move |r| {
+                    match extract(r) {
+                        Some(m) => f2(m),
+                        None => None,
+                    }
+                }))
             }
 
             (WritableEnum { extract_mut, .. }, Writable(f2)) => {
@@ -2622,12 +2658,22 @@ where
 
                     // Then, apply the function that operates on Mid.
                     // This will give us `Option<&mut Value>`.
-                    intermediate_mid_ref.and_then(|intermediate_mid| exm_mid_val(intermediate_mid))
+                    match intermediate_mid_ref {
+                        Some(intermediate_mid) => exm_mid_val(intermediate_mid),
+                        None => None,
+                    }
                 }))
             }
 
             (WritableEnum { extract_mut, .. }, FailableWritable(f2)) => {
-                FailableWritable(Arc::new(move |r| extract_mut(r).and_then(|m| f2(m))))
+                let extract_mut = extract_mut.clone();
+                let f2 = f2.clone();
+                FailableWritable(Arc::new(move |r| {
+                    match extract_mut(r) {
+                        Some(m) => f2(m),
+                        None => None,
+                    }
+                }))
             }
 
             // New: Writable then WritableEnum => FailableWritable
@@ -2647,9 +2693,18 @@ where
                     extract: ex2,
                     embed: em2,
                 },
-            ) => ReadableEnum {
-                extract: Arc::new(move |r| ex1(r).and_then(|m| ex2(m))),
-                embed: Arc::new(move |v| em1(em2(v))),
+            ) => {
+                let ex1 = ex1.clone();
+                let ex2 = ex2.clone();
+                ReadableEnum {
+                    extract: Arc::new(move |r| {
+                        match ex1(r) {
+                            Some(m) => ex2(m),
+                            None => None,
+                        }
+                    }),
+                    embed: Arc::new(move |v| em1(em2(v))),
+                }
             },
 
             (
@@ -2662,9 +2717,18 @@ where
                     extract: ex2,
                     embed: em2,
                 },
-            ) => ReadableEnum {
-                extract: Arc::new(move |r| ex1(r).and_then(|m| ex2(m))),
-                embed: Arc::new(move |v| em1(em2(v))),
+            ) => {
+                let ex1 = ex1.clone();
+                let ex2 = ex2.clone();
+                ReadableEnum {
+                    extract: Arc::new(move |r| {
+                        match ex1(r) {
+                            Some(m) => ex2(m),
+                            None => None,
+                        }
+                    }),
+                    embed: Arc::new(move |v| em1(em2(v))),
+                }
             },
 
             (
@@ -2678,10 +2742,26 @@ where
                     extract_mut: exm2,
                     embed: em2,
                 },
-            ) => WritableEnum {
-                extract: Arc::new(move |r| ex1(r).and_then(|m| ex2(m))),
-                extract_mut: Arc::new(move |r| exm1(r).and_then(|m| exm2(m))),
-                embed: Arc::new(move |v| em1(em2(v))),
+            ) => {
+                let ex1 = ex1.clone();
+                let ex2 = ex2.clone();
+                let exm1 = exm1.clone();
+                let exm2 = exm2.clone();
+                WritableEnum {
+                    extract: Arc::new(move |r| {
+                        match ex1(r) {
+                            Some(m) => ex2(m),
+                            None => None,
+                        }
+                    }),
+                    extract_mut: Arc::new(move |r| {
+                        match exm1(r) {
+                            Some(m) => exm2(m),
+                            None => None,
+                        }
+                    }),
+                    embed: Arc::new(move |v| em1(em2(v))),
+                }
             },
 
 
@@ -2696,7 +2776,14 @@ where
                 FailableOwned(Arc::new(move |r| f2(f1(r))))
             }
             (FailableOwned(f1), FailableOwned(f2)) => {
-                FailableOwned(Arc::new(move |r| f1(r).and_then(|m| f2(m))))
+                let f1 = f1.clone();
+                let f2 = f2.clone();
+                FailableOwned(Arc::new(move |r| {
+                    match f1(r) {
+                        Some(m) => f2(m),
+                        None => None,
+                    }
+                }))
             }
 
             // Cross-composition between owned and regular keypaths
