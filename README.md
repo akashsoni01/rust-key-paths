@@ -349,6 +349,30 @@ The rust-key-paths library is being used by several exciting crates in the Rust 
 * Encourages **compositional design**.
 * Plays well with **DDD (Domain-Driven Design)** and **Actor-based systems**.
 * Useful for **reflection-like behaviors** in Rust (without unsafe).
+* **High performance**: Only 1.43x overhead for reads, **98.3x faster** when reused!
+
+## ⚡ Performance
+
+KeyPaths are optimized for performance with minimal overhead:
+
+| Operation | Overhead | Notes |
+|-----------|----------|-------|
+| **Read (3 levels)** | 1.43x (43% slower) | Only ~170 ps absolute difference |
+| **Write (3 levels)** | 10.8x slower | ~3.8 ns absolute difference |
+| **Reused Read** | **98.3x faster** ⚡ | Primary benefit - reuse keypaths! |
+| **Pre-composed** | Optimal | 390x faster than on-the-fly composition |
+
+**Key Optimizations Applied:**
+- ✅ Direct `match` composition (Phase 1) - eliminated `and_then` overhead
+- ✅ `Rc` instead of `Arc` - faster for single-threaded use
+- ✅ Aggressive inlining - `#[inline(always)]` on hot paths
+
+**Best Practices:**
+- **Pre-compose keypaths** before loops/iterations
+- **Reuse keypaths** whenever possible to get the 98x speedup
+- Single-use overhead is negligible (< 1 ns for reads)
+
+See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed performance analysis.
 
 ---
 

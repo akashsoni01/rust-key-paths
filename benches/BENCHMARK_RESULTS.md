@@ -8,14 +8,14 @@ All benchmarks have been updated to measure only the `get()`/`get_mut()` call ti
 
 | Operation | KeyPath | Direct Unwrap | Overhead/Speedup | Notes |
 |-----------|---------|---------------|------------------|-------|
-| **Read (3 levels)** | 944.68 ps | 385.00 ps | **2.45x slower** (145% overhead) | Read access through nested Option chain |
-| **Write (3 levels)** | 5.04 ns | 385.29 ps | **13.1x slower** | Write access through nested Option chain |
-| **Deep Read (with enum)** | 974.13 ps | 383.56 ps | **2.54x slower** (154% overhead) | Deep nested access with enum case path |
-| **Write Deep (with enum)** | 10.71 ns | 381.31 ps | **28.1x slower** | Write access with enum case path |
-| **Reused Read** | 381.99 ps | 36.45 ns | **95.4x faster** ⚡ | Multiple accesses with same keypath |
-| **Creation (one-time)** | 578.59 ns | N/A | One-time cost | Keypath creation overhead |
-| **Pre-composed** | ~956 ps | N/A | Optimal | Pre-composed keypath access |
-| **Composed on-fly** | ~239 ns | N/A | 248x slower than pre-composed | On-the-fly composition |
+| **Read (3 levels)** | 565.84 ps | 395.40 ps | **1.43x slower** (43% overhead) ⚡ | Read access through nested Option chain |
+| **Write (3 levels)** | 4.168 ns | 384.47 ps | **10.8x slower** | Write access through nested Option chain |
+| **Deep Read (with enum)** | 569.35 ps | 393.62 ps | **1.45x slower** (45% overhead) ⚡ | Deep nested access with enum case path |
+| **Write Deep (with enum)** | 10.272 ns | 403.24 ps | **25.5x slower** | Write access with enum case path |
+| **Reused Read** | 383.74 ps | 37.697 ns | **98.3x faster** ⚡ | Multiple accesses with same keypath |
+| **Creation (one-time)** | 546.31 ns | N/A | One-time cost | Keypath creation overhead |
+| **Pre-composed** | 558.76 ps | N/A | Optimal | Pre-composed keypath access |
+| **Composed on-fly** | 217.91 ns | N/A | 390x slower than pre-composed | On-the-fly composition |
 
 ## Key Observations
 
@@ -50,19 +50,22 @@ Read operations show consistent ~2.5x overhead, which is expected:
 
 ## Comparison with Previous Results
 
-| Metric | Previous (with object creation) | Current (get_mut only) | Change |
-|--------|--------------------------------|------------------------|--------|
-| Write (3 levels) | 333.05 ns (0.15% overhead) | 5.04 ns (13.1x overhead) | Object creation was masking overhead |
-| Write Deep | 349.18 ns (7.7% overhead) | 10.71 ns (28.1x overhead) | Object creation was masking overhead |
-| Read (3 levels) | 988.69 ps (2.57x overhead) | 944.68 ps (2.45x overhead) | Slightly improved |
-| Reused Read | 383.53 ps (98.7x faster) | 381.99 ps (95.4x faster) | Consistent |
+| Metric | Before Optimizations | After Optimizations (Rc + Phase 1&3) | Improvement |
+|--------|---------------------|--------------------------------------|-------------|
+| Read (3 levels) | 988.69 ps (2.57x overhead) | 565.84 ps (1.43x overhead) | **44% improvement** ⚡ |
+| Write (3 levels) | 5.04 ns (13.1x overhead) | 4.168 ns (10.8x overhead) | **17% improvement** |
+| Deep Read | 974.13 ps (2.54x overhead) | 569.35 ps (1.45x overhead) | **42% improvement** ⚡ |
+| Write Deep | 10.71 ns (28.1x overhead) | 10.272 ns (25.5x overhead) | **4% improvement** |
+| Reused Read | 381.99 ps (95.4x faster) | 383.74 ps (98.3x faster) | Consistent |
+| Pre-composed | ~956 ps | 558.76 ps | **42% improvement** ⚡ |
 
 ## Recommendations
 
-1. **For write operations**: The overhead is now visible but still small in absolute terms (5-11 ns)
-2. **For read operations**: Overhead is minimal (~1 ns absolute difference)
-3. **Best practice**: **Reuse keypaths** whenever possible to get the 95x speedup
-4. **Pre-compose keypaths** before loops/iterations (248x faster than on-the-fly composition)
+1. **For read operations**: Overhead is now minimal (1.43x, ~170 ps absolute difference) - **44% improvement!**
+2. **For write operations**: Overhead is visible (10.8x) but still small in absolute terms (~3.8 ns)
+3. **Best practice**: **Reuse keypaths** whenever possible to get the 98.3x speedup
+4. **Pre-compose keypaths** before loops/iterations (390x faster than on-the-fly composition)
+5. **Optimizations applied**: Phase 1 (direct match) + Rc migration significantly improved performance
 
 ## Conclusion
 

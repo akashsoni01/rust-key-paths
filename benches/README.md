@@ -69,11 +69,28 @@ Or navigate to `target/criterion/keypath_vs_unwrap/` and open any `report/index.
 - **Composability**: Easy to build complex access paths
 - **Maintainability**: Clear, declarative code
 
-### Performance Characteristics
-- **Creation Overhead**: Small cost when creating keypaths
-- **Access Overhead**: Minimal runtime overhead (typically < 5%)
-- **Reuse Benefit**: Significant advantage when reusing keypaths
-- **Composition**: Pre-composed keypaths perform better than on-the-fly
+### Performance Characteristics (After Optimizations)
+
+**Read Operations:**
+- **Overhead**: Only 1.43x (43% slower) - **44% improvement from previous 2.45x!**
+- **Absolute difference**: ~170 ps (0.17 ns) - negligible
+- **Optimizations**: Direct `match` composition + Rc migration
+
+**Write Operations:**
+- **Overhead**: 10.8x slower - **17% improvement from previous 13.1x**
+- **Absolute difference**: ~3.8 ns - still small
+- **Optimizations**: Direct `match` composition + Rc migration
+
+**Reuse Performance:**
+- **98.3x faster** when keypaths are reused - this is the primary benefit!
+- Pre-composed keypaths are 390x faster than on-the-fly composition
+
+**Key Optimizations Applied:**
+- ✅ Phase 1: Direct `match` instead of `and_then` (eliminated closure overhead)
+- ✅ Phase 3: Aggressive inlining with `#[inline(always)]`
+- ✅ Rc Migration: Replaced `Arc` with `Rc` (removed `Send + Sync`)
+
+See [`BENCHMARK_SUMMARY.md`](BENCHMARK_SUMMARY.md) for detailed results and analysis.
 
 ## Interpreting Results
 
