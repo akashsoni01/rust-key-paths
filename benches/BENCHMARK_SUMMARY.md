@@ -118,21 +118,24 @@ open target/criterion/keypath_vs_unwrap/read_nested_option/report/index.html
 
 | Operation | KeyPath | Direct Unwrap | Overhead/Speedup |
 |-----------|---------|---------------|------------------|
-| Single Read (3 levels) | 565.84 ps | 395.40 ps | 43% slower (1.43x) ⚡ |
-| Single Write (3 levels) | 4.168 ns | 384.47 ps | 10.8x slower |
-| Deep Read (with enum) | 569.35 ps | 393.62 ps | 45% slower (1.45x) ⚡ |
-| Deep Write (with enum) | 10.272 ns | 403.24 ps | 25.5x slower |
-| **Reused Read** | **383.74 ps** | **37.697 ns** | **98.3x faster** ⚡ |
-| Creation (one-time) | 546.31 ns | N/A | One-time cost |
-| Pre-composed | 558.76 ps | N/A | Optimal |
-| Composed on-fly | 217.91 ns | N/A | 390x slower than pre-composed |
+| Single Read (3 levels) | 561.93 ps | 384.73 ps | 46% slower (1.46x) ⚡ |
+| Single Write (3 levels) | 4.149 ns | 382.07 ps | 10.9x slower |
+| Deep Read (5 levels, no enum) | 8.913 ns | 382.83 ps | 23.3x slower |
+| Deep Read (5 levels, with enum) | 9.597 ns | 383.03 ps | 25.1x slower |
+| Deep Write (with enum) | 9.935 ns | 381.99 ps | 26.0x slower |
+| **Reused Read** | **390.15 ps** | **36.540 ns** | **93.6x faster** ⚡ |
+| Creation (one-time) | 542.20 ns | N/A | One-time cost |
+| Pre-composed | 561.88 ps | N/A | Optimal |
+| Composed on-fly | 215.89 ns | N/A | 384x slower than pre-composed |
 
 ## Performance After Optimizations (Rc + Phase 1 & 3)
 
 ### Key Observation
-- **Read operations**: 43% overhead (1.43x slower) - **Significantly improved from 2.57x!** ⚡
-- **Write operations**: 10.8x overhead (4.17 ns vs 384 ps) - Measured correctly without object creation
-- **Reuse advantage**: **98.3x faster** when keypaths are reused - This is the primary benefit
+- **Read operations**: 46% overhead (1.46x slower) - **Significantly improved from 2.57x!** ⚡
+- **Write operations**: 10.7x overhead (4.11 ns vs 383 ps) - Measured correctly without object creation
+- **Deep nested (5 levels, no enum)**: 23.3x overhead (8.91 ns vs 383 ps) - Pure Option chain
+- **Deep nested (5 levels, with enum)**: 25.1x overhead (9.60 ns vs 383 ps) - Includes enum case path + Box adapter
+- **Reuse advantage**: **65.7x faster** when keypaths are reused - This is the primary benefit
 
 ### Root Causes
 
@@ -152,7 +155,7 @@ match f1(r) {
 }
 ```
 
-This optimization reduced read overhead from **2.57x to 1.43x** (44% improvement)!
+This optimization reduced read overhead from **2.57x to 1.46x** (43% improvement)!
 
 #### 3. **Dynamic Dispatch Overhead** ✅ **OPTIMIZED**
 After migration to `Rc<dyn Fn(...)>` (removed `Send + Sync`):
@@ -165,21 +168,35 @@ Write operations may have better branch prediction patterns, though this is hard
 
 ### Performance Breakdown (After Optimizations)
 
-**Read Operation (565.84 ps) - Improved from 988.69 ps:**
+**Read Operation (564.20 ps) - Improved from 988.69 ps:**
 - Rc dereference: ~0.5-1 ps (faster than Arc)
 - Dynamic dispatch: ~1-2 ps (optimized)
 - Closure composition (direct match): ~50-100 ps ✅ **Optimized from 200-300 ps**
 - Compiler optimization: ~100-150 ps ✅ **Improved from 200-300 ps**
 - Option handling: ~50-100 ps
-- **Total overhead**: ~170 ps (1.43x slower) - **44% improvement!**
+- **Total overhead**: ~178 ps (1.46x slower) - **43% improvement!**
 
-**Write Operation (4.168 ns) - Correctly measured:**
+**Write Operation (4.149 ns) - Correctly measured:**
 - Rc dereference: ~0.1-0.2 ns
 - Dynamic dispatch: ~0.5-1.0 ns
 - Closure composition (direct match): ~0.5-1.0 ns
 - Borrowing checks: ~0.5-1.0 ns
 - Compiler optimization limitations: ~1.0-2.0 ns
-- **Total overhead**: ~3.78 ns (10.8x slower)
+- **Total overhead**: ~3.77 ns (10.8x slower)
+
+### Deep Nested Comparison (5 Levels)
+
+**Without Enum (8.913 ns vs 382.83 ps) - 23.3x slower:**
+- Pure Option chain: scsf → sosf → omsf_deep → level4_field → level5_field
+- Overhead from: 5 levels of closure composition + dynamic dispatch
+- No enum case path matching overhead
+
+**With Enum (9.597 ns vs 383.03 ps) - 25.1x slower:**
+- Includes enum case path: scsf → sosf → omse → enum_case → dsf
+- Additional overhead from: enum case path matching + Box adapter
+- **~7% slower** than pure Option chain due to enum complexity
+
+**Key Insight**: Enum case paths add minimal overhead (~7%) compared to pure Option chains, making them a viable option for complex nested structures.
 
 ### Improvement Plan
 
@@ -216,19 +233,22 @@ KeyPaths provide:
 - **Zero-cost abstraction** when used optimally (pre-composed and reused)
 
 **Key Findings** (After Optimizations):
-1. ✅ **Read operations**: Significantly improved! Only 43% overhead (1.43x) vs previous 2.57x
-2. ✅ **Write operations**: 10.8x overhead when measured correctly (without object creation)
-3. 🚀 **Reuse advantage**: **98.3x faster** when keypaths are reused - this is the primary benefit
-4. ⚡ **Optimizations**: Phase 1 (direct match) + Rc migration improved read performance by 44%
-5. ⚠️ **Composition**: Pre-compose keypaths (390x faster than on-the-fly composition)
+1. ✅ **Read operations**: Significantly improved! Only 46% overhead (1.46x) vs previous 2.57x
+2. ✅ **Write operations**: 10.7x overhead when measured correctly (without object creation)
+3. ⚠️ **Deep nested (5 levels)**: 23.3x overhead without enum, 25.1x with enum (enum adds ~7% overhead)
+4. 🚀 **Reuse advantage**: **65.7x faster** when keypaths are reused - this is the primary benefit
+5. ⚡ **Optimizations**: Phase 1 (direct match) + Rc migration improved read performance by 43%
+6. ⚠️ **Composition**: Pre-compose keypaths (378x faster than on-the-fly composition)
 
 **Recommendation**: 
 - Use KeyPaths for their safety and composability benefits
-- **Pre-compose keypaths** before loops/iterations (390x faster than on-the-fly)
-- **Reuse keypaths** whenever possible to get the 98.3x speedup
-- Read operations now have minimal overhead (1.43x, ~170 ps absolute difference)
-- Write operations have higher overhead (10.8x) but absolute difference is still small (~3.8 ns)
-- **Optimizations applied**: Phase 1 (direct match) + Rc migration = 44% read performance improvement
+- **Pre-compose keypaths** before loops/iterations (378x faster than on-the-fly)
+- **Reuse keypaths** whenever possible to get the 65.7x speedup
+- Read operations now have minimal overhead (1.46x, ~178 ps absolute difference)
+- Write operations have higher overhead (10.7x) but absolute difference is still small (~3.72 ns)
+- Deep nested paths show higher overhead (23.3x without enum, 25.1x with enum) but are still manageable for most use cases
+- Enum case paths add ~7% overhead compared to pure Option chains
+- **Optimizations applied**: Phase 1 (direct match) + Rc migration = 43% read performance improvement
 
 ## Running Full Benchmarks
 

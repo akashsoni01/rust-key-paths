@@ -357,10 +357,12 @@ KeyPaths are optimized for performance with minimal overhead:
 
 | Operation | Overhead | Notes |
 |-----------|----------|-------|
-| **Read (3 levels)** | 1.43x (43% slower) | Only ~170 ps absolute difference |
-| **Write (3 levels)** | 10.8x slower | ~3.8 ns absolute difference |
-| **Reused Read** | **98.3x faster** ⚡ | Primary benefit - reuse keypaths! |
-| **Pre-composed** | Optimal | 390x faster than on-the-fly composition |
+| **Read (3 levels)** | 1.46x (46% slower) | Only ~177 ps absolute difference |
+| **Write (3 levels)** | 10.9x slower | ~3.77 ns absolute difference |
+| **Deep Read (5 levels, no enum)** | 23.3x slower | Pure Option chain |
+| **Deep Read (5 levels, with enum)** | 25.1x slower | Includes enum case path + Box adapter |
+| **Reused Read** | **93.6x faster** ⚡ | Primary benefit - reuse keypaths! |
+| **Pre-composed** | Optimal | 384x faster than on-the-fly composition |
 
 **Key Optimizations Applied:**
 - ✅ Direct `match` composition (Phase 1) - eliminated `and_then` overhead
@@ -371,6 +373,7 @@ KeyPaths are optimized for performance with minimal overhead:
 - **Pre-compose keypaths** before loops/iterations
 - **Reuse keypaths** whenever possible to get the 98x speedup
 - Single-use overhead is negligible (< 1 ns for reads)
+- Deep nested paths with enums have higher overhead but still manageable
 
 See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed performance analysis.
 

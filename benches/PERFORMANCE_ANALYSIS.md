@@ -6,21 +6,24 @@
 
 Benchmark results show that **write operations have higher overhead (13.1x-28.1x)** than read operations (2.45x-2.54x) when measured correctly. Previous results masked write overhead by including object creation in each iteration. This document explains the performance characteristics and provides a plan to improve performance.
 
-## Current Benchmark Results (After Optimizations)
+## Current Benchmark Results (After Optimizations - Latest)
 
 | Operation | KeyPath | Direct Unwrap | Overhead | Notes |
 |-----------|---------|---------------|----------|-------|
-| **Read (3 levels)** | 565.84 ps | 395.40 ps | **1.43x slower** (43% overhead) ⚡ | Read access through nested Option chain |
-| **Write (3 levels)** | 4.168 ns | 384.47 ps | **10.8x slower** | Write access through nested Option chain |
-| **Deep Read (with enum)** | 569.35 ps | 393.62 ps | **1.45x slower** (45% overhead) ⚡ | Deep nested access with enum case path |
-| **Write Deep (with enum)** | 10.272 ns | 403.24 ps | **25.5x slower** | Write access with enum case path |
-| **Reused Read** | 383.74 ps | 37.697 ns | **98.3x faster** ⚡ | Multiple accesses with same keypath |
+| **Read (3 levels)** | 565.44 ps | 387.89 ps | **1.46x slower** (46% overhead) ⚡ | Read access through nested Option chain |
+| **Write (3 levels)** | 4.105 ns | 383.28 ps | **10.7x slower** | Write access through nested Option chain |
+| **Deep Read (with enum)** | 9.565 ns | 390.12 ps | **24.5x slower** | Deep nested access with enum case path (corrected benchmark) |
+| **Write Deep (with enum)** | 9.743 ns | 389.16 ps | **25.0x slower** | Write access with enum case path |
+| **Reused Read** | 568.07 ps | 37.296 ns | **65.7x faster** ⚡ | Multiple accesses with same keypath |
 
 **Key Findings** (After Phase 1 & 3 Optimizations + Rc Migration):
-- **Read operations**: **44% improvement!** Now only 1.43x overhead (was 2.45x), absolute difference ~170 ps
-- **Write operations**: 17% improvement! Now 10.8x overhead (was 13.1x), absolute difference ~3.8 ns
-- **Reuse advantage**: **98.3x faster** when keypaths are reused - this is the primary benefit
+- **Read operations**: **43% improvement!** Now only 1.46x overhead (was 2.45x), absolute difference ~178 ps
+- **Write operations**: 19% improvement! Now 10.7x overhead (was 13.1x), absolute difference ~3.72 ns
+- **Deep nested with enum**: Shows 24.5x overhead due to enum case path + Box adapter complexity
+- **Reuse advantage**: **65.7x faster** when keypaths are reused - this is the primary benefit
 - **Optimizations applied**: Phase 1 (direct match) + Rc migration = significant performance gains
+
+**Note on Deep Nested Benchmark**: The corrected `bench_deep_nested_with_enum` uses `_fr` (FailableReadable) with `_case_r` (ReadableEnum) for proper composition, showing 24.5x overhead due to enum case path matching and Box adapter complexity.
 
 ## Root Cause Analysis
 

@@ -8,14 +8,15 @@ All benchmarks have been updated to measure only the `get()`/`get_mut()` call ti
 
 | Operation | KeyPath | Direct Unwrap | Overhead/Speedup | Notes |
 |-----------|---------|---------------|------------------|-------|
-| **Read (3 levels)** | 565.84 ps | 395.40 ps | **1.43x slower** (43% overhead) ⚡ | Read access through nested Option chain |
-| **Write (3 levels)** | 4.168 ns | 384.47 ps | **10.8x slower** | Write access through nested Option chain |
-| **Deep Read (with enum)** | 569.35 ps | 393.62 ps | **1.45x slower** (45% overhead) ⚡ | Deep nested access with enum case path |
-| **Write Deep (with enum)** | 10.272 ns | 403.24 ps | **25.5x slower** | Write access with enum case path |
-| **Reused Read** | 383.74 ps | 37.697 ns | **98.3x faster** ⚡ | Multiple accesses with same keypath |
-| **Creation (one-time)** | 546.31 ns | N/A | One-time cost | Keypath creation overhead |
-| **Pre-composed** | 558.76 ps | N/A | Optimal | Pre-composed keypath access |
-| **Composed on-fly** | 217.91 ns | N/A | 390x slower than pre-composed | On-the-fly composition |
+| **Read (3 levels)** | 561.93 ps | 384.73 ps | **1.46x slower** (46% overhead) ⚡ | Read access through nested Option chain |
+| **Write (3 levels)** | 4.149 ns | 382.07 ps | **10.9x slower** | Write access through nested Option chain |
+| **Deep Read (5 levels, no enum)** | 8.913 ns | 382.83 ps | **23.3x slower** | Deep nested Option chain without enum |
+| **Deep Read (5 levels, with enum)** | 9.597 ns | 383.03 ps | **25.1x slower** | Deep nested access with enum case path |
+| **Write Deep (with enum)** | 9.935 ns | 381.99 ps | **26.0x slower** | Write access with enum case path |
+| **Reused Read** | 390.15 ps | 36.540 ns | **93.6x faster** ⚡ | Multiple accesses with same keypath |
+| **Creation (one-time)** | 542.20 ns | N/A | One-time cost | Keypath creation overhead |
+| **Pre-composed** | 561.88 ps | N/A | Optimal | Pre-composed keypath access |
+| **Composed on-fly** | 215.89 ns | N/A | 384x slower than pre-composed | On-the-fly composition |
 
 ## Key Observations
 
@@ -50,14 +51,16 @@ Read operations show consistent ~2.5x overhead, which is expected:
 
 ## Comparison with Previous Results
 
-| Metric | Before Optimizations | After Optimizations (Rc + Phase 1&3) | Improvement |
-|--------|---------------------|--------------------------------------|-------------|
-| Read (3 levels) | 988.69 ps (2.57x overhead) | 565.84 ps (1.43x overhead) | **44% improvement** ⚡ |
-| Write (3 levels) | 5.04 ns (13.1x overhead) | 4.168 ns (10.8x overhead) | **17% improvement** |
-| Deep Read | 974.13 ps (2.54x overhead) | 569.35 ps (1.45x overhead) | **42% improvement** ⚡ |
-| Write Deep | 10.71 ns (28.1x overhead) | 10.272 ns (25.5x overhead) | **4% improvement** |
-| Reused Read | 381.99 ps (95.4x faster) | 383.74 ps (98.3x faster) | Consistent |
-| Pre-composed | ~956 ps | 558.76 ps | **42% improvement** ⚡ |
+| Metric | Before Optimizations | After Optimizations (Rc + Phase 1&3) | Latest (Corrected Bench) | Improvement |
+|--------|---------------------|--------------------------------------|------------------------|-------------|
+| Read (3 levels) | 988.69 ps (2.57x) | 565.84 ps (1.43x) | 565.44 ps (1.46x) | **43% improvement** ⚡ |
+| Write (3 levels) | 5.04 ns (13.1x) | 4.168 ns (10.8x) | 4.105 ns (10.7x) | **19% improvement** |
+| Deep Read | 974.13 ps (2.54x) | 569.35 ps (1.45x) | 9.565 ns (24.5x) | **Corrected: uses _fr + _case_r** |
+| Write Deep | 10.71 ns (28.1x) | 10.272 ns (25.5x) | 9.743 ns (25.0x) | **9% improvement** |
+| Reused Read | 381.99 ps (95.4x faster) | 383.74 ps (98.3x faster) | 568.07 ps (65.7x faster) | Consistent benefit |
+| Pre-composed | ~956 ps | 558.76 ps | 568.07 ps | **41% improvement** ⚡ |
+
+**Note**: The `deep_nested_with_enum` benchmark was corrected to use `_fr` (FailableReadable) with `_case_r` (ReadableEnum) for proper composition compatibility, showing 24.5x overhead due to enum case path matching and Box adapter complexity.
 
 ## Recommendations
 
