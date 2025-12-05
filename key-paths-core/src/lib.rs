@@ -114,6 +114,151 @@ pub trait WithContainer<Root, Value> {
         F: FnOnce(&mut Value) -> R;
 }
 
+pub trait ReadableKeyPath<Root, Value> {
+    fn get(&self, root: &Root) -> Option<&Value>;
+}
+
+pub trait WritableKeyPath<Root, Value> {
+    fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+}
+
+// pub trait OwnedKeyPath<Root, Value> {
+//     fn get(&self, root: Root) -> Value;
+// }
+
+// pub trait FailableReadableKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+// }
+
+// pub trait FailableWritableKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
+// pub trait FailableOwnedKeyPath<Root, Value> {
+//     fn get(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait FailableCombinedKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+//     fn get_owned(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait ReferenceWritableKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
+// pub trait ReadableEnumKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+// }
+
+// pub trait WritableEnumKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
+// pub trait OwnedEnumKeyPath<Root, Value> {
+//     fn get(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait FailableReadableEnumKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+// }
+
+// pub trait FailableWritableEnumKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
+
+pub trait PartialReadableKeyPath<Root, Value> {
+    fn get<'a>(&self, root: &'a Root) -> Option<&'a dyn Any>;
+}
+
+pub trait PartialWritableKeyPath<Root, Value> {
+    fn get_mut<'a>(&self, root: &'a mut Root) -> Option<&'a mut dyn Any>;
+}
+
+// pub trait PartialOwnedKeyPath<Root, Value> {
+//     fn get(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait PartialFailableReadableKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+// }
+
+// pub trait PartialFailableWritableKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
+// pub trait PartialFailableOwnedKeyPath<Root, Value> {
+//     fn get(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait PartialFailableCombinedKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+//     fn get_owned(&self, root: Root) -> Option<Value>;
+// }
+pub trait AnyReadableKeyPath<Root, Value> {
+    fn get(&self, root: &Root) -> Option<&Value>;
+}
+
+
+// pub trait AnyKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+//     fn get_owned(&self, root: Root) -> Option<Value>;
+// }
+
+pub trait AnyWritableKeyPath<Root, Value> {
+    fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+}
+
+// pub trait AnyOwnedKeyPath<Root, Value> {
+//     fn get_owned(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait AnyFailableReadableKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+// }
+
+// pub trait AnyFailableWritableKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
+// pub trait AnyFailableOwnedKeyPath<Root, Value> {
+//     fn get_owned(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait AnyFailableCombinedKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+//     fn get_owned(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait AnyReferenceWritableKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
+// pub trait AnyReadableEnumKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+// }
+
+// pub trait AnyWritableEnumKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
+// pub trait AnyOwnedEnumKeyPath<Root, Value> {
+//     fn get(&self, root: Root) -> Option<Value>;
+// }
+
+// pub trait AnyFailableReadableEnumKeyPath<Root, Value> {
+//     fn get(&self, root: &Root) -> Option<&Value>;
+// }
+
+// pub trait AnyFailableWritableEnumKeyPath<Root, Value> {
+//     fn get_mut(&self, root: &mut Root) -> Option<&mut Value>;
+// }
+
 /// Go to examples section to see the implementations
 ///
 pub enum KeyPaths<Root, Value> {
@@ -2899,3 +3044,6 @@ macro_rules! writable_enum_macro {
         )
     }};
 }
+
+
+
