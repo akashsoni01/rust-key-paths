@@ -1,5 +1,6 @@
 use rust_keypaths::{OptionalKeyPath, KeyPath, EnumKeyPaths};
 
+// cd /Users/akashsoni/Documents/didl/rust-key-paths/rust-keypaths && cargo run --example deeply_nested 2>&1 | tail -3
 #[derive(Debug)]
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
