@@ -1,6 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rust_keypaths::{OptionalKeyPath, WritableOptionalKeyPath, EnumKeyPaths};
 // cargo bench --bench deeply_nested
+// cd /rust-keypaths && cargo bench --bench deeply_nested 2>&1 | grep -E "(read_omsf|read_desf|write_omsf|write_desf).*time:" | head -8
 
 #[derive(Debug, Clone)]
 struct SomeComplexStruct {
