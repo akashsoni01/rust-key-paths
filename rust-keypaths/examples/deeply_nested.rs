@@ -1,4 +1,4 @@
-use rust_keypaths::{OptionalKeyPath, KeyPath, EnumKeyPaths, variant_of};
+use rust_keypaths::{OptionalKeyPath, KeyPath, EnumKeyPaths, ContainerKeyPaths};
 
 #[derive(Debug)]
 struct SomeComplexStruct {
@@ -24,12 +24,14 @@ enum SomeEnum {
 
 #[derive(Debug)]
 struct DarkStruct {
-    dsf: Option<String>,
+    dsf: Option<DeeperStruct>,
 }
 
+#[derive(Debug)]
 struct DeeperStruct {
     desf: Option<Box<String>>
 }
+
 impl SomeComplexStruct {
     fn new() -> Self {
         Self {
@@ -37,7 +39,9 @@ impl SomeComplexStruct {
                 sosf: Some(OneMoreStruct {
                     omsf: Some(String::from("no value for now")),
                     omse: Some(SomeEnum::B(DarkStruct {
-                        dsf: Some(String::from("dark field")),
+                        dsf: Some(DeeperStruct {
+                            desf: Some(Box::new(String::from("deepest value"))),
+                        }),
                     })),
                 }),
             }),
@@ -53,9 +57,20 @@ fn main() {
     let sosf_kp = OptionalKeyPath::new(|s: &SomeOtherStruct| s.sosf.as_ref());
     let omse_kp = OptionalKeyPath::new(|o: &OneMoreStruct| o.omse.as_ref());
     let dsf_kp = OptionalKeyPath::new(|d: &DarkStruct| d.dsf.as_ref());
+    let desf_kp = OptionalKeyPath::new(|d: &DeeperStruct| d.desf.as_ref());
     
-    // Create enum variant keypath for SomeEnum::B
-    let enum_b_kp = variant_of(|e: &SomeEnum| {
+    // Create enum variant keypath for SomeEnum::B manually using EnumKeyPaths
+    // (commented out for later use with variant_of helper)
+    // let enum_b_kp = variant_of(|e: &SomeEnum| {
+    //     if let SomeEnum::B(ds) = e {
+    //         Some(ds)
+    //     } else {
+    //         None
+    //     }
+    // });
+    
+    // Create enum variant keypath manually using EnumKeyPaths::variant()
+    let enum_b_kp = EnumKeyPaths::variant(|e: &SomeEnum| {
         if let SomeEnum::B(ds) = e {
             Some(ds)
         } else {
@@ -63,16 +78,20 @@ fn main() {
         }
     });
     
-    // Chain keypaths to read dsf field using enum keypath
-    let chained_dsf_kp = scsf_kp
+    // Chain keypaths to read desf field using enum keypath
+    // Chain: SomeComplexStruct -> scsf -> SomeOtherStruct -> sosf -> OneMoreStruct -> omse -> SomeEnum::B -> DarkStruct -> dsf -> DeeperStruct -> desf -> Box<String>
+    let box_unwrap = ContainerKeyPaths::boxed::<String>();
+    let chained_desf_kp = scsf_kp
         .then(sosf_kp)
         .then(omse_kp)
         .then(enum_b_kp)
-        .then(dsf_kp);
+        .then(dsf_kp)
+        .then(desf_kp);
     
-    // Access dsf using the chained keypath with enum variant
-    if let Some(dsf_value) = chained_dsf_kp.get(&instance) {
-        println!("dsf field value (chained with enum keypath): {:?}", dsf_value);
+    // Access desf using the chained keypath with enum variant
+    if let Some(desf_box) = chained_desf_kp.get(&instance) {
+        let desf_value = box_unwrap.get(desf_box);
+        println!("desf field value (chained with enum keypath): {:?}", desf_value);
     }
     
     // Create and chain keypath for omsf field (separate instances since then consumes)
