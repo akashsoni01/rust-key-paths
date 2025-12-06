@@ -3,6 +3,51 @@ use std::marker::PhantomData;
 use std::any::{Any, TypeId};
 use std::rc::Rc;
 
+// ========== TYPE ALIASES FOR SIMPLIFIED USAGE ==========
+// These type aliases help reduce complexity when working with keypaths
+// by providing shorter, more ergonomic names.
+//
+// Note: Due to Rust's type system limitations, we cannot create type aliases
+// that hide the closure type parameter `F`. However, these aliases serve as
+// documentation and can be used in function signatures where the closure type
+// can be inferred or specified with `impl Trait`.
+
+/// Alias for readable keypaths (non-optional, non-writable)
+/// Use this when you need a simple read-only access path
+pub type ReadPath<Root, Value, F> = KeyPath<Root, Value, F>;
+
+/// Alias for optional readable keypaths
+/// Use this when accessing through Option<T> chains
+pub type ReadOptPath<Root, Value, F> = OptionalKeyPath<Root, Value, F>;
+
+/// Alias for writable keypaths (non-optional)
+/// Use this when you need mutable access to a direct field
+pub type WritePath<Root, Value, F> = WritableKeyPath<Root, Value, F>;
+
+/// Alias for optional writable keypaths
+/// Use this when accessing through Option<T> chains with mutable access
+pub type WriteOptPath<Root, Value, F> = WritableOptionalKeyPath<Root, Value, F>;
+
+/// Alias for partial keypaths (type-erased value)
+pub type PartialPath<Root> = PartialKeyPath<Root>;
+
+/// Alias for partial optional keypaths
+pub type PartialOptPath<Root> = PartialOptionalKeyPath<Root>;
+
+/// Alias for partial writable keypaths
+pub type PartialWritePath<Root> = PartialWritableKeyPath<Root>;
+
+/// Alias for partial writable optional keypaths
+pub type PartialWriteOptPath<Root> = PartialWritableOptionalKeyPath<Root>;
+
+/// Alias for fully type-erased keypaths
+pub type AnyPath = AnyKeyPath;
+
+/// Alias for fully type-erased writable keypaths
+pub type AnyWritePath = AnyWritableKeyPath;
+
+// ========== BASE KEYPATH TYPES ==========
+
 // Base KeyPath
 #[derive(Clone)]
 pub struct KeyPath<Root, Value, F>
