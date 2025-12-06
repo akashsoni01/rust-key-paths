@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+tagged-core = { version = "0.8", optional = true }
+parking_lot = { version = "0.12", optional = true }
+
+[features]
+default = []
+tagged = ["dep:tagged-core"]
+parking_lot = ["dep:parking_lot"]
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

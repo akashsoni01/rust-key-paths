@@ -31,6 +31,11 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 rust-keypaths = { path = "../rust-keypaths" }
+
+# Optional features
+[features]
+tagged = ["rust-keypaths/tagged"]  # Enable tagged-core support
+parking_lot = ["rust-keypaths/parking_lot"]  # Enable parking_lot support
 ```
 
 ## 🚀 Quick Start
@@ -326,6 +331,34 @@ Utility functions for accessing elements in standard library collections.
 - **`for_btreeset_get_mut<T>(value: T) -> WritableOptionalKeyPath<BTreeSet<T>, T, ...>`** - Limited mutable access (see limitations)
 - **`for_binaryheap_peek_mut<T>() -> WritableOptionalKeyPath<BinaryHeap<T>, T, ...>`** - Limited mutable access (see limitations)
 
+#### Synchronization Primitives (Helper Functions)
+
+**Note**: Mutex and RwLock return guards that own the lock, not references. These helper functions are provided for convenience, but direct `lock()`, `read()`, and `write()` calls are recommended for better control.
+
+- **`lock_mutex<T>(mutex: &Mutex<T>) -> Option<MutexGuard<T>>`** - Lock a `Mutex<T>` and return guard
+- **`read_rwlock<T>(rwlock: &RwLock<T>) -> Option<RwLockReadGuard<T>>`** - Read-lock an `RwLock<T>` and return guard
+- **`write_rwlock<T>(rwlock: &RwLock<T>) -> Option<RwLockWriteGuard<T>>`** - Write-lock an `RwLock<T>` and return guard
+- **`lock_arc_mutex<T>(arc_mutex: &Arc<Mutex<T>>) -> Option<MutexGuard<T>>`** - Lock an `Arc<Mutex<T>>` and return guard
+- **`read_arc_rwlock<T>(arc_rwlock: &Arc<RwLock<T>>) -> Option<RwLockReadGuard<T>>`** - Read-lock an `Arc<RwLock<T>>` and return guard
+- **`write_arc_rwlock<T>(arc_rwlock: &Arc<RwLock<T>>) -> Option<RwLockWriteGuard<T>>`** - Write-lock an `Arc<RwLock<T>>` and return guard
+- **`upgrade_weak<T>(weak: &Weak<T>) -> Option<Arc<T>>`** - Upgrade a `Weak<T>` to `Arc<T>`
+- **`upgrade_rc_weak<T>(weak: &Rc::Weak<T>) -> Option<Rc<T>>`** - Upgrade an `Rc::Weak<T>` to `Rc<T>`
+
+#### Parking Lot Support (Optional Feature)
+
+When the `parking_lot` feature is enabled:
+
+- **`lock_parking_mutex<T>(mutex: &parking_lot::Mutex<T>) -> MutexGuard<T>`** - Lock a parking_lot `Mutex<T>`
+- **`read_parking_rwlock<T>(rwlock: &parking_lot::RwLock<T>) -> RwLockReadGuard<T>`** - Read-lock a parking_lot `RwLock<T>`
+- **`write_parking_rwlock<T>(rwlock: &parking_lot::RwLock<T>) -> RwLockWriteGuard<T>`** - Write-lock a parking_lot `RwLock<T>`
+
+#### Tagged Types Support (Optional Feature)
+
+When the `tagged` feature is enabled:
+
+- **`for_tagged<Tag, T>() -> KeyPath<Tagged<Tag, T>, T, ...>`** - Access inner value of `Tagged<Tag, T>` (requires `Deref`)
+- **`for_tagged_mut<Tag, T>() -> WritableKeyPath<Tagged<Tag, T>, T, ...>`** - Mutably access inner value of `Tagged<Tag, T>` (requires `DerefMut`)
+
 #### Example
 
 ```rust
@@ -335,6 +368,13 @@ let vec = vec!["a", "b", "c"];
 let vec_kp = containers::for_vec_index::<&str>(1);
 if let Some(value) = vec_kp.get(&vec) {
     println!("{}", value); // prints "b"
+}
+
+// Using locks
+use std::sync::Mutex;
+let mutex = Mutex::new(42);
+if let Some(guard) = containers::lock_mutex(&mutex) {
+    println!("Mutex value: {}", *guard);
 }
 ```
 
@@ -491,6 +531,7 @@ See the `examples/` directory for more comprehensive examples:
 - `deeply_nested.rs` - Deeply nested structures with enum variants
 - `containers.rs` - Readable access to all container types
 - `writable_containers.rs` - Writable access to containers with mutation examples
+- `locks_and_tagged.rs` - Synchronization primitives and tagged types (requires `tagged` and `parking_lot` features)
 
 ## 🔧 Implementation Details
 

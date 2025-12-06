@@ -87,8 +87,17 @@ pub fn for_slice<T>() -> impl for<'r> Fn(&'r [T], usize) -> Option<&'r T> {
 
 // Container access utilities
 pub mod containers {
-    use super::{OptionalKeyPath, WritableOptionalKeyPath};
+    use super::{OptionalKeyPath, WritableOptionalKeyPath, KeyPath, WritableKeyPath};
     use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
+    use std::sync::{Mutex, RwLock, Weak as StdWeak, Arc};
+    use std::rc::{Weak as RcWeak, Rc};
+    use std::ops::{Deref, DerefMut};
+
+    #[cfg(feature = "parking_lot")]
+    use parking_lot::{Mutex as ParkingMutex, RwLock as ParkingRwLock};
+
+    #[cfg(feature = "tagged")]
+    use tagged_core::Tagged;
 
     /// Create a keypath for indexed access in Vec<T>
     pub fn for_vec_index<T>(index: usize) -> OptionalKeyPath<Vec<T>, T, impl for<'r> Fn(&'r Vec<T>) -> Option<&'r T>> {
@@ -241,6 +250,112 @@ pub mod containers {
         WritableOptionalKeyPath::new(|_heap: &mut BinaryHeap<T>| {
             None
         })
+    }
+
+    // ========== SYNCHRONIZATION PRIMITIVES ==========
+    // Note: Mutex and RwLock return guards that own the lock, not references.
+    // We cannot create keypaths that return references from guards due to lifetime constraints.
+    // These helper functions are provided for convenience, but direct lock()/read()/write() calls are recommended.
+
+    /// Helper function to lock a Mutex<T> and access its value
+    /// Returns None if the mutex is poisoned
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn lock_mutex<T>(mutex: &Mutex<T>) -> Option<std::sync::MutexGuard<'_, T>> {
+        mutex.lock().ok()
+    }
+
+    /// Helper function to read-lock an RwLock<T> and access its value
+    /// Returns None if the lock is poisoned
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn read_rwlock<T>(rwlock: &RwLock<T>) -> Option<std::sync::RwLockReadGuard<'_, T>> {
+        rwlock.read().ok()
+    }
+
+    /// Helper function to write-lock an RwLock<T> and access its value
+    /// Returns None if the lock is poisoned
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn write_rwlock<T>(rwlock: &RwLock<T>) -> Option<std::sync::RwLockWriteGuard<'_, T>> {
+        rwlock.write().ok()
+    }
+
+    /// Helper function to lock an Arc<Mutex<T>> and access its value
+    /// Returns None if the mutex is poisoned
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn lock_arc_mutex<T>(arc_mutex: &Arc<Mutex<T>>) -> Option<std::sync::MutexGuard<'_, T>> {
+        arc_mutex.lock().ok()
+    }
+
+    /// Helper function to read-lock an Arc<RwLock<T>> and access its value
+    /// Returns None if the lock is poisoned
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn read_arc_rwlock<T>(arc_rwlock: &Arc<RwLock<T>>) -> Option<std::sync::RwLockReadGuard<'_, T>> {
+        arc_rwlock.read().ok()
+    }
+
+    /// Helper function to write-lock an Arc<RwLock<T>> and access its value
+    /// Returns None if the lock is poisoned
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn write_arc_rwlock<T>(arc_rwlock: &Arc<RwLock<T>>) -> Option<std::sync::RwLockWriteGuard<'_, T>> {
+        arc_rwlock.write().ok()
+    }
+
+    /// Helper function to upgrade a Weak<T> to Arc<T>
+    /// Returns None if the Arc has been dropped
+    /// Note: This returns an owned Arc, not a reference, so it cannot be used in keypaths directly
+    pub fn upgrade_weak<T>(weak: &StdWeak<T>) -> Option<Arc<T>> {
+        weak.upgrade()
+    }
+
+    /// Helper function to upgrade an Rc::Weak<T> to Rc<T>
+    /// Returns None if the Rc has been dropped
+    /// Note: This returns an owned Rc, not a reference, so it cannot be used in keypaths directly
+    pub fn upgrade_rc_weak<T>(weak: &RcWeak<T>) -> Option<Rc<T>> {
+        weak.upgrade()
+    }
+
+    #[cfg(feature = "parking_lot")]
+    /// Helper function to lock a parking_lot::Mutex<T> and access its value
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn lock_parking_mutex<T>(mutex: &ParkingMutex<T>) -> parking_lot::MutexGuard<'_, T> {
+        mutex.lock()
+    }
+
+    #[cfg(feature = "parking_lot")]
+    /// Helper function to read-lock a parking_lot::RwLock<T> and access its value
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn read_parking_rwlock<T>(rwlock: &ParkingRwLock<T>) -> parking_lot::RwLockReadGuard<'_, T> {
+        rwlock.read()
+    }
+
+    #[cfg(feature = "parking_lot")]
+    /// Helper function to write-lock a parking_lot::RwLock<T> and access its value
+    /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
+    pub fn write_parking_rwlock<T>(rwlock: &ParkingRwLock<T>) -> parking_lot::RwLockWriteGuard<'_, T> {
+        rwlock.write()
+    }
+
+    #[cfg(feature = "tagged")]
+    /// Create a keypath for accessing the inner value of Tagged<Tag, T>
+    /// Tagged implements Deref, so we can access the inner value directly
+    pub fn for_tagged<Tag, T>() -> KeyPath<Tagged<Tag, T>, T, impl for<'r> Fn(&'r Tagged<Tag, T>) -> &'r T>
+    where
+        Tagged<Tag, T>: std::ops::Deref<Target = T>,
+        Tag: 'static,
+        T: 'static,
+    {
+        KeyPath::new(|tagged: &Tagged<Tag, T>| tagged.deref())
+    }
+
+    #[cfg(feature = "tagged")]
+    /// Create a writable keypath for accessing the inner value of Tagged<Tag, T>
+    /// Tagged implements DerefMut, so we can access the inner value directly
+    pub fn for_tagged_mut<Tag, T>() -> WritableKeyPath<Tagged<Tag, T>, T, impl for<'r> Fn(&'r mut Tagged<Tag, T>) -> &'r mut T>
+    where
+        Tagged<Tag, T>: std::ops::DerefMut<Target = T>,
+        Tag: 'static,
+        T: 'static,
+    {
+        WritableKeyPath::new(|tagged: &mut Tagged<Tag, T>| tagged.deref_mut())
     }
 }
 
