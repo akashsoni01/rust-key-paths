@@ -23,7 +23,7 @@ fn main() {
     let arc_mutex_user = Arc::new(Mutex::new(User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
     }));
 
     let arc_rwlock_profile = Arc::new(RwLock::new(Profile {

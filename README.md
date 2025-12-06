@@ -41,11 +41,11 @@ struct User {
 }
 
 // Usage
-let user = User { name: "Alice".into(), email: Some("alice@example.com".into()) };
+let user = User { name: "Alice".into(), email: Some("akash@example.com".into()) };
 let name_keypath = User::name();
 let email_keypath = User::email();
 let name = name_keypath.get(&user);        // Some("Alice")
-let email = email_keypath.get(&user);      // Some("alice@example.com")
+let email = email_keypath.get(&user);      // Some("akash@example.com")
 ```
 
 ### `#[derive(Keypaths)]` - Advanced & Feature-Rich
@@ -65,11 +65,11 @@ struct User {
 }
 
 // Usage - you choose the exact method
-let user = User { name: "Alice".into(), email: Some("alice@example.com".into()) };
+let user = User { name: "Alice".into(), email: Some("akash@example.com".into()) };
 let name_keypath = User::name_r();
 let email_keypath = User::email_fr();
 let name = name_keypath.get(&user);      // Some("Alice") - readable
-let email = email_keypath.get(&user);   // Some("alice@example.com") - failable readable
+let email = email_keypath.get(&user);   // Some("akash@example.com") - failable readable
 ```
 ---
 
@@ -189,7 +189,7 @@ fn main() {
     let user = User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
     };
 
     // Access fields using keypaths
@@ -199,7 +199,7 @@ fn main() {
     
     let name = name_keypath.get(&user);        // Some("Alice")
     let age = age_keypath.get(&user);          // Some(30)
-    let email = email_keypath.get(&user);      // Some("alice@example.com")
+    let email = email_keypath.get(&user);      // Some("akash@example.com")
 
     println!("Name: {:?}", name);
     println!("Age: {:?}", age);

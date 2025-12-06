@@ -308,7 +308,7 @@ fn main() {
     // Create initial user profile
     let mut profile = UserProfile {
         name: "Alice".to_string(),
-        email: "alice@example.com".to_string(),
+        email: "akash@example.com".to_string(),
         age: 28,
         settings: UserSettings {
             notifications_enabled: true,
@@ -346,7 +346,7 @@ fn main() {
     }
 
     // Update email
-    match form.update_string(&mut profile, "email", "alice.johnson@example.com".to_string()) {
+    match form.update_string(&mut profile, "email", "akash.johnson@example.com".to_string()) {
         Ok(_) => println!("✓ Updated email successfully"),
         Err(e) => println!("✗ Failed to update email: {}", e),
     }

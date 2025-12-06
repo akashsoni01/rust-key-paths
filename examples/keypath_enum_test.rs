@@ -61,7 +61,7 @@ fn main() {
     
     let metadata_msg = Message::Metadata({
         let mut map = HashMap::new();
-        map.insert("sender".to_string(), "alice".to_string());
+        map.insert("sender".to_string(), "akash".to_string());
         map.insert("timestamp".to_string(), "2024-01-01".to_string());
         map
     });

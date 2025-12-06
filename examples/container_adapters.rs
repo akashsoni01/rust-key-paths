@@ -99,7 +99,7 @@ fn main() {
         Box::new(User {
             id: 1,
             name: "Alice".to_string(),
-            email: "alice@example.com".to_string(),
+            email: "akash@example.com".to_string(),
             age: 30,
         }),
         Box::new(User {

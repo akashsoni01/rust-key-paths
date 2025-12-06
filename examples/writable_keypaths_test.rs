@@ -33,7 +33,7 @@ fn main() {
     let mut user = User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
         tags: vec!["developer".to_string(), "rust".to_string()],
         preferences: {
             let mut map = HashMap::new();
@@ -110,7 +110,7 @@ fn main() {
     println!("\n=== Failable Writable Keypaths (Option) ===");
     let email_path = User::email_fw();
     if let Some(email_ref) = email_path.get_mut(&mut user) {
-        *email_ref = "alice.updated@example.com".to_string();
+        *email_ref = "akash.updated@example.com".to_string();
         println!("Updated email to: {}", email_ref);
     }
 

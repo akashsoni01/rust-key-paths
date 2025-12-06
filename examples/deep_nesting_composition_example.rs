@@ -77,7 +77,7 @@ fn main() {
                     id: 1,
                     name: "Alice Johnson".to_string(),
                     contact: Contact {
-                        email: "alice@techcorp.com".to_string(),
+                        email: "akash@techcorp.com".to_string(),
                         phone: Some("+1-555-0101".to_string()),
                         address: Address {
                             street: "456 Employee Ave".to_string(),

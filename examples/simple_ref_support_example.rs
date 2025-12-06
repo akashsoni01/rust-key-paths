@@ -19,7 +19,7 @@ fn main() {
     let person1 = Person {
         name: "Alice Johnson".to_string(),
         age: 30,
-        email: "alice@example.com".to_string(),
+        email: "akash@example.com".to_string(),
     };
 
     let person2 = Person {

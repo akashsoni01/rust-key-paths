@@ -112,7 +112,7 @@ fn main() {
                     name: "Alice Johnson".to_string(),
                     salary: 120000,
                     contact: Arc::new(Mutex::new(Contact {
-                        email: "alice@techcorp.com".to_string(),
+                        email: "akash@techcorp.com".to_string(),
                         phone: "+1-555-0123".to_string(),
                     })),
                 })),

@@ -29,7 +29,7 @@ fn main() {
         Person {
             name: "Alice Johnson".to_string(),
             age: 30,
-            email: "alice@example.com".to_string(),
+            email: "akash@example.com".to_string(),
             active: true,
         },
         Person {
@@ -165,7 +165,7 @@ fn main() {
         Person {
             name: "Alice".to_string(),
             age: 30,
-            email: "alice@example.com".to_string(),
+            email: "akash@example.com".to_string(),
             active: true,
         },
         Person {

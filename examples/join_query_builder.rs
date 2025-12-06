@@ -191,7 +191,7 @@ fn create_sample_data() -> (Vec<User>, Vec<Order>, Vec<Product>) {
         User {
             id: 1,
             name: "Alice".to_string(),
-            email: "alice@example.com".to_string(),
+            email: "akash@example.com".to_string(),
             city: "New York".to_string(),
         },
         User {

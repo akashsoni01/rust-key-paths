@@ -102,7 +102,7 @@ fn main() {
                             position: "Senior Engineer".to_string(),
                             salary: 120_000,
                             contact: Contact {
-                                email: "alice@techcorp.com".to_string(),
+                                email: "akash@techcorp.com".to_string(),
                                 phone: Some("+1-555-0101".to_string()),
                                 address: Address {
                                     street: "456 Employee Ave".to_string(),
@@ -116,7 +116,7 @@ fn main() {
                                     }),
                                 },
                                 emergency_contact: Some(Box::new(Contact {
-                                    email: "emergency@alice.com".to_string(),
+                                    email: "emergency@akash.com".to_string(),
                                     phone: Some("+1-555-EMERGENCY".to_string()),
                                     address: Address {
                                         street: "789 Emergency St".to_string(),

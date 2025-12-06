@@ -260,7 +260,7 @@
 //     let user = User {
 //         id: 1,
 //         name: "Alice Johnson".to_string(),
-//         email: Some("alice@example.com".to_string()),
+//         email: Some("akash@example.com".to_string()),
 //         is_active: true,
 //     };
 //
@@ -370,7 +370,7 @@
 //     let test_user = User {
 //         id: 1,
 //         name: "Alice".to_string(),
-//         email: Some("alice@example.com".to_string()),
+//         email: Some("akash@example.com".to_string()),
 //         is_active: true,
 //     };
 //

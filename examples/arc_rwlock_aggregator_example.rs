@@ -32,7 +32,7 @@ fn main() {
     let arc_rwlock_user = Arc::new(RwLock::new(User {
         name: "Alice Johnson".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
     }));
 
     let arc_rwlock_profile = Arc::new(RwLock::new(Profile {

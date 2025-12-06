@@ -200,7 +200,7 @@ fn main() {
         User {
             id: 1,
             name: "Alice".to_string(),
-            email: "alice@example.com".to_string(),
+            email: "akash@example.com".to_string(),
             is_active: true,
         },
         User {

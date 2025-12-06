@@ -31,7 +31,7 @@ fn main() {
     let user = User {
         id: 1,
         name: "Alice".to_string(),
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
         is_active: true,
         tags: vec!["premium".to_string(), "verified".to_string()],
         metadata: std::collections::HashMap::from([

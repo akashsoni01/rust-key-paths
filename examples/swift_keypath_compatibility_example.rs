@@ -35,7 +35,7 @@ fn main() {
     let person = Person {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
         is_active: true,
     };
 

@@ -35,7 +35,7 @@ fn main() {
         let parking_mutex_user = Arc::new(Mutex::new(User {
             name: "Alice".to_string(),
             age: 30,
-            email: Some("alice@example.com".to_string()),
+            email: Some("akash@example.com".to_string()),
         }));
 
         let parking_rwlock_profile = Arc::new(RwLock::new(Profile {

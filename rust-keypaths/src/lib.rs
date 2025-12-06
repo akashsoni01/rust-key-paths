@@ -303,7 +303,7 @@ struct UserMetadata {
 }
 
 fn some_fn() {
-    let alice = User {
+    let akash = User {
         name: "Alice".to_string(),
         metadata: Some(Box::new(UserMetadata {
             created_at: "2024-01-01".to_string(),
@@ -323,21 +323,21 @@ fn some_fn() {
     let friends_kp = KeyPath::new(|u: &User| &u.friends);
     
     // Use them
-    println!("Name: {}", name_kp.get(&alice));
+    println!("Name: {}", name_kp.get(&akash));
     
-    if let Some(metadata) = metadata_kp.get(&alice) {
+    if let Some(metadata) = metadata_kp.get(&akash) {
         println!("Has metadata: {:?}", metadata);
     }
     
     // Access first friend's name
-    if let Some(first_friend) = alice.friends.get(0) {
+    if let Some(first_friend) = akash.friends.get(0) {
         println!("First friend: {}", name_kp.get(first_friend));
     }
     
     // Access metadata through Box using for_box()
     let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
     
-    if let Some(metadata) = alice.metadata.as_ref() {
+    if let Some(metadata) = akash.metadata.as_ref() {
         // Use for_box() to unwrap Box<UserMetadata> to &UserMetadata
         let boxed_metadata: &Box<UserMetadata> = metadata;
         let unwrapped = boxed_metadata.as_ref();
