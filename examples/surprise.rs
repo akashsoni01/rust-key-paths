@@ -1,5 +1,5 @@
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use key_paths_derive::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
 #[All]

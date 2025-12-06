@@ -111,8 +111,7 @@ fn main() {
     // Test failable writable keypaths for Option
     println!("\n=== Failable Writable Keypaths (Option) ===");
     let email_path = User::email_fw();
-    let email_ref = email_path.get_mut(&mut user);
-    {
+    if let Some(email_ref) = email_path.get_mut(&mut user) {
         *email_ref = "akash.updated@example.com".to_string();
         println!("Updated email to: {}", email_ref);
     }
@@ -120,8 +119,7 @@ fn main() {
     // Test failable writable keypaths for Vec
     println!("\n=== Failable Writable Keypaths (Vec) ===");
     let first_tag_path = User::tags_fw();
-    let tag_ref = first_tag_path.get_mut(&mut user);
-    {
+    if let Some(tag_ref) = first_tag_path.get_mut(&mut user) {
         *tag_ref = "senior_developer".to_string();
         println!("Updated first tag to: {}", tag_ref);
     }

@@ -1,5 +1,5 @@
-use key_paths_core::{PartialKeyPath, AnyKeyPath};
-use key_paths_derive::{Keypaths, PartialKeypaths, AnyKeypaths};
+use rust_keypaths::{PartialKeyPath, AnyKeyPath};
+use keypaths_proc::{Keypaths, PartialKeypaths, AnyKeypaths};
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Rc;
 use std::collections::HashMap;

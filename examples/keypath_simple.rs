@@ -39,10 +39,9 @@ fn main() {
         println!("First hobby: {}", hobby);
     }
 
-    // HashMap<K,V> - readable keypath to container
-    if let Some(scores) = Person::scores_r().get(&person) {
-        println!("Scores: {:?}", scores);
-    }
+    // HashMap<K,V> - readable keypath to container (returns &HashMap directly, not Option)
+    let scores = Person::scores_r().get(&person);
+    println!("Scores: {:?}", scores);
 
     println!("\n=== Keypaths Types ===");
     println!("name() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (readable)");
