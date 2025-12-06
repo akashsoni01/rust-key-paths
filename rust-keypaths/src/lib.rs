@@ -102,6 +102,53 @@ where
     }
 }
 
+// Enum-specific keypaths
+pub struct EnumKeyPaths;
+
+impl EnumKeyPaths {
+    // Extract from a specific enum variant
+    pub fn variant<Enum, Variant, ExtractFn>(
+        extractor: ExtractFn
+    ) -> OptionalKeyPath<Enum, Variant, impl for<'r> Fn(&'r Enum) -> Option<&'r Variant>>
+    where
+        ExtractFn: Fn(&Enum) -> Option<&Variant>,
+    {
+        OptionalKeyPath::new(extractor)
+    }
+    
+    // Match against multiple variants (returns a tagged union)
+    pub fn match_variant<Enum, Output, MatchFn>(
+        matcher: MatchFn
+    ) -> KeyPath<Enum, Output, impl for<'r> Fn(&'r Enum) -> &'r Output>
+    where
+        MatchFn: Fn(&Enum) -> &Output,
+    {
+        KeyPath::new(matcher)
+    }
+    
+    // Extract from Result<T, E>
+    pub fn ok<T, E>() -> OptionalKeyPath<Result<T, E>, T, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r T>> {
+        OptionalKeyPath::new(|result: &Result<T, E>| result.as_ref().ok())
+    }
+    
+    pub fn err<T, E>() -> OptionalKeyPath<Result<T, E>, E, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r E>> {
+        OptionalKeyPath::new(|result: &Result<T, E>| result.as_ref().err())
+    }
+    
+    // Extract from Option<T>
+    pub fn some<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
+        OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
+    }
+}
+
+// Helper to create enum variant keypaths with type inference
+pub fn variant_of<Enum, Variant, F>(extractor: F) -> OptionalKeyPath<Enum, Variant, F>
+where
+    F: for<'r> Fn(&'r Enum) -> Option<&'r Variant>,
+{
+    OptionalKeyPath::new(extractor)
+}
+
 // Usage example
 #[derive(Debug)]
 struct User {
