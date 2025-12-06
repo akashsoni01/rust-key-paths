@@ -728,6 +728,17 @@ where
 
 /// PartialKeyPath - Hides the Value type but keeps Root visible
 /// Useful for storing keypaths in collections without knowing the exact Value type
+/// 
+/// # Why PhantomData<Root>?
+/// 
+/// `PhantomData<Root>` is needed because:
+/// 1. The `Root` type parameter is not actually stored in the struct (only used in the closure)
+/// 2. Rust needs to know the generic type parameter for:
+///    - Type checking at compile time
+///    - Ensuring correct usage (e.g., `PartialKeyPath<User>` can only be used with `&User`)
+///    - Preventing mixing different Root types
+/// 3. Without `PhantomData`, Rust would complain that `Root` is unused
+/// 4. `PhantomData` is zero-sized - it adds no runtime overhead
 #[derive(Clone)]
 pub struct PartialKeyPath<Root> {
     getter: Rc<dyn for<'r> Fn(&'r Root) -> &'r dyn Any>,
@@ -754,6 +765,16 @@ impl<Root> PartialKeyPath<Root> {
         }
     }
     
+    /// Create a PartialKeyPath from a concrete KeyPath
+    /// Alias for `new()` for consistency with `from()` pattern
+    pub fn from<Value>(keypath: KeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> &'r Value + 'static>) -> Self
+    where
+        Value: Any + 'static,
+        Root: 'static,
+    {
+        Self::new(keypath)
+    }
+    
     pub fn get<'r>(&self, root: &'r Root) -> &'r dyn Any {
         (self.getter)(root)
     }
@@ -775,6 +796,10 @@ impl<Root> PartialKeyPath<Root> {
 
 /// PartialOptionalKeyPath - Hides the Value type but keeps Root visible
 /// Useful for storing optional keypaths in collections without knowing the exact Value type
+/// 
+/// # Why PhantomData<Root>?
+/// 
+/// See `PartialKeyPath` documentation for explanation of why `PhantomData` is needed.
 #[derive(Clone)]
 pub struct PartialOptionalKeyPath<Root> {
     getter: Rc<dyn for<'r> Fn(&'r Root) -> Option<&'r dyn Any>>,
@@ -850,6 +875,10 @@ impl<Root> PartialOptionalKeyPath<Root> {
 }
 
 /// PartialWritableKeyPath - Hides the Value type but keeps Root visible (writable)
+/// 
+/// # Why PhantomData<Root>?
+/// 
+/// See `PartialKeyPath` documentation for explanation of why `PhantomData` is needed.
 #[derive(Clone)]
 pub struct PartialWritableKeyPath<Root> {
     getter: Rc<dyn for<'r> Fn(&'r mut Root) -> &'r mut dyn Any>,
@@ -876,6 +905,16 @@ impl<Root> PartialWritableKeyPath<Root> {
         }
     }
     
+    /// Create a PartialWritableKeyPath from a concrete WritableKeyPath
+    /// Alias for `new()` for consistency with `from()` pattern
+    pub fn from<Value>(keypath: WritableKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static>) -> Self
+    where
+        Value: Any + 'static,
+        Root: 'static,
+    {
+        Self::new(keypath)
+    }
+    
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> &'r mut dyn Any {
         (self.getter)(root)
     }
@@ -896,6 +935,10 @@ impl<Root> PartialWritableKeyPath<Root> {
 }
 
 /// PartialWritableOptionalKeyPath - Hides the Value type but keeps Root visible (writable optional)
+/// 
+/// # Why PhantomData<Root>?
+/// 
+/// See `PartialKeyPath` documentation for explanation of why `PhantomData` is needed.
 #[derive(Clone)]
 pub struct PartialWritableOptionalKeyPath<Root> {
     getter: Rc<dyn for<'r> Fn(&'r mut Root) -> Option<&'r mut dyn Any>>,
@@ -945,6 +988,14 @@ impl<Root> PartialWritableOptionalKeyPath<Root> {
 /// AnyKeyPath - Hides both Root and Value types
 /// Equivalent to Swift's AnyKeyPath
 /// Useful for storing keypaths in collections without knowing either type
+/// 
+/// # Why No PhantomData?
+/// 
+/// Unlike `PartialKeyPath`, `AnyKeyPath` doesn't need `PhantomData` because:
+/// - Both `Root` and `Value` types are completely erased
+/// - We store `TypeId` instead for runtime type checking
+/// - The type information is encoded in the closure's behavior, not the struct
+/// - There's no generic type parameter to track at compile time
 #[derive(Clone)]
 pub struct AnyKeyPath {
     getter: Rc<dyn for<'r> Fn(&'r dyn Any) -> Option<&'r dyn Any>>,
@@ -973,6 +1024,16 @@ impl AnyKeyPath {
             root_type_id,
             value_type_id,
         }
+    }
+    
+    /// Create an AnyKeyPath from a concrete OptionalKeyPath
+    /// Alias for `new()` for consistency with `from()` pattern
+    pub fn from<Root, Value>(keypath: OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>) -> Self
+    where
+        Root: Any + 'static,
+        Value: Any + 'static,
+    {
+        Self::new(keypath)
     }
     
     pub fn get<'r>(&self, root: &'r dyn Any) -> Option<&'r dyn Any> {
@@ -1065,6 +1126,11 @@ where
     pub fn to_partial(self) -> PartialKeyPath<Root> {
         PartialKeyPath::new(self)
     }
+    
+    /// Alias for `to_partial()` - converts to PartialKeyPath
+    pub fn to(self) -> PartialKeyPath<Root> {
+        self.to_partial()
+    }
 }
 
 impl<Root, Value, F> OptionalKeyPath<Root, Value, F>
@@ -1082,6 +1148,11 @@ where
     pub fn to_any(self) -> AnyKeyPath {
         AnyKeyPath::new(self)
     }
+    
+    /// Convert to PartialOptionalKeyPath (alias for `to_partial()`)
+    pub fn to(self) -> PartialOptionalKeyPath<Root> {
+        self.to_partial()
+    }
 }
 
 impl<Root, Value, F> WritableKeyPath<Root, Value, F>
@@ -1093,6 +1164,11 @@ where
     /// Convert to PartialWritableKeyPath (hides Value type)
     pub fn to_partial(self) -> PartialWritableKeyPath<Root> {
         PartialWritableKeyPath::new(self)
+    }
+    
+    /// Alias for `to_partial()` - converts to PartialWritableKeyPath
+    pub fn to(self) -> PartialWritableKeyPath<Root> {
+        self.to_partial()
     }
 }
 
@@ -1110,6 +1186,11 @@ where
     /// Convert to AnyWritableKeyPath (hides both Root and Value types)
     pub fn to_any(self) -> AnyWritableKeyPath {
         AnyWritableKeyPath::new(self)
+    }
+    
+    /// Convert to PartialWritableOptionalKeyPath (alias for `to_partial()`)
+    pub fn to(self) -> PartialWritableOptionalKeyPath<Root> {
+        self.to_partial()
     }
 }
 
