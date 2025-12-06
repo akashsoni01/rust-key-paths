@@ -80,14 +80,14 @@ fn main() {
     
     // Chain keypaths to read desf field using enum keypath
     // Chain: SomeComplexStruct -> scsf -> SomeOtherStruct -> sosf -> OneMoreStruct -> omse -> SomeEnum::B -> DarkStruct -> dsf -> DeeperStruct -> desf -> Box<String> -> &String
-    // Using for_box() to unwrap Option<Box<String>> to Option<&String>
+    // Using for_box() to unwrap Option<Box<String>> to Option<&String> (type automatically inferred)
     let chained_desf_kp = scsf_kp
         .then(sosf_kp)
         .then(omse_kp)
         .then(enum_b_kp)
         .then(dsf_kp)
         .then(desf_kp)
-        .for_box::<String>();
+        .for_box();
     
     // Access desf using the chained keypath with enum variant - now returns Option<&String> directly
     if let Some(desf_value) = chained_desf_kp.get(&instance) {

@@ -26,20 +26,72 @@ where
         (self.getter)(root)
     }
     
-    // Static methods for container unwrapping
+    // Static methods for container unwrapping (creating new keypaths)
     // Box<T> -> T
-    pub fn for_box<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
+    pub fn for_box_static<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
         KeyPath::new(|b: &Box<T>| b.as_ref())
     }
     
     // Arc<T> -> T
-    pub fn for_arc<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
+    pub fn for_arc_static<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
         KeyPath::new(|arc: &Arc<T>| arc.as_ref())
     }
     
     // Rc<T> -> T
-    pub fn for_rc<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
+    pub fn for_rc_static<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
         KeyPath::new(|rc: &std::rc::Rc<T>| rc.as_ref())
+    }
+    
+    // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
+    // Box<T> -> T
+    pub fn for_box<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
+    where
+        Value: std::ops::Deref<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        KeyPath {
+            getter: move |root: &Root| {
+                getter(root).deref()
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Arc<T> -> T
+    pub fn for_arc<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
+    where
+        Value: std::ops::Deref<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        KeyPath {
+            getter: move |root: &Root| {
+                getter(root).deref()
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Rc<T> -> T
+    pub fn for_rc<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
+    where
+        Value: std::ops::Deref<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        KeyPath {
+            getter: move |root: &Root| {
+                getter(root).deref()
+            },
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -93,46 +145,55 @@ where
     }
     
     // Instance methods for unwrapping containers from Option<Container<T>>
-    // Option<Box<T>> -> Option<&T>
-    pub fn for_box<T>(self) -> OptionalKeyPath<Root, T, impl for<'r> Fn(&'r Root) -> Option<&'r T>>
+    // Option<Box<T>> -> Option<&T> (type automatically inferred from Value::Target)
+    pub fn for_box<Target>(self) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
     where
-        Value: std::ops::Deref<Target = T>,
+        Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
         
-        OptionalKeyPath::new(move |root: &Root| {
-            getter(root).map(|boxed| boxed.deref())
-        })
+        OptionalKeyPath {
+            getter: move |root: &Root| {
+                getter(root).map(|boxed| boxed.deref())
+            },
+            _phantom: PhantomData,
+        }
     }
     
-    // Option<Arc<T>> -> Option<&T>
-    pub fn for_arc<T>(self) -> OptionalKeyPath<Root, T, impl for<'r> Fn(&'r Root) -> Option<&'r T>>
+    // Option<Arc<T>> -> Option<&T> (type automatically inferred from Value::Target)
+    pub fn for_arc<Target>(self) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
     where
-        Value: std::ops::Deref<Target = T>,
+        Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
         
-        OptionalKeyPath::new(move |root: &Root| {
-            getter(root).map(|arc| arc.deref())
-        })
+        OptionalKeyPath {
+            getter: move |root: &Root| {
+                getter(root).map(|arc| arc.deref())
+            },
+            _phantom: PhantomData,
+        }
     }
     
-    // Option<Rc<T>> -> Option<&T>
-    pub fn for_rc<T>(self) -> OptionalKeyPath<Root, T, impl for<'r> Fn(&'r Root) -> Option<&'r T>>
+    // Option<Rc<T>> -> Option<&T> (type automatically inferred from Value::Target)
+    pub fn for_rc<Target>(self) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
     where
-        Value: std::ops::Deref<Target = T>,
+        Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
         
-        OptionalKeyPath::new(move |root: &Root| {
-            getter(root).map(|rc| rc.deref())
-        })
+        OptionalKeyPath {
+            getter: move |root: &Root| {
+                getter(root).map(|rc| rc.deref())
+            },
+            _phantom: PhantomData,
+        }
     }
     
     // Static method for Option<T> -> Option<&T>
@@ -177,6 +238,22 @@ impl EnumKeyPaths {
     // Extract from Option<T>
     pub fn for_some<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
+    }
+    
+    // Static methods for container unwrapping (returns KeyPath)
+    // Box<T> -> T
+    pub fn for_box<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
+        KeyPath::new(|b: &Box<T>| b.as_ref())
+    }
+    
+    // Arc<T> -> T
+    pub fn for_arc<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
+        KeyPath::new(|arc: &Arc<T>| arc.as_ref())
+    }
+    
+    // Rc<T> -> T
+    pub fn for_rc<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
+        KeyPath::new(|rc: &std::rc::Rc<T>| rc.as_ref())
     }
 }
 
