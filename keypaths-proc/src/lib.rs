@@ -4814,10 +4814,17 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-#[proc_macro_derive(Casepaths)]
+#[proc_macro_derive(Casepaths, attributes(Readable, Writable, All))]
 pub fn derive_casepaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
+
+    // Get default scope from attributes
+    let default_scope = match method_scope_from_attrs(&input.attrs) {
+        Ok(Some(scope)) => scope,
+        Ok(None) => MethodScope::Readable, // Default to readable
+        Err(e) => return e.to_compile_error().into(),
+    };
 
     let tokens = match input.data {
         Data::Enum(data_enum) => {
@@ -4825,38 +4832,49 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
+                
+                // Get variant-specific scope
+                let variant_scope = match method_scope_from_attrs(&variant.attrs) {
+                    Ok(Some(scope)) => scope,
+                    Ok(None) => default_scope.clone(),
+                    Err(_) => default_scope.clone(),
+                };
+                
                 let r_fn = format_ident!("{}_case_r", snake);
                 let w_fn = format_ident!("{}_case_w", snake);
+                let fr_fn = format_ident!("{}_case_fr", snake);
+                let fw_fn = format_ident!("{}_case_fw", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
-                        tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, (), impl for<'r> Fn(&'r #name) -> &'r ()> {
-                                static UNIT: () = ();
-                                rust_keypaths::KeyPaths::readable_enum(
-                                    |_| #name::#v_ident,
-                                    |e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None }
-                                )
-                            }
-                        });
+                        // Unit variants - return OptionalKeyPath that checks if variant matches
+                        if variant_scope.includes_read() {
+                            tokens.extend(quote! {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>> {
+                                    static UNIT: () = ();
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None })
+                                }
+                            });
+                        }
                     }
                     Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
                         let inner_ty = &unnamed.unnamed.first().unwrap().ty;
-                        tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                rust_keypaths::KeyPaths::readable_enum(
-                                    #name::#v_ident,
-                                    |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
-                                )
-                            }
-                            pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                rust_keypaths::KeyPaths::writable_enum(
-                                    #name::#v_ident,
-                                    |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None },
-                                    |e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None },
-                                )
-                            }
-                        });
+                        
+                        // Single-field variant - extract the inner value
+                        if variant_scope.includes_read() {
+                            tokens.extend(quote! {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                            });
+                        }
+                        if variant_scope.includes_write() {
+                            tokens.extend(quote! {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                            });
+                        }
                     }
                     // Multi-field tuple variant: Enum::Variant(T1, T2, ...)
                     Fields::Unnamed(unnamed) => {
@@ -4868,18 +4886,20 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                             .map(|i| format_ident!("f{}", i))
                             .collect();
                         
-                        tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> &'r #tuple_ty> {
-                                rust_keypaths::OptionalKeyPath::new(|s: &
-                                    |e: #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None }
-                                )
-                            }
-                            pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #tuple_ty> {
-                                rust_keypaths::OptionalKeyPath::new(|s: &
-                                    |e: #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None }
-                                )
-                            }
-                        });
+                        if variant_scope.includes_read() {
+                            tokens.extend(quote! {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(#(#field_patterns),*) => Some(&(#(#field_patterns),*)), _ => None })
+                                }
+                            });
+                        }
+                        if variant_scope.includes_write() {
+                            tokens.extend(quote! {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #tuple_ty>> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None })
+                                }
+                            });
+                        }
                     }
                     
                     // Labeled variant: Enum::Variant { field1: T1, field2: T2, ... }
@@ -4888,18 +4908,20 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                         let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
                         let tuple_ty = quote! { (#(#field_types),*) };
                         
-                        tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> &'r #tuple_ty> {
-                                rust_keypaths::OptionalKeyPath::new(|s: &
-                                    |e: #name| match e { #name::#v_ident { #(#field_names),* } => Some((#(#field_names),*)), _ => None }
-                                )
-                            }
-                            pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #tuple_ty> {
-                                rust_keypaths::OptionalKeyPath::new(|s: &
-                                    |e: #name| match e { #name::#v_ident { #(#field_names),* } => Some((#(#field_names),*)), _ => None }
-                                )
-                            }
-                        });
+                        if variant_scope.includes_read() {
+                            tokens.extend(quote! {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident { #(#field_names: ref #field_names),* } => Some(&(#(#field_names),*)), _ => None })
+                                }
+                            });
+                        }
+                        if variant_scope.includes_write() {
+                            tokens.extend(quote! {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #tuple_ty>> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident { #(#field_names: ref mut #field_names),* } => Some((#(#field_names),*)), _ => None })
+                                }
+                            });
+                        }
                     }
                 }
             }
