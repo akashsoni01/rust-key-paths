@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rust_keypaths::{OptionalKeyPath, EnumKeyPaths};
+use rust_keypaths::{OptionalKeyPath, WritableOptionalKeyPath, EnumKeyPaths};
 // cargo bench --bench deeply_nested
 
 #[derive(Debug, Clone)]
@@ -210,10 +210,130 @@ fn bench_keypath_reuse(c: &mut Criterion) {
     group.finish();
 }
 
+// Benchmark: Write omsf field (3 levels deep)
+fn bench_write_omsf(c: &mut Criterion) {
+    let mut group = c.benchmark_group("write_omsf");
+    
+    // Create instance once outside the benchmark
+    let instance = SomeComplexStruct::new();
+    
+    // Keypath approach
+    let scsf_kp = WritableOptionalKeyPath::new(|s: &mut SomeComplexStruct| s.scsf.as_mut());
+    let sosf_kp = WritableOptionalKeyPath::new(|s: &mut SomeOtherStruct| s.sosf.as_mut());
+    let omsf_kp = WritableOptionalKeyPath::new(|o: &mut OneMoreStruct| o.omsf.as_mut());
+    let chained_kp = scsf_kp.then(sosf_kp).then(omsf_kp);
+    
+    group.bench_function("keypath", |b| {
+        b.iter(|| {
+            let mut instance = instance.clone();
+            if let Some(value) = chained_kp.get_mut(black_box(&mut instance)) {
+                *value = String::from("updated value");
+                black_box(value.is_empty())
+            } else {
+                black_box(false)
+            }
+        })
+    });
+    
+    // Manual unwrapping approach
+    group.bench_function("manual_unwrap", |b| {
+        b.iter(|| {
+            let mut instance = instance.clone();
+            let result = instance
+                .scsf
+                .as_mut()
+                .and_then(|s| s.sosf.as_mut())
+                .and_then(|o| o.omsf.as_mut());
+            if let Some(value) = result {
+                *value = String::from("updated value");
+                black_box(value.is_empty())
+            } else {
+                black_box(false)
+            }
+        })
+    });
+    
+    group.finish();
+}
+
+// Benchmark: Write desf field (7 levels deep with enum and Box)
+fn bench_write_desf(c: &mut Criterion) {
+    let mut group = c.benchmark_group("write_desf");
+    
+    // Create instance once outside the benchmark
+    let instance = SomeComplexStruct::new();
+    
+    // Keypath approach - 7 levels: scsf -> sosf -> omse -> enum -> dsf -> desf -> Box<String>
+    let scsf_kp = WritableOptionalKeyPath::new(|s: &mut SomeComplexStruct| s.scsf.as_mut());
+    let sosf_kp = WritableOptionalKeyPath::new(|s: &mut SomeOtherStruct| s.sosf.as_mut());
+    let omse_kp = WritableOptionalKeyPath::new(|o: &mut OneMoreStruct| o.omse.as_mut());
+    
+    // For enum, we need to handle it specially - extract mutable reference to variant
+    let enum_b_kp = WritableOptionalKeyPath::new(|e: &mut SomeEnum| {
+        if let SomeEnum::B(ds) = e {
+            Some(ds)
+        } else {
+            None
+        }
+    });
+    
+    let dsf_kp = WritableOptionalKeyPath::new(|d: &mut DarkStruct| d.dsf.as_mut());
+    let desf_kp = WritableOptionalKeyPath::new(|d: &mut DeeperStruct| d.desf.as_mut());
+    
+    let chained_kp = scsf_kp
+        .then(sosf_kp)
+        .then(omse_kp)
+        .then(enum_b_kp)
+        .then(dsf_kp)
+        .then(desf_kp)
+        .for_box();
+    
+    group.bench_function("keypath", |b| {
+        b.iter(|| {
+            let mut instance = instance.clone();
+            if let Some(value) = chained_kp.get_mut(black_box(&mut instance)) {
+                *value = String::from("deeply updated");
+                black_box(value.is_empty())
+            } else {
+                black_box(false)
+            }
+        })
+    });
+    
+    // Manual unwrapping approach - 7 levels
+    group.bench_function("manual_unwrap", |b| {
+        b.iter(|| {
+            let mut instance = instance.clone();
+            let result = instance
+                .scsf
+                .as_mut()
+                .and_then(|s| s.sosf.as_mut())
+                .and_then(|o| o.omse.as_mut())
+                .and_then(|e| match e {
+                    SomeEnum::B(ds) => Some(ds),
+                    _ => None,
+                })
+                .and_then(|ds| ds.dsf.as_mut())
+                .and_then(|deeper| deeper.desf.as_mut())
+                .map(|boxed| boxed.as_mut());
+            if let Some(value) = result {
+                *value = String::from("deeply updated");
+                black_box(value.is_empty())
+            } else {
+                black_box(false)
+            }
+        })
+    });
+    
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_read_omsf,
     bench_read_desf,
+    bench_write_omsf,
+    bench_write_desf,
     bench_keypath_creation,
     bench_keypath_reuse
 );
