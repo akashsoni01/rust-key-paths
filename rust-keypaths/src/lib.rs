@@ -26,22 +26,6 @@ where
         (self.getter)(root)
     }
     
-    // Static methods for container unwrapping (creating new keypaths)
-    // Box<T> -> T
-    pub fn for_box_static<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
-        KeyPath::new(|b: &Box<T>| b.as_ref())
-    }
-    
-    // Arc<T> -> T
-    pub fn for_arc_static<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
-        KeyPath::new(|arc: &Arc<T>| arc.as_ref())
-    }
-    
-    // Rc<T> -> T
-    pub fn for_rc_static<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
-        KeyPath::new(|rc: &std::rc::Rc<T>| rc.as_ref())
-    }
-    
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
     // Box<T> -> T
     pub fn for_box<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
@@ -237,6 +221,11 @@ impl EnumKeyPaths {
     
     // Extract from Option<T>
     pub fn for_some<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
+        OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
+    }
+    
+    // Static method for Option<T> -> Option<&T> (alias for for_some for consistency)
+    pub fn for_option<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
     
