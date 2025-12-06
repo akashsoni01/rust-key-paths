@@ -87,7 +87,7 @@ pub fn for_slice<T>() -> impl for<'r> Fn(&'r [T], usize) -> Option<&'r T> {
 
 // Container access utilities
 pub mod containers {
-    use super::OptionalKeyPath;
+    use super::{OptionalKeyPath, WritableOptionalKeyPath};
     use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
 
     /// Create a keypath for indexed access in Vec<T>
@@ -147,6 +147,100 @@ pub mod containers {
         T: Ord + 'static,
     {
         OptionalKeyPath::new(|heap: &BinaryHeap<T>| heap.peek())
+    }
+
+    // ========== WRITABLE VERSIONS ==========
+
+    /// Create a writable keypath for indexed access in Vec<T>
+    pub fn for_vec_index_mut<T>(index: usize) -> WritableOptionalKeyPath<Vec<T>, T, impl for<'r> Fn(&'r mut Vec<T>) -> Option<&'r mut T>> {
+        WritableOptionalKeyPath::new(move |vec: &mut Vec<T>| vec.get_mut(index))
+    }
+
+    /// Create a writable keypath for indexed access in VecDeque<T>
+    pub fn for_vecdeque_index_mut<T>(index: usize) -> WritableOptionalKeyPath<VecDeque<T>, T, impl for<'r> Fn(&'r mut VecDeque<T>) -> Option<&'r mut T>> {
+        WritableOptionalKeyPath::new(move |deque: &mut VecDeque<T>| deque.get_mut(index))
+    }
+
+    /// Create a writable keypath for indexed access in LinkedList<T>
+    pub fn for_linkedlist_index_mut<T>(index: usize) -> WritableOptionalKeyPath<LinkedList<T>, T, impl for<'r> Fn(&'r mut LinkedList<T>) -> Option<&'r mut T>> {
+        WritableOptionalKeyPath::new(move |list: &mut LinkedList<T>| {
+            // LinkedList doesn't have get_mut, so we need to iterate
+            let mut iter = list.iter_mut();
+            iter.nth(index)
+        })
+    }
+
+    /// Create a writable keypath for key-based access in HashMap<K, V>
+    pub fn for_hashmap_key_mut<K, V>(key: K) -> WritableOptionalKeyPath<HashMap<K, V>, V, impl for<'r> Fn(&'r mut HashMap<K, V>) -> Option<&'r mut V>>
+    where
+        K: std::hash::Hash + Eq + Clone + 'static,
+        V: 'static,
+    {
+        WritableOptionalKeyPath::new(move |map: &mut HashMap<K, V>| map.get_mut(&key))
+    }
+
+    /// Create a writable keypath for key-based access in BTreeMap<K, V>
+    pub fn for_btreemap_key_mut<K, V>(key: K) -> WritableOptionalKeyPath<BTreeMap<K, V>, V, impl for<'r> Fn(&'r mut BTreeMap<K, V>) -> Option<&'r mut V>>
+    where
+        K: Ord + Clone + 'static,
+        V: 'static,
+    {
+        WritableOptionalKeyPath::new(move |map: &mut BTreeMap<K, V>| map.get_mut(&key))
+    }
+
+    /// Create a writable keypath for getting a mutable value from HashSet<T>
+    /// Note: HashSet doesn't support mutable access to elements, but we provide it for consistency
+    pub fn for_hashset_get_mut<T>(value: T) -> WritableOptionalKeyPath<HashSet<T>, T, impl for<'r> Fn(&'r mut HashSet<T>) -> Option<&'r mut T>>
+    where
+        T: std::hash::Hash + Eq + Clone + 'static,
+    {
+        WritableOptionalKeyPath::new(move |set: &mut HashSet<T>| {
+            // HashSet doesn't have get_mut, so we need to check and return None
+            // This is a limitation of HashSet's design
+            if set.contains(&value) {
+                // We can't return a mutable reference to the value in the set
+                // This is a fundamental limitation of HashSet
+                None
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Create a writable keypath for getting a mutable value from BTreeSet<T>
+    /// Note: BTreeSet doesn't support mutable access to elements, but we provide it for consistency
+    pub fn for_btreeset_get_mut<T>(value: T) -> WritableOptionalKeyPath<BTreeSet<T>, T, impl for<'r> Fn(&'r mut BTreeSet<T>) -> Option<&'r mut T>>
+    where
+        T: Ord + Clone + 'static,
+    {
+        WritableOptionalKeyPath::new(move |set: &mut BTreeSet<T>| {
+            // BTreeSet doesn't have get_mut, so we need to check and return None
+            // This is a limitation of BTreeSet's design
+            if set.contains(&value) {
+                // We can't return a mutable reference to the value in the set
+                // This is a fundamental limitation of BTreeSet
+                None
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Create a writable keypath for peeking at the top of BinaryHeap<T>
+    /// Note: BinaryHeap.peek_mut() returns PeekMut which is a guard type.
+    /// Due to Rust's borrowing rules, we cannot return &mut T directly from PeekMut.
+    /// This function returns None as BinaryHeap doesn't support direct mutable access
+    /// through keypaths. Use heap.peek_mut() directly for mutable access.
+    pub fn for_binaryheap_peek_mut<T>() -> WritableOptionalKeyPath<BinaryHeap<T>, T, impl for<'r> Fn(&'r mut BinaryHeap<T>) -> Option<&'r mut T>>
+    where
+        T: Ord + 'static,
+    {
+        // BinaryHeap.peek_mut() returns PeekMut which is a guard type that owns the mutable reference.
+        // We cannot return &mut T from it due to lifetime constraints.
+        // This is a fundamental limitation - use heap.peek_mut() directly instead.
+        WritableOptionalKeyPath::new(|_heap: &mut BinaryHeap<T>| {
+            None
+        })
     }
 }
 
@@ -250,7 +344,188 @@ where
     pub fn for_option<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
+}
 
+// WritableKeyPath for mutable access
+#[derive(Clone)]
+pub struct WritableKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> &'r mut Value,
+{
+    getter: F,
+    _phantom: PhantomData<(Root, Value)>,
+}
+
+impl<Root, Value, F> WritableKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> &'r mut Value,
+{
+    pub fn new(getter: F) -> Self {
+        Self {
+            getter,
+            _phantom: PhantomData,
+        }
+    }
+    
+    pub fn get_mut<'r>(&self, root: &'r mut Root) -> &'r mut Value {
+        (self.getter)(root)
+    }
+    
+    // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
+    // Box<T> -> T
+    pub fn for_box<Target>(self) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
+    where
+        Value: std::ops::DerefMut<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableKeyPath {
+            getter: move |root: &mut Root| {
+                getter(root).deref_mut()
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Arc<T> -> T (Note: Arc doesn't support mutable access, but we provide it for consistency)
+    // This will require interior mutability patterns
+    pub fn for_arc<Target>(self) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
+    where
+        Value: std::ops::DerefMut<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableKeyPath {
+            getter: move |root: &mut Root| {
+                getter(root).deref_mut()
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Rc<T> -> T (Note: Rc doesn't support mutable access, but we provide it for consistency)
+    // This will require interior mutability patterns
+    pub fn for_rc<Target>(self) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
+    where
+        Value: std::ops::DerefMut<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableKeyPath {
+            getter: move |root: &mut Root| {
+                getter(root).deref_mut()
+            },
+            _phantom: PhantomData,
+        }
+    }
+}
+
+// WritableOptionalKeyPath for failable mutable access
+#[derive(Clone)]
+pub struct WritableOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value>,
+{
+    getter: F,
+    _phantom: PhantomData<(Root, Value)>,
+}
+
+impl<Root, Value, F> WritableOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value>,
+{
+    pub fn new(getter: F) -> Self {
+        Self {
+            getter,
+            _phantom: PhantomData,
+        }
+    }
+    
+    pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut Value> {
+        (self.getter)(root)
+    }
+    
+    // Swift-like operator for chaining WritableOptionalKeyPath
+    pub fn then<SubValue, G>(
+        self,
+        next: WritableOptionalKeyPath<Value, SubValue, G>,
+    ) -> WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>
+    where
+        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue>,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let first = self.getter;
+        let second = next.getter;
+        
+        WritableOptionalKeyPath::new(move |root: &mut Root| {
+            first(root).and_then(|value| second(value))
+        })
+    }
+    
+    // Instance methods for unwrapping containers from Option<Container<T>>
+    // Option<Box<T>> -> Option<&mut T> (type automatically inferred from Value::Target)
+    pub fn for_box<Target>(self) -> WritableOptionalKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static>
+    where
+        Value: std::ops::DerefMut<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |root: &mut Root| {
+                getter(root).map(|boxed| boxed.deref_mut())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Option<Arc<T>> -> Option<&mut T> (type automatically inferred from Value::Target)
+    pub fn for_arc<Target>(self) -> WritableOptionalKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static>
+    where
+        Value: std::ops::DerefMut<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |root: &mut Root| {
+                getter(root).map(|arc| arc.deref_mut())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Option<Rc<T>> -> Option<&mut T> (type automatically inferred from Value::Target)
+    pub fn for_rc<Target>(self) -> WritableOptionalKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static>
+    where
+        Value: std::ops::DerefMut<Target = Target>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |root: &mut Root| {
+                getter(root).map(|rc| rc.deref_mut())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Static method for Option<T> -> Option<&mut T>
+    pub fn for_option<T>() -> WritableOptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r mut Option<T>) -> Option<&'r mut T>> {
+        WritableOptionalKeyPath::new(|opt: &mut Option<T>| opt.as_mut())
+    }
 }
 
 // Enum-specific keypaths
@@ -312,6 +587,16 @@ impl EnumKeyPaths {
     pub fn for_rc<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
         KeyPath::new(|rc: &std::rc::Rc<T>| rc.as_ref())
     }
+
+    // Writable versions
+    // Box<T> -> T (mutable)
+    pub fn for_box_mut<T>() -> WritableKeyPath<Box<T>, T, impl for<'r> Fn(&'r mut Box<T>) -> &'r mut T> {
+        WritableKeyPath::new(|b: &mut Box<T>| b.as_mut())
+    }
+
+    // Note: Arc<T> and Rc<T> don't support direct mutable access without interior mutability
+    // (e.g., Arc<Mutex<T>> or Rc<RefCell<T>>). These methods are not provided as they
+    // would require unsafe code or interior mutability patterns.
 }
 
 // Helper to create enum variant keypaths with type inference

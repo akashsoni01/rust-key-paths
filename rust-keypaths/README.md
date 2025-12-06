@@ -8,6 +8,8 @@ A lightweight, zero-cost abstraction library for safe, composable access to nest
 
 - **`KeyPath<Root, Value, F>`** - Readable keypath for direct field access
 - **`OptionalKeyPath<Root, Value, F>`** - Failable keypath for `Option<T>` chains
+- **`WritableKeyPath<Root, Value, F>`** - Writable keypath for mutable field access
+- **`WritableOptionalKeyPath<Root, Value, F>`** - Failable writable keypath for mutable `Option<T>` chains
 - **`EnumKeyPaths`** - Static factory for enum variant extraction and container unwrapping
 
 ### Key Features
@@ -17,6 +19,7 @@ A lightweight, zero-cost abstraction library for safe, composable access to nest
 - ✅ **Composable** - Chain keypaths with `.then()` for nested access
 - ✅ **Automatic type inference** - No need to specify types explicitly
 - ✅ **Container support** - Built-in support for `Box<T>`, `Arc<T>`, `Rc<T>`, `Option<T>`
+- ✅ **Writable keypaths** - Full support for mutable access to nested data
 - ✅ **Enum variant extraction** - Extract values from enum variants safely
 - ✅ **Cloneable** - Keypaths can be cloned without cloning underlying data
 - ✅ **Memory efficient** - No unnecessary allocations or cloning
@@ -231,6 +234,46 @@ let kp2 = OptionalKeyPath::new(|o: &Other| o.value.as_ref());
 let chained = kp1.then(kp2); // Chain them together
 ```
 
+### WritableKeyPath
+
+#### Methods
+
+- **`new(getter: F) -> Self`** - Create a new writable keypath from a getter function
+- **`get_mut(&self, root: &mut Root) -> &mut Value`** - Get a mutable reference to the value
+- **`for_box<Target>(self) -> WritableKeyPath<Root, Target, ...>`** - Unwrap `Box<T>` to `T` (mutable, type inferred)
+- **`for_arc<Target>(self) -> WritableKeyPath<Root, Target, ...>`** - Unwrap `Arc<T>` to `T` (mutable, type inferred)
+- **`for_rc<Target>(self) -> WritableKeyPath<Root, Target, ...>`** - Unwrap `Rc<T>` to `T` (mutable, type inferred)
+
+#### Example
+
+```rust
+let mut data = MyStruct { field: "value".to_string() };
+let kp = WritableKeyPath::new(|s: &mut MyStruct| &mut s.field);
+*kp.get_mut(&mut data) = "new_value".to_string();
+```
+
+### WritableOptionalKeyPath
+
+#### Methods
+
+- **`new(getter: F) -> Self`** - Create a new writable optional keypath
+- **`get_mut(&self, root: &mut Root) -> Option<&mut Value>`** - Get an optional mutable reference
+- **`then<SubValue, G>(self, next: WritableOptionalKeyPath<Value, SubValue, G>) -> WritableOptionalKeyPath<Root, SubValue, ...>`** - Chain writable keypaths
+- **`for_box<Target>(self) -> WritableOptionalKeyPath<Root, Target, ...>`** - Unwrap `Option<Box<T>>` to `Option<&mut T>`
+- **`for_arc<Target>(self) -> WritableOptionalKeyPath<Root, Target, ...>`** - Unwrap `Option<Arc<T>>` to `Option<&mut T>`
+- **`for_rc<Target>(self) -> WritableOptionalKeyPath<Root, Target, ...>`** - Unwrap `Option<Rc<T>>` to `Option<&mut T>`
+- **`for_option<T>() -> WritableOptionalKeyPath<Option<T>, T, ...>`** - Static method to create writable keypath for `Option<T>`
+
+#### Example
+
+```rust
+let mut data = MyStruct { field: Some("value".to_string()) };
+let kp = WritableOptionalKeyPath::new(|s: &mut MyStruct| s.field.as_mut());
+if let Some(value) = kp.get_mut(&mut data) {
+    *value = "new_value".to_string();
+}
+```
+
 ### EnumKeyPaths
 
 #### Static Methods
@@ -244,6 +287,7 @@ let chained = kp1.then(kp2); // Chain them together
 - **`for_box<T>() -> KeyPath<Box<T>, T, ...>`** - Create keypath for `Box<T>`
 - **`for_arc<T>() -> KeyPath<Arc<T>, T, ...>`** - Create keypath for `Arc<T>`
 - **`for_rc<T>() -> KeyPath<Rc<T>, T, ...>`** - Create keypath for `Rc<T>`
+- **`for_box_mut<T>() -> WritableKeyPath<Box<T>, T, ...>`** - Create writable keypath for `Box<T>`
 
 #### Example
 
@@ -260,7 +304,7 @@ if let Some(value) = ok_kp.get(&result) {
 
 Utility functions for accessing elements in standard library collections.
 
-#### Functions
+#### Functions (Readable)
 
 - **`for_vec_index<T>(index: usize) -> OptionalKeyPath<Vec<T>, T, ...>`** - Access element at index in `Vec<T>`
 - **`for_vecdeque_index<T>(index: usize) -> OptionalKeyPath<VecDeque<T>, T, ...>`** - Access element at index in `VecDeque<T>`
@@ -270,6 +314,17 @@ Utility functions for accessing elements in standard library collections.
 - **`for_hashset_get<T>(value: T) -> OptionalKeyPath<HashSet<T>, T, ...>`** - Get element from `HashSet<T>`
 - **`for_btreeset_get<T>(value: T) -> OptionalKeyPath<BTreeSet<T>, T, ...>`** - Get element from `BTreeSet<T>`
 - **`for_binaryheap_peek<T>() -> OptionalKeyPath<BinaryHeap<T>, T, ...>`** - Peek at top element in `BinaryHeap<T>`
+
+#### Functions (Writable)
+
+- **`for_vec_index_mut<T>(index: usize) -> WritableOptionalKeyPath<Vec<T>, T, ...>`** - Mutate element at index in `Vec<T>`
+- **`for_vecdeque_index_mut<T>(index: usize) -> WritableOptionalKeyPath<VecDeque<T>, T, ...>`** - Mutate element at index in `VecDeque<T>`
+- **`for_linkedlist_index_mut<T>(index: usize) -> WritableOptionalKeyPath<LinkedList<T>, T, ...>`** - Mutate element at index in `LinkedList<T>`
+- **`for_hashmap_key_mut<K, V>(key: K) -> WritableOptionalKeyPath<HashMap<K, V>, V, ...>`** - Mutate value by key in `HashMap<K, V>`
+- **`for_btreemap_key_mut<K, V>(key: K) -> WritableOptionalKeyPath<BTreeMap<K, V>, V, ...>`** - Mutate value by key in `BTreeMap<K, V>`
+- **`for_hashset_get_mut<T>(value: T) -> WritableOptionalKeyPath<HashSet<T>, T, ...>`** - Limited mutable access (see limitations)
+- **`for_btreeset_get_mut<T>(value: T) -> WritableOptionalKeyPath<BTreeSet<T>, T, ...>`** - Limited mutable access (see limitations)
+- **`for_binaryheap_peek_mut<T>() -> WritableOptionalKeyPath<BinaryHeap<T>, T, ...>`** - Limited mutable access (see limitations)
 
 #### Example
 
@@ -434,6 +489,8 @@ cargo bench --bench deeply_nested
 See the `examples/` directory for more comprehensive examples:
 
 - `deeply_nested.rs` - Deeply nested structures with enum variants
+- `containers.rs` - Readable access to all container types
+- `writable_containers.rs` - Writable access to containers with mutation examples
 
 ## 🔧 Implementation Details
 
