@@ -117,6 +117,55 @@ if let Some(value) = kp.get(&container) {
 }
 ```
 
+### Collection Access
+
+The library provides utilities for accessing elements in various collection types:
+
+```rust
+use rust_keypaths::{OptionalKeyPath, containers};
+use std::collections::{HashMap, VecDeque, HashSet, BinaryHeap};
+
+struct Data {
+    vec: Vec<String>,
+    map: HashMap<String, i32>,
+    deque: VecDeque<String>,
+    set: HashSet<String>,
+    heap: BinaryHeap<String>,
+}
+
+let data = Data { /* ... */ };
+
+// Access Vec element at index
+let vec_kp = OptionalKeyPath::new(|d: &Data| Some(&d.vec))
+    .then(containers::for_vec_index::<String>(1));
+
+// Access HashMap value by key
+let map_kp = OptionalKeyPath::new(|d: &Data| Some(&d.map))
+    .then(containers::for_hashmap_key("key1".to_string()));
+
+// Access VecDeque element at index
+let deque_kp = OptionalKeyPath::new(|d: &Data| Some(&d.deque))
+    .then(containers::for_vecdeque_index::<String>(0));
+
+// Access HashSet element
+let set_kp = OptionalKeyPath::new(|d: &Data| Some(&d.set))
+    .then(containers::for_hashset_get("value".to_string()));
+
+// Peek at BinaryHeap top element
+let heap_kp = OptionalKeyPath::new(|d: &Data| Some(&d.heap))
+    .then(containers::for_binaryheap_peek::<String>());
+```
+
+**Supported Collections:**
+- `Vec<T>` - Indexed access via `for_vec_index(index)`
+- `VecDeque<T>` - Indexed access via `for_vecdeque_index(index)`
+- `LinkedList<T>` - Indexed access via `for_linkedlist_index(index)`
+- `HashMap<K, V>` - Key-based access via `for_hashmap_key(key)`
+- `BTreeMap<K, V>` - Key-based access via `for_btreemap_key(key)`
+- `HashSet<T>` - Element access via `for_hashset_get(value)`
+- `BTreeSet<T>` - Element access via `for_btreeset_get(value)`
+- `BinaryHeap<T>` - Peek access via `for_binaryheap_peek()`
+
 ### Enum Variant Extraction
 
 ```rust
@@ -204,6 +253,33 @@ let ok_kp = EnumKeyPaths::for_ok::<String, String>();
 let result: Result<String, String> = Ok("value".to_string());
 if let Some(value) = ok_kp.get(&result) {
     println!("{}", value);
+}
+```
+
+### containers Module
+
+Utility functions for accessing elements in standard library collections.
+
+#### Functions
+
+- **`for_vec_index<T>(index: usize) -> OptionalKeyPath<Vec<T>, T, ...>`** - Access element at index in `Vec<T>`
+- **`for_vecdeque_index<T>(index: usize) -> OptionalKeyPath<VecDeque<T>, T, ...>`** - Access element at index in `VecDeque<T>`
+- **`for_linkedlist_index<T>(index: usize) -> OptionalKeyPath<LinkedList<T>, T, ...>`** - Access element at index in `LinkedList<T>`
+- **`for_hashmap_key<K, V>(key: K) -> OptionalKeyPath<HashMap<K, V>, V, ...>`** - Access value by key in `HashMap<K, V>`
+- **`for_btreemap_key<K, V>(key: K) -> OptionalKeyPath<BTreeMap<K, V>, V, ...>`** - Access value by key in `BTreeMap<K, V>`
+- **`for_hashset_get<T>(value: T) -> OptionalKeyPath<HashSet<T>, T, ...>`** - Get element from `HashSet<T>`
+- **`for_btreeset_get<T>(value: T) -> OptionalKeyPath<BTreeSet<T>, T, ...>`** - Get element from `BTreeSet<T>`
+- **`for_binaryheap_peek<T>() -> OptionalKeyPath<BinaryHeap<T>, T, ...>`** - Peek at top element in `BinaryHeap<T>`
+
+#### Example
+
+```rust
+use rust_keypaths::containers;
+
+let vec = vec!["a", "b", "c"];
+let vec_kp = containers::for_vec_index::<&str>(1);
+if let Some(value) = vec_kp.get(&vec) {
+    println!("{}", value); // prints "b"
 }
 ```
 

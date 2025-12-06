@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use std::marker::PhantomData;
-use std::rc::Rc;
 
 // Base KeyPath
 #[derive(Clone)]
@@ -78,11 +77,77 @@ where
             _phantom: PhantomData,
         }
     }
+
 }
 
 // Utility function for slice access (kept as standalone function)
 pub fn for_slice<T>() -> impl for<'r> Fn(&'r [T], usize) -> Option<&'r T> {
     |slice: &[T], index: usize| slice.get(index)
+}
+
+// Container access utilities
+pub mod containers {
+    use super::OptionalKeyPath;
+    use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
+
+    /// Create a keypath for indexed access in Vec<T>
+    pub fn for_vec_index<T>(index: usize) -> OptionalKeyPath<Vec<T>, T, impl for<'r> Fn(&'r Vec<T>) -> Option<&'r T>> {
+        OptionalKeyPath::new(move |vec: &Vec<T>| vec.get(index))
+    }
+
+    /// Create a keypath for indexed access in VecDeque<T>
+    pub fn for_vecdeque_index<T>(index: usize) -> OptionalKeyPath<VecDeque<T>, T, impl for<'r> Fn(&'r VecDeque<T>) -> Option<&'r T>> {
+        OptionalKeyPath::new(move |deque: &VecDeque<T>| deque.get(index))
+    }
+
+    /// Create a keypath for indexed access in LinkedList<T>
+    pub fn for_linkedlist_index<T>(index: usize) -> OptionalKeyPath<LinkedList<T>, T, impl for<'r> Fn(&'r LinkedList<T>) -> Option<&'r T>> {
+        OptionalKeyPath::new(move |list: &LinkedList<T>| {
+            list.iter().nth(index)
+        })
+    }
+
+    /// Create a keypath for key-based access in HashMap<K, V>
+    pub fn for_hashmap_key<K, V>(key: K) -> OptionalKeyPath<HashMap<K, V>, V, impl for<'r> Fn(&'r HashMap<K, V>) -> Option<&'r V>>
+    where
+        K: std::hash::Hash + Eq + Clone + 'static,
+        V: 'static,
+    {
+        OptionalKeyPath::new(move |map: &HashMap<K, V>| map.get(&key))
+    }
+
+    /// Create a keypath for key-based access in BTreeMap<K, V>
+    pub fn for_btreemap_key<K, V>(key: K) -> OptionalKeyPath<BTreeMap<K, V>, V, impl for<'r> Fn(&'r BTreeMap<K, V>) -> Option<&'r V>>
+    where
+        K: Ord + Clone + 'static,
+        V: 'static,
+    {
+        OptionalKeyPath::new(move |map: &BTreeMap<K, V>| map.get(&key))
+    }
+
+    /// Create a keypath for getting a value from HashSet<T> (returns Option<&T>)
+    pub fn for_hashset_get<T>(value: T) -> OptionalKeyPath<HashSet<T>, T, impl for<'r> Fn(&'r HashSet<T>) -> Option<&'r T>>
+    where
+        T: std::hash::Hash + Eq + Clone + 'static,
+    {
+        OptionalKeyPath::new(move |set: &HashSet<T>| set.get(&value))
+    }
+
+    /// Create a keypath for checking membership in BTreeSet<T>
+    pub fn for_btreeset_get<T>(value: T) -> OptionalKeyPath<BTreeSet<T>, T, impl for<'r> Fn(&'r BTreeSet<T>) -> Option<&'r T>>
+    where
+        T: Ord + Clone + 'static,
+    {
+        OptionalKeyPath::new(move |set: &BTreeSet<T>| set.get(&value))
+    }
+
+    /// Create a keypath for peeking at the top of BinaryHeap<T>
+    pub fn for_binaryheap_peek<T>() -> OptionalKeyPath<BinaryHeap<T>, T, impl for<'r> Fn(&'r BinaryHeap<T>) -> Option<&'r T>>
+    where
+        T: Ord + 'static,
+    {
+        OptionalKeyPath::new(|heap: &BinaryHeap<T>| heap.peek())
+    }
 }
 
 // OptionalKeyPath for Option<T>
@@ -185,6 +250,7 @@ where
     pub fn for_option<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
+
 }
 
 // Enum-specific keypaths
@@ -260,6 +326,7 @@ where
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::rc::Rc;
 
     // Global counter to track memory allocations/deallocations
     static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
