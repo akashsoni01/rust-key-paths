@@ -1,8 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use keypaths_proc::{Casepaths, Keypaths};
 use std::sync::Arc;
 use parking_lot::RwLock;
-use key_paths_derive::{Casepaths, Keypaths};
-
 // Structs renamed for better readability - Level1 is root, Level2, Level3, etc. indicate nesting depth
 #[derive(Debug, Clone, Keypaths)]
 #[All]

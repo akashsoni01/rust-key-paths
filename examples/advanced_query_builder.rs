@@ -377,7 +377,7 @@ fn main() {
 
     // Query 1: Select all product names
     println!("--- Query 1: Select All Product Names ---");
-    let names = Query::new(&products).select(Product::name_r().to_optional());
+    let names = Query::new(&products).select(Product::name_r());
     println!("Product names ({}):", names.len());
     for name in &names {
         println!("  • {}", name);
@@ -385,21 +385,21 @@ fn main() {
 
     // Query 2: Order by price (ascending)
     println!("\n--- Query 2: Products Ordered by Price (Ascending) ---");
-    let ordered = Query::new(&products).order_by_float(Product::price_r().to_optional());
+    let ordered = Query::new(&products).order_by_float(Product::price_r());
     for product in ordered.iter().take(5) {
         println!("  • {} - ${:.2}", product.name, product.price);
     }
 
     // Query 3: Order by rating (descending)
     println!("\n--- Query 3: Top-Rated Products (Descending) ---");
-    let top_rated = Query::new(&products).order_by_float_desc(Product::rating_r().to_optional());
+    let top_rated = Query::new(&products).order_by_float_desc(Product::rating_r());
     for product in top_rated.iter().take(5) {
         println!("  • {} - Rating: {:.1}", product.name, product.rating);
     }
 
     // Query 4: Group by category
     println!("\n--- Query 4: Products Grouped by Category ---");
-    let by_category = Query::new(&products).group_by(Product::category_r().to_optional());
+    let by_category = Query::new(&products).group_by(Product::category_r());
     for (category, items) in &by_category {
         println!("  {}: {} products", category, items.len());
         for item in items {
@@ -413,18 +413,18 @@ fn main() {
         .where_(Product::category_r(), |cat| cat == "Electronics");
 
     println!("  Count: {}", electronics_query.count());
-    println!("  Total Value: ${:.2}", electronics_query.sum(Product::price_r().to_optional()));
-    println!("  Average Price: ${:.2}", electronics_query.avg(Product::price_r().to_optional()).unwrap_or(0.0));
-    println!("  Min Price: ${:.2}", electronics_query.min_float(Product::price_r().to_optional()).unwrap_or(0.0));
-    println!("  Max Price: ${:.2}", electronics_query.max_float(Product::price_r().to_optional()).unwrap_or(0.0));
-    println!("  Total Stock: {}", electronics_query.sum(Product::stock_r().to_optional()));
+    println!("  Total Value: ${:.2}", electronics_query.sum(Product::price_r()));
+    println!("  Average Price: ${:.2}", electronics_query.avg(Product::price_r()).unwrap_or(0.0));
+    println!("  Min Price: ${:.2}", electronics_query.min_float(Product::price_r()).unwrap_or(0.0));
+    println!("  Max Price: ${:.2}", electronics_query.max_float(Product::price_r()).unwrap_or(0.0));
+    println!("  Total Stock: {}", electronics_query.sum(Product::stock_r()));
 
     // Query 6: Complex filtering with ordering
     println!("\n--- Query 6: Electronics Under $200, Ordered by Rating ---");
     let affordable_electronics = Query::new(&products)
         .where_(Product::category_r(), |cat| cat == "Electronics")
         .where_(Product::price_r(), |&price| price < 200.0)
-        .order_by_float_desc(Product::rating_r().to_optional());
+        .order_by_float_desc(Product::rating_r());
 
     for product in &affordable_electronics {
         println!(
@@ -470,23 +470,23 @@ fn main() {
 
     // Query 11: Multiple aggregations by group
     println!("\n--- Query 11: Category Statistics ---");
-    let grouped = Query::new(&products).group_by(Product::category_r().to_optional());
+    let grouped = Query::new(&products).group_by(Product::category_r());
 
     for (category, items) in &grouped {
         let cat_query = Query::new(items);
         println!("\n  {} Statistics:", category);
         println!("    Products: {}", items.len());
-        println!("    Total Value: ${:.2}", cat_query.sum(Product::price_r().to_optional()));
-        println!("    Avg Price: ${:.2}", cat_query.avg(Product::price_r().to_optional()).unwrap_or(0.0));
-        println!("    Total Stock: {}", cat_query.sum(Product::stock_r().to_optional()));
-        println!("    Avg Rating: {:.2}", cat_query.avg(Product::rating_r().to_optional()).unwrap_or(0.0));
+        println!("    Total Value: ${:.2}", cat_query.sum(Product::price_r()));
+        println!("    Avg Price: ${:.2}", cat_query.avg(Product::price_r()).unwrap_or(0.0));
+        println!("    Total Stock: {}", cat_query.sum(Product::stock_r()));
+        println!("    Avg Rating: {:.2}", cat_query.avg(Product::rating_r()).unwrap_or(0.0));
     }
 
     // Query 12: Complex multi-stage query
     println!("\n--- Query 12: Top 3 Highly-Rated Products (Rating > 4.5) by Price ---");
     let top_products = Query::new(&products)
         .where_(Product::rating_r(), |&rating| rating > 4.5)
-        .order_by_float_desc(Product::price_r().to_optional());
+        .order_by_float_desc(Product::price_r());
 
     for (i, product) in top_products.iter().take(3).enumerate() {
         println!(
@@ -512,7 +512,7 @@ fn main() {
     println!("\n--- Query 14: Low Stock Alert (Stock < 20) ---");
     let low_stock = Query::new(&products)
         .where_(Product::stock_r(), |&stock| stock < 20)
-        .order_by(Product::stock_r().to_optional());
+        .order_by(Product::stock_r());
 
     for product in &low_stock {
         println!("  ⚠️  {} - Only {} in stock", product.name, product.stock);
@@ -523,7 +523,7 @@ fn main() {
     let mid_range = Query::new(&products)
         .where_(Product::price_r(), |&price| price >= 50.0 && price <= 300.0)
         .where_(Product::rating_r(), |&rating| rating > 4.5)
-        .order_by_float(Product::price_r().to_optional());
+        .order_by_float(Product::price_r());
 
     for product in &mid_range {
         println!(
@@ -534,7 +534,7 @@ fn main() {
 
     // Query 16: Revenue calculation
     println!("\n--- Query 16: Potential Revenue by Category ---");
-    let by_category = Query::new(&products).group_by(Product::category_r().to_optional());
+    let by_category = Query::new(&products).group_by(Product::category_r());
 
     for (category, items) in &by_category {
         let revenue: f64 = items.iter().map(|p| p.price * p.stock as f64).sum();
