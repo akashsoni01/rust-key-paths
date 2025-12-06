@@ -1,40 +1,6 @@
 use std::sync::Arc;
 use std::marker::PhantomData;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-// Global counter to track memory allocations/deallocations
-static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
-static DEALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-// Type that panics on clone to detect unwanted cloning
-#[derive(Debug)]
-struct NoCloneType {
-    id: usize,
-    data: String,
-}
-
-impl NoCloneType {
-    fn new(data: String) -> Self {
-        ALLOC_COUNT.fetch_add(1, Ordering::SeqCst);
-        Self {
-            id: ALLOC_COUNT.load(Ordering::SeqCst),
-            data,
-        }
-    }
-}
-
-impl Clone for NoCloneType {
-    fn clone(&self) -> Self {
-        panic!("NoCloneType should not be cloned! ID: {}", self.id);
-    }
-}
-
-impl Drop for NoCloneType {
-    fn drop(&mut self) {
-        DEALLOC_COUNT.fetch_add(1, Ordering::SeqCst);
-    }
-}
 
 // Base KeyPath
 #[derive(Clone)]
@@ -289,66 +255,44 @@ where
 {
     OptionalKeyPath::new(extractor)
 }
-// Usage example
-#[derive(Debug)]
-struct User {
-    name: String,
-    metadata: Option<Box<UserMetadata>>,
-    friends: Vec<Arc<User>>,
-}
-
-#[derive(Debug)]
-struct UserMetadata {
-    created_at: String,
-}
-
-fn some_fn() {
-    let akash = User {
-        name: "Alice".to_string(),
-        metadata: Some(Box::new(UserMetadata {
-            created_at: "2024-01-01".to_string(),
-        })),
-        friends: vec![
-            Arc::new(User {
-                name: "Bob".to_string(),
-                metadata: None,
-                friends: vec![],
-            }),
-        ],
-    };
-    
-    // Create keypaths
-    let name_kp = KeyPath::new(|u: &User| &u.name);
-    let metadata_kp = OptionalKeyPath::new(|u: &User| u.metadata.as_ref());
-    let friends_kp = KeyPath::new(|u: &User| &u.friends);
-    
-    // Use them
-    println!("Name: {}", name_kp.get(&akash));
-    
-    if let Some(metadata) = metadata_kp.get(&akash) {
-        println!("Has metadata: {:?}", metadata);
-    }
-    
-    // Access first friend's name
-    if let Some(first_friend) = akash.friends.get(0) {
-        println!("First friend: {}", name_kp.get(first_friend));
-    }
-    
-    // Access metadata through Box using for_box()
-    let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
-    
-    if let Some(metadata) = akash.metadata.as_ref() {
-        // Use for_box() to unwrap Box<UserMetadata> to &UserMetadata
-        let boxed_metadata: &Box<UserMetadata> = metadata;
-        let unwrapped = boxed_metadata.as_ref();
-        println!("Created at: {:?}", created_at_kp.get(unwrapped));
-    }
-}
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    // Global counter to track memory allocations/deallocations
+    static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static DEALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    // Type that panics on clone to detect unwanted cloning
+    #[derive(Debug)]
+    struct NoCloneType {
+        id: usize,
+        data: String,
+    }
+
+    impl NoCloneType {
+        fn new(data: String) -> Self {
+            ALLOC_COUNT.fetch_add(1, Ordering::SeqCst);
+            Self {
+                id: ALLOC_COUNT.load(Ordering::SeqCst),
+                data,
+            }
+        }
+    }
+
+    impl Clone for NoCloneType {
+        fn clone(&self) -> Self {
+            panic!("NoCloneType should not be cloned! ID: {}", self.id);
+        }
+    }
+
+    impl Drop for NoCloneType {
+        fn drop(&mut self) {
+            DEALLOC_COUNT.fetch_add(1, Ordering::SeqCst);
+        }
+    }
 
     // Helper functions for testing memory management
     fn reset_memory_counters() {
@@ -362,6 +306,62 @@ mod tests {
 
     fn get_dealloc_count() -> usize {
         DEALLOC_COUNT.load(Ordering::SeqCst)
+    }
+
+    // Usage example
+    #[derive(Debug)]
+    struct User {
+        name: String,
+        metadata: Option<Box<UserMetadata>>,
+        friends: Vec<Arc<User>>,
+    }
+
+    #[derive(Debug)]
+    struct UserMetadata {
+        created_at: String,
+    }
+
+    fn some_fn() {
+        let akash = User {
+            name: "Alice".to_string(),
+            metadata: Some(Box::new(UserMetadata {
+                created_at: "2024-01-01".to_string(),
+            })),
+            friends: vec![
+                Arc::new(User {
+                    name: "Bob".to_string(),
+                    metadata: None,
+                    friends: vec![],
+                }),
+            ],
+        };
+        
+        // Create keypaths
+        let name_kp = KeyPath::new(|u: &User| &u.name);
+        let metadata_kp = OptionalKeyPath::new(|u: &User| u.metadata.as_ref());
+        let friends_kp = KeyPath::new(|u: &User| &u.friends);
+        
+        // Use them
+        println!("Name: {}", name_kp.get(&akash));
+        
+        if let Some(metadata) = metadata_kp.get(&akash) {
+            println!("Has metadata: {:?}", metadata);
+        }
+        
+        // Access first friend's name
+        if let Some(first_friend) = akash.friends.get(0) {
+            println!("First friend: {}", name_kp.get(first_friend));
+        }
+        
+        // Access metadata through Box using for_box()
+        let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
+        
+        if let Some(metadata) = akash.metadata.as_ref() {
+            // Use for_box() to unwrap Box<UserMetadata> to &UserMetadata
+            let boxed_metadata: &Box<UserMetadata> = metadata;
+            let unwrapped = boxed_metadata.as_ref();
+            println!("Created at: {:?}", created_at_kp.get(unwrapped));
+        }
     }
 
     #[test]
