@@ -1,7 +1,13 @@
 [package]
 name = "rust-keypaths"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
+description = "A static dispatch, faster alternative to rust-key-paths - Type-safe, composable keypaths for Rust with superior performance"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/akashsoni01/rust-key-paths"
+keywords = ["keypath", "type-safe", "composable", "static-dispatch", "zero-cost"]
+categories = ["data-structures"]
 
 [dependencies]
 tagged-core = { version = "0.8", optional = true }

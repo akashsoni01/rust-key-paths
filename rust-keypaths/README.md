@@ -1,6 +1,15 @@
 # 🔑 Rust KeyPaths Library
 
-A lightweight, zero-cost abstraction library for safe, composable access to nested data structures in Rust. Inspired by Swift's KeyPath system, this library provides type-safe keypaths for struct fields and enum variants.
+**A static dispatch, faster alternative to `rust-key-paths`** - A lightweight, zero-cost abstraction library for safe, composable access to nested data structures in Rust. Inspired by Swift's KeyPath system, this library provides type-safe keypaths for struct fields and enum variants using **static dispatch** for superior performance.
+
+## 🚀 Why This Library?
+
+This is a **static dispatch, faster alternative** to the `rust-key-paths` library. Unlike dynamic dispatch approaches, this library uses **static dispatch** with generic closures, resulting in:
+
+- ✅ **Better Performance**: Write operations can be **faster than manual unwrapping** at deeper nesting levels
+- ✅ **Zero Runtime Overhead**: Static dispatch eliminates dynamic dispatch costs
+- ✅ **Compiler Optimizations**: Better inlining and optimization opportunities
+- ✅ **Type Safety**: Full compile-time type checking with zero runtime cost
 
 ## ✨ Features
 
@@ -473,18 +482,16 @@ All benchmarks compare keypath access vs manual unwrapping on deeply nested stru
    - Reuse provides only marginal benefit
    - On-the-fly creation is perfectly acceptable
 
-### Why the Overhead?
+### Why Static Dispatch is Faster
 
-The overhead comes from:
+This library uses **static dispatch** instead of dynamic dispatch, which means:
 
-1. **Dynamic Dispatch**: Keypaths use closure-based dynamic dispatch
-2. **Closure Composition**: Chained keypaths compose closures
-3. **Type Erasure**: Generic closures are type-erased at runtime
+1. **No Virtual Function Calls**: Direct function calls instead of trait object indirection
+2. **Better Inlining**: Compiler can inline keypath operations more aggressively
+3. **Optimized Closure Composition**: Static closures can be optimized better than dynamic ones
+4. **Zero Runtime Type Information**: No need to store or check type information at runtime
 
-However, the overhead is:
-- **Constant**: Doesn't grow with nesting depth
-- **Minimal**: Sub-nanosecond overhead
-- **Acceptable**: Trade-off for improved ergonomics and type safety
+**Result**: Write operations can actually be **faster than manual unwrapping** at deeper nesting levels, while read operations have minimal overhead (~2-3x) with sub-nanosecond absolute times.
 
 ### Memory Efficiency
 

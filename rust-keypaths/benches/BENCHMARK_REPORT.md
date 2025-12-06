@@ -33,19 +33,19 @@ SomeComplexStruct {
 
 | Method | Time (mean) | Time Range | Overhead vs Manual | Speed Ratio |
 |--------|-------------|------------|-------------------|-------------|
-| **KeyPath** | 813.16 ps | 811.89 ps - 814.55 ps | Baseline | 1.00x |
-| **Manual Unwrap** | 381.13 ps | 380.74 ps - 381.63 ps | **-53.1% faster** | **2.13x faster** |
+| **KeyPath** | 827.85 ps | 826.61 ps - 829.11 ps | Baseline | 1.00x |
+| **Manual Unwrap** | 387.57 ps | 386.92 ps - 388.29 ps | **-53.2% faster** | **2.14x faster** |
 
-**Analysis**: Manual unwrapping is significantly faster for read operations at 3 levels. The KeyPath abstraction adds overhead due to closure composition and dynamic dispatch. The overhead is approximately **2.13x slower** than manual unwrapping. However, the absolute time difference is very small (~432 ps), which is negligible for most applications.
+**Analysis**: Manual unwrapping is significantly faster for read operations at 3 levels. The KeyPath abstraction adds overhead due to closure composition and dynamic dispatch. The overhead is approximately **2.14x slower** than manual unwrapping. However, the absolute time difference is very small (~440 ps), which is negligible for most applications.
 
 ### 2. Read Operations - 7 Levels Deep (`desf` field)
 
 | Method | Time (mean) | Time Range | Overhead vs Manual | Speed Ratio |
 |--------|-------------|------------|-------------------|-------------|
-| **KeyPath** | 1.0849 ns | 1.0540 ns - 1.1370 ns | Baseline | 1.00x |
-| **Manual Unwrap** | 386.25 ps | 384.56 ps - 388.25 ps | **-64.4% faster** | **2.81x faster** |
+| **KeyPath** | 1.0716 ns | 1.0683 ns - 1.0755 ns | Baseline | 1.00x |
+| **Manual Unwrap** | 401.05 ps | 395.76 ps - 408.33 ps | **-62.6% faster** | **2.67x faster** |
 
-**Analysis**: Similar performance characteristics to 3-level reads, but with slightly higher overhead at 7 levels (~2.81x slower). The overhead increases slightly with depth due to additional closure composition and enum variant matching. However, the absolute overhead is still very small (~699 ps).
+**Analysis**: Similar performance characteristics to 3-level reads, but with slightly higher overhead at 7 levels (~2.67x slower). The overhead increases slightly with depth due to additional closure composition and enum variant matching. However, the absolute overhead is still very small (~671 ps).
 
 ### 3. Write Operations - 3 Levels Deep (`omsf` field)
 
