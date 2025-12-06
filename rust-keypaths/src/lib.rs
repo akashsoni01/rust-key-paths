@@ -1,270 +1,143 @@
+use std::sync::Arc;
 use std::marker::PhantomData;
 
+// Base KeyPath
 #[derive(Clone)]
 pub struct KeyPath<Root, Value, F>
 where
-    F: Fn(&Root) -> &Value,
+    F: for<'r> Fn(&'r Root) -> &'r Value,
 {
     getter: F,
-    _root: PhantomData<Root>,
-    _value: PhantomData<Value>,
+    _phantom: PhantomData<(Root, Value)>,
 }
 
 impl<Root, Value, F> KeyPath<Root, Value, F>
 where
-    F: Fn(&Root) -> &Value,
+    F: for<'r> Fn(&'r Root) -> &'r Value,
 {
     pub fn new(getter: F) -> Self {
         Self {
             getter,
-            _root: PhantomData,
-            _value: PhantomData,
+            _phantom: PhantomData,
         }
     }
-
-    pub fn get<'a>(&self, root: &'a Root) -> &'a Value {
+    
+    pub fn get<'r>(&self, root: &'r Root) -> &'r Value {
         (self.getter)(root)
-    }
-
-    // Swift-like operator
-    pub fn appending<SubValue, G>(
-        &self,
-        next: KeyPath<Value, SubValue, G>,
-    ) -> KeyPath<Root, SubValue, impl Fn(&Root) -> &SubValue>
-    where
-        G: Fn(&Value) -> &SubValue,
-        F: Clone,
-        G: Clone,
-        Value: 'static,
-    {
-        let first = self.getter.clone();
-        let second = next.getter.clone();
-
-        KeyPath::new(move |root| (second)((first)(root)))
     }
 }
 
+// Specialized container keypaths
+pub struct ContainerKeyPaths;
+
+impl ContainerKeyPaths {
+    // Box<T> -> T
+    pub fn boxed<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
+        KeyPath::new(|b: &Box<T>| b.as_ref())
+    }
+    
+    // Arc<T> -> T
+    pub fn arc<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
+        KeyPath::new(|arc: &Arc<T>| arc.as_ref())
+    }
+    
+    // Rc<T> -> T
+    pub fn rc<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
+        KeyPath::new(|rc: &std::rc::Rc<T>| rc.as_ref())
+    }
+    
+    // Option<T> -> T (as OptionalKeyPath)
+    pub fn optional<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
+        OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
+    }
+    
+    // (&[T], usize) -> T (simplified collection access)
+    pub fn slice<T>() -> impl for<'r> Fn(&'r [T], usize) -> Option<&'r T> {
+        |slice: &[T], index: usize| slice.get(index)
+    }
+}
+
+// OptionalKeyPath for Option<T>
 #[derive(Clone)]
 pub struct OptionalKeyPath<Root, Value, F>
 where
-    F: Fn(&Root) -> Option<&Value>,
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
 {
     getter: F,
-    _root: PhantomData<Root>,
-    _value: PhantomData<Value>,
+    _phantom: PhantomData<(Root, Value)>,
 }
 
 impl<Root, Value, F> OptionalKeyPath<Root, Value, F>
 where
-    F: Fn(&Root) -> Option<&Value>,
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
 {
     pub fn new(getter: F) -> Self {
         Self {
             getter,
-            _root: PhantomData,
-            _value: PhantomData,
+            _phantom: PhantomData,
         }
     }
-
-    pub fn get<'a>(&self, root: &'a Root) -> Option<&'a Value> {
+    
+    pub fn get<'r>(&self, root: &'r Root) -> Option<&'r Value> {
         (self.getter)(root)
     }
-
-    // Swift-like optional chaining
-    pub fn appending<SubValue, G>(
-        &self,
-        next: KeyPath<Value, SubValue, G>,
-    ) -> OptionalKeyPath<Root, SubValue, impl Fn(&Root) -> Option<&SubValue>>
-    where
-        G: Fn(&Value) -> &SubValue,
-        F: Clone,
-        G: Clone,
-        Value: 'static,
-    {
-        let first = self.getter.clone();
-        let second = next.getter.clone();
-
-        OptionalKeyPath::new(move |root| first(root).map(|value| second(value)))
-    }
 }
 
-fn optional_keypaths() {
-    // Helper for optional chaining
-    let user_metadata = KeyPath::new(|user: &User| &user.metadata);
-
-    // To handle Option<T>, we need a different approach
-    // Let's create a special keypath that works with Option
-
-    // Example usage
-    let user_metadata = OptionalKeyPath::new(|user: &User| user.metadata.as_ref());
-    let metadata_tags = KeyPath::new(|metadata: &Metadata| &metadata.tags);
-
-    let user_metadata_tags = user_metadata.appending(metadata_tags);
-
-    let user_with_metadata = create_sample_user();
-    let user_without_metadata = User {
-        metadata: None,
-        ..create_sample_user()
-    };
-
-    println!(
-        "User with metadata tags: {:?}",
-        user_metadata_tags.get(&user_with_metadata)
-    );
-    println!(
-        "User without metadata tags: {:?}",
-        user_metadata_tags.get(&user_without_metadata)
-    ); // Returns None
-}
-
-// Complex nested types similar to Swift
+// Usage example
 #[derive(Debug)]
 struct User {
-    id: u64,
     name: String,
-    address: Address,
-    preferences: Preferences,
-    metadata: Option<Metadata>,
+    metadata: Option<Box<UserMetadata>>,
+    friends: Vec<Arc<User>>,
 }
 
 #[derive(Debug)]
-struct Address {
-    street: String,
-    city: String,
-    country: Country,
-    coordinates: Coordinates,
-}
-
-#[derive(Debug)]
-struct Country {
-    code: String,
-    name: String,
-    currency: Currency,
-}
-
-#[derive(Debug)]
-struct Currency {
-    code: String,
-    symbol: char,
-}
-
-#[derive(Debug)]
-struct Coordinates {
-    lat: f64,
-    lon: f64,
-}
-
-#[derive(Debug)]
-struct Preferences {
-    theme: String,
-    language: String,
-    notifications: NotificationSettings,
-}
-
-#[derive(Debug)]
-struct NotificationSettings {
-    email: bool,
-    push: bool,
-    frequency: NotificationFrequency,
-}
-
-#[derive(Debug)]
-enum NotificationFrequency {
-    Immediate,
-    Daily,
-    Weekly,
-    Never,
-}
-
-#[derive(Debug)]
-struct Metadata {
+struct UserMetadata {
     created_at: String,
-    updated_at: String,
-    tags: Vec<String>,
 }
-fn create_sample_user() -> User {
-    User {
-        id: 42,
+
+fn some_fn() {
+    let alice = User {
         name: "Alice".to_string(),
-        address: Address {
-            street: "123 Main St".to_string(),
-            city: "San Francisco".to_string(),
-            country: Country {
-                code: "US".to_string(),
-                name: "United States".to_string(),
-                currency: Currency {
-                    code: "USD".to_string(),
-                    symbol: '$',
-                },
-            },
-            coordinates: Coordinates {
-                lat: 37.7749,
-                lon: -122.4194,
-            },
-        },
-        preferences: Preferences {
-            theme: "dark".to_string(),
-            language: "en".to_string(),
-            notifications: NotificationSettings {
-                email: true,
-                push: false,
-                frequency: NotificationFrequency::Daily,
-            },
-        },
-        metadata: Some(Metadata {
+        metadata: Some(Box::new(UserMetadata {
             created_at: "2024-01-01".to_string(),
-            updated_at: "2024-01-15".to_string(),
-            tags: vec!["premium".to_string(), "active".to_string()],
-        }),
+        })),
+        friends: vec![
+            Arc::new(User {
+                name: "Bob".to_string(),
+                metadata: None,
+                friends: vec![],
+            }),
+        ],
+    };
+    
+    // Create keypaths
+    let name_kp = KeyPath::new(|u: &User| &u.name);
+    let metadata_kp = OptionalKeyPath::new(|u: &User| u.metadata.as_ref());
+    let friends_kp = KeyPath::new(|u: &User| &u.friends);
+    
+    // Use them
+    println!("Name: {}", name_kp.get(&alice));
+    
+    if let Some(metadata) = metadata_kp.get(&alice) {
+        println!("Has metadata: {:?}", metadata);
+    }
+    
+    // Access first friend's name
+    if let Some(first_friend) = alice.friends.get(0) {
+        println!("First friend: {}", name_kp.get(first_friend));
+    }
+    
+    // Access metadata through Box
+    let box_unwrap = ContainerKeyPaths::boxed::<UserMetadata>();
+    let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
+    
+    if let Some(metadata) = alice.metadata.as_ref() {
+        println!("Created at: {:?}", box_unwrap.get(metadata));
+        println!("Created at via chain: {:?}", created_at_kp.get(box_unwrap.get(metadata)));
     }
 }
 
-fn basic_keypaths() {
-    let user = User {
-        id: 42,
-        name: "Alice".to_string(),
-        address: Address {
-            street: "123 Main St".to_string(),
-            city: "San Francisco".to_string(),
-            country: Country {
-                code: "US".to_string(),
-                name: "United States".to_string(),
-                currency: Currency {
-                    code: "USD".to_string(),
-                    symbol: '$',
-                },
-            },
-            coordinates: Coordinates {
-                lat: 37.7749,
-                lon: -122.4194,
-            },
-        },
-        preferences: Preferences {
-            theme: "dark".to_string(),
-            language: "en".to_string(),
-            notifications: NotificationSettings {
-                email: true,
-                push: false,
-                frequency: NotificationFrequency::Daily,
-            },
-        },
-        metadata: Some(Metadata {
-            created_at: "2024-01-01".to_string(),
-            updated_at: "2024-01-15".to_string(),
-            tags: vec!["premium".to_string(), "active".to_string()],
-        }),
-    };
-
-    // Create keypaths
-    let user_name = KeyPath::new(|user: &User| &user.name);
-    let user_id = KeyPath::new(|user: &User| &user.id);
-    let user_address = KeyPath::new(|user: &User| &user.address);
-
-    // Use them
-    println!("User name: {}", user_name.get(&user));
-    println!("User ID: {}", user_id.get(&user));
-    println!("Address: {:?}", user_address.get(&user));
-}
 
 #[cfg(test)]
 mod tests {
@@ -272,7 +145,6 @@ mod tests {
 
     #[test]
     fn test_name() {
-        basic_keypaths();
-        optional_keypaths();
+        some_fn();
     }
 }
