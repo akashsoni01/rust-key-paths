@@ -25,36 +25,27 @@ where
     pub fn get<'r>(&self, root: &'r Root) -> &'r Value {
         (self.getter)(root)
     }
-}
-
-// Specialized container keypaths
-pub struct ContainerKeyPaths;
-
-impl ContainerKeyPaths {
+    
+    // Static methods for container unwrapping
     // Box<T> -> T
-    pub fn boxed<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
+    pub fn for_box<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
         KeyPath::new(|b: &Box<T>| b.as_ref())
     }
     
     // Arc<T> -> T
-    pub fn arc<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
+    pub fn for_arc<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
         KeyPath::new(|arc: &Arc<T>| arc.as_ref())
     }
     
     // Rc<T> -> T
-    pub fn rc<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
+    pub fn for_rc<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
         KeyPath::new(|rc: &std::rc::Rc<T>| rc.as_ref())
     }
-    
-    // Option<T> -> T (as OptionalKeyPath)
-    pub fn optional<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
-        OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
-    }
-    
-    // (&[T], usize) -> T (simplified collection access)
-    pub fn slice<T>() -> impl for<'r> Fn(&'r [T], usize) -> Option<&'r T> {
-        |slice: &[T], index: usize| slice.get(index)
-    }
+}
+
+// Utility function for slice access (kept as standalone function)
+pub fn for_slice<T>() -> impl for<'r> Fn(&'r [T], usize) -> Option<&'r T> {
+    |slice: &[T], index: usize| slice.get(index)
 }
 
 // OptionalKeyPath for Option<T>
@@ -101,8 +92,8 @@ where
         })
     }
     
-    // Convenience method for Option<Box<T>> -> Option<&T>
-    // Unwraps Box<T> from Option<Box<T>> to get Option<&T>
+    // Instance methods for unwrapping containers from Option<Container<T>>
+    // Option<Box<T>> -> Option<&T>
     pub fn for_box<T>(self) -> OptionalKeyPath<Root, T, impl for<'r> Fn(&'r Root) -> Option<&'r T>>
     where
         Value: std::ops::Deref<Target = T>,
@@ -115,6 +106,39 @@ where
             getter(root).map(|boxed| boxed.deref())
         })
     }
+    
+    // Option<Arc<T>> -> Option<&T>
+    pub fn for_arc<T>(self) -> OptionalKeyPath<Root, T, impl for<'r> Fn(&'r Root) -> Option<&'r T>>
+    where
+        Value: std::ops::Deref<Target = T>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath::new(move |root: &Root| {
+            getter(root).map(|arc| arc.deref())
+        })
+    }
+    
+    // Option<Rc<T>> -> Option<&T>
+    pub fn for_rc<T>(self) -> OptionalKeyPath<Root, T, impl for<'r> Fn(&'r Root) -> Option<&'r T>>
+    where
+        Value: std::ops::Deref<Target = T>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath::new(move |root: &Root| {
+            getter(root).map(|rc| rc.deref())
+        })
+    }
+    
+    // Static method for Option<T> -> Option<&T>
+    pub fn for_option<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
+        OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
+    }
 }
 
 // Enum-specific keypaths
@@ -122,7 +146,7 @@ pub struct EnumKeyPaths;
 
 impl EnumKeyPaths {
     // Extract from a specific enum variant
-    pub fn variant<Enum, Variant, ExtractFn>(
+    pub fn for_variant<Enum, Variant, ExtractFn>(
         extractor: ExtractFn
     ) -> OptionalKeyPath<Enum, Variant, impl for<'r> Fn(&'r Enum) -> Option<&'r Variant>>
     where
@@ -132,7 +156,7 @@ impl EnumKeyPaths {
     }
     
     // Match against multiple variants (returns a tagged union)
-    pub fn match_variant<Enum, Output, MatchFn>(
+    pub fn for_match<Enum, Output, MatchFn>(
         matcher: MatchFn
     ) -> KeyPath<Enum, Output, impl for<'r> Fn(&'r Enum) -> &'r Output>
     where
@@ -142,16 +166,16 @@ impl EnumKeyPaths {
     }
     
     // Extract from Result<T, E>
-    pub fn ok<T, E>() -> OptionalKeyPath<Result<T, E>, T, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r T>> {
+    pub fn for_ok<T, E>() -> OptionalKeyPath<Result<T, E>, T, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r T>> {
         OptionalKeyPath::new(|result: &Result<T, E>| result.as_ref().ok())
     }
     
-    pub fn err<T, E>() -> OptionalKeyPath<Result<T, E>, E, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r E>> {
+    pub fn for_err<T, E>() -> OptionalKeyPath<Result<T, E>, E, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r E>> {
         OptionalKeyPath::new(|result: &Result<T, E>| result.as_ref().err())
     }
     
     // Extract from Option<T>
-    pub fn some<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
+    pub fn for_some<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
 }
@@ -209,13 +233,14 @@ fn some_fn() {
         println!("First friend: {}", name_kp.get(first_friend));
     }
     
-    // Access metadata through Box
-    let box_unwrap = ContainerKeyPaths::boxed::<UserMetadata>();
+    // Access metadata through Box using for_box()
     let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
     
     if let Some(metadata) = alice.metadata.as_ref() {
-        println!("Created at: {:?}", box_unwrap.get(metadata));
-        println!("Created at via chain: {:?}", created_at_kp.get(box_unwrap.get(metadata)));
+        // Use for_box() to unwrap Box<UserMetadata> to &UserMetadata
+        let boxed_metadata: &Box<UserMetadata> = metadata;
+        let unwrapped = boxed_metadata.as_ref();
+        println!("Created at: {:?}", created_at_kp.get(unwrapped));
     }
 }
 

@@ -1,4 +1,4 @@
-use rust_keypaths::{OptionalKeyPath, KeyPath, EnumKeyPaths, ContainerKeyPaths};
+use rust_keypaths::{OptionalKeyPath, KeyPath, EnumKeyPaths};
 
 #[derive(Debug)]
 struct SomeComplexStruct {
@@ -69,8 +69,8 @@ fn main() {
     //     }
     // });
     
-    // Create enum variant keypath manually using EnumKeyPaths::variant()
-    let enum_b_kp = EnumKeyPaths::variant(|e: &SomeEnum| {
+    // Create enum variant keypath manually using EnumKeyPaths::for_variant()
+    let enum_b_kp = EnumKeyPaths::for_variant(|e: &SomeEnum| {
         if let SomeEnum::B(ds) = e {
             Some(ds)
         } else {
