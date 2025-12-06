@@ -81,6 +81,25 @@ where
     pub fn get<'r>(&self, root: &'r Root) -> Option<&'r Value> {
         (self.getter)(root)
     }
+    
+    // Swift-like operator for chaining OptionalKeyPath
+    pub fn then<SubValue, G>(
+        self,
+        next: OptionalKeyPath<Value, SubValue, G>,
+    ) -> OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>
+    where
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue>,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let first = self.getter;
+        let second = next.getter;
+        
+        OptionalKeyPath::new(move |root: &Root| {
+            first(root).and_then(|value| second(value))
+        })
+    }
 }
 
 // Usage example
