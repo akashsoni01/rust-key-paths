@@ -1,5 +1,7 @@
 use std::sync::Arc;
 use std::marker::PhantomData;
+use std::any::{Any, TypeId};
+use std::rc::Rc;
 
 // Base KeyPath
 #[derive(Clone)]
@@ -24,8 +26,8 @@ where
     
     pub fn get<'r>(&self, root: &'r Root) -> &'r Value {
         (self.getter)(root)
-    }
-    
+}
+
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
     // Box<T> -> T
     pub fn for_box<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
@@ -722,6 +724,395 @@ where
     OptionalKeyPath::new(extractor)
 }
 
+// ========== PARTIAL KEYPATHS (Hide Value Type) ==========
+
+/// PartialKeyPath - Hides the Value type but keeps Root visible
+/// Useful for storing keypaths in collections without knowing the exact Value type
+#[derive(Clone)]
+pub struct PartialKeyPath<Root> {
+    getter: Rc<dyn for<'r> Fn(&'r Root) -> &'r dyn Any>,
+    value_type_id: TypeId,
+    _phantom: PhantomData<Root>,
+}
+
+impl<Root> PartialKeyPath<Root> {
+    pub fn new<Value>(keypath: KeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> &'r Value + 'static>) -> Self
+    where
+        Value: Any + 'static,
+        Root: 'static,
+    {
+        let value_type_id = TypeId::of::<Value>();
+        let getter = Rc::new(keypath.getter);
+        
+        Self {
+            getter: Rc::new(move |root: &Root| {
+                let value: &Value = getter(root);
+                value as &dyn Any
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    pub fn get<'r>(&self, root: &'r Root) -> &'r dyn Any {
+        (self.getter)(root)
+    }
+    
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+    
+    /// Try to downcast the result to a specific type
+    pub fn get_as<'a, Value: Any>(&self, root: &'a Root) -> Option<&'a Value> {
+        if self.value_type_id == TypeId::of::<Value>() {
+            self.get(root).downcast_ref::<Value>()
+        } else {
+            None
+        }
+    }
+}
+
+/// PartialOptionalKeyPath - Hides the Value type but keeps Root visible
+/// Useful for storing optional keypaths in collections without knowing the exact Value type
+#[derive(Clone)]
+pub struct PartialOptionalKeyPath<Root> {
+    getter: Rc<dyn for<'r> Fn(&'r Root) -> Option<&'r dyn Any>>,
+    value_type_id: TypeId,
+    _phantom: PhantomData<Root>,
+}
+
+impl<Root> PartialOptionalKeyPath<Root> {
+    pub fn new<Value>(keypath: OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>) -> Self
+    where
+        Value: Any + 'static,
+        Root: 'static,
+    {
+        let value_type_id = TypeId::of::<Value>();
+        let getter = Rc::new(keypath.getter);
+        
+        Self {
+            getter: Rc::new(move |root: &Root| {
+                getter(root).map(|value: &Value| value as &dyn Any)
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    pub fn get<'r>(&self, root: &'r Root) -> Option<&'r dyn Any> {
+        (self.getter)(root)
+    }
+    
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+    
+    /// Try to downcast the result to a specific type
+    pub fn get_as<'a, Value: Any>(&self, root: &'a Root) -> Option<Option<&'a Value>> {
+        if self.value_type_id == TypeId::of::<Value>() {
+            self.get(root).map(|any| any.downcast_ref::<Value>())
+        } else {
+            None
+        }
+    }
+    
+    /// Chain with another PartialOptionalKeyPath
+    /// Note: This requires the Value type of the first keypath to match the Root type of the second
+    /// For type-erased chaining, consider using AnyKeyPath instead
+    pub fn then<MidValue>(
+        self,
+        next: PartialOptionalKeyPath<MidValue>,
+    ) -> PartialOptionalKeyPath<Root>
+    where
+        MidValue: Any + 'static,
+        Root: 'static,
+    {
+        let first = self.getter;
+        let second = next.getter;
+        let value_type_id = next.value_type_id;
+        
+        PartialOptionalKeyPath {
+            getter: Rc::new(move |root: &Root| {
+                first(root).and_then(|any| {
+                    if let Some(mid_value) = any.downcast_ref::<MidValue>() {
+                        second(mid_value)
+                    } else {
+                        None
+                    }
+                })
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// PartialWritableKeyPath - Hides the Value type but keeps Root visible (writable)
+#[derive(Clone)]
+pub struct PartialWritableKeyPath<Root> {
+    getter: Rc<dyn for<'r> Fn(&'r mut Root) -> &'r mut dyn Any>,
+    value_type_id: TypeId,
+    _phantom: PhantomData<Root>,
+}
+
+impl<Root> PartialWritableKeyPath<Root> {
+    pub fn new<Value>(keypath: WritableKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static>) -> Self
+    where
+        Value: Any + 'static,
+        Root: 'static,
+    {
+        let value_type_id = TypeId::of::<Value>();
+        let getter = Rc::new(keypath.getter);
+        
+        Self {
+            getter: Rc::new(move |root: &mut Root| {
+                let value: &mut Value = getter(root);
+                value as &mut dyn Any
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    pub fn get_mut<'r>(&self, root: &'r mut Root) -> &'r mut dyn Any {
+        (self.getter)(root)
+    }
+    
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+    
+    /// Try to downcast the result to a specific type
+    pub fn get_mut_as<'a, Value: Any>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
+        if self.value_type_id == TypeId::of::<Value>() {
+            self.get_mut(root).downcast_mut::<Value>()
+        } else {
+            None
+        }
+    }
+}
+
+/// PartialWritableOptionalKeyPath - Hides the Value type but keeps Root visible (writable optional)
+#[derive(Clone)]
+pub struct PartialWritableOptionalKeyPath<Root> {
+    getter: Rc<dyn for<'r> Fn(&'r mut Root) -> Option<&'r mut dyn Any>>,
+    value_type_id: TypeId,
+    _phantom: PhantomData<Root>,
+}
+
+impl<Root> PartialWritableOptionalKeyPath<Root> {
+    pub fn new<Value>(keypath: WritableOptionalKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>) -> Self
+    where
+        Value: Any + 'static,
+        Root: 'static,
+    {
+        let value_type_id = TypeId::of::<Value>();
+        let getter = Rc::new(keypath.getter);
+        
+        Self {
+            getter: Rc::new(move |root: &mut Root| {
+                getter(root).map(|value: &mut Value| value as &mut dyn Any)
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut dyn Any> {
+        (self.getter)(root)
+    }
+    
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+    
+    /// Try to downcast the result to a specific type
+    pub fn get_mut_as<'a, Value: Any>(&self, root: &'a mut Root) -> Option<Option<&'a mut Value>> {
+        if self.value_type_id == TypeId::of::<Value>() {
+            self.get_mut(root).map(|any| any.downcast_mut::<Value>())
+        } else {
+            None
+        }
+    }
+}
+
+// ========== ANY KEYPATHS (Hide Both Root and Value Types) ==========
+
+/// AnyKeyPath - Hides both Root and Value types
+/// Equivalent to Swift's AnyKeyPath
+/// Useful for storing keypaths in collections without knowing either type
+#[derive(Clone)]
+pub struct AnyKeyPath {
+    getter: Rc<dyn for<'r> Fn(&'r dyn Any) -> Option<&'r dyn Any>>,
+    root_type_id: TypeId,
+    value_type_id: TypeId,
+}
+
+impl AnyKeyPath {
+    pub fn new<Root, Value>(keypath: OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>) -> Self
+    where
+        Root: Any + 'static,
+        Value: Any + 'static,
+    {
+        let root_type_id = TypeId::of::<Root>();
+        let value_type_id = TypeId::of::<Value>();
+        let getter = keypath.getter;
+        
+        Self {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(root) = any.downcast_ref::<Root>() {
+                    getter(root).map(|value: &Value| value as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id,
+            value_type_id,
+        }
+    }
+    
+    pub fn get<'r>(&self, root: &'r dyn Any) -> Option<&'r dyn Any> {
+        (self.getter)(root)
+    }
+    
+    /// Get the TypeId of the Root type
+    pub fn root_type_id(&self) -> TypeId {
+        self.root_type_id
+    }
+    
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+    
+    /// Try to get the value with type checking
+    pub fn get_as<'a, Root: Any, Value: Any>(&self, root: &'a Root) -> Option<Option<&'a Value>> {
+        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>() {
+            self.get(root as &dyn Any).map(|any| any.downcast_ref::<Value>())
+        } else {
+            None
+        }
+    }
+}
+
+/// AnyWritableKeyPath - Hides both Root and Value types (writable)
+#[derive(Clone)]
+pub struct AnyWritableKeyPath {
+    getter: Rc<dyn for<'r> Fn(&'r mut dyn Any) -> Option<&'r mut dyn Any>>,
+    root_type_id: TypeId,
+    value_type_id: TypeId,
+}
+
+impl AnyWritableKeyPath {
+    pub fn new<Root, Value>(keypath: WritableOptionalKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>) -> Self
+    where
+        Root: Any + 'static,
+        Value: Any + 'static,
+    {
+        let root_type_id = TypeId::of::<Root>();
+        let value_type_id = TypeId::of::<Value>();
+        let getter = keypath.getter;
+        
+        Self {
+            getter: Rc::new(move |any: &mut dyn Any| {
+                if let Some(root) = any.downcast_mut::<Root>() {
+                    getter(root).map(|value: &mut Value| value as &mut dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id,
+            value_type_id,
+        }
+    }
+    
+    pub fn get_mut<'r>(&self, root: &'r mut dyn Any) -> Option<&'r mut dyn Any> {
+        (self.getter)(root)
+    }
+    
+    /// Get the TypeId of the Root type
+    pub fn root_type_id(&self) -> TypeId {
+        self.root_type_id
+    }
+    
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+    
+    /// Try to get the value with type checking
+    pub fn get_mut_as<'a, Root: Any, Value: Any>(&self, root: &'a mut Root) -> Option<Option<&'a mut Value>> {
+        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>() {
+            self.get_mut(root as &mut dyn Any).map(|any| any.downcast_mut::<Value>())
+        } else {
+            None
+        }
+    }
+}
+
+// Conversion methods from concrete keypaths to partial/any keypaths
+impl<Root, Value, F> KeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
+    Root: 'static,
+    Value: Any + 'static,
+{
+    /// Convert to PartialKeyPath (hides Value type)
+    pub fn to_partial(self) -> PartialKeyPath<Root> {
+        PartialKeyPath::new(self)
+    }
+}
+
+impl<Root, Value, F> OptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+    Root: Any + 'static,
+    Value: Any + 'static,
+{
+    /// Convert to PartialOptionalKeyPath (hides Value type)
+    pub fn to_partial(self) -> PartialOptionalKeyPath<Root> {
+        PartialOptionalKeyPath::new(self)
+    }
+    
+    /// Convert to AnyKeyPath (hides both Root and Value types)
+    pub fn to_any(self) -> AnyKeyPath {
+        AnyKeyPath::new(self)
+    }
+}
+
+impl<Root, Value, F> WritableKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+    Root: 'static,
+    Value: Any + 'static,
+{
+    /// Convert to PartialWritableKeyPath (hides Value type)
+    pub fn to_partial(self) -> PartialWritableKeyPath<Root> {
+        PartialWritableKeyPath::new(self)
+    }
+}
+
+impl<Root, Value, F> WritableOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+    Root: Any + 'static,
+    Value: Any + 'static,
+{
+    /// Convert to PartialWritableOptionalKeyPath (hides Value type)
+    pub fn to_partial(self) -> PartialWritableOptionalKeyPath<Root> {
+        PartialWritableOptionalKeyPath::new(self)
+    }
+    
+    /// Convert to AnyWritableKeyPath (hides both Root and Value types)
+    pub fn to_any(self) -> AnyWritableKeyPath {
+        AnyWritableKeyPath::new(self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -775,54 +1166,54 @@ mod tests {
         DEALLOC_COUNT.load(Ordering::SeqCst)
     }
 
-    // Usage example
-    #[derive(Debug)]
-    struct User {
-        name: String,
-        metadata: Option<Box<UserMetadata>>,
-        friends: Vec<Arc<User>>,
-    }
+// Usage example
+#[derive(Debug)]
+struct User {
+    name: String,
+    metadata: Option<Box<UserMetadata>>,
+    friends: Vec<Arc<User>>,
+}
 
-    #[derive(Debug)]
-    struct UserMetadata {
-        created_at: String,
-    }
+#[derive(Debug)]
+struct UserMetadata {
+    created_at: String,
+}
 
-    fn some_fn() {
+fn some_fn() {
         let akash = User {
-            name: "Alice".to_string(),
-            metadata: Some(Box::new(UserMetadata {
-                created_at: "2024-01-01".to_string(),
-            })),
-            friends: vec![
-                Arc::new(User {
-                    name: "Bob".to_string(),
-                    metadata: None,
-                    friends: vec![],
-                }),
-            ],
-        };
-        
-        // Create keypaths
-        let name_kp = KeyPath::new(|u: &User| &u.name);
-        let metadata_kp = OptionalKeyPath::new(|u: &User| u.metadata.as_ref());
-        let friends_kp = KeyPath::new(|u: &User| &u.friends);
-        
-        // Use them
+        name: "Alice".to_string(),
+        metadata: Some(Box::new(UserMetadata {
+            created_at: "2024-01-01".to_string(),
+        })),
+        friends: vec![
+            Arc::new(User {
+                name: "Bob".to_string(),
+                metadata: None,
+                friends: vec![],
+            }),
+        ],
+    };
+    
+    // Create keypaths
+    let name_kp = KeyPath::new(|u: &User| &u.name);
+    let metadata_kp = OptionalKeyPath::new(|u: &User| u.metadata.as_ref());
+    let friends_kp = KeyPath::new(|u: &User| &u.friends);
+    
+    // Use them
         println!("Name: {}", name_kp.get(&akash));
-        
+    
         if let Some(metadata) = metadata_kp.get(&akash) {
-            println!("Has metadata: {:?}", metadata);
-        }
-        
-        // Access first friend's name
+        println!("Has metadata: {:?}", metadata);
+    }
+    
+    // Access first friend's name
         if let Some(first_friend) = akash.friends.get(0) {
-            println!("First friend: {}", name_kp.get(first_friend));
-        }
-        
+        println!("First friend: {}", name_kp.get(first_friend));
+    }
+    
         // Access metadata through Box using for_box()
-        let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
-        
+    let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
+    
         if let Some(metadata) = akash.metadata.as_ref() {
             // Use for_box() to unwrap Box<UserMetadata> to &UserMetadata
             let boxed_metadata: &Box<UserMetadata> = metadata;
