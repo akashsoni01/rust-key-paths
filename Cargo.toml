@@ -13,16 +13,26 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-key-paths-core = { path = "key-paths-core", version = "1.7.0", features = ["tagged_core"] }
-key-paths-derive = { path = "key-paths-derive", version = "1.1.0"}
+# Primary crates: rust-keypaths (static dispatch, faster) and keypaths-proc (proc macros)
+rust-keypaths = { path = "rust-keypaths", version = "1.0.0" }
+keypaths-proc = { path = "keypaths-proc", version = "1.0.0" }
+
+# Legacy crates: key-paths-core 1.6.0 for dynamic dispatch, multithreaded needs
+# Note: Use key-paths-core = "1.6.0" if you need dynamic dispatch or Send + Sync bounds
+# key-paths-core = { path = "key-paths-core", version = "1.6.0", features = ["tagged_core"] }
+# key-paths-derive = { path = "key-paths-derive", version = "1.1.0"}
 
 
 [workspace]
 resolver = "3" # or "3"
 members = [
+    "rust-keypaths",
+    "keypaths-proc",
+    # Legacy members (kept for backward compatibility)
     "key-paths-core",
-    "key-paths-derive"
-, "key-paths-macros", "rust-keypaths"]
+    "key-paths-derive",
+    "key-paths-macros"
+]
 
 [patch.crates-io]
 key-paths-core = { path = "key-paths-core" }
@@ -30,8 +40,12 @@ key-paths-derive = { path = "key-paths-derive" }
 
 [features]
 default = []
-parking_lot = ["key-paths-core/parking_lot"]
-tagged_core = ["key-paths-core/tagged_core"]
+# Features for rust-keypaths (static dispatch)
+parking_lot = ["rust-keypaths/parking_lot"]
+tagged = ["rust-keypaths/tagged"]
+# Legacy features for key-paths-core (dynamic dispatch)
+# parking_lot_legacy = ["key-paths-core/parking_lot"]
+# tagged_core = ["key-paths-core/tagged_core"]
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }

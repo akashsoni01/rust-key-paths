@@ -1,7 +1,39 @@
 # 🔑 KeyPaths & CasePaths in Rust
 
 Key paths and case paths provide a **safe, composable way to access and modify nested data** in Rust.
-Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
+Inspired by **Swift's KeyPath / CasePath** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
+
+---
+
+## 🚀 New: Static Dispatch Implementation
+
+**We now provide two implementations:**
+
+### Primary: `rust-keypaths` + `keypaths-proc` (Recommended)
+- ✅ **Static dispatch** - Faster performance, better compiler optimizations
+- ✅ **Write operations can be faster than manual unwrapping** at deeper nesting levels
+- ✅ **Zero runtime overhead** - No dynamic dispatch costs
+- ✅ **Better inlining** - Compiler can optimize more aggressively
+
+```toml
+[dependencies]
+rust-keypaths = "1.0.0"
+keypaths-proc = "1.0.0"
+```
+
+### Legacy: `key-paths-core` + `key-paths-derive` (v1.6.0)
+- ⚠️ **Dynamic dispatch** - Use only if you need:
+  - `Send + Sync` bounds for multithreaded scenarios
+  - Dynamic dispatch with trait objects
+  - Compatibility with existing code using the enum-based API
+
+```toml
+[dependencies]
+key-paths-core = "1.6.0"  # Use 1.6.0 for dynamic dispatch
+key-paths-derive = "1.1.0"
+```
+
+**Migration Guide**: See [Migration Notes](#migration-notes) below.
 
 ---
 
@@ -18,11 +50,61 @@ Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate let
 
 ## 📦 Installation
 
+### Recommended: Static Dispatch (rust-keypaths)
+
 ```toml
 [dependencies]
-key-paths-core = "1.7.0"
+rust-keypaths = "1.0.0"
+keypaths-proc = "1.0.0"
+```
+
+### Legacy: Dynamic Dispatch (key-paths-core)
+
+```toml
+[dependencies]
+key-paths-core = "1.6.0"  # Use 1.6.0 for dynamic dispatch
 key-paths-derive = "1.1.0"
 ```
+
+## 📋 Migration Notes
+
+### When to Use `rust-keypaths` (Static Dispatch)
+
+✅ **Use `rust-keypaths` if you:**
+- Want the best performance (write operations can be faster than manual unwrapping!)
+- Don't need `Send + Sync` bounds
+- Are starting a new project
+- Want better compiler optimizations
+
+### When to Use `key-paths-core` 1.6.0 (Dynamic Dispatch)
+
+⚠️ **Use `key-paths-core` 1.6.0 if you:**
+- Need `Send + Sync` bounds for multithreaded scenarios
+- Require dynamic dispatch with trait objects
+- Have existing code using the enum-based `KeyPaths` API
+- Need compatibility with older versions
+
+### API Differences
+
+**rust-keypaths (Static Dispatch):**
+```rust
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath};
+
+let kp = KeyPath::new(|s: &Struct| &s.field);
+let opt_kp = OptionalKeyPath::new(|s: &Struct| s.opt_field.as_ref());
+let writable_kp = WritableKeyPath::new(|s: &mut Struct| &mut s.field);
+```
+
+**key-paths-core (Dynamic Dispatch):**
+```rust
+use key_paths_core::KeyPaths;
+
+let kp = KeyPaths::readable(|s: &Struct| &s.field);
+let opt_kp = KeyPaths::failable_readable(|s: &Struct| s.opt_field.as_ref());
+let writable_kp = KeyPaths::writable(|s: &mut Struct| &mut s.field);
+```
+
+---
 
 ## 🎯 Choose Your Macro
 
