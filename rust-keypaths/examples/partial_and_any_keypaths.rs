@@ -9,7 +9,8 @@ use rust_keypaths::{
 };
 use std::sync::{Arc, RwLock};
 use std::any::{Any, TypeId};
-
+// cd /rust-key-paths/rust-keypaths && cargo check 2>&1 | tail -3
+/// cd /rust-key-paths/rust-keypaths && cargo run --example partial_and_any_keypaths 2>&1 | tail -80
 #[derive(Debug, Clone)]
 struct Company {
     name: String,
