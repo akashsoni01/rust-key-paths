@@ -6,8 +6,8 @@
 // 4. Use keypaths for direct nested field access
 // cargo run --example user_form
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
 #[All]
@@ -26,7 +26,7 @@ struct UserSettings {
 
 // Form field definition using keypaths
 struct FormField<T: 'static, F: 'static> {
-    path: KeyPaths<T, F>,
+    path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
     label: &'static str,
     validator: fn(&F) -> Result<(), String>,
 }
@@ -57,7 +57,7 @@ fn create_profile_form() -> Vec<FormField<UserProfile, String>> {
             },
         },
         FormField {
-            path: UserProfile::settings_w().then(UserSettings::theme_w()),
+            path: UserProfile::settings_w().to_optional().then(UserSettings::theme_w()),
             label: "Theme",
             validator: |_s| Ok(()),
         },
@@ -156,17 +156,19 @@ fn main() {
 
     // Demonstrate the power of keypaths: accessing nested fields directly
     println!("\n--- Direct keypath access demonstration ---");
-    let theme_path = UserProfile::settings_w().then(UserSettings::theme_w());
+    let theme_path = UserProfile::settings_w().to_optional().then(UserSettings::theme_w());
     
-    if let Some(theme) = theme_path.get_mut(&mut profile) {
+    let theme = theme_path.get_mut(&mut profile);
+    {
         println!("Current theme: {}", theme);
         *theme = "midnight".to_string();
         println!("Changed theme to: {}", theme);
     }
 
     // Access boolean field through composed keypath
-    let notifications_path = UserProfile::settings_w().then(UserSettings::notifications_enabled_w());
-    if let Some(enabled) = notifications_path.get_mut(&mut profile) {
+    let notifications_path = UserProfile::settings_w().to_optional().then(UserSettings::notifications_enabled_w());
+    let enabled = notifications_path.get_mut(&mut profile);
+    {
         println!("Notifications enabled: {}", enabled);
         *enabled = false;
         println!("Toggled notifications to: {}", enabled);

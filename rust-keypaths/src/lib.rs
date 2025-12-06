@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 use std::marker::PhantomData;
 use std::any::{Any, TypeId};
 use std::rc::Rc;
@@ -79,7 +79,107 @@ where
             _phantom: PhantomData,
         }
     }
+    
+    /// Convert a KeyPath to OptionalKeyPath for chaining
+    /// This allows non-optional keypaths to be chained with then()
+    pub fn to_optional(self) -> OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>
+    where
+        F: 'static,
+    {
+        let getter = self.getter;
+        OptionalKeyPath::new(move |root: &Root| Some(getter(root)))
+    }
+    
+    /// Execute a closure with a reference to the value inside an Option
+    pub fn with_option<Callback, R>(&self, option: &Option<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        option.as_ref().map(|root| {
+            let value = self.get(root);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside a Mutex
+    pub fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        mutex.lock().ok().map(|guard| {
+            let value = self.get(&*guard);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside an RwLock
+    pub fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        rwlock.read().ok().map(|guard| {
+            let value = self.get(&*guard);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
+    pub fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        arc_rwlock.read().ok().map(|guard| {
+            let value = self.get(&*guard);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside an Arc<Mutex<Root>>
+    pub fn with_arc_mutex<Callback, R>(&self, arc_mutex: &Arc<Mutex<Root>>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        arc_mutex.lock().ok().map(|guard| {
+            let value = self.get(&*guard);
+            f(value)
+        })
+    }
+    
+}
 
+// Extension methods for KeyPath to support Arc<RwLock> and Arc<Mutex> directly
+impl<Root, Value, F> KeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value + Clone,
+{
+    /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
+    /// This is a convenience method that works directly with Arc<RwLock<T>>
+    pub fn with_arc_rwlock_direct<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        arc_rwlock.read().ok().map(|guard| {
+            let value = self.get(&*guard);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside an Arc<Mutex<Root>>
+    /// This is a convenience method that works directly with Arc<Mutex<T>>
+    pub fn with_arc_mutex_direct<Callback, R>(&self, arc_mutex: &Arc<Mutex<Root>>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        arc_mutex.lock().ok().map(|guard| {
+            let value = self.get(&*guard);
+            f(value)
+        })
+    }
 }
 
 // Utility function for slice access (kept as standalone function)
@@ -461,7 +561,63 @@ where
     pub fn for_option<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
+    
+    /// Execute a closure with a reference to the value inside an Option
+    pub fn with_option<Callback, R>(&self, option: &Option<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        option.as_ref().and_then(|root| {
+            self.get(root).map(|value| f(value))
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside a Mutex
+    pub fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        mutex.lock().ok().and_then(|guard| {
+            self.get(&*guard).map(|value| f(value))
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside an RwLock
+    pub fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        rwlock.read().ok().and_then(|guard| {
+            self.get(&*guard).map(|value| f(value))
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
+    pub fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        arc_rwlock.read().ok().and_then(|guard| {
+            self.get(&*guard).map(|value| f(value))
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside an Arc<Mutex<Root>>
+    pub fn with_arc_mutex<Callback, R>(&self, arc_mutex: &Arc<Mutex<Root>>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        arc_mutex.lock().ok().and_then(|guard| {
+            self.get(&*guard).map(|value| f(value))
+        })
+    }
 }
+
 
 // WritableKeyPath for mutable access
 #[derive(Clone)]
@@ -486,6 +642,16 @@ where
     
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> &'r mut Value {
         (self.getter)(root)
+    }
+    
+    /// Convert a WritableKeyPath to WritableOptionalKeyPath for chaining
+    /// This allows non-optional writable keypaths to be chained with then()
+    pub fn to_optional(self) -> WritableOptionalKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>
+    where
+        F: 'static,
+    {
+        let getter = self.getter;
+        WritableOptionalKeyPath::new(move |root: &mut Root| Some(getter(root)))
     }
     
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)

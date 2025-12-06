@@ -1,5 +1,5 @@
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
 struct User {
@@ -61,7 +61,7 @@ fn main() {
         Status::Active(u) => Some(u),
         _ => None,
     })
-    .compose(User::name_r());
+    .then(User::name_r().to_optional());
 
     println!("Active user name = {:?}", active_user_name.get(&status));
 

@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 // Example struct to demonstrate FailableCombined keypath
 #[derive(Debug, Clone)]
@@ -44,7 +44,8 @@ fn main() {
     
     println!("\n✏️  Testing Writable Access:");
     // Test writable access
-    if let Some(address) = address_keypath.get_mut(&mut person) {
+    let address = address_keypath.get_mut(&mut person);
+    {
         *address = "456 Oak Ave".to_string();
         println!("✅ Address updated to: {}", address);
     } else {

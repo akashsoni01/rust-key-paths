@@ -1,5 +1,5 @@
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
 #[All]
@@ -25,23 +25,24 @@ fn main() {
     };
 
     // Define readable and writable keypaths.
-    let size_kp: KeyPaths<Rectangle, Size> = KeyPaths::readable(|r: &Rectangle| &r.size);
-    let width_kp: KeyPaths<Size, u32> = KeyPaths::readable(|s: &Size| &s.width);
+    let size_kp: KeyPath<Rectangle, Size, impl for<\'r> Fn(&\'r Rectangle) -> &\'r Size> = KeyPath::new(|r: &Rectangle| &r.size);
+    let width_kp: KeyPath<Size, u32, impl for<\'r> Fn(&\'r Size) -> &\'r u32> = KeyPath::new(|s: &Size| &s.width);
 
     // Compose nested paths (assuming composition is supported).
     // e.g., rect[&size_kp.then(&width_kp)] — hypothetical chaining
 
     // Alternatively, define them directly:
-    let width_direct: KeyPaths<Rectangle, u32> = KeyPaths::readable(|r: &Rectangle| &r.size.width);
+    let width_direct: KeyPath<Rectangle, u32, impl for<\'r> Fn(&\'r Rectangle) -> &\'r u32> = KeyPath::new(|r: &Rectangle| &r.size.width);
     println!("Width: {:?}", width_direct.get(&rect));
 
     // Writable keypath for modifying fields:
-    let width_mut: KeyPaths<Rectangle, u32> = KeyPaths::writable(
+    let width_mut: KeyPath<Rectangle, u32, impl for<\'r> Fn(&\'r Rectangle) -> &\'r u32> = WritableKeyPath::new(
         // |r: &Rectangle| &r.size.width,
         |r: &mut Rectangle| &mut r.size.width,
     );
     // Mutable
-    if let Some(hp_mut) = width_mut.get_mut(&mut rect) {
+    let hp_mut = width_mut.get_mut(&mut rect);
+    {
         *hp_mut += 50;
     }
     println!("Updated rectangle: {:?}", rect);
@@ -56,12 +57,14 @@ fn main() {
     println!("Name (readable): {:?}", name_readable.get(&rect));
 
     let size_writable = Rectangle::size_w();
-    if let Some(s) = size_writable.get_mut(&mut rect) {
+    let s = size_writable.get_mut(&mut rect);
+    {
         s.width += 1;
     }
 
     // Use them
-    if let Some(s) = rect_size_fw.get_mut(&mut rect) {
+    let s = rect_size_fw.get_mut(&mut rect);
+    {
         if let Some(w) = size_width_fw.get_mut(s) {
             *w += 5;
         }
@@ -69,7 +72,8 @@ fn main() {
             *h += 10;
         }
     }
-    if let Some(name) = rect_name_fw.get_mut(&mut rect) {
+    let name = rect_name_fw.get_mut(&mut rect);
+    {
         name.push_str("_fw");
     }
     println!("After failable updates: {:?}", rect);

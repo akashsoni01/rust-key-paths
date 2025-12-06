@@ -1,5 +1,5 @@
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
 #[All]
@@ -36,9 +36,9 @@ fn main() {
 
     // Compose using derive-generated failable readable methods
     let city_hp = City::garage_fr()
-        .compose(Garage::car_fr())
-        .compose(Car::engine_fr())
-        .compose(Engine::horsepower_fr());
+        .then(Garage::car_fr())
+        .then(Car::engine_fr())
+        .then(Engine::horsepower_fr());
 
     println!("Horsepower = {:?}", city_hp.get(&city));
 
@@ -56,7 +56,8 @@ fn main() {
     let engine_fw = Car::engine_fw();
     let hp_fw = Engine::horsepower_fw();
 
-    if let Some(garage) = garage_fw.get_mut(&mut city2) {
+    let garage = garage_fw.get_mut(&mut city2);
+    {
         if let Some(car) = car_fw.get_mut(garage) {
             if let Some(engine) = engine_fw.get_mut(car) {
                 if let Some(hp) = hp_fw.get_mut(engine) {

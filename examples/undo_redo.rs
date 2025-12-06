@@ -7,8 +7,8 @@
 // 5. Display history of changes
 // cargo run --example undo_redo
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
 #[All]
@@ -28,7 +28,7 @@ struct DocumentMetadata {
 
 // Generic command pattern using keypaths
 struct ChangeCommand<T: 'static, F: Clone + 'static> {
-    path: KeyPaths<T, F>,
+    path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
     old_value: F,
     new_value: F,
     description: String,
@@ -154,8 +154,8 @@ impl<T> UndoStack<T> {
 // Helper to create change commands for strings
 fn make_string_change<T: 'static>(
     target: &T,
-    path: KeyPaths<T, String>,
-    read_path: KeyPaths<T, String>,
+    path: KeyPath<T, String, impl for<\'r> Fn(&\'r T) -> &\'r String>,
+    read_path: KeyPath<T, String, impl for<\'r> Fn(&\'r T) -> &\'r String>,
     new_value: String,
     description: String,
 ) -> Box<dyn Command<T>> {
@@ -171,8 +171,8 @@ fn make_string_change<T: 'static>(
 // Helper to create change commands for u32
 fn make_u32_change<T: 'static>(
     target: &T,
-    path: KeyPaths<T, u32>,
-    read_path: KeyPaths<T, u32>,
+    path: KeyPath<T, u32, impl for<\'r> Fn(&\'r T) -> &\'r u32>,
+    read_path: KeyPath<T, u32, impl for<\'r> Fn(&\'r T) -> &\'r u32>,
     new_value: u32,
     description: String,
 ) -> Box<dyn Command<T>> {
@@ -188,8 +188,8 @@ fn make_u32_change<T: 'static>(
 // Helper to create change commands for Vec<String>
 fn make_vec_string_change<T: 'static>(
     target: &T,
-    path: KeyPaths<T, Vec<String>>,
-    read_path: KeyPaths<T, Vec<String>>,
+    path: KeyPath<T, Vec<String, impl for<\'r> Fn(&\'r T) -> &\'r Vec<String>>,
+    read_path: KeyPath<T, Vec<String, impl for<\'r> Fn(&\'r T) -> &\'r Vec<String>>,
     new_value: Vec<String>,
     description: String,
 ) -> Box<dyn Command<T>> {
@@ -250,8 +250,8 @@ fn main() {
     println!("\n--- Change 3: Update author (nested field) ---");
     let cmd = make_string_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::author_w()),
-        Document::metadata_r().then(DocumentMetadata::author_r()),
+        Document::metadata_w().to_optional().then(DocumentMetadata::author_w()),
+        Document::metadata_r().to_optional().then(DocumentMetadata::author_r().to_optional()),
         "Bob".to_string(),
         "Change author to 'Bob'".to_string(),
     );
@@ -262,8 +262,8 @@ fn main() {
     println!("\n--- Change 4: Update revision ---");
     let cmd = make_u32_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::revision_w()),
-        Document::metadata_r().then(DocumentMetadata::revision_r()),
+        Document::metadata_w().to_optional().then(DocumentMetadata::revision_w()),
+        Document::metadata_r().to_optional().then(DocumentMetadata::revision_r().to_optional()),
         2,
         "Increment revision to 2".to_string(),
     );
@@ -274,8 +274,8 @@ fn main() {
     println!("\n--- Change 5: Update tags ---");
     let cmd = make_vec_string_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::tags_w()),
-        Document::metadata_r().then(DocumentMetadata::tags_r()),
+        Document::metadata_w().to_optional().then(DocumentMetadata::tags_w()),
+        Document::metadata_r().to_optional().then(DocumentMetadata::tags_r().to_optional()),
         vec!["draft".to_string(), "reviewed".to_string()],
         "Add 'reviewed' tag".to_string(),
     );

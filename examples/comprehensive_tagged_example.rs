@@ -1,9 +1,9 @@
 #[cfg(feature = "tagged_core")]
 use tagged_core::Tagged;
 #[cfg(feature = "tagged_core")]
-use key_paths_derive::Keypaths;
+use keypaths_proc::Keypaths;
 #[cfg(feature = "tagged_core")]
-use key_paths_core::WithContainer;
+
 #[cfg(feature = "tagged_core")]
 use chrono::{DateTime, Utc};
 #[cfg(feature = "tagged_core")]
@@ -46,11 +46,11 @@ fn main() {
     
     // 1. Direct access to Tagged fields (most common use case)
     println!("\n1. Direct access to Tagged fields:");
-    if let Some(id) = SomeStruct::id_r().get_ref(&&struct1) {
+    if let Some(id) = SomeStruct::id_r().get(&struct1) {
         println!("   Struct 1 ID: {}", id);
     }
     
-    if let Some(time) = SomeStruct::time_id_r().get_ref(&&struct1) {
+    if let Some(time) = SomeStruct::time_id_r().get(&struct1) {
         println!("   Struct 1 Time: {}", time);
     }
     
@@ -59,7 +59,7 @@ fn main() {
     let structs = vec![struct1.clone(), struct2.clone()];
     
     for (i, s) in structs.iter().enumerate() {
-        if let Some(id) = SomeStruct::id_r().get_ref(&&s) {
+        if let Some(id) = SomeStruct::id_r().get(&s) {
             println!("   Struct {} ID: {}", i + 1, id);
         }
     }
@@ -71,11 +71,11 @@ fn main() {
     let id_path = SomeStruct::id_r().for_tagged::<()>();
     let time_path = SomeStruct::time_id_r().for_tagged::<()>();
     
-    if let Some(id) = id_path.get_ref(&&tagged_struct) {
+    if let Some(id) = id_path.get(&tagged_struct) {
         println!("   Wrapped ID: {}", id);
     }
     
-    if let Some(time) = time_path.get_ref(&&tagged_struct) {
+    if let Some(time) = time_path.get(&tagged_struct) {
         println!("   Wrapped Time: {}", time);
     }
     
@@ -94,7 +94,7 @@ fn main() {
     let maybe_struct: Option<Tagged<SomeStruct, ()>> = Some(Tagged::new(struct2.clone()));
     let option_id_path = SomeStruct::id_r().for_tagged::<()>().for_option();
     
-    if let Some(id) = option_id_path.get_ref(&&maybe_struct) {
+    if let Some(id) = option_id_path.get(&maybe_struct) {
         println!("   Optional wrapped ID: {}", id);
     }
     
@@ -132,7 +132,7 @@ fn main() {
         .for_tagged::<()>()  // Adapt to work with Tagged<SomeStruct, ()>
         .for_option();       // Then adapt to work with Option<Tagged<...>>
     
-    if let Some(id) = complex_path.get_ref(&&maybe_wrapped) {
+    if let Some(id) = complex_path.get(&maybe_wrapped) {
         println!("   Complex composition ID: {}", id);
     }
     

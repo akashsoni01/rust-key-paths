@@ -1,7 +1,7 @@
 // Comprehensive test suite for container adapters
 // Run with: cargo run --example container_adapter_test
 
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -22,13 +22,13 @@ fn main() {
     };
 
     // Create keypaths
-    let name_path = KeyPaths::readable(|s: &TestStruct| &s.name);
-    let name_path_w = KeyPaths::writable(|s: &mut TestStruct| &mut s.name);
-    let value_path = KeyPaths::readable(|s: &TestStruct| &s.value);
-    let value_path_w = KeyPaths::writable(|s: &mut TestStruct| &mut s.value);
-    let optional_path = KeyPaths::failable_readable(|s: &TestStruct| s.optional.as_ref());
+    let name_path = KeyPath::new(|s: &TestStruct| &s.name);
+    let name_path_w = WritableKeyPath::new(|s: &mut TestStruct| &mut s.name);
+    let value_path = KeyPath::new(|s: &TestStruct| &s.value);
+    let value_path_w = WritableKeyPath::new(|s: &mut TestStruct| &mut s.value);
+    let optional_path = OptionalKeyPath::new(|s: &TestStruct| s.optional.as_ref());
     let optional_path_w =
-        KeyPaths::failable_writable(|s: &mut TestStruct| s.optional.as_mut());
+        WritableOptionalKeyPath::new(|s: &mut TestStruct| s.optional.as_mut());
 
     // ===== Test 1: Arc Readable =====
     println!("--- Test 1: Arc with Readable KeyPath ---");
@@ -77,7 +77,8 @@ fn main() {
     let mut box_data_mut = Box::new(test_data.clone());
     let name_path_box_w = name_path_w.clone().for_box();
 
-    if let Some(name) = name_path_box_w.get_mut(&mut box_data_mut) {
+    let name = name_path_box_w.get_mut(&mut box_data_mut);
+    {
         println!("  Original Box name: {}", name);
         *name = "Modified".to_string();
         println!("  Modified Box name: {}", name);
@@ -90,7 +91,8 @@ fn main() {
     let mut box_data_opt = Box::new(test_data.clone());
     let optional_path_box_w = optional_path_w.clone().for_box();
 
-    if let Some(opt_val) = optional_path_box_w.get_mut(&mut box_data_opt) {
+    let opt_val = optional_path_box_w.get_mut(&mut box_data_opt);
+    {
         println!("  Original optional: {}", opt_val);
         *opt_val = "New Value".to_string();
         println!("  Modified optional: {}", opt_val);
@@ -256,14 +258,16 @@ fn main() {
     
     let name_path_result_w = name_path_w.clone().for_result::<String>();
 
-    if let Some(name) = name_path_result_w.get_mut(&mut ok_data_mut) {
+    let name = name_path_result_w.get_mut(&mut ok_data_mut);
+    {
         println!("  Original Result name: {}", name);
         *name = "Modified Result".to_string();
         println!("  Modified Result name: {}", name);
         assert_eq!(name, "Modified Result", "Result writable should allow modification for Ok");
     }
     
-    if let Some(_) = name_path_result_w.get_mut(&mut err_data_mut) {
+    let _ = name_path_result_w.get_mut(&mut err_data_mut);
+    {
         panic!("Result writable should return None for Err");
     }
     println!("✓ Test 14 passed\n");
@@ -309,14 +313,16 @@ fn main() {
     
     let optional_path_result_w = optional_path_w.clone().for_result::<String>();
 
-    if let Some(opt_val) = optional_path_result_w.get_mut(&mut ok_data_opt_mut) {
+    let opt_val = optional_path_result_w.get_mut(&mut ok_data_opt_mut);
+    {
         println!("  Original Result optional: {}", opt_val);
         *opt_val = "Modified".to_string();
         println!("  Modified Result optional: {}", opt_val);
         assert_eq!(opt_val, "Modified", "Result failable writable should allow modification for Ok with Some");
     }
     
-    if let Some(_) = optional_path_result_w.get_mut(&mut err_data_opt_mut) {
+    let _ = optional_path_result_w.get_mut(&mut err_data_opt_mut);
+    {
         panic!("Result failable writable should return None for Err");
     }
     println!("✓ Test 16 passed\n");

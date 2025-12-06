@@ -1,4 +1,4 @@
-use key_paths_derive::Keypaths;
+use keypaths_proc::Keypaths;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Keypaths)]

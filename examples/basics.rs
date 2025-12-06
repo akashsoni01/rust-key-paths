@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug)]
 struct Size {
@@ -22,23 +22,24 @@ fn main() {
     };
 
     // Define readable and writable keypaths.
-    let size_kp = KeyPaths::readable(|r: &Rectangle| &r.size);
-    let width_kp = KeyPaths::readable(|s: &Size| &s.width);
+    let size_kp = KeyPath::new(|r: &Rectangle| &r.size);
+    let width_kp = KeyPath::new(|s: &Size| &s.width);
 
     // Compose nested paths (assuming composition is supported).
     // e.g., rect[&size_kp.then(&width_kp)] — hypothetical chaining
 
     // Alternatively, define them directly:
-    let width_direct = KeyPaths::readable(|r: &Rectangle| &r.size.width);
+    let width_direct = KeyPath::new(|r: &Rectangle| &r.size.width);
     println!("Width: {:?}", width_direct.get(&rect));
 
     // Writable keypath for modifying fields:
-    let width_mut = KeyPaths::writable(
+    let width_mut = WritableKeyPath::new(
         // |r: &Rectangle| &r.size.width,
         |r: &mut Rectangle| &mut r.size.width,
     );
     // Mutable
-    if let Some(hp_mut) = width_mut.get_mut(&mut rect) {
+    let hp_mut = width_mut.get_mut(&mut rect);
+    {
         *hp_mut += 50;
     }
     println!("Updated rectangle: {:?}", rect);

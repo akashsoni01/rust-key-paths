@@ -1,5 +1,5 @@
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Clone, Debug, Keypaths)]
 #[Readable]
@@ -21,14 +21,15 @@ fn main() {
         recovery_token: Some("token-123".to_string()),
     };
 
-    let nickname_fr: KeyPaths<Account, String> = Account::nickname_fr();
-    let balance_w: KeyPaths<Account, i64> = Account::balance_w();
-    let recovery_token_fo: KeyPaths<Account, String> = Account::recovery_token_fo();
+    let nickname_fr: KeyPath<Account, String, impl for<\'r> Fn(&\'r Account) -> &\'r String> = Account::nickname_fr();
+    let balance_w: KeyPath<Account, i64, impl for<\'r> Fn(&\'r Account) -> &\'r i64> = Account::balance_w();
+    let recovery_token_fo: KeyPath<Account, String, impl for<\'r> Fn(&\'r Account) -> &\'r String> = Account::recovery_token_fo();
 
     let nickname_value = nickname_fr.get(&account);
     println!("nickname (readable): {:?}", nickname_value);
 
-    if let Some(balance_ref) = balance_w.get_mut(&mut account) {
+    let balance_ref = balance_w.get_mut(&mut account);
+    {
         *balance_ref += 500;
     }
     println!("balance after writable update: {}", account.balance);

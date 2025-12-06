@@ -7,8 +7,8 @@
 // 5. Track field-level changes
 // cargo run --example form_binding
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
 #[All]
@@ -29,8 +29,8 @@ struct UserSettings {
 
 // Generic form field that binds to any field type
 struct FormField<T: 'static, F: 'static> {
-    read_path: KeyPaths<T, F>,
-    write_path: KeyPaths<T, F>,
+    read_path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
+    write_path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
     label: &'static str,
     field_name: &'static str,
     validator: fn(&F) -> Result<(), String>,
@@ -41,8 +41,8 @@ where
     F: Clone + std::fmt::Display,
 {
     fn new(
-        read_path: KeyPaths<T, F>,
-        write_path: KeyPaths<T, F>,
+        read_path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
+        write_path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
         label: &'static str,
         field_name: &'static str,
         validator: fn(&F) -> Result<(), String>,
@@ -260,8 +260,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: theme (nested)
     form.add_string_field(FormField::new(
-        UserProfile::settings_r().then(UserSettings::theme_r()),
-        UserProfile::settings_w().then(UserSettings::theme_w()),
+        UserProfile::settings_r().to_optional().then(UserSettings::theme_r().to_optional()),
+        UserProfile::settings_w().to_optional().then(UserSettings::theme_w()),
         "Theme",
         "theme",
         |s| {
@@ -275,8 +275,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Number field: font_size (nested)
     form.add_u32_field(FormField::new(
-        UserProfile::settings_r().then(UserSettings::font_size_r()),
-        UserProfile::settings_w().then(UserSettings::font_size_w()),
+        UserProfile::settings_r().to_optional().then(UserSettings::font_size_r().to_optional()),
+        UserProfile::settings_w().to_optional().then(UserSettings::font_size_w()),
         "Font Size",
         "font_size",
         |&size| {
@@ -291,7 +291,7 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
     // Bool field: notifications (nested)
     form.add_bool_field(FormField::new(
         UserProfile::settings_r()
-            .then(UserSettings::notifications_enabled_r()),
+            .then(UserSettings::notifications_enabled_r().to_optional()),
         UserProfile::settings_w()
             .then(UserSettings::notifications_enabled_w()),
         "Notifications",

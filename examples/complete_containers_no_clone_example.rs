@@ -1,7 +1,7 @@
 // Complete example demonstrating ALL container types with no-clone callback methods
 // Run with: cargo run --example complete_containers_no_clone_example
 
-use key_paths_core::{KeyPaths, WithContainer};
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -24,11 +24,11 @@ fn main() {
     };
 
     // Create keypaths
-    let name_path = KeyPaths::readable(|u: &User| &u.name);
-    let age_path = KeyPaths::readable(|u: &User| &u.age);
-    let email_path = KeyPaths::failable_readable(|u: &User| u.email.as_ref());
-    let name_path_w = KeyPaths::writable(|u: &mut User| &mut u.name);
-    let age_path_w = KeyPaths::writable(|u: &mut User| &mut u.age);
+    let name_path = KeyPath::new(|u: &User| &u.name);
+    let age_path = KeyPath::new(|u: &User| &u.age);
+    let email_path = OptionalKeyPath::new(|u: &User| u.email.as_ref());
+    let name_path_w = WritableKeyPath::new(|u: &mut User| &mut u.name);
+    let age_path_w = WritableKeyPath::new(|u: &mut User| &mut u.age);
 
     // ===== Example 1: Arc (Read-only) =====
     println!("--- Example 1: Arc (Read-only) ---");

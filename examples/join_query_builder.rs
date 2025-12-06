@@ -7,8 +7,8 @@
 // 5. Use keypaths for type-safe join conditions
 // cargo run --example join_query_builder
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 use std::collections::HashMap;
 
 // Database schema: Users, Orders, Products
@@ -85,7 +85,7 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
     }
 
     // Inner join: returns only matching pairs
-    fn inner_join<K, O, F>(&self, left_key: KeyPaths<L, K>, right_key: KeyPaths<R, K>, mapper: F) -> Vec<O>
+    fn inner_join<K, O, F>(&self, left_key: KeyPath<L, K, impl for<\'r> Fn(&\'r L) -> &\'r K>, right_key: KeyPath<R, K, impl for<\'r> Fn(&\'r R) -> &\'r K>, mapper: F) -> Vec<O>
     where
         K: Eq + std::hash::Hash + Clone + 'static,
         F: Fn(&L, &R) -> O,
@@ -114,7 +114,7 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
     }
 
     // Left join: returns all left items, with optional right matches
-    fn left_join<K, O, F>(&self, left_key: KeyPaths<L, K>, right_key: KeyPaths<R, K>, mapper: F) -> Vec<O>
+    fn left_join<K, O, F>(&self, left_key: KeyPath<L, K, impl for<\'r> Fn(&\'r L) -> &\'r K>, right_key: KeyPath<R, K, impl for<\'r> Fn(&\'r R) -> &\'r K>, mapper: F) -> Vec<O>
     where
         K: Eq + std::hash::Hash + Clone + 'static,
         F: Fn(&L, Option<&R>) -> O,
@@ -149,8 +149,8 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
     // Filter join: only matching pairs that satisfy a predicate
     fn inner_join_where<K, O, F, P>(
         &self,
-        left_key: KeyPaths<L, K>,
-        right_key: KeyPaths<R, K>,
+        left_key: KeyPath<L, K, impl for<\'r> Fn(&\'r L) -> &\'r K>,
+        right_key: KeyPath<R, K, impl for<\'r> Fn(&\'r R) -> &\'r K>,
         predicate: P,
         mapper: F,
     ) -> Vec<O>

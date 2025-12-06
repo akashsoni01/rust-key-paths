@@ -1,5 +1,5 @@
-use key_paths_core::KeyPaths;
-// use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+// use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
@@ -10,7 +10,7 @@ struct SomeComplexStruct {
 
 // impl SomeComplexStruct {
 //     fn scsf_fr() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-//         KeyPaths::failable_readable(
+//         OptionalKeyPath::new(
 //             |root: & SomeComplexStruct|
 //             {
 //                 root.scsf.first()
@@ -19,7 +19,7 @@ struct SomeComplexStruct {
 //     }
 
 //     fn scsf_fr_at(index: &'static usize) -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-//         KeyPaths::failable_readable(
+//         OptionalKeyPath::new(
 //             |root: & SomeComplexStruct|
 //             {
 //                 root.scsf.get(*index)
@@ -28,7 +28,7 @@ struct SomeComplexStruct {
 //     }
 
 //     fn scsf_fw() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-//         KeyPaths::failable_writable(
+//         WritableOptionalKeyPath::new(
 //             |root: &mut SomeComplexStruct|
 //             {
 //                 root.scsf.first_mut()
@@ -37,7 +37,7 @@ struct SomeComplexStruct {
 //     }
 
 //     fn scsf_fw_at(index: usize) -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-//         KeyPaths::failable_writable(
+//         WritableOptionalKeyPath::new(
 //             move |root: &mut SomeComplexStruct|
 //             {
 //                 root.scsf.get_mut(index)
@@ -105,7 +105,7 @@ fn main() {
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
     let omsf = op.get_mut(&mut instance);
-    *omsf.unwrap() =
+    **omsf =
         String::from("we can change the field with the other way unlocked by keypaths");
     println!("instance = {:?}", instance);
 
@@ -116,7 +116,7 @@ fn main() {
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
     let omsf = op.get_mut(&mut instance);
-    *omsf.unwrap() =
+    **omsf =
         String::from("we can change the field with the other way unlocked by keypaths");
     println!("instance = {:?}", instance);
 }

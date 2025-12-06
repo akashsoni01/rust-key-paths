@@ -1,7 +1,7 @@
 // Example demonstrating the for_result() adapter for KeyPaths
 // Run with: cargo run --example result_adapter_example
 
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug, Clone)]
 struct User {
@@ -21,9 +21,9 @@ fn main() {
     };
 
     // Create keypaths
-    let name_path = KeyPaths::readable(|u: &User| &u.name);
-    let age_path = KeyPaths::readable(|u: &User| &u.age);
-    let email_path = KeyPaths::failable_readable(|u: &User| u.email.as_ref());
+    let name_path = KeyPath::new(|u: &User| &u.name);
+    let age_path = KeyPath::new(|u: &User| &u.age);
+    let email_path = OptionalKeyPath::new(|u: &User| u.email.as_ref());
 
     // ===== Example 1: Basic Result Usage =====
     println!("--- Example 1: Basic Result Usage ---");

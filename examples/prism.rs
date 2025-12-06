@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 #[derive(Debug)]
 enum Payment {
     Cash { amount: u32 },
@@ -30,7 +30,8 @@ fn main() {
 
     println!("{:?}", p);
 
-    if let Some(v) = kp.get_mut(&mut p) {
+    let v = kp.get_mut(&mut p);
+    {
         *v = 34
     }
     // kp.get_mut(&mut p); // this will return none as kp is readable

@@ -1,7 +1,7 @@
 // Simple example demonstrating the for_mutex() adapter for KeyPaths
 // Run with: cargo run --example simple_mutex_example
 
-use key_paths_core::{KeyPaths, WithContainer};
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
 use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -20,8 +20,8 @@ fn main() {
     };
 
     // Create keypaths
-    let name_path = KeyPaths::readable(|u: &User| &u.name);
-    let age_path = KeyPaths::readable(|u: &User| &u.age);
+    let name_path = KeyPath::new(|u: &User| &u.name);
+    let age_path = KeyPath::new(|u: &User| &u.age);
 
     // ===== Example 1: Basic Mutex Usage =====
     println!("--- Example 1: Basic Mutex Usage ---");

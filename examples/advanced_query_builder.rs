@@ -8,9 +8,12 @@
 // 6. Chain complex queries
 // cargo run --example advanced_query_builder
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+// use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+// use keypaths_proc::Keypaths;
 use std::collections::HashMap;
+
+use keypaths_proc::Keypaths;
+use rust_keypaths::KeyPath;
 
 #[derive(Debug, Clone, Keypaths)]
 struct Product {
@@ -37,7 +40,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Add a filter predicate
-    fn where_<F>(mut self, path: KeyPaths<T, F>, predicate: impl Fn(&F) -> bool + 'static) -> Self
+    fn where_<F>(mut self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>, predicate: impl Fn(&F) -> bool + 'static) -> Self
     where
         F: 'static,
     {
@@ -88,7 +91,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Order by a field (ascending) - for types that implement Ord
-    fn order_by<F>(&self, path: KeyPaths<T, F>) -> Vec<T>
+    fn order_by<F>(&self, path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>) -> Vec<T>
     where
         F: Ord + Clone + 'static,
     {
@@ -104,7 +107,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Order by a field (descending) - for types that implement Ord
-    fn order_by_desc<F>(&self, path: KeyPaths<T, F>) -> Vec<T>
+    fn order_by_desc<F>(&self, path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>) -> Vec<T>
     where
         F: Ord + Clone + 'static,
     {
@@ -124,7 +127,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Order by a float field (ascending) - for f64
-    fn order_by_float(&self, path: KeyPaths<T, f64>) -> Vec<T> {
+    fn order_by_float(&self, path: KeyPath<T, f64, impl for<\'r> Fn(&\'r T) -> &\'r f64>) -> Vec<T> {
         let mut results: Vec<T> = self
             .data
             .iter()
@@ -141,7 +144,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Order by a float field (descending) - for f64
-    fn order_by_float_desc(&self, path: KeyPaths<T, f64>) -> Vec<T> {
+    fn order_by_float_desc(&self, path: KeyPath<T, f64, impl for<\'r> Fn(&\'r T) -> &\'r f64>) -> Vec<T> {
         let mut results: Vec<T> = self
             .data
             .iter()
@@ -158,7 +161,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Select/project a single field from results
-    fn select<F>(&self, path: KeyPaths<T, F>) -> Vec<F>
+    fn select<F>(&self, path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>) -> Vec<F>
     where
         F: Clone + 'static,
     {
@@ -170,7 +173,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Group by a field
-    fn group_by<F>(&self, path: KeyPaths<T, F>) -> HashMap<F, Vec<T>>
+    fn group_by<F>(&self, path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>) -> HashMap<F, Vec<T>>
     where
         F: Eq + std::hash::Hash + Clone + 'static,
     {
@@ -188,7 +191,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Aggregate functions
-    fn sum<F>(&self, path: KeyPaths<T, F>) -> F
+    fn sum<F>(&self, path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>) -> F
     where
         F: Clone + std::ops::Add<Output = F> + Default + 'static,
     {
@@ -199,7 +202,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
             .fold(F::default(), |acc, val| acc + val)
     }
 
-    fn avg(&self, path: KeyPaths<T, f64>) -> Option<f64> {
+    fn avg(&self, path: KeyPath<T, f64, impl for<\'r> Fn(&\'r T) -> &\'r f64>) -> Option<f64> {
         let items: Vec<f64> = self
             .data
             .iter()
@@ -214,7 +217,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
         }
     }
 
-    fn min<F>(&self, path: KeyPaths<T, F>) -> Option<F>
+    fn min<F>(&self, path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>) -> Option<F>
     where
         F: Ord + Clone + 'static,
     {
@@ -225,7 +228,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
             .min()
     }
 
-    fn max<F>(&self, path: KeyPaths<T, F>) -> Option<F>
+    fn max<F>(&self, path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>) -> Option<F>
     where
         F: Ord + Clone + 'static,
     {
@@ -237,7 +240,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Min for float fields
-    fn min_float(&self, path: KeyPaths<T, f64>) -> Option<f64> {
+    fn min_float(&self, path: KeyPath<T, f64, impl for<\'r> Fn(&\'r T) -> &\'r f64>) -> Option<f64> {
         self.data
             .iter()
             .filter(|item| self.filters.iter().all(|f| f(item)))
@@ -246,7 +249,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Max for float fields
-    fn max_float(&self, path: KeyPaths<T, f64>) -> Option<f64> {
+    fn max_float(&self, path: KeyPath<T, f64, impl for<\'r> Fn(&\'r T) -> &\'r f64>) -> Option<f64> {
         self.data
             .iter()
             .filter(|item| self.filters.iter().all(|f| f(item)))
@@ -374,7 +377,7 @@ fn main() {
 
     // Query 1: Select all product names
     println!("--- Query 1: Select All Product Names ---");
-    let names = Query::new(&products).select(Product::name_r());
+    let names = Query::new(&products).select(Product::name_r().to_optional());
     println!("Product names ({}):", names.len());
     for name in &names {
         println!("  • {}", name);
@@ -382,21 +385,21 @@ fn main() {
 
     // Query 2: Order by price (ascending)
     println!("\n--- Query 2: Products Ordered by Price (Ascending) ---");
-    let ordered = Query::new(&products).order_by_float(Product::price_r());
+    let ordered = Query::new(&products).order_by_float(Product::price_r().to_optional());
     for product in ordered.iter().take(5) {
         println!("  • {} - ${:.2}", product.name, product.price);
     }
 
     // Query 3: Order by rating (descending)
     println!("\n--- Query 3: Top-Rated Products (Descending) ---");
-    let top_rated = Query::new(&products).order_by_float_desc(Product::rating_r());
+    let top_rated = Query::new(&products).order_by_float_desc(Product::rating_r().to_optional());
     for product in top_rated.iter().take(5) {
         println!("  • {} - Rating: {:.1}", product.name, product.rating);
     }
 
     // Query 4: Group by category
     println!("\n--- Query 4: Products Grouped by Category ---");
-    let by_category = Query::new(&products).group_by(Product::category_r());
+    let by_category = Query::new(&products).group_by(Product::category_r().to_optional());
     for (category, items) in &by_category {
         println!("  {}: {} products", category, items.len());
         for item in items {
@@ -410,18 +413,18 @@ fn main() {
         .where_(Product::category_r(), |cat| cat == "Electronics");
 
     println!("  Count: {}", electronics_query.count());
-    println!("  Total Value: ${:.2}", electronics_query.sum(Product::price_r()));
-    println!("  Average Price: ${:.2}", electronics_query.avg(Product::price_r()).unwrap_or(0.0));
-    println!("  Min Price: ${:.2}", electronics_query.min_float(Product::price_r()).unwrap_or(0.0));
-    println!("  Max Price: ${:.2}", electronics_query.max_float(Product::price_r()).unwrap_or(0.0));
-    println!("  Total Stock: {}", electronics_query.sum(Product::stock_r()));
+    println!("  Total Value: ${:.2}", electronics_query.sum(Product::price_r().to_optional()));
+    println!("  Average Price: ${:.2}", electronics_query.avg(Product::price_r().to_optional()).unwrap_or(0.0));
+    println!("  Min Price: ${:.2}", electronics_query.min_float(Product::price_r().to_optional()).unwrap_or(0.0));
+    println!("  Max Price: ${:.2}", electronics_query.max_float(Product::price_r().to_optional()).unwrap_or(0.0));
+    println!("  Total Stock: {}", electronics_query.sum(Product::stock_r().to_optional()));
 
     // Query 6: Complex filtering with ordering
     println!("\n--- Query 6: Electronics Under $200, Ordered by Rating ---");
     let affordable_electronics = Query::new(&products)
         .where_(Product::category_r(), |cat| cat == "Electronics")
         .where_(Product::price_r(), |&price| price < 200.0)
-        .order_by_float_desc(Product::rating_r());
+        .order_by_float_desc(Product::rating_r().to_optional());
 
     for product in &affordable_electronics {
         println!(
@@ -467,23 +470,23 @@ fn main() {
 
     // Query 11: Multiple aggregations by group
     println!("\n--- Query 11: Category Statistics ---");
-    let grouped = Query::new(&products).group_by(Product::category_r());
+    let grouped = Query::new(&products).group_by(Product::category_r().to_optional());
 
     for (category, items) in &grouped {
         let cat_query = Query::new(items);
         println!("\n  {} Statistics:", category);
         println!("    Products: {}", items.len());
-        println!("    Total Value: ${:.2}", cat_query.sum(Product::price_r()));
-        println!("    Avg Price: ${:.2}", cat_query.avg(Product::price_r()).unwrap_or(0.0));
-        println!("    Total Stock: {}", cat_query.sum(Product::stock_r()));
-        println!("    Avg Rating: {:.2}", cat_query.avg(Product::rating_r()).unwrap_or(0.0));
+        println!("    Total Value: ${:.2}", cat_query.sum(Product::price_r().to_optional()));
+        println!("    Avg Price: ${:.2}", cat_query.avg(Product::price_r().to_optional()).unwrap_or(0.0));
+        println!("    Total Stock: {}", cat_query.sum(Product::stock_r().to_optional()));
+        println!("    Avg Rating: {:.2}", cat_query.avg(Product::rating_r().to_optional()).unwrap_or(0.0));
     }
 
     // Query 12: Complex multi-stage query
     println!("\n--- Query 12: Top 3 Highly-Rated Products (Rating > 4.5) by Price ---");
     let top_products = Query::new(&products)
         .where_(Product::rating_r(), |&rating| rating > 4.5)
-        .order_by_float_desc(Product::price_r());
+        .order_by_float_desc(Product::price_r().to_optional());
 
     for (i, product) in top_products.iter().take(3).enumerate() {
         println!(
@@ -509,7 +512,7 @@ fn main() {
     println!("\n--- Query 14: Low Stock Alert (Stock < 20) ---");
     let low_stock = Query::new(&products)
         .where_(Product::stock_r(), |&stock| stock < 20)
-        .order_by(Product::stock_r());
+        .order_by(Product::stock_r().to_optional());
 
     for product in &low_stock {
         println!("  ⚠️  {} - Only {} in stock", product.name, product.stock);
@@ -520,7 +523,7 @@ fn main() {
     let mid_range = Query::new(&products)
         .where_(Product::price_r(), |&price| price >= 50.0 && price <= 300.0)
         .where_(Product::rating_r(), |&rating| rating > 4.5)
-        .order_by_float(Product::price_r());
+        .order_by_float(Product::price_r().to_optional());
 
     for product in &mid_range {
         println!(
@@ -531,7 +534,7 @@ fn main() {
 
     // Query 16: Revenue calculation
     println!("\n--- Query 16: Potential Revenue by Category ---");
-    let by_category = Query::new(&products).group_by(Product::category_r());
+    let by_category = Query::new(&products).group_by(Product::category_r().to_optional());
 
     for (category, items) in &by_category {
         let revenue: f64 = items.iter().map(|p| p.price * p.stock as f64).sum();

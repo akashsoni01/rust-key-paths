@@ -1,4 +1,4 @@
-use key_paths_derive::Keypaths;
+use keypaths_proc::Keypaths;
 use std::sync::{Mutex, RwLock};
 use std::rc::Weak;
 
@@ -130,13 +130,13 @@ fn main() {
     }
 
     println!("\n=== Keypaths Types ===");
-    println!("result() returns: KeyPaths<ContainerTest, String> (failable readable)");
-    println!("result_int() returns: KeyPaths<ContainerTest, i32> (failable readable)");
-    println!("mutex_data() returns: KeyPaths<ContainerTest, Mutex<String>> (readable)");
-    println!("rwlock_data() returns: KeyPaths<ContainerTest, RwLock<i32>> (readable)");
-    println!("weak_ref() returns: KeyPaths<ContainerTest, Weak<String>> (readable)");
-    println!("name() returns: KeyPaths<ContainerTest, String> (readable)");
-    println!("age() returns: KeyPaths<ContainerTest, u32> (readable)");
+    println!("result() returns: KeyPath<ContainerTest, String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r String> (failable readable)");
+    println!("result_int() returns: KeyPath<ContainerTest, i32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r i32> (failable readable)");
+    println!("mutex_data() returns: KeyPath<ContainerTest, Mutex<String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r Mutex<String>> (readable)");
+    println!("rwlock_data() returns: KeyPath<ContainerTest, RwLock<i32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r RwLock<i32>> (readable)");
+    println!("weak_ref() returns: KeyPath<ContainerTest, Weak<String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r Weak<String>> (readable)");
+    println!("name() returns: KeyPath<ContainerTest, String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r String> (readable)");
+    println!("age() returns: KeyPath<ContainerTest, u32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r u32> (readable)");
 
     println!("\n=== All new container tests completed successfully! ===");
 }

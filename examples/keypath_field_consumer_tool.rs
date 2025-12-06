@@ -2,8 +2,8 @@
 // // Demonstrates how to use keypaths to create a tool for partially consuming/accessing struct fields
 // // cargo run --example keypath_field_consumer_tool
 //
-// use key_paths_core::KeyPaths;
-// use key_paths_derive::Keypaths;
+// use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+// use keypaths_proc::Keypaths;
 // use std::any::Any;
 // use std::collections::{HashMap, HashSet};
 //
@@ -17,7 +17,7 @@
 //
 // // Implementation for readable keypaths
 // struct FieldAccessorImpl<T, V> {
-//     keypath: KeyPaths<T, V>,
+//     keypath: KeyPath<T, V, impl for<\'r> Fn(&\'r T) -> &\'r V>,
 // }
 //
 // impl<T, V> FieldAccessor<T> for FieldAccessorImpl<T, V>
@@ -44,7 +44,7 @@
 //
 // // Implementation for owned keypaths
 // struct OwnedFieldAccessorImpl<T, V> {
-//     keypath: KeyPaths<T, V>,
+//     keypath: KeyPath<T, V, impl for<\'r> Fn(&\'r T) -> &\'r V>,
 // }
 //
 // impl<T, V> FieldAccessor<T> for OwnedFieldAccessorImpl<T, V>
@@ -98,7 +98,7 @@
 //         }
 //     }
 //
-//     fn register_field<V: 'static>(&mut self, name: &str, keypath: KeyPaths<T, V>)
+//     fn register_field<V: 'static>(&mut self, name: &str, keypath: KeyPath<T, V, impl for<\'r> Fn(&\'r T) -> &\'r V>)
 //     where
 //         V: Clone + Send + Sync,
 //     {
@@ -110,7 +110,7 @@
 //         }
 //     }
 //
-//     fn register_owned_field<V: 'static>(&mut self, name: &str, keypath: KeyPaths<T, V>)
+//     fn register_owned_field<V: 'static>(&mut self, name: &str, keypath: KeyPath<T, V, impl for<\'r> Fn(&\'r T) -> &\'r V>)
 //     where
 //         V: Send + Sync,
 //     {
@@ -155,7 +155,7 @@
 //             if self.debug_mode {
 //                 println!("Borrowing field '{}' of type {}", field_name, accessor.field_type_name());
 //             }
-//             accessor.get_ref(&self.data)
+//             accessor.get(&self.data)
 //         } else {
 //             if self.debug_mode {
 //                 eprintln!("Field '{}' not found in registry", field_name);
@@ -268,10 +268,10 @@
 //     consumer.enable_debug_mode();
 //
 //     // Register fields
-//     consumer.register_field("id", User::id_r());
-//     consumer.register_field("name", User::name_r());
+//     consumer.register_field("id", User::id_r().to_optional());
+//     consumer.register_field("name", User::name_r().to_optional());
 //     consumer.register_field("email", User::email_fr());
-//     consumer.register_field("active", User::is_active_r());
+//     consumer.register_field("active", User::is_active_r().to_optional());
 //
 //     // Debug information
 //     println!("Debug Info: {:?}", consumer.debug_info());
@@ -303,11 +303,11 @@
 //     product_consumer.enable_debug_mode();
 //
 //     // Register product fields
-//     product_consumer.register_field("id", Product::id_r());
-//     product_consumer.register_field("name", Product::name_r());
-//     product_consumer.register_field("price", Product::price_r());
-//     product_consumer.register_field("category", Product::category_r());
-//     product_consumer.register_field("in_stock", Product::in_stock_r());
+//     product_consumer.register_field("id", Product::id_r().to_optional());
+//     product_consumer.register_field("name", Product::name_r().to_optional());
+//     product_consumer.register_field("price", Product::price_r().to_optional());
+//     product_consumer.register_field("category", Product::category_r().to_optional());
+//     product_consumer.register_field("in_stock", Product::in_stock_r().to_optional());
 //
 //     // Borrow product fields
 //     if let Some(name) = product_consumer.borrow_field("name") {
@@ -335,11 +335,11 @@
 //     order_consumer.enable_debug_mode();
 //
 //     // Register order fields
-//     order_consumer.register_field("id", Order::id_r());
-//     order_consumer.register_field("user_id", Order::user_id_r());
-//     order_consumer.register_field("total", Order::total_r());
-//     order_consumer.register_field("status", Order::status_r());
-//     order_consumer.register_field("quantity", Order::quantity_r());
+//     order_consumer.register_field("id", Order::id_r().to_optional());
+//     order_consumer.register_field("user_id", Order::user_id_r().to_optional());
+//     order_consumer.register_field("total", Order::total_r().to_optional());
+//     order_consumer.register_field("status", Order::status_r().to_optional());
+//     order_consumer.register_field("quantity", Order::quantity_r().to_optional());
 //
 //     // Borrow order fields
 //     if let Some(total) = order_consumer.borrow_field("total") {
@@ -378,9 +378,9 @@
 //     test_consumer.enable_debug_mode();
 //
 //     // Register fields
-//     test_consumer.register_field("name", User::name_r());
+//     test_consumer.register_field("name", User::name_r().to_optional());
 //     test_consumer.register_field("email", User::email_fr());
-//     test_consumer.register_field("active", User::is_active_r());
+//     test_consumer.register_field("active", User::is_active_r().to_optional());
 //
 //     // Demonstrate field borrowing
 //     if let Some(name) = test_consumer.borrow_field("name") {

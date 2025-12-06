@@ -1,4 +1,4 @@
-use key_paths_derive::Keypaths;
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
 struct Person {
@@ -45,9 +45,9 @@ fn main() {
     }
 
     println!("\n=== Keypaths Types ===");
-    println!("name() returns: KeyPaths<Person, String> (readable)");
-    println!("age() returns: KeyPaths<Person, u32> (readable)");
-    println!("email() returns: KeyPaths<Person, String> (failable readable)");
-    println!("hobbies() returns: KeyPaths<Person, String> (failable readable)");
-    println!("scores() returns: KeyPaths<Person, HashMap<String, u32>> (readable)");
+    println!("name() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (readable)");
+    println!("age() returns: KeyPath<Person, u32, impl for<\'r> Fn(&\'r Person) -> &\'r u32> (readable)");
+    println!("email() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (failable readable)");
+    println!("hobbies() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (failable readable)");
+    println!("scores() returns: KeyPath<Person, HashMap<String, u32, impl for<\'r> Fn(&\'r Person) -> &\'r HashMap<String, u32>> (readable)");
 }

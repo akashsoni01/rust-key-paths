@@ -1,7 +1,7 @@
 // Test cases for reference keypath support
 // Run with: cargo run --example reference_test
 
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug, Clone)]
 struct Person {
@@ -29,11 +29,11 @@ fn main() {
 
     // Test 1: Basic get_ref with readable keypath
     println!("--- Test 1: get_ref with Readable KeyPath ---");
-    let name_path = KeyPaths::readable(|p: &Person| &p.name);
+    let name_path = KeyPath::new(|p: &Person| &p.name);
     
     let person_refs: Vec<&Person> = people.iter().collect();
     for person_ref in &person_refs {
-        if let Some(name) = name_path.get_ref(person_ref) {
+        if let Some(name) = name_path.get(person_ref) {
             println!("  Name: {}", name);
             assert!(!name.is_empty(), "Name should not be empty");
         }
@@ -42,10 +42,10 @@ fn main() {
 
     // Test 2: get_ref returns correct values
     println!("--- Test 2: get_ref Value Correctness ---");
-    let age_path = KeyPaths::readable(|p: &Person| &p.age);
+    let age_path = KeyPath::new(|p: &Person| &p.age);
     
     let first_ref = &people[0];
-    if let Some(&age) = age_path.get_ref(&first_ref) {
+    if let Some(&age) = age_path.get(&first_ref) {
         println!("  First person age: {}", age);
         assert_eq!(age, 30, "Age should be 30");
     }
@@ -56,7 +56,7 @@ fn main() {
     let refs_of_refs: Vec<&&Person> = person_refs.iter().collect();
     for ref_ref in &refs_of_refs {
         // Need to deref once to get &Person, then use get_ref
-        if let Some(name) = name_path.get_ref(*ref_ref) {
+        if let Some(name) = name_path.get(*ref_ref) {
             println!("  Nested ref name: {}", name);
         }
     }
@@ -64,13 +64,13 @@ fn main() {
 
     // Test 4: get_ref with writable keypaths (should work for reading)
     println!("--- Test 4: get_ref with Writable KeyPath ---");
-    let name_path_w = KeyPaths::writable(|p: &mut Person| &mut p.name);
+    let name_path_w = WritableKeyPath::new(|p: &mut Person| &mut p.name);
     
     // Even writable paths should work with get_ref for reading
     for person_ref in &person_refs {
         // Note: get_ref works with writable paths via get() internally
         // but get() returns None for Writable, so this is expected
-        let result = name_path_w.get_ref(person_ref);
+        let result = name_path_w.get(person_ref);
         assert!(result.is_none(), "Writable keypath should return None for immutable get_ref");
     }
     println!("✓ Test 4 passed (correctly returns None for writable)\n");
@@ -78,7 +78,7 @@ fn main() {
     // Test 5: get_mut_ref with mutable references
     println!("--- Test 5: get_mut_ref with Mutable References ---");
     let mut people_mut = people.clone();
-    let name_path_w = KeyPaths::writable(|p: &mut Person| &mut p.name);
+    let name_path_w = WritableKeyPath::new(|p: &mut Person| &mut p.name);
     
     let mut person_mut_ref = &mut people_mut[0];
     if let Some(name) = name_path_w.get_mut_ref(&mut person_mut_ref) {
@@ -109,11 +109,11 @@ fn main() {
         },
     ];
     
-    let manager_path = KeyPaths::failable_readable(|e: &Employee| e.manager.as_ref());
+    let manager_path = OptionalKeyPath::new(|e: &Employee| e.manager.as_ref());
     let employee_refs: Vec<&Employee> = employees.iter().collect();
     
     for emp_ref in &employee_refs {
-        match manager_path.get_ref(emp_ref) {
+        match manager_path.get(emp_ref) {
             Some(manager) => println!("  {} has manager: {}", emp_ref.name, manager),
             None => println!("  {} has no manager", emp_ref.name),
         }
@@ -130,7 +130,7 @@ fn main() {
         println!("  get() result: {}", name1);
         
         // Using get_ref with reference
-        if let Some(name2) = name_path.get_ref(&ref_person) {
+        if let Some(name2) = name_path.get(&ref_person) {
             println!("  get_ref() result: {}", name2);
             assert_eq!(name1, name2, "Both should return the same value");
         }
@@ -150,7 +150,7 @@ fn main() {
     let refs: Vec<&Person> = large_collection.iter().collect();
     let mut count = 0;
     for person_ref in &refs {
-        if let Some(&age) = age_path.get_ref(person_ref) {
+        if let Some(&age) = age_path.get(person_ref) {
             if age > 40 {
                 count += 1;
             }

@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Clone, Keypaths)]
@@ -20,7 +20,7 @@ fn main() {
     });
 
     let kp_active = Status::active_case_r();
-    let active_name = Status::active_case_r().compose(User::name_r());
+    let active_name = Status::active_case_r().to_optional().then(User::name_r().to_optional());
     println!("Active name = {:?}", active_name.get(&status));
 
     let mut status2 = Status::Active(User {
@@ -28,7 +28,8 @@ fn main() {
         name: "Bob".into(),
     });
     let kp_active_w = Status::active_case_w();
-    if let Some(user) = kp_active_w.get_mut(&mut status2) {
+    let user = kp_active_w.get_mut(&mut status2);
+    {
         user.name.push_str("_edited");
     }
     println!("Status2 = {:?}", status2);

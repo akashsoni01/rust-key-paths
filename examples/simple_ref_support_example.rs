@@ -2,8 +2,8 @@
 // This example shows how to work with collections of references using keypaths
 // cargo run --example simple_ref_support_example
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
 #[All]

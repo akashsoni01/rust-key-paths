@@ -2,8 +2,8 @@
 // This example shows how to work with slices and iterators using keypaths
 // cargo run --example reference_support_example
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
 #[All]
@@ -107,12 +107,12 @@ fn main() {
     };
 
     // Extract company name
-    if let Some(company_name) = Company::name_r().get_ref(&&company) {
+    if let Some(company_name) = Company::name_r().get(&company) {
         println!("  Company: {}", company_name);
     }
 
     // Extract founded year
-    if let Some(year) = Company::founded_year_r().get_ref(&&company) {
+    if let Some(year) = Company::founded_year_r().get(&company) {
         println!("  Founded: {}", year);
     }
 

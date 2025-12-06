@@ -6,8 +6,8 @@
 // 4. Build a generic change detection system
 // cargo run --example change_tracker
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
@@ -68,8 +68,8 @@ impl<T> ChangeTracker<T> {
 
     fn add_path(
         &mut self,
-        read_path: KeyPaths<T, String>,
-        write_path: KeyPaths<T, String>,
+        read_path: KeyPath<T, String, impl for<\'r> Fn(&\'r T) -> &\'r String>,
+        write_path: KeyPath<T, String, impl for<\'r> Fn(&\'r T) -> &\'r String>,
         name: Vec<String>,
     ) {
         self.read_paths.push(read_path);
@@ -153,20 +153,20 @@ fn main() {
 
     // Add paths to track (need both readable for comparison and writable for updates)
     tracker.add_path(
-        AppState::user_r().then(User::name_r()),
-        AppState::user_w().then(User::name_w()),
+        AppState::user_r().to_optional().then(User::name_r().to_optional()),
+        AppState::user_w().to_optional().then(User::name_w()),
         vec!["user".into(), "name".into()],
     );
 
     tracker.add_path(
-        AppState::settings_r().then(Settings::theme_r()),
-        AppState::settings_w().then(Settings::theme_w()),
+        AppState::settings_r().to_optional().then(Settings::theme_r().to_optional()),
+        AppState::settings_w().to_optional().then(Settings::theme_w()),
         vec!["settings".into(), "theme".into()],
     );
 
     tracker.add_path(
-        AppState::settings_r().then(Settings::language_r()),
-        AppState::settings_w().then(Settings::language_w()),
+        AppState::settings_r().to_optional().then(Settings::language_r().to_optional()),
+        AppState::settings_w().to_optional().then(Settings::language_w()),
         vec!["settings".into(), "language".into()],
     );
 

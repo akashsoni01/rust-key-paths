@@ -70,10 +70,11 @@ fn main() {
 
     let mut instance = SomeComplexStruct::new();
     // let omsf = dsf_kp.get_mut(&mut instance);
-    // *omsf.unwrap() =
+    // **omsf =
     //     String::from("we can change the field with the other way unlocked by keypaths");
     // println!("instance = {:?}", instance);
-    if let Some(omsf) = dsf_kp.get_mut(&mut instance) {
+    let omsf = dsf_kp.get_mut(&mut instance);
+    {
         *omsf = String::from("This is changed 🖖🏿");
         println!("instance = {:?}", instance);
     

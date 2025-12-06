@@ -1,5 +1,5 @@
 use key_paths_derive::{Keypaths, PartialKeypaths, AnyKeypaths};
-use key_paths_core::{KeyPaths, PartialKeyPath, AnyKeyPath};
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, PartialKeyPath, AnyKeyPath};
 use std::any::Any;
 
 /// Example demonstrating the new derive macros for PartialKeyPath and AnyKeyPath
@@ -156,7 +156,8 @@ fn main() {
     
     // Using regular writable keypaths (not type-erased)
     let name_w = User::name_w();
-    if let Some(name_ref) = name_w.get_mut(&mut user_mut) {
+    let name_ref = name_w.get_mut(&mut user_mut);
+    {
         *name_ref = "Alice Updated".to_string();
         println!("Updated name (regular): {}", name_ref);
     }
@@ -190,10 +191,10 @@ fn main() {
     
     // Create a collection of different keypath types
     let mixed_keypaths: Vec<Box<dyn Any>> = vec![
-        Box::new(User::name_partial_r()),
+        Box::new(User::name_partial_r().to_optional()),
         Box::new(User::email_partial_fr()),
-        Box::new(User::name_any_r()),  // Use User keypath instead of Product
-        Box::new(Product::title_any_r()),
+        Box::new(User::name_any_r().to_optional()),  // Use User keypath instead of Product
+        Box::new(Product::title_any_r().to_optional()),
     ];
 
     // Process mixed keypaths
@@ -222,10 +223,10 @@ fn main() {
     println!("\n--- 8. Dynamic keypath selection with derive macros ---");
     
     let partial_keypath_map: std::collections::HashMap<String, PartialKeyPath<User>> = [
-        ("name".to_string(), User::name_partial_r()),
+        ("name".to_string(), User::name_partial_r().to_optional()),
         ("email".to_string(), User::email_partial_fr()),
-        ("tags".to_string(), User::tags_partial_r()),
-        ("metadata".to_string(), User::metadata_partial_r()),
+        ("tags".to_string(), User::tags_partial_r().to_optional()),
+        ("metadata".to_string(), User::metadata_partial_r().to_optional()),
     ].iter().cloned().collect();
 
     // Dynamically select and use partial keypaths

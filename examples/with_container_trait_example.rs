@@ -1,7 +1,7 @@
 // Example demonstrating the WithContainer trait usage
 // Run with: cargo run --example with_container_trait_example
 
-use key_paths_core::{KeyPaths, WithContainer};
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -24,9 +24,9 @@ fn main() {
     };
 
     // Create keypaths
-    let name_path = KeyPaths::readable(|u: &User| &u.name);
-    let age_path = KeyPaths::readable(|u: &User| &u.age);
-    let name_path_w = KeyPaths::writable(|u: &mut User| &mut u.name);
+    let name_path = KeyPath::new(|u: &User| &u.name);
+    let age_path = KeyPath::new(|u: &User| &u.age);
+    let name_path_w = WritableKeyPath::new(|u: &mut User| &mut u.name);
 
     // ===== Example 1: Trait Usage with Arc =====
     println!("--- Example 1: Trait Usage with Arc ---");
@@ -147,7 +147,7 @@ fn main() {
 
     // Write via trait
     let mut rwlock_user_mut = RwLock::new(user.clone());
-    let age_path_w = KeyPaths::writable(|u: &mut User| &mut u.age);
+    let age_path_w = WritableKeyPath::new(|u: &mut User| &mut u.age);
     age_path_w.clone().with_rwlock_mut(&mut rwlock_user_mut, |age| {
         *age += 1;
         println!("  Updated age in RwLock (via trait): {}", age);
@@ -156,7 +156,7 @@ fn main() {
     // ===== Example 9: Generic Function Using Trait =====
     println!("--- Example 9: Generic Function Using Trait ---");
     
-    fn process_user_name<T>(keypath: KeyPaths<User, String>, container: T)
+    fn process_user_name<T>(keypath: KeyPath<User, String, impl for<\'r> Fn(&\'r User) -> &\'r String>, container: T)
     where
         T: WithContainer<User, String>,
     {

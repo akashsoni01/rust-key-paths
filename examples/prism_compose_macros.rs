@@ -1,5 +1,5 @@
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
 #[All]
@@ -50,8 +50,9 @@ fn main() {
         },
     );
 
-    let color_rgb_kp = color_kp.compose(case_path);
-    if let Some(value) = color_rgb_kp.get_mut(&mut a_box) {
+    let color_rgb_kp = color_kp.then(case_path);
+    let value = color_rgb_kp.get_mut(&mut a_box);
+    {
         *value = RGBU8(0, 0, 0);
     }
 

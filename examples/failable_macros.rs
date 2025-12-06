@@ -1,5 +1,5 @@
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
 #[All]
@@ -36,9 +36,9 @@ fn main() {
 
     // Failable readable chain via derive-generated methods on Option fields
     let city_hp = City::garage_fr()
-        .compose(Garage::car_fr())
-        .compose(Car::engine_fr())
-        .compose(Engine::horsepower_r());
+        .then(Garage::car_fr())
+        .then(Car::engine_fr())
+        .then(Engine::horsepower_r().to_optional());
 
     println!("Horsepower (read) = {:?}", city_hp.get(&city));
 
@@ -48,7 +48,8 @@ fn main() {
     let engine_fw = Car::engine_fw();
     let hp_w = Engine::horsepower_w();
 
-    if let Some(garage) = garage_fw.get_mut(&mut city) {
+    let garage = garage_fw.get_mut(&mut city);
+    {
         if let Some(car) = car_fw.get_mut(garage) {
             if let Some(engine) = engine_fw.get_mut(car) {
                 if let Some(hp) = hp_w.get_mut(engine) {
@@ -63,7 +64,8 @@ fn main() {
     // Demonstrate short-circuiting when any Option is None
     let mut city2 = City { garage: None };
     println!("Missing chain get = {:?}", city_hp.get(&city2));
-    if let Some(garage) = garage_fw.get_mut(&mut city2) {
+    let garage = garage_fw.get_mut(&mut city2);
+    {
         // won't run
         let _ = garage;
     } else {

@@ -54,7 +54,7 @@ fn main() {
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
     let omsf = op.get_mut(&mut instance);
-    *omsf.unwrap() =
+    **omsf =
         String::from("we can change the field with the other way unlocked by keypaths");
     println!("instance = {:?}", instance);
 }

@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug)]
 struct Size {
@@ -40,8 +40,8 @@ fn main() {
         color: Color::Other(RGBU8(10, 20, 30)),
     };
 
-    let color_kp: KeyPaths<ABox, Color> =
-        KeyPaths::failable_writable(|x: &mut ABox| Some(&mut x.color));
+    let color_kp: KeyPath<ABox, Color, impl for<\'r> Fn(&\'r ABox) -> &\'r Color> =
+        WritableOptionalKeyPath::new(|x: &mut ABox| Some(&mut x.color));
 
     let case_path = KeyPaths::writable_enum(
         { |v| Color::Other(v) },
@@ -58,8 +58,9 @@ fn main() {
     // let's compose color with rgb
 
     println!("{:?}", a_box);
-    let color_rgb_kp = color_kp.compose(case_path);
-    if let Some(value) = color_rgb_kp.get_mut(&mut a_box) {
+    let color_rgb_kp = color_kp.then(case_path);
+    let value = color_rgb_kp.get_mut(&mut a_box);
+    {
         *value = RGBU8(0, 0, 0);
     }
 

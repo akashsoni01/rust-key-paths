@@ -1,4 +1,4 @@
-use key_paths_derive::Keypaths;
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
 struct MinimalTest {

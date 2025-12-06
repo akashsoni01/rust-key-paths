@@ -1,7 +1,7 @@
 // Simple example demonstrating the for_option adapter method
 // Run with: cargo run --example simple_for_option_example
 
-use key_paths_core::{KeyPaths, WithContainer};
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
 
 #[derive(Debug, Clone)]
 struct User {
@@ -21,10 +21,10 @@ fn main() {
     };
 
     // Create keypaths
-    let name_path = KeyPaths::readable(|u: &User| &u.name);
-    let age_path = KeyPaths::readable(|u: &User| &u.age);
-    let email_path = KeyPaths::failable_readable(|u: &User| u.email.as_ref());
-    let name_path_w = KeyPaths::writable(|u: &mut User| &mut u.name);
+    let name_path = KeyPath::new(|u: &User| &u.name);
+    let age_path = KeyPath::new(|u: &User| &u.age);
+    let email_path = OptionalKeyPath::new(|u: &User| u.email.as_ref());
+    let name_path_w = WritableKeyPath::new(|u: &mut User| &mut u.name);
 
     // ===== Example 1: Basic Option Usage =====
     println!("--- Example 1: Basic Option Usage ---");
@@ -35,7 +35,7 @@ fn main() {
     let name_option_path = name_path.clone().for_option();
     
     // Access name from Option<User> - returns Option<&String>
-    if let Some(name) = name_option_path.get_ref(&&option_user) {
+    if let Some(name) = name_option_path.get(&option_user) {
         println!("  Name from Option: {}", name);
     }
 
@@ -48,7 +48,8 @@ fn main() {
     let name_option_path_w = name_path_w.clone().for_option();
     
     // Modify name in Option<User>
-    if let Some(name) = name_option_path_w.get_mut(&mut &mut option_user_mut) {
+    let name = name_option_path_w.get_mut(&mut &mut option_user_mut);
+    {
         *name = "Alice Updated".to_string();
         println!("  Updated name in Option: {}", name);
     }
@@ -66,7 +67,7 @@ fn main() {
     let email_option_path = email_path.clone().for_option();
     
     // Access email from Option<User> - returns Option<Option<&String>>
-    if let Some(email) = email_option_path.get_ref(&&option_user_with_email) {
+    if let Some(email) = email_option_path.get(&option_user_with_email) {
         println!("  Email from Option: {}", email);
     } else {
         println!("  No user in Option");
@@ -78,7 +79,7 @@ fn main() {
     let none_user: Option<User> = None;
 
     // Try to access name from None Option
-    if let Some(name) = name_option_path.get_ref(&&none_user) {
+    if let Some(name) = name_option_path.get(&none_user) {
         println!("  Name from None Option: {}", name);
     } else {
         println!("  Correctly handled None Option");
@@ -104,7 +105,7 @@ fn main() {
     // Process names from collection of Options
     let mut names = Vec::new();
     for option_user in &option_users {
-        if let Some(name) = name_option_path.get_ref(&option_user) {
+        if let Some(name) = name_option_path.get(&option_user) {
             names.push(name.clone());
         }
     }
@@ -127,7 +128,7 @@ fn main() {
 
     // Method 1: for_option + get_ref (creates new keypath type)
     println!("  Method 1 - for_option + get_ref:");
-    if let Some(name) = name_path.clone().for_option().get_ref(&&option_user_comp) {
+    if let Some(name) = name_path.clone().for_option().get(&option_user_comp) {
         println!("    Name: {}", name);
     }
 
