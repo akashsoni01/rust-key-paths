@@ -100,6 +100,21 @@ where
             first(root).and_then(|value| second(value))
         })
     }
+    
+    // Convenience method for Option<Box<T>> -> Option<&T>
+    // Unwraps Box<T> from Option<Box<T>> to get Option<&T>
+    pub fn for_box<T>(self) -> OptionalKeyPath<Root, T, impl for<'r> Fn(&'r Root) -> Option<&'r T>>
+    where
+        Value: std::ops::Deref<Target = T>,
+        F: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath::new(move |root: &Root| {
+            getter(root).map(|boxed| boxed.deref())
+        })
+    }
 }
 
 // Enum-specific keypaths
