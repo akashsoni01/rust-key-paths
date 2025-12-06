@@ -25,19 +25,18 @@ fn main() {
     };
 
     // Define readable and writable keypaths.
-    let size_kp: KeyPath<Rectangle, Size, impl for<\'r> Fn(&\'r Rectangle) -> &\'r Size> = KeyPath::new(|r: &Rectangle| &r.size);
-    let width_kp: KeyPath<Size, u32, impl for<\'r> Fn(&\'r Size) -> &\'r u32> = KeyPath::new(|s: &Size| &s.width);
+    let size_kp = KeyPath::new(|r: &Rectangle| &r.size);
+    let width_kp = KeyPath::new(|s: &Size| &s.width);
 
     // Compose nested paths (assuming composition is supported).
     // e.g., rect[&size_kp.then(&width_kp)] — hypothetical chaining
 
     // Alternatively, define them directly:
-    let width_direct: KeyPath<Rectangle, u32, impl for<\'r> Fn(&\'r Rectangle) -> &\'r u32> = KeyPath::new(|r: &Rectangle| &r.size.width);
+    let width_direct = KeyPath::new(|r: &Rectangle| &r.size.width);
     println!("Width: {:?}", width_direct.get(&rect));
 
     // Writable keypath for modifying fields:
-    let width_mut: KeyPath<Rectangle, u32, impl for<\'r> Fn(&\'r Rectangle) -> &\'r u32> = WritableKeyPath::new(
-        // |r: &Rectangle| &r.size.width,
+    let width_mut = WritableKeyPath::new(
         |r: &mut Rectangle| &mut r.size.width,
     );
     // Mutable
@@ -48,10 +47,11 @@ fn main() {
     println!("Updated rectangle: {:?}", rect);
 
     // Keypaths from derive-generated methods
-    let rect_size_fw = Rectangle::size_fw();
-    let rect_name_fw = Rectangle::name_fw();
-    let size_width_fw = Size::width_fw();
-    let size_height_fw = Size::height_fw();
+    // Note: size and name are NOT Option types, so they use _w() methods, not _fw()
+    let rect_size_w = Rectangle::size_w();
+    let rect_name_w = Rectangle::name_w();
+    let size_width_w = Size::width_w();
+    let size_height_w = Size::height_w();
 
     let name_readable = Rectangle::name_r();
     println!("Name (readable): {:?}", name_readable.get(&rect));
@@ -62,19 +62,17 @@ fn main() {
         s.width += 1;
     }
 
-    // Use them
-    let s = rect_size_fw.get_mut(&mut rect);
+    // Use them - _w() methods return &mut T directly (not Option)
+    // For WritableKeyPath, we need to convert to OptionalKeyPath to chain, or access directly
     {
-        if let Some(w) = size_width_fw.get_mut(s) {
-            *w += 5;
-        }
-        if let Some(h) = size_height_fw.get_mut(s) {
-            *h += 10;
-        }
+        let s = rect_size_w.get_mut(&mut rect);
+        let w = size_width_w.get_mut(s);
+        *w += 5;
+        let h = size_height_w.get_mut(s);
+        *h += 10;
     }
-    let name = rect_name_fw.get_mut(&mut rect);
-    {
-        name.push_str("_fw");
-    }
+    // _w() methods return &mut T directly
+    let name = rect_name_w.get_mut(&mut rect);
+    name.push_str("_w");
     println!("After failable updates: {:?}", rect);
 }
