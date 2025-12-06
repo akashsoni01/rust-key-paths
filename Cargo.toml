@@ -14,7 +14,7 @@ include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
 # Primary crates: rust-keypaths (static dispatch, faster) and keypaths-proc (proc macros)
-rust-keypaths = "1.0.0"
+rust-keypaths = "1.0.1"
 keypaths-proc = "1.0.0"
 
 # Legacy crates: key-paths-core 1.6.0 for dynamic dispatch, multithreaded needs
@@ -35,9 +35,10 @@ members = [
 ]
 
 [patch.crates-io]
-key-paths-core = { path = "key-paths-core" }
-key-paths-derive = { path = "key-paths-derive" }
-
+# key-paths-core = { path = "key-paths-core" }
+# key-paths-derive = { path = "key-paths-derive" }
+rust-keypaths = { path = "rust-keypaths" }
+keypaths-proc = { path = "keypaths-proc" }
 [features]
 default = []
 # Features for rust-keypaths (static dispatch)

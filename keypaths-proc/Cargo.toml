@@ -19,7 +19,7 @@ proc-macro = true
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full"] }
-rust-keypaths = { path = "../rust-keypaths", version = "1.0.0" }
+rust-keypaths = { path = "../rust-keypaths", version = "1.0.1" }
 
 [dev-dependencies]
-rust-keypaths = { path = "../rust-keypaths", version = "1.0.0" }
+rust-keypaths = { path = "../rust-keypaths", version = "1.0.1" }
