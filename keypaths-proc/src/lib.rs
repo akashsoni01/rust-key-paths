@@ -164,7 +164,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -175,7 +175,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_read, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_read>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_read, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_read>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref())
                                     }
                                 },
@@ -185,7 +185,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -196,7 +196,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_write, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_write>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_write, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_write>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut())
                                     }
                                 },
@@ -206,7 +206,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -217,7 +217,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_owned, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_owned>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_owned, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_owned>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -230,7 +230,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr_at>> {
+                                    pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(index))
                                     }
                                 },
@@ -240,7 +240,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -251,7 +251,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.first())
                                     }
                                 },
@@ -262,7 +262,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw_at>> {
+                                    pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(index))
                                     }
                                 },
@@ -272,7 +272,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -283,7 +283,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.first_mut())
                                     }
                                 },
@@ -293,7 +293,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -304,7 +304,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_iter().next())
                                     }
                                 },
@@ -316,7 +316,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -327,7 +327,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key))
                                     }
                                 },
@@ -338,7 +338,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr_at>> {
+                                    pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key))
                                     }
                                 },
@@ -348,7 +348,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -359,7 +359,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key))
                                     }
                                 },
@@ -370,7 +370,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw_at>> {
+                                    pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key))
                                     }
                                 },
@@ -380,7 +380,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -391,7 +391,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_values().next())
                                     }
                                 },
@@ -414,7 +414,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#field_ident))
                                     }
                                 },
@@ -435,7 +435,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut *s.#field_ident))
                                     }
                                 },
@@ -445,7 +445,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| *s.#field_ident)
                                     }
                                 },
@@ -456,7 +456,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| Some(*s.#field_ident))
                                     }
                                 },
@@ -479,7 +479,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#field_ident))
                                     }
                                 },
@@ -489,7 +489,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| (*s.#field_ident).clone())
                                     }
                                 },
@@ -500,7 +500,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| Some((*s.#field_ident).clone()))
                                     }
                                 },
@@ -512,7 +512,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -522,7 +522,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -532,7 +532,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -543,7 +543,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_values().next())
                                     }
                                 },
@@ -557,7 +557,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -568,7 +568,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.iter().next())
                                     }
                                 },
@@ -578,7 +578,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -588,7 +588,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -599,7 +599,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_iter().next())
                                     }
                                 },
@@ -611,7 +611,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -622,7 +622,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.iter().next())
                                     }
                                 },
@@ -632,7 +632,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -642,7 +642,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -653,7 +653,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_iter().next())
                                     }
                                 },
@@ -665,7 +665,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -676,7 +676,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.front())
                                     }
                                 },
@@ -687,7 +687,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr_at>> {
+                                    pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(index))
                                     }
                                 },
@@ -697,7 +697,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -708,7 +708,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.front_mut())
                                     }
                                 },
@@ -719,7 +719,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw_at>> {
+                                    pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(index))
                                     }
                                 },
@@ -729,7 +729,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -740,7 +740,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_iter().next())
                                     }
                                 },
@@ -752,7 +752,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -763,7 +763,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.front())
                                     }
                                 },
@@ -773,7 +773,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -784,7 +784,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.front_mut())
                                     }
                                 },
@@ -794,7 +794,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -805,7 +805,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_iter().next())
                                     }
                                 },
@@ -817,7 +817,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -827,7 +827,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -837,7 +837,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -848,7 +848,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_iter().next())
                                     }
                                 },
@@ -862,7 +862,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -873,7 +873,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().ok())
                                     }
                                 },
@@ -883,7 +883,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -895,7 +895,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -906,7 +906,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.ok())
                                     }
                                 },
@@ -918,7 +918,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -928,7 +928,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -940,7 +940,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -952,7 +952,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -962,7 +962,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -974,7 +974,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -986,7 +986,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -999,7 +999,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1011,7 +1011,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1024,7 +1024,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1036,7 +1036,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1049,7 +1049,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1062,7 +1062,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1073,7 +1073,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|b| &**b))
                                     }
                                 },
@@ -1083,7 +1083,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -1094,7 +1094,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut().map(|b| &mut **b))
                                     }
                                 },
@@ -1104,7 +1104,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1115,7 +1115,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.map(|b| *b))
                                     }
                                 },
@@ -1127,7 +1127,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1138,7 +1138,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|r| &**r))
                                     }
                                 },
@@ -1148,7 +1148,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1159,7 +1159,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.map(|r| (*r).clone()))
                                     }
                                 },
@@ -1171,7 +1171,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1182,7 +1182,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|a| &**a))
                                     }
                                 },
@@ -1192,7 +1192,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1203,7 +1203,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.map(|a| (*a).clone()))
                                     }
                                 },
@@ -1216,7 +1216,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| (*s.#field_ident).as_ref())
                                     }
                                 },
@@ -1227,7 +1227,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| (*s.#field_ident).as_mut())
                                     }
                                 },
@@ -1240,7 +1240,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| (*s.#field_ident).as_ref())
                                     }
                                 },
@@ -1253,7 +1253,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| (*s.#field_ident).as_ref())
                                     }
                                 },
@@ -1265,7 +1265,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1276,7 +1276,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.first().and_then(|opt| opt.as_ref()))
                                     }
                                 },
@@ -1287,7 +1287,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr_at>> {
+                                    pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(index).and_then(|opt| opt.as_ref()))
                                     }
                                 },
@@ -1297,7 +1297,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -1308,7 +1308,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.first_mut().and_then(|opt| opt.as_mut()))
                                     }
                                 },
@@ -1319,7 +1319,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw_at>> {
+                                    pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(index).and_then(|opt| opt.as_mut()))
                                     }
                                 },
@@ -1329,7 +1329,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1340,7 +1340,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_iter().flatten().next())
                                     }
                                 },
@@ -1352,7 +1352,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1363,7 +1363,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().and_then(|v| v.first()))
                                     }
                                 },
@@ -1374,7 +1374,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr_at>> {
+                                    pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.as_ref().and_then(|v| v.get(index)))
                                     }
                                 },
@@ -1384,7 +1384,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -1395,7 +1395,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut().and_then(|v| v.first_mut()))
                                     }
                                 },
@@ -1406,7 +1406,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw_at>> {
+                                    pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.as_mut().and_then(|v| v.get_mut(index)))
                                     }
                                 },
@@ -1416,7 +1416,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1427,7 +1427,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.and_then(|v| v.into_iter().next()))
                                     }
                                 },
@@ -1439,7 +1439,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1450,7 +1450,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty_fr> {
+                                    pub fn #fr_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key).and_then(|opt| opt.as_ref()))
                                     }
                                 },
@@ -1461,7 +1461,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty_fr_at> {
+                                    pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key).and_then(|opt| opt.as_ref()))
                                     }
                                 },
@@ -1471,7 +1471,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -1482,7 +1482,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty_fw> {
+                                    pub fn #fw_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key).and_then(|opt| opt.as_mut()))
                                     }
                                 },
@@ -1493,7 +1493,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty_fw_at> {
+                                    pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key).and_then(|opt| opt.as_mut()))
                                     }
                                 },
@@ -1503,7 +1503,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1514,7 +1514,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.into_values().flatten().next())
                                     }
                                 },
@@ -1526,7 +1526,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1537,7 +1537,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty_fr> {
+                                    pub fn #fr_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.as_ref().and_then(|m| m.get(&key)))
                                     }
                                 },
@@ -1548,7 +1548,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty_fr_at> {
+                                    pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.as_ref().and_then(|m| m.get(&key)))
                                     }
                                 },
@@ -1558,7 +1558,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -1569,7 +1569,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty_fw> {
+                                    pub fn #fw_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.as_mut().and_then(|m| m.get_mut(&key)))
                                     }
                                 },
@@ -1580,7 +1580,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty_fw_at> {
+                                    pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.as_mut().and_then(|m| m.get_mut(&key)))
                                     }
                                 },
@@ -1590,7 +1590,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1601,7 +1601,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#field_ident.and_then(|m| m.into_values().next()))
                                     }
                                 },
@@ -1613,7 +1613,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1623,7 +1623,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #ty>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                     }
                                 },
@@ -1633,7 +1633,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -1643,7 +1643,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #ty>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #ty>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut s.#field_ident))
                                     }
                                 },
@@ -1653,7 +1653,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1663,7 +1663,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #ty>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| Some(s.#field_ident))
                                     }
                                 },
@@ -1675,7 +1675,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
@@ -1685,7 +1685,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
@@ -1695,7 +1695,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#field_ident)
                                     }
                                 },
@@ -1736,7 +1736,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -1746,7 +1746,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -1757,7 +1757,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref())
                                     }
                                 },
@@ -1768,7 +1768,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.as_mut())
                                     }
                                 },
@@ -1779,7 +1779,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -1790,7 +1790,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -1802,7 +1802,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -1812,7 +1812,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -1823,7 +1823,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                     }
                                 },
@@ -1834,7 +1834,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.first_mut())
                                     }
                                 },
@@ -1845,7 +1845,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn(index: &'static usize) -> rust_keypaths::KeyPaths<#name, #inner_ty_fr_at> {
+                                    pub fn #fr_at_fn(index: &'static usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.get(*index))
                                     }
                                 },
@@ -1856,7 +1856,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn(index: &'static usize) -> rust_keypaths::KeyPaths<#name, #inner_ty_fw_at> {
+                                    pub fn #fw_at_fn(index: &'static usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.get_mut(*index))
                                     }
                                 },
@@ -1867,7 +1867,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -1878,7 +1878,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.into_iter().next())
                                     }
                                 },
@@ -1890,7 +1890,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -1900,7 +1900,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -1911,7 +1911,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#idx_lit.get(&key))
                                     }
                                 },
@@ -1922,7 +1922,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#idx_lit.get_mut(&key))
                                     }
                                 },
@@ -1933,7 +1933,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr_at>> {
+                                    pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr_at, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr_at>> {
                                         rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#idx_lit.get(&key))
                                     }
                                 },
@@ -1944,7 +1944,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw_at>> {
+                                    pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw_at, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw_at>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#idx_lit.get_mut(&key))
                                     }
                                 },
@@ -1955,7 +1955,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -1966,7 +1966,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.into_values().next())
                                     }
                                 },
@@ -1979,7 +1979,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty_read> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty_read, impl for<'r> Fn(&'r #name) -> &'r #inner_ty_read> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                     }
                                 },
@@ -1990,7 +1990,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty_write> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty_write, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty_write> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut *s.#idx_lit)
                                     }
                                 },
@@ -2001,7 +2001,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#idx_lit))
                                     }
                                 },
@@ -2012,7 +2012,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut *s.#idx_lit))
                                     }
                                 },
@@ -2024,7 +2024,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty_owned> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #inner_ty_owned, impl for<'r> Fn(&'r #name) -> &'r #inner_ty_owned> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| *s.#idx_lit)
                                     }
                                 },
@@ -2035,7 +2035,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| Some(*s.#idx_lit))
                                     }
                                 },
@@ -2048,7 +2048,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty_read> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty_read, impl for<'r> Fn(&'r #name) -> &'r #inner_ty_read> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                     }
                                 },
@@ -2059,7 +2059,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#idx_lit))
                                     }
                                 },
@@ -2071,7 +2071,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty_owned> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #inner_ty_owned, impl for<'r> Fn(&'r #name) -> &'r #inner_ty_owned> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| (*s.#idx_lit).clone())
                                     }
                                 },
@@ -2082,7 +2082,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| Some((*s.#idx_lit).clone()))
                                     }
                                 },
@@ -2094,7 +2094,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2104,7 +2104,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2115,7 +2115,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2126,7 +2126,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.into_values().next())
                                     }
                                     // Note: Key-based access methods for BTreeMap require the exact key type
@@ -2140,7 +2140,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2150,7 +2150,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2161,7 +2161,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.iter().next())
                                     }
                                 },
@@ -2172,7 +2172,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2183,7 +2183,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.into_iter().next())
                                     }
                                 },
@@ -2195,7 +2195,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2205,7 +2205,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2216,7 +2216,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.iter().next())
                                     }
                                 },
@@ -2227,7 +2227,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2238,7 +2238,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.into_iter().next())
                                     }
                                 },
@@ -2250,7 +2250,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2260,7 +2260,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2271,7 +2271,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.front())
                                     }
                                 },
@@ -2282,7 +2282,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.front_mut())
                                     }
                                 },
@@ -2293,7 +2293,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2304,7 +2304,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.into_iter().next())
                                     }
                                 },
@@ -2316,7 +2316,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2326,7 +2326,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2337,7 +2337,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.front())
                                     }
                                 },
@@ -2348,7 +2348,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.front_mut())
                                     }
                                 },
@@ -2359,7 +2359,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2370,7 +2370,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.into_iter().next())
                                     }
                                 },
@@ -2382,7 +2382,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2392,7 +2392,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2403,7 +2403,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.peek())
                                     }
                                 },
@@ -2414,7 +2414,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty_fw>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.peek_mut().map(|v| &mut **v))
                                     }
                                 },
@@ -2425,7 +2425,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2436,7 +2436,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.into_iter().next())
                                     }
                                 },
@@ -2448,7 +2448,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2458,7 +2458,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2469,7 +2469,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fr>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().ok())
                                     }
                                 },
@@ -2481,7 +2481,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     // Note: Result<T, E> doesn't support failable_writable for inner type
                                     // Only providing container-level writable access
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2492,7 +2492,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty_fo>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| s.#idx_lit.ok())
                                     }
                                 },
@@ -2504,7 +2504,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2514,7 +2514,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2526,7 +2526,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
                                     // Only providing container-level access
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2538,7 +2538,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2548,7 +2548,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2560,7 +2560,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
                                     // Only providing container-level access
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2572,7 +2572,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2585,7 +2585,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Note: Weak<T> doesn't support writable access (it's immutable)
                                     // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
                                     // Only providing container-level access
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2595,136 +2595,136 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         /*
                         (WrapperKind::OptionBox, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().map(|b| &**b))
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.as_mut().map(|b| &mut **b))
                                 }
                             });
                         }
                         (WrapperKind::OptionRc, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().map(|r| &**r))
                                 }
                             });
                         }
                         (WrapperKind::OptionArc, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().map(|a| &**a))
                                 }
                             });
                         }
                         (WrapperKind::BoxOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                 }
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut *s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| (*s.#idx_lit).as_ref())
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| (*s.#idx_lit).as_mut())
                                 }
                             });
                         }
                         (WrapperKind::RcOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| (*s.#idx_lit).as_ref())
                                 }
                             });
                         }
                         (WrapperKind::ArcOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| (*s.#idx_lit).as_ref())
                                 }
                             });
                         }
                         (WrapperKind::VecOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first().and_then(|opt| opt.as_ref()))
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.first_mut().and_then(|opt| opt.as_mut()))
                                 }
                             });
                         }
                         (WrapperKind::OptionVec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().and_then(|v| v.first()))
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.as_mut().and_then(|v| v.first_mut()))
                                 }
                             });
                         }
                         (WrapperKind::HashMapOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fr_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #fr_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#idx_lit.get(&key).and_then(|opt| opt.as_ref()))
                                 }
-                                pub fn #fw_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #fw_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#idx_lit.get_mut(&key).and_then(|opt| opt.as_mut()))
                                 }
                             });
                         }
                         (WrapperKind::OptionHashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fr_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #fr_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#idx_lit.as_ref().and_then(|m| m.get(&key)))
                                 }
-                                pub fn #fw_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #fw_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: K) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#idx_lit.as_mut().and_then(|m| m.get_mut(&key)))
                                 }
                             });
@@ -2736,7 +2736,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2746,7 +2746,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                     }
                                 },
@@ -2756,7 +2756,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #ty>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                     }
                                 },
@@ -2766,7 +2766,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #ty>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #ty>> {
                                         rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut s.#idx_lit))
                                     }
                                 },
@@ -2777,7 +2777,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2787,7 +2787,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Owned,
                                 quote! {
-                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #ty>> {
+                                    pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                         rust_keypaths::OptionalKeyPath::new(|s: &|s: #name| Some(s.#idx_lit))
                                     }
                                 },
@@ -2799,7 +2799,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
@@ -2810,7 +2810,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
-                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &|s: #name| s.#idx_lit)
                                     }
                                 },
@@ -2839,7 +2839,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 match &variant.fields {
                     Fields::Unit => {
                         tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, ()> {
+                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, (), impl for<'r> Fn(&'r #name) -> &'r ()> {
                                 static UNIT: () = ();
                                 rust_keypaths::KeyPaths::readable_enum(
                                     |_| #name::#v_ident,
@@ -2855,13 +2855,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         match (kind, inner_ty_opt) {
                             (WrapperKind::Option, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref(), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref(), _ => None },
@@ -2872,26 +2872,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::Vec, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut(), _ => None },
                                         )
                                     }
-                                    pub fn #fr_at_fn(index: &'static usize) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #fr_at_fn(index: &'static usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.get(*index), _ => None }
                                         )
                                     }
-                                    pub fn #fw_at_fn(index: &'static usize) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #fw_at_fn(index: &'static usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.get(*index), _ => None },
@@ -2902,26 +2902,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut().map(|(_, v)| v), _ => None },
                                         )
                                     }
-                                    pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.get(key), _ => None }
                                         )
                                     }
-                                    pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.get(key), _ => None },
@@ -2932,13 +2932,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::Box, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None },
@@ -2950,7 +2950,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             (WrapperKind::Rc, Some(inner_ty))
                             | (WrapperKind::Arc, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
@@ -2960,13 +2960,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::BTreeMap, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None },
@@ -2977,7 +2977,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::HashSet, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.iter().next(), _ => None }
@@ -2987,7 +2987,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::BTreeSet, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.iter().next(), _ => None }
@@ -2997,13 +2997,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::VecDeque, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None },
@@ -3014,13 +3014,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::LinkedList, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None },
@@ -3031,13 +3031,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.peek(), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.peek(), _ => None },
@@ -3048,7 +3048,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::Result, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().ok(), _ => None }
@@ -3060,7 +3060,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::Mutex, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
@@ -3072,7 +3072,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::RwLock, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
@@ -3084,7 +3084,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::Weak, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
@@ -3099,13 +3099,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             /*
                             (WrapperKind::OptionBox, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().map(|b| &**b), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().map(|b| &**b), _ => None },
@@ -3116,7 +3116,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::OptionRc, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().map(|r| &**r), _ => None }
@@ -3126,7 +3126,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::OptionArc, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().map(|a| &**a), _ => None }
@@ -3136,26 +3136,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::BoxOption, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #field_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #field_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None },
                                             |e: &mut #name| match e { #name::#v_ident(v) => Some(&mut *v), _ => None },
                                         )
                                     }
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => (*v).as_ref(), _ => None }
                                         )
                                     }
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => (*v).as_ref(), _ => None },
@@ -3166,13 +3166,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::RcOption, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
                                         )
                                     }
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => (*v).as_ref(), _ => None }
@@ -3182,13 +3182,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::ArcOption, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
                                         )
                                     }
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => (*v).as_ref(), _ => None }
@@ -3198,13 +3198,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::VecOption, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().and_then(|opt| opt.as_ref()), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().and_then(|opt| opt.as_ref()), _ => None },
@@ -3215,13 +3215,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::OptionVec, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().and_then(|vec| vec.first()), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().and_then(|vec| vec.first()), _ => None },
@@ -3232,13 +3232,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::HashMapOption, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().and_then(|(_, opt)| opt.as_ref()), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.first().and_then(|(_, opt)| opt.as_ref()), _ => None },
@@ -3249,13 +3249,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             (WrapperKind::OptionHashMap, Some(inner_ty)) => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().and_then(|map| map.first().map(|(_, v)| v)), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => v.as_ref().and_then(|map| map.first().map(|(_, v)| v)), _ => None },
@@ -3268,13 +3268,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             (WrapperKind::None, None) => {
                                 let inner_ty = field_ty;
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
                                         )
                                     }
-                                    pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None },
@@ -3285,7 +3285,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             }
                             _ => {
                                 tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
                                             |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
@@ -3319,10 +3319,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let match_mut_expr = quote! { match e { #pattern => Some(v), _ => None } };
                             
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| #match_expr)
                                 }
-                                pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #field_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #field_ty> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| #match_mut_expr)
                                 }
                             });
@@ -3337,10 +3337,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let w_fn = format_ident!("{}_{}_w", snake, field_ident);
                             
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
                                 }
-                                pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #field_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #field_ty> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
                                 }
                             });
@@ -3513,46 +3513,46 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut())
                                 }
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.first_mut())
                                 }
-                                pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(index))
                                 }
                             });
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
-                                pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key))
                                 }
-                                pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key))
                                 }
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut *s.#field_ident)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut *s.#field_ident))
                                 }
                             });
@@ -3565,20 +3565,20 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
-                                pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key))
                                 }
-                                pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key))
                                 }
                             });
                         }
                         (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
                                 // Note: HashSet doesn't have direct mutable access to elements
@@ -3587,7 +3587,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
                                 // Note: BTreeSet doesn't have direct mutable access to elements
@@ -3596,30 +3596,30 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.front_mut())
                                 }
-                                pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_at_fn(index: usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(index))
                                 }
                             });
                         }
                         (WrapperKind::LinkedList, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.front_mut())
                                 }
                             });
                         }
                         (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
                                 // Note: BinaryHeap peek_mut() returns PeekMut wrapper that doesn't allow direct mutable access
@@ -3628,7 +3628,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
                                 // Note: Result<T, E> doesn't support failable_writable for inner type
@@ -3637,7 +3637,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
                                 // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
@@ -3646,7 +3646,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
                                 // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
@@ -3661,17 +3661,17 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut s.#field_ident))
                                 }
                             });
                         }
                         _ => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                 }
                             });
@@ -3695,46 +3695,46 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.as_mut())
                                 }
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.first_mut())
                                 }
-                                pub fn #fw_at_fn(index: &'static usize) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #fw_at_fn(index: &'static usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.get_mut(*index))
                                 }
                             });
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#idx_lit.get_mut(&key))
                                 }
-                                pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#idx_lit.get_mut(&key))
                                 }
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut *s.#idx_lit)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut *s.#idx_lit))
                                 }
                             });
@@ -3747,20 +3747,20 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#idx_lit.get_mut(&key))
                                 }
-                                pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_at_fn(key: String) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#idx_lit.get_mut(&key))
                                 }
                             });
                         }
                         (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
                                 // Note: HashSet doesn't have direct mutable access to elements
@@ -3769,7 +3769,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
                                 // Note: BTreeSet doesn't have direct mutable access to elements
@@ -3778,27 +3778,27 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.front_mut())
                                 }
                             });
                         }
                         (WrapperKind::LinkedList, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #inner_ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.front_mut())
                                 }
                             });
                         }
                         (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
                                 // Note: BinaryHeap peek_mut() returns PeekMut wrapper that doesn't allow direct mutable access
@@ -3807,7 +3807,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
                                 // Note: Result<T, E> doesn't support failable_writable for inner type
@@ -3816,7 +3816,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
                                 // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
@@ -3825,7 +3825,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
                                 // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
@@ -3840,17 +3840,17 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> Option<&\'r mut #ty>> {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut s.#idx_lit))
                                 }
                             });
                         }
                         _ => {
                             tokens.extend(quote! {
-                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<\'r> Fn(&\'r mut #name) -> &\'r mut #ty> {
+                                pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
                                 }
                             });
@@ -3896,7 +3896,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             // For Option<T>, return failable readable keypath to inner type
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref())
                                 }
                             });
@@ -3904,7 +3904,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             // For Vec<T>, return failable readable keypath to first element
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.first())
                                 }
                             });
@@ -3912,7 +3912,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             // For HashMap<K,V>, return readable keypath to the container
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                             });
@@ -3920,7 +3920,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             // For BTreeMap<K,V>, return readable keypath to the container
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                             });
@@ -3928,7 +3928,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::Box, Some(inner_ty)) => {
                             // For Box<T>, return readable keypath to inner type
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#field_ident)
                                 }
                             });
@@ -3936,7 +3936,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             // For Rc<T>/Arc<T>, return readable keypath to inner type
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#field_ident)
                                 }
                             });
@@ -3944,7 +3944,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::HashSet, Some(inner_ty)) => {
                             // For HashSet<T>, return failable readable keypath to any element
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.iter().next())
                                 }
                             });
@@ -3952,7 +3952,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             // For BTreeSet<T>, return failable readable keypath to any element
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.iter().next())
                                 }
                             });
@@ -3960,7 +3960,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
                             // For VecDeque<T>, return failable readable keypath to front element
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.front())
                                 }
                             });
@@ -3968,7 +3968,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::LinkedList, Some(inner_ty)) => {
                             // For LinkedList<T>, return failable readable keypath to front element
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.front())
                                 }
                             });
@@ -3976,7 +3976,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             // For BinaryHeap<T>, return failable readable keypath to peek element
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.peek())
                                 }
                             });
@@ -3984,7 +3984,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::Result, Some(inner_ty)) => {
                             // For Result<T, E>, return failable readable keypath to Ok value
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().ok())
                                 }
                             });
@@ -3992,7 +3992,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::Mutex, Some(inner_ty)) => {
                             // For Mutex<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                             });
@@ -4000,7 +4000,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::RwLock, Some(inner_ty)) => {
                             // For RwLock<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                             });
@@ -4008,7 +4008,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::Weak, Some(inner_ty)) => {
                             // For Weak<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                             });
@@ -4016,7 +4016,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::None, None) => {
                             // For basic types, return readable keypath
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                             });
@@ -4024,7 +4024,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         _ => {
                             // For unknown types, return readable keypath
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                             });
@@ -4045,119 +4045,119 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref())
                                 }
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                 }
                             });
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                 }
                             });
                         }
                         (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                 }
                             });
                         }
                         (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.iter().next())
                                 }
                             });
                         }
                         (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.iter().next())
                                 }
                             });
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.front())
                                 }
                             });
                         }
                         (WrapperKind::LinkedList, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.front())
                                 }
                             });
                         }
                         (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.peek())
                                 }
                             });
                         }
                         (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().ok())
                                 }
                             });
                         }
                         (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
                         (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
                         (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                             });
                         }
                         _ => {
                             tokens.extend(quote! {
-                                pub fn #field_name() -> rust_keypaths::KeyPaths<#name, #ty> {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                             });
@@ -4180,7 +4180,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     Fields::Unit => {
                         // Unit variant - return readable keypath to the variant itself
                         tokens.extend(quote! {
-                            pub fn #snake() -> rust_keypaths::KeyPaths<#name, #name> {
+                            pub fn #snake() -> rust_keypaths::KeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> &'r #name> {
                                 rust_keypaths::KeyPath::new(|s: &#name| s)
                             }
                         });
@@ -4194,7 +4194,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty.clone()) {
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.as_ref(),
                                                 _ => None,
@@ -4204,7 +4204,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Vec, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.first(),
                                                 _ => None,
@@ -4214,7 +4214,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::HashMap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4224,7 +4224,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::BTreeMap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4234,7 +4234,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Box, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(&**inner),
                                                 _ => None,
@@ -4244,7 +4244,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(&**inner),
                                                 _ => None,
@@ -4254,7 +4254,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::HashSet, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.iter().next(),
                                                 _ => None,
@@ -4264,7 +4264,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::BTreeSet, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.iter().next(),
                                                 _ => None,
@@ -4274,7 +4274,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::VecDeque, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.front(),
                                                 _ => None,
@@ -4284,7 +4284,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::LinkedList, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.front(),
                                                 _ => None,
@@ -4294,7 +4294,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.peek(),
                                                 _ => None,
@@ -4304,7 +4304,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Result, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => inner.as_ref().ok(),
                                                 _ => None,
@@ -4314,7 +4314,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Mutex, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4324,7 +4324,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::RwLock, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4334,7 +4334,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Weak, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4345,7 +4345,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 (WrapperKind::None, None) => {
                                     // Basic type - return failable readable keypath
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4356,7 +4356,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 _ => {
                                     // Unknown type - return failable readable keypath
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPaths<#name, #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4368,7 +4368,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         } else {
                             // Multi-field tuple variant - return failable readable keypath to the variant
                             tokens.extend(quote! {
-                                pub fn #snake() -> rust_keypaths::KeyPaths<#name, #name> {
+                                pub fn #snake() -> rust_keypaths::KeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> &'r #name> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                         #name::#v_ident(..) => Some(s),
                                         _ => None,
@@ -4380,7 +4380,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     Fields::Named(_named) => {
                         // Named field variant - return failable readable keypath to the variant
                         tokens.extend(quote! {
-                            pub fn #snake() -> rust_keypaths::KeyPaths<#name, #name> {
+                            pub fn #snake() -> rust_keypaths::KeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> &'r #name> {
                                 rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                     #name::#v_ident { .. } => Some(s),
                                     _ => None,
@@ -4428,139 +4428,139 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref())
                                 }
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.first())
                                 }
-                                pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(index))
                                 }
                             });
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key))
                                 }
-                                pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key))
                                 }
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#field_ident))
                                 }
                             });
                         }
                         (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#field_ident))
                                 }
                             });
                         }
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key))
                                 }
-                                pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key))
                                 }
                             });
                         }
                         (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.iter().next())
                                 }
                             });
                         }
                         (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.iter().next())
                                 }
                             });
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.front())
                                 }
-                                pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(index))
                                 }
                             });
                         }
                         (WrapperKind::LinkedList, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.front())
                                 }
                             });
                         }
                         (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.peek())
                                 }
                             });
                         }
                         (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().ok())
                                 }
                             });
                         }
                         (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                                 // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
@@ -4569,7 +4569,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                                 // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
@@ -4578,7 +4578,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                                 // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
@@ -4587,17 +4587,17 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
                         _ => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                 }
                             });
@@ -4621,136 +4621,136 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref())
                                 }
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                 }
-                                pub fn #fr_at_fn(index: &'static usize) -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #fr_at_fn(index: &'static usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.get(*index))
                                 }
                             });
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#idx_lit.get(&key))
                                 }
-                                pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#idx_lit.get(&key))
                                 }
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#idx_lit))
                                 }
                             });
                         }
                         (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#idx_lit))
                                 }
                             });
                         }
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#idx_lit.get(&key))
                                 }
-                                pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_at_fn(key: String) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#idx_lit.get(&key))
                                 }
                             });
                         }
                         (WrapperKind::HashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.iter().next())
                                 }
                             });
                         }
                         (WrapperKind::BTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.iter().next())
                                 }
                             });
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.front())
                                 }
                             });
                         }
                         (WrapperKind::LinkedList, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.front())
                                 }
                             });
                         }
                         (WrapperKind::BinaryHeap, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.peek())
                                 }
                             });
                         }
                         (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #inner_ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().ok())
                                 }
                             });
                         }
                         (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                                 // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
@@ -4759,7 +4759,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                                 // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
@@ -4768,7 +4768,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                                 // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
@@ -4777,17 +4777,17 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> Option<&\'r #ty>> {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                 }
                             });
                         }
                         _ => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<\'r> Fn(&\'r #name) -> &\'r #ty> {
+                                pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                 }
                             });
@@ -4831,7 +4831,7 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                 match &variant.fields {
                     Fields::Unit => {
                         tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, ()> {
+                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, (), impl for<'r> Fn(&'r #name) -> &'r ()> {
                                 static UNIT: () = ();
                                 rust_keypaths::KeyPaths::readable_enum(
                                     |_| #name::#v_ident,
@@ -4843,13 +4843,13 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                     Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
                         let inner_ty = &unnamed.unnamed.first().unwrap().ty;
                         tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                 rust_keypaths::KeyPaths::readable_enum(
                                     #name::#v_ident,
                                     |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
                                 )
                             }
-                            pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #inner_ty> {
+                            pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                 rust_keypaths::KeyPaths::writable_enum(
                                     #name::#v_ident,
                                     |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None },
@@ -4869,12 +4869,12 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                             .collect();
                         
                         tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #tuple_ty> {
+                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> &'r #tuple_ty> {
                                 rust_keypaths::OptionalKeyPath::new(|s: &
                                     |e: #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None }
                                 )
                             }
-                            pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #tuple_ty> {
+                            pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #tuple_ty> {
                                 rust_keypaths::OptionalKeyPath::new(|s: &
                                     |e: #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None }
                                 )
@@ -4889,12 +4889,12 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                         let tuple_ty = quote! { (#(#field_types),*) };
                         
                         tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::KeyPaths<#name, #tuple_ty> {
+                            pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> &'r #tuple_ty> {
                                 rust_keypaths::OptionalKeyPath::new(|s: &
                                     |e: #name| match e { #name::#v_ident { #(#field_names),* } => Some((#(#field_names),*)), _ => None }
                                 )
                             }
-                            pub fn #w_fn() -> rust_keypaths::KeyPaths<#name, #tuple_ty> {
+                            pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #tuple_ty> {
                                 rust_keypaths::OptionalKeyPath::new(|s: &
                                     |e: #name| match e { #name::#v_ident { #(#field_names),* } => Some((#(#field_names),*)), _ => None }
                                 )
