@@ -3,7 +3,7 @@ use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedLis
 
 #[derive(Debug)]
 struct ContainerTest {
-    vec_field: Vec<String>,
+    vec_field: Option<Vec<String>>,
     vecdeque_field: VecDeque<String>,
     linkedlist_field: LinkedList<String>,
     hashmap_field: HashMap<String, i32>,
@@ -15,7 +15,7 @@ struct ContainerTest {
 
 fn main() {
     let test = ContainerTest {
-        vec_field: vec!["one".to_string(), "two".to_string(), "three".to_string()],
+        vec_field: Some(vec!["one".to_string(), "two".to_string(), "three".to_string()]),
         vecdeque_field: VecDeque::from(vec!["a".to_string(), "b".to_string()]),
         linkedlist_field: LinkedList::from(["x".to_string(), "y".to_string()]),
         hashmap_field: {
@@ -50,9 +50,9 @@ fn main() {
         },
     };
 
-    // Access Vec element at index
+    // Access Vec element at index (vec_field is Option<Vec<String>>, so unwrap Option first)
     let vec_index_kp = containers::for_vec_index::<String>(1);
-    let chained_vec = OptionalKeyPath::new(|c: &ContainerTest| Some(&c.vec_field))
+    let chained_vec = OptionalKeyPath::new(|c: &ContainerTest| c.vec_field.as_ref())
         .then(vec_index_kp);
     
     if let Some(value) = chained_vec.get(&test) {
