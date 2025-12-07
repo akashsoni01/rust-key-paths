@@ -1,5 +1,4 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use key_paths_derive::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Keypaths};
 
 #[derive(Debug, Clone, Keypaths)]
 struct User {
@@ -8,6 +7,7 @@ struct User {
 }
 
 #[derive(Debug, Casepaths)]
+#[All]
 enum Status {
     Active(User),
     Inactive,
@@ -20,22 +20,23 @@ fn main() {
     });
 
     let kp_active = Status::active_case_r();
-    let active_name = Status::active_case_r().to_optional().then(User::name_r().to_optional());
-    println!("Active name = {:?}", active_name.get(&status));
+    let active_name = Status::active_case_r().then(User::name_r().to_optional());
+    if let Some(name) = active_name.get(&status) {
+        println!("Active name = {:?}", name);
+    }
 
     let mut status2 = Status::Active(User {
         id: 2,
         name: "Bob".into(),
     });
     let kp_active_w = Status::active_case_w();
-    let user = kp_active_w.get_mut(&mut status2);
-    {
+    if let Some(user) = kp_active_w.get_mut(&mut status2) {
         user.name.push_str("_edited");
     }
     println!("Status2 = {:?}", status2);
 
-    // Embedding via readable enum
-    let embedded = kp_active.embed(User {
+    // Embedding via readable enum - use the generated embed function
+    let embedded = Status::active_case_embed(User {
         id: 3,
         name: "Cleo".into(),
     });

@@ -4863,15 +4863,28 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                         
                         // Single-field variant - extract the inner value
                         if variant_scope.includes_read() {
+                            let embed_fn = format_ident!("{}_case_embed", snake);
                             tokens.extend(quote! {
                                 pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                                // Alias for fr_fn - returns OptionalKeyPath (enum casepaths are always optional)
+                                pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                                // Embed method - creates the enum variant from a value
+                                pub fn #embed_fn(value: #inner_ty) -> #name {
+                                    #name::#v_ident(value)
                                 }
                             });
                         }
                         if variant_scope.includes_write() {
                             tokens.extend(quote! {
                                 pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                                // Alias for fw_fn - returns WritableOptionalKeyPath (enum casepaths are always optional)
+                                pub fn #w_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None })
                                 }
                             });
