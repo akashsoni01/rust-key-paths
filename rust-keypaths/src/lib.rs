@@ -451,7 +451,7 @@ where
 // Extension methods for KeyPath to support Arc<RwLock> and Arc<Mutex> directly
 impl<Root, Value, F> KeyPath<Root, Value, F>
 where
-    F: for<'r> Fn(&'r Root) -> &'r Value + Clone,
+    F: for<'r> Fn(&'r Root) -> &'r Value,
 {
     /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
     /// This is a convenience method that works directly with Arc<RwLock<T>>
@@ -998,6 +998,18 @@ where
     pub fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
     where
         F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        arc_rwlock.read().ok().and_then(|guard| {
+            self.get(&*guard).map(|value| f(value))
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
+    /// This is a convenience method that works directly with Arc<RwLock<T>>
+    /// Unlike with_arc_rwlock, this doesn't require F: Clone
+    pub fn with_arc_rwlock_direct<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
         Callback: FnOnce(&Value) -> R,
     {
         arc_rwlock.read().ok().and_then(|guard| {

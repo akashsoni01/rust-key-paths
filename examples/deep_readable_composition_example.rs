@@ -1,5 +1,5 @@
 use keypaths_proc::Keypaths;
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
+use rust_keypaths::OptionalKeyPath;
 use std::sync::{Arc, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
@@ -273,11 +273,10 @@ fn main() {
         let org = &*guard;
         if let Some(first_org) = org.organizations.first() {
             let org_name_path = Organization::name_r();
-            if let Some(name) = org_name_path.get(&first_org) {
-                println!("\n2️⃣  Two-Level Composition - First Organization Name");
-                println!("------------------------------------------------");
-                println!("✅ First organization name: {}", name);
-            }
+            let name = org_name_path.get(&first_org);
+            println!("\n2️⃣  Two-Level Composition - First Organization Name");
+            println!("------------------------------------------------");
+            println!("✅ First organization name: {}", name);
         }
     }
 
@@ -385,14 +384,29 @@ fn main() {
     println!("--------------------------------");
     
     let org_base = BusinessGroup::organizations_fr_at(0);
-    let company_base = org_base.clone().then(Organization::company_r().to_optional());
-    let employees_base = company_base.then(Company::employees_r().to_optional());
-    let first_employee_base = org_base.then(Organization::company_r().to_optional()).then(Company::employees_fr_at(0));
+    // Note: We recreate paths instead of cloning since OptionalKeyPath doesn't implement Clone
+    let company_base = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional());
+    let employees_base = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_r().to_optional());
+    let first_employee_base = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_fr_at(0));
 
     // Use the same base paths for different fields
-    let employee_name_path = first_employee_base.clone().then(Employee::name_r().to_optional());
-    let employee_position_path = first_employee_base.clone().then(Employee::position_r().to_optional());
-    let employee_salary_path = first_employee_base.then(Employee::salary_r().to_optional());
+    let employee_name_path = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_fr_at(0))
+        .then(Employee::name_r().to_optional());
+    let employee_position_path = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_fr_at(0))
+        .then(Employee::position_r().to_optional());
+    let employee_salary_path = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_fr_at(0))
+        .then(Employee::salary_r().to_optional());
 
     employee_name_path.with_arc_rwlock_direct(&business_group, |name| {
         println!("✅ Employee name (reusable base): {}", name);
@@ -449,6 +463,7 @@ fn main() {
     let ceo_email_path = BusinessGroup::ceo_contact_r().to_optional().then(Contact::email_r().to_optional());
     let ceo_phone_path = BusinessGroup::ceo_contact_r().to_optional().then(Contact::phone_fr());
     let ceo_address_city_path = BusinessGroup::ceo_contact_r()
+        .to_optional()
         .then(Contact::address_r().to_optional())
         .then(Address::city_r().to_optional());
 
