@@ -1,4 +1,3 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
@@ -56,8 +55,7 @@ fn main() {
     let engine_fw = Car::engine_fw();
     let hp_fw = Engine::horsepower_fw();
 
-    let garage = garage_fw.get_mut(&mut city2);
-    {
+    if let Some(garage) = garage_fw.get_mut(&mut city2) {
         if let Some(car) = car_fw.get_mut(garage) {
             if let Some(engine) = engine_fw.get_mut(car) {
                 if let Some(hp) = hp_fw.get_mut(engine) {
