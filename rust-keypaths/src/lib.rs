@@ -2058,7 +2058,8 @@ mod tests {
 
     impl Clone for NoCloneType {
         fn clone(&self) -> Self {
-            panic!("NoCloneType should not be cloned! ID: {}", self.id);
+            eprintln!("[DEBUG] NoCloneType should not be cloned! ID: {}", self.id);
+            unreachable!("NoCloneType should not be cloned! ID: {}", self.id);
         }
     }
 
@@ -2657,7 +2658,8 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        panic!("KeyPath does not support mutable access - use WritableKeyPath instead")
+        eprintln!("[DEBUG] KeyPath does not support mutable access - use WritableKeyPath instead");
+        unreachable!("KeyPath does not support mutable access - use WritableKeyPath instead")
     }
 
     fn with_rc<Callback, R>(&self, rc: &Rc<Root>, f: Callback) -> R
@@ -2761,8 +2763,7 @@ where
     }
 }
 
-// Implement WithContainer for OptionalKeyPath, WritableKeyPath, and WritableOptionalKeyPath
-// (Similar implementations - using existing methods)
+// Implement WithContainer for OptionalKeyPath - read-only operations only
 impl<Root, Value, F> WithContainer<Root, Value> for OptionalKeyPath<Root, Value, F>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Value> + Clone,
@@ -2785,7 +2786,8 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        panic!("OptionalKeyPath does not support mutable access")
+        eprintln!("[DEBUG] OptionalKeyPath does not support mutable access - use WritableOptionalKeyPath instead");
+        unreachable!("OptionalKeyPath does not support mutable access - use WritableOptionalKeyPath instead")
     }
 
     fn with_rc<Callback, R>(&self, rc: &Rc<Root>, f: Callback) -> R
@@ -2806,7 +2808,7 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        None
+        None // OptionalKeyPath doesn't support mutable access
     }
 
     fn with_option<Callback, R>(&self, option: &Option<Root>, f: Callback) -> Option<R>
@@ -2820,7 +2822,7 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        None
+        None // OptionalKeyPath doesn't support mutable access
     }
 
     fn with_refcell<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
@@ -2834,7 +2836,7 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        None
+        None // OptionalKeyPath doesn't support mutable access
     }
 
     #[cfg(feature = "tagged")]
@@ -2857,7 +2859,7 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        None
+        None // OptionalKeyPath doesn't support mutable access
     }
 
     fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
@@ -2871,7 +2873,7 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        None
+        None // OptionalKeyPath doesn't support mutable access
     }
 
     fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
@@ -2885,6 +2887,349 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
+        None // OptionalKeyPath doesn't support mutable access - use WritableOptionalKeyPath instead
+    }
+}
+
+// Implement WithContainer for WritableKeyPath - supports all mutable operations
+impl<Root, Value, F> WithContainer<Root, Value> for WritableKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> &'r mut Value,
+{
+    fn with_arc<Callback, R>(&self, _arc: &Arc<Root>, _f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // Arc doesn't support mutable access without interior mutability
+        // This method requires &mut Arc<Root> which we don't have
+        eprintln!("[DEBUG] WritableKeyPath::with_arc requires &mut Arc<Root> or interior mutability");
+        unreachable!("WritableKeyPath::with_arc requires &mut Arc<Root> or interior mutability")
+    }
+
+    fn with_box<Callback, R>(&self, boxed: &Box<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // Box doesn't support getting mutable reference from immutable reference
+        // This is a limitation - we'd need &mut Box<Root> for mutable access
+        eprintln!("[DEBUG] WritableKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead");
+        unreachable!("WritableKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead")
+    }
+
+    fn with_box_mut<Callback, R>(&self, boxed: &mut Box<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        let value = self.get_mut(boxed.as_mut());
+        f(value)
+    }
+
+    fn with_rc<Callback, R>(&self, _rc: &Rc<Root>, _f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // Rc doesn't support mutable access without interior mutability
+        // This method requires &mut Rc<Root> which we don't have
+        eprintln!("[DEBUG] WritableKeyPath::with_rc requires &mut Rc<Root> or interior mutability");
+        unreachable!("WritableKeyPath::with_rc requires &mut Rc<Root> or interior mutability")
+    }
+
+    fn with_result<Callback, R, E>(&self, _result: &Result<Root, E>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // WritableKeyPath requires &mut Root, but we only have &Result<Root, E>
+        // This is a limitation - use with_result_mut for mutable access
         None
+    }
+
+    fn with_result_mut<Callback, R, E>(&self, result: &mut Result<Root, E>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        result.as_mut().ok().map(|root| {
+            let value = self.get_mut(root);
+            f(value)
+        })
+    }
+
+    fn with_option<Callback, R>(&self, _option: &Option<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // WritableKeyPath requires &mut Root, but we only have &Option<Root>
+        // This is a limitation - use with_option_mut for mutable access
+        None
+    }
+
+    fn with_option_mut<Callback, R>(&self, option: &mut Option<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        option.as_mut().map(|root| {
+            let value = self.get_mut(root);
+            f(value)
+        })
+    }
+
+    fn with_refcell<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // RefCell doesn't allow getting mutable reference from immutable borrow
+        // This is a limitation - we'd need try_borrow_mut for mutable access
+        None
+    }
+
+    fn with_refcell_mut<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        refcell.try_borrow_mut().ok().map(|mut borrow| {
+            let value = self.get_mut(&mut *borrow);
+            f(value)
+        })
+    }
+
+    #[cfg(feature = "tagged")]
+    fn with_tagged<Tag, Callback, R>(&self, _tagged: &Tagged<Root, Tag>, _f: Callback) -> R
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        Callback: FnOnce(&Value) -> R,
+    {
+        // WritableKeyPath requires &mut Root, but we only have &Tagged<Root, Tag>
+        // This is a limitation - Tagged doesn't support mutable access without interior mutability
+        eprintln!("[DEBUG] WritableKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability");
+        unreachable!("WritableKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability")
+    }
+
+    fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        mutex.lock().ok().map(|mut guard| {
+            let value = self.get_mut(&mut *guard);
+            f(value)
+        })
+    }
+
+    fn with_mutex_mut<Callback, R>(&self, mutex: &mut Mutex<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        // Mutex::get_mut returns Result<&mut Root, PoisonError>
+        mutex.get_mut().ok().map(|root| {
+            let value = self.get_mut(root);
+            f(value)
+        })
+    }
+
+    fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // RwLock read guard doesn't allow mutable access
+        // This is a limitation - we'd need write() for mutable access
+        None
+    }
+
+    fn with_rwlock_mut<Callback, R>(&self, rwlock: &mut RwLock<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        // RwLock::get_mut returns Result<&mut Root, PoisonError>
+        rwlock.get_mut().ok().map(|root| {
+            let value = self.get_mut(root);
+            f(value)
+        })
+    }
+
+    fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // Arc<RwLock> read guard doesn't allow mutable access
+        // This is a limitation - we'd need write() for mutable access
+        None
+    }
+
+    fn with_arc_rwlock_mut<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        arc_rwlock.write().ok().map(|mut guard| {
+            let value = self.get_mut(&mut *guard);
+            f(value)
+        })
+    }
+}
+
+// Implement WithContainer for WritableOptionalKeyPath - supports all mutable operations
+impl<Root, Value, F> WithContainer<Root, Value> for WritableOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value>,
+{
+    fn with_arc<Callback, R>(&self, _arc: &Arc<Root>, _f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // Arc doesn't support mutable access without interior mutability
+        // This method requires &mut Arc<Root> which we don't have
+        eprintln!("[DEBUG] WritableOptionalKeyPath::with_arc requires &mut Arc<Root> or interior mutability");
+        unreachable!("WritableOptionalKeyPath::with_arc requires &mut Arc<Root> or interior mutability")
+    }
+
+    fn with_box<Callback, R>(&self, _boxed: &Box<Root>, _f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // WritableOptionalKeyPath requires &mut Root, but we only have &Box<Root>
+        // This is a limitation - use with_box_mut for mutable access
+        eprintln!("[DEBUG] WritableOptionalKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead");
+        unreachable!("WritableOptionalKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead")
+    }
+
+    fn with_box_mut<Callback, R>(&self, boxed: &mut Box<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        if let Some(value) = self.get_mut(boxed.as_mut()) {
+            f(value)
+        } else {
+            eprintln!("[DEBUG] WritableOptionalKeyPath failed to get value from Box");
+            unreachable!("WritableOptionalKeyPath failed to get value from Box")
+        }
+    }
+
+    fn with_rc<Callback, R>(&self, _rc: &Rc<Root>, _f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // Rc doesn't support mutable access without interior mutability
+        // This method requires &mut Rc<Root> which we don't have
+        eprintln!("[DEBUG] WritableOptionalKeyPath::with_rc requires &mut Rc<Root> or interior mutability");
+        unreachable!("WritableOptionalKeyPath::with_rc requires &mut Rc<Root> or interior mutability")
+    }
+
+    fn with_result<Callback, R, E>(&self, _result: &Result<Root, E>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // WritableOptionalKeyPath requires &mut Root, but we only have &Result<Root, E>
+        // This is a limitation - use with_result_mut for mutable access
+        None
+    }
+
+    fn with_result_mut<Callback, R, E>(&self, result: &mut Result<Root, E>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        result.as_mut().ok().and_then(|root| {
+            self.get_mut(root).map(|value| f(value))
+        })
+    }
+
+    fn with_option<Callback, R>(&self, _option: &Option<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // WritableOptionalKeyPath requires &mut Root, but we only have &Option<Root>
+        // This is a limitation - use with_option_mut for mutable access
+        None
+    }
+
+    fn with_option_mut<Callback, R>(&self, option: &mut Option<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        option.as_mut().and_then(|root| {
+            self.get_mut(root).map(|value| f(value))
+        })
+    }
+
+    fn with_refcell<Callback, R>(&self, _refcell: &RefCell<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // RefCell doesn't allow getting mutable reference from immutable borrow
+        // This is a limitation - we'd need try_borrow_mut for mutable access
+        None
+    }
+
+    fn with_refcell_mut<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        refcell.try_borrow_mut().ok().and_then(|mut borrow| {
+            self.get_mut(&mut *borrow).map(|value| f(value))
+        })
+    }
+
+    #[cfg(feature = "tagged")]
+    fn with_tagged<Tag, Callback, R>(&self, _tagged: &Tagged<Root, Tag>, _f: Callback) -> R
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        Callback: FnOnce(&Value) -> R,
+    {
+        // WritableOptionalKeyPath requires &mut Root, but we only have &Tagged<Root, Tag>
+        // This is a limitation - Tagged doesn't support mutable access without interior mutability
+        eprintln!("[DEBUG] WritableOptionalKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability");
+        unreachable!("WritableOptionalKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability")
+    }
+
+    fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        mutex.lock().ok().and_then(|mut guard| {
+            self.get_mut(&mut *guard).map(|value| f(value))
+        })
+    }
+
+    fn with_mutex_mut<Callback, R>(&self, mutex: &mut Mutex<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        // Mutex::get_mut returns Result<&mut Root, PoisonError>
+        mutex.get_mut().ok().and_then(|root| {
+            self.get_mut(root).map(|value| f(value))
+        })
+    }
+
+    fn with_rwlock<Callback, R>(&self, _rwlock: &RwLock<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // RwLock read guard doesn't allow mutable access
+        // This is a limitation - we'd need write() for mutable access
+        None
+    }
+
+    fn with_rwlock_mut<Callback, R>(&self, rwlock: &mut RwLock<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        // RwLock::get_mut returns Result<&mut Root, PoisonError>
+        rwlock.get_mut().ok().and_then(|root| {
+            self.get_mut(root).map(|value| f(value))
+        })
+    }
+
+    fn with_arc_rwlock<Callback, R>(&self, _arc_rwlock: &Arc<RwLock<Root>>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        // Arc<RwLock> read guard doesn't allow mutable access
+        // This is a limitation - we'd need write() for mutable access
+        None
+    }
+
+    fn with_arc_rwlock_mut<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        arc_rwlock.write().ok().and_then(|mut guard| {
+            self.get_mut(&mut *guard).map(|value| f(value))
+        })
     }
 }
