@@ -4,6 +4,9 @@ use std::any::{Any, TypeId};
 use std::rc::Rc;
 use std::cell::RefCell;
 
+#[cfg(feature = "tagged")]
+use tagged_core::Tagged;
+
 // ========== HELPER MACROS FOR KEYPATH CREATION ==========
 
 /// Macro to create a `KeyPath` (readable, non-optional)
@@ -315,6 +318,59 @@ where
             let value = self.get(&*guard);
             f(value)
         })
+    }
+    
+    #[cfg(feature = "tagged")]
+    /// Adapt this keypath to work with Tagged<Root, Tag> instead of Root
+    /// This unwraps the Tagged wrapper and applies the keypath to the inner value
+    pub fn for_tagged<Tag>(self) -> KeyPath<Tagged<Root, Tag>, Value, impl for<'r> Fn(&'r Tagged<Root, Tag>) -> &'r Value + 'static>
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+        Tag: 'static,
+    {
+        use std::ops::Deref;
+        let getter = self.getter;
+        
+        KeyPath {
+            getter: move |tagged: &Tagged<Root, Tag>| {
+                getter(tagged.deref())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    #[cfg(feature = "tagged")]
+    /// Execute a closure with a reference to the value inside a Tagged
+    /// This avoids cloning by working with references directly
+    pub fn with_tagged<Tag, Callback, R>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> R
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        Callback: FnOnce(&Value) -> R,
+    {
+        use std::ops::Deref;
+        let value = self.get(tagged.deref());
+        f(value)
+    }
+    
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    /// This converts the KeyPath to an OptionalKeyPath and unwraps the Option
+    pub fn for_option(self) -> OptionalKeyPath<Option<Root>, Value, impl for<'r> Fn(&'r Option<Root>) -> Option<&'r Value> + 'static>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |opt: &Option<Root>| {
+                opt.as_ref().map(|root| getter(root))
+            },
+            _phantom: PhantomData,
+        }
     }
     
 }
@@ -724,9 +780,57 @@ where
         }
     }
     
-    // Static method for Option<T> -> Option<&T>
-    pub fn for_option<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
-        OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
+    #[cfg(feature = "tagged")]
+    /// Adapt this keypath to work with Tagged<Root, Tag> instead of Root
+    /// This unwraps the Tagged wrapper and applies the keypath to the inner value
+    pub fn for_tagged<Tag>(self) -> OptionalKeyPath<Tagged<Root, Tag>, Value, impl for<'r> Fn(&'r Tagged<Root, Tag>) -> Option<&'r Value> + 'static>
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+        Tag: 'static,
+    {
+        use std::ops::Deref;
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |tagged: &Tagged<Root, Tag>| {
+                getter(tagged.deref())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    #[cfg(feature = "tagged")]
+    /// Execute a closure with a reference to the value inside a Tagged
+    /// This avoids cloning by working with references directly
+    pub fn with_tagged<Tag, Callback, R>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> Option<R>
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        use std::ops::Deref;
+        self.get(tagged.deref()).map(|value| f(value))
+    }
+    
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    /// This unwraps the Option and applies the keypath to the inner value
+    pub fn for_option(self) -> OptionalKeyPath<Option<Root>, Value, impl for<'r> Fn(&'r Option<Root>) -> Option<&'r Value> + 'static>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |opt: &Option<Root>| {
+                opt.as_ref().and_then(|root| getter(root))
+            },
+            _phantom: PhantomData,
+        }
     }
     
     /// Execute a closure with a reference to the value inside an Option
