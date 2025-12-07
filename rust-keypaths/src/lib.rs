@@ -1410,7 +1410,62 @@ where
 #[derive(Clone)]
 pub struct EnumKeyPaths;
 
+/// EnumKeyPath - A keypath for enum variants that supports both extraction and embedding
+pub struct EnumKeyPath<Enum, Variant, ExtractFn> 
+where
+    ExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
+{
+    extractor: OptionalKeyPath<Enum, Variant, ExtractFn>,
+    embedder: Box<dyn Fn(Variant) -> Enum + 'static>,
+}
+
+impl<Enum, Variant, ExtractFn> EnumKeyPath<Enum, Variant, ExtractFn>
+where
+    ExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
+{
+    /// Create a new EnumKeyPath with extractor and embedder functions
+    pub fn new<EmbedFn>(
+        extractor: ExtractFn,
+        embedder: EmbedFn,
+    ) -> Self
+    where
+        EmbedFn: Fn(Variant) -> Enum + 'static,
+    {
+        Self {
+            extractor: OptionalKeyPath::new(extractor),
+            embedder: Box::new(embedder),
+        }
+    }
+    
+    /// Extract the value from an enum variant
+    pub fn get<'r>(&self, enum_value: &'r Enum) -> Option<&'r Variant> {
+        self.extractor.get(enum_value)
+    }
+    
+    /// Embed a value into the enum variant
+    pub fn embed(&self, value: Variant) -> Enum {
+        (self.embedder)(value)
+    }
+    
+    /// Get the underlying OptionalKeyPath for composition
+    pub fn as_optional(&self) -> &OptionalKeyPath<Enum, Variant, ExtractFn> {
+        &self.extractor
+    }
+}
+
 impl EnumKeyPaths {
+    /// Create a readable enum keypath with both extraction and embedding
+    pub fn readable_enum<Enum, Variant, ExtractFn, EmbedFn>(
+        embedder: EmbedFn,
+        extractor: ExtractFn,
+    ) -> EnumKeyPath<Enum, Variant, ExtractFn>
+    where
+        ExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
+        EmbedFn: Fn(Variant) -> Enum + 'static,
+    {
+        EnumKeyPath::new(extractor, embedder)
+    }
+    
     // Extract from a specific enum variant
     pub fn for_variant<Enum, Variant, ExtractFn>(
         extractor: ExtractFn

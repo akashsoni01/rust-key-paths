@@ -1,4 +1,4 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use rust_keypaths::EnumKeyPaths;
 
 #[derive(Debug, Clone)]
 struct User {
@@ -20,29 +20,41 @@ enum SomeOtherStatus {
 
 fn main() {
     // ---------- EnumPath ----------
-    let cp = KeyPaths::readable_enum(Status::Active, |u| match u {
-        Status::Active(e) => Some(e),
-        _ => None,
-    });
+    let cp = EnumKeyPaths::readable_enum(
+        |user: User| Status::Active(user),
+        |u| match u {
+            Status::Active(e) => Some(e),
+            _ => None,
+        },
+    );
     // let cp2 = enum_keypath!(Status::Inactive(()));
-    let cp2 = KeyPaths::readable_enum(Status::Inactive, |u| match u {
-        Status::Inactive(e) => None,
-        _ => None,
-    });
+    let cp2 = EnumKeyPaths::readable_enum(
+        |_unit: ()| Status::Inactive(()),
+        |u| match u {
+            Status::Inactive(_) => Some(&()),
+            _ => None,
+        },
+    );
 
     // let cp3 = enum_keypath!(SomeOtherStatus::Active(String));
-    let cp3 = KeyPaths::readable_enum(SomeOtherStatus::Active, |u| match u {
-        SomeOtherStatus::Active(e) => Some(e),
-        _ => None,
-    });
+    let cp3 = EnumKeyPaths::readable_enum(
+        |s: String| SomeOtherStatus::Active(s),
+        |u| match u {
+            SomeOtherStatus::Active(e) => Some(e),
+            _ => None,
+        },
+    );
     if let Some(x) = cp3.get(&SomeOtherStatus::Active("Hello".to_string())) {
         println!("Active: {:?}", x);
     }
 
     // let cp4 = enum_keypath!(SomeOtherStatus::Inactive);
-    let cp4 = KeyPaths::readable_enum(|u: ()| SomeOtherStatus::Inactive, |u| None);
-    if let Some(x) = cp4.get(&SomeOtherStatus::Inactive) {
-        println!("Inactive: {:?}", x);
+    let cp4 = EnumKeyPaths::readable_enum(
+        |_unit: ()| SomeOtherStatus::Inactive,
+        |_u| None::<&()>,
+    );
+    if let Some(_x) = cp4.get(&SomeOtherStatus::Inactive) {
+        println!("Inactive: {:?}", _x);
     }
 
     let status = Status::Active(User {
