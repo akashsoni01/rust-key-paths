@@ -13,16 +13,21 @@ use std::cell::RefCell;
 /// ```rust
 /// use rust_keypaths::keypath;
 /// 
-/// struct User { name: String }
+/// struct User { name: String, address: Address }
+/// struct Address { street: String }
 /// 
-/// // Using a closure
+/// // Using a closure with type annotation
 /// let kp = keypath!(|u: &User| &u.name);
+/// 
+/// // Nested field access
+/// let kp = keypath!(|u: &User| &u.address.street);
 /// 
 /// // Or with automatic type inference
 /// let kp = keypath!(|u| &u.name);
 /// ```
 #[macro_export]
 macro_rules! keypath {
+    // Accept a closure directly
     ($closure:expr) => {
         $crate::KeyPath::new($closure)
     };
@@ -35,16 +40,21 @@ macro_rules! keypath {
 /// ```rust
 /// use rust_keypaths::opt_keypath;
 /// 
-/// struct User { metadata: Option<String> }
+/// struct User { metadata: Option<String>, address: Option<Address> }
+/// struct Address { street: String }
 /// 
-/// // Using a closure
+/// // Using a closure with type annotation
 /// let kp = opt_keypath!(|u: &User| u.metadata.as_ref());
+/// 
+/// // Nested field access through Option
+/// let kp = opt_keypath!(|u: &User| u.address.as_ref().map(|a| &a.street));
 /// 
 /// // Or with automatic type inference
 /// let kp = opt_keypath!(|u| u.metadata.as_ref());
 /// ```
 #[macro_export]
 macro_rules! opt_keypath {
+    // Accept a closure directly
     ($closure:expr) => {
         $crate::OptionalKeyPath::new($closure)
     };
@@ -57,16 +67,21 @@ macro_rules! opt_keypath {
 /// ```rust
 /// use rust_keypaths::writable_keypath;
 /// 
-/// struct User { name: String }
+/// struct User { name: String, address: Address }
+/// struct Address { street: String }
 /// 
-/// // Using a closure
+/// // Using a closure with type annotation
 /// let kp = writable_keypath!(|u: &mut User| &mut u.name);
+/// 
+/// // Nested field access
+/// let kp = writable_keypath!(|u: &mut User| &mut u.address.street);
 /// 
 /// // Or with automatic type inference
 /// let kp = writable_keypath!(|u| &mut u.name);
 /// ```
 #[macro_export]
 macro_rules! writable_keypath {
+    // Accept a closure directly
     ($closure:expr) => {
         $crate::WritableKeyPath::new($closure)
     };
@@ -79,16 +94,21 @@ macro_rules! writable_keypath {
 /// ```rust
 /// use rust_keypaths::writable_opt_keypath;
 /// 
-/// struct User { metadata: Option<String> }
+/// struct User { metadata: Option<String>, address: Option<Address> }
+/// struct Address { street: String }
 /// 
-/// // Using a closure
+/// // Using a closure with type annotation
 /// let kp = writable_opt_keypath!(|u: &mut User| u.metadata.as_mut());
+/// 
+/// // Nested field access through Option
+/// let kp = writable_opt_keypath!(|u: &mut User| u.address.as_mut().map(|a| &mut a.street));
 /// 
 /// // Or with automatic type inference
 /// let kp = writable_opt_keypath!(|u| u.metadata.as_mut());
 /// ```
 #[macro_export]
 macro_rules! writable_opt_keypath {
+    // Accept a closure directly
     ($closure:expr) => {
         $crate::WritableOptionalKeyPath::new($closure)
     };
@@ -1829,5 +1849,261 @@ fn some_fn() {
         let _ref = unwrapped.get(&opt_boxed);
         
         assert_eq!(get_alloc_count(), 1);
+    }
+    
+    // ========== MACRO USAGE EXAMPLES ==========
+    
+    #[derive(Debug, PartialEq)]
+    struct TestUser {
+        name: String,
+        age: u32,
+        metadata: Option<String>,
+        address: Option<TestAddress>,
+    }
+    
+    #[derive(Debug, PartialEq)]
+    struct TestAddress {
+        street: String,
+        city: String,
+        country: Option<TestCountry>,
+    }
+    
+    #[derive(Debug, PartialEq)]
+    struct TestCountry {
+        name: String,
+    }
+    
+    #[test]
+    fn test_keypath_macro() {
+        let user = TestUser {
+            name: "Alice".to_string(),
+            age: 30,
+            metadata: None,
+            address: None,
+        };
+        
+        // Simple field access using closure
+        let name_kp = keypath!(|u: &TestUser| &u.name);
+        assert_eq!(name_kp.get(&user), "Alice");
+        
+        // Nested field access
+        let user_with_address = TestUser {
+            name: "Bob".to_string(),
+            age: 25,
+            metadata: None,
+            address: Some(TestAddress {
+                street: "123 Main St".to_string(),
+                city: "New York".to_string(),
+                country: None,
+            }),
+        };
+        
+        let street_kp = keypath!(|u: &TestUser| &u.address.as_ref().unwrap().street);
+        assert_eq!(street_kp.get(&user_with_address), "123 Main St");
+        
+        // Deeper nesting
+        let user_with_country = TestUser {
+            name: "Charlie".to_string(),
+            age: 35,
+            metadata: None,
+            address: Some(TestAddress {
+                street: "456 Oak Ave".to_string(),
+                city: "London".to_string(),
+                country: Some(TestCountry {
+                    name: "UK".to_string(),
+                }),
+            }),
+        };
+        
+        let country_name_kp = keypath!(|u: &TestUser| &u.address.as_ref().unwrap().country.as_ref().unwrap().name);
+        assert_eq!(country_name_kp.get(&user_with_country), "UK");
+        
+        // Fallback: using closure
+        let age_kp = keypath!(|u: &TestUser| &u.age);
+        assert_eq!(age_kp.get(&user), &30);
+    }
+    
+    #[test]
+    fn test_opt_keypath_macro() {
+        let user = TestUser {
+            name: "Alice".to_string(),
+            age: 30,
+            metadata: Some("admin".to_string()),
+            address: None,
+        };
+        
+        // Simple Option field access using closure
+        let metadata_kp = opt_keypath!(|u: &TestUser| u.metadata.as_ref());
+        assert_eq!(metadata_kp.get(&user), Some(&"admin".to_string()));
+        
+        // None case
+        let user_no_metadata = TestUser {
+            name: "Bob".to_string(),
+            age: 25,
+            metadata: None,
+            address: None,
+        };
+        assert_eq!(metadata_kp.get(&user_no_metadata), None);
+        
+        // Nested Option access
+        let user_with_address = TestUser {
+            name: "Charlie".to_string(),
+            age: 35,
+            metadata: None,
+            address: Some(TestAddress {
+                street: "789 Pine Rd".to_string(),
+                city: "Paris".to_string(),
+                country: None,
+            }),
+        };
+        
+        let street_kp = opt_keypath!(|u: &TestUser| u.address.as_ref().map(|a| &a.street));
+        assert_eq!(street_kp.get(&user_with_address), Some(&"789 Pine Rd".to_string()));
+        
+        // Deeper nesting through Options
+        let user_with_country = TestUser {
+            name: "David".to_string(),
+            age: 40,
+            metadata: None,
+            address: Some(TestAddress {
+                street: "321 Elm St".to_string(),
+                city: "Tokyo".to_string(),
+                country: Some(TestCountry {
+                    name: "Japan".to_string(),
+                }),
+            }),
+        };
+        
+        let country_name_kp = opt_keypath!(|u: &TestUser| u.address.as_ref().and_then(|a| a.country.as_ref().map(|c| &c.name)));
+        assert_eq!(country_name_kp.get(&user_with_country), Some(&"Japan".to_string()));
+        
+        // Fallback: using closure
+        let metadata_kp2 = opt_keypath!(|u: &TestUser| u.metadata.as_ref());
+        assert_eq!(metadata_kp2.get(&user), Some(&"admin".to_string()));
+    }
+    
+    #[test]
+    fn test_writable_keypath_macro() {
+        let mut user = TestUser {
+            name: "Alice".to_string(),
+            age: 30,
+            metadata: None,
+            address: None,
+        };
+        
+        // Simple field mutation using closure
+        let name_kp = writable_keypath!(|u: &mut TestUser| &mut u.name);
+        *name_kp.get_mut(&mut user) = "Bob".to_string();
+        assert_eq!(user.name, "Bob");
+        
+        // Nested field mutation
+        let mut user_with_address = TestUser {
+            name: "Charlie".to_string(),
+            age: 25,
+            metadata: None,
+            address: Some(TestAddress {
+                street: "123 Main St".to_string(),
+                city: "New York".to_string(),
+                country: None,
+            }),
+        };
+        
+        let street_kp = writable_keypath!(|u: &mut TestUser| &mut u.address.as_mut().unwrap().street);
+        *street_kp.get_mut(&mut user_with_address) = "456 Oak Ave".to_string();
+        assert_eq!(user_with_address.address.as_ref().unwrap().street, "456 Oak Ave");
+        
+        // Deeper nesting
+        let mut user_with_country = TestUser {
+            name: "David".to_string(),
+            age: 35,
+            metadata: None,
+            address: Some(TestAddress {
+                street: "789 Pine Rd".to_string(),
+                city: "London".to_string(),
+                country: Some(TestCountry {
+                    name: "UK".to_string(),
+                }),
+            }),
+        };
+        
+        let country_name_kp = writable_keypath!(|u: &mut TestUser| &mut u.address.as_mut().unwrap().country.as_mut().unwrap().name);
+        *country_name_kp.get_mut(&mut user_with_country) = "United Kingdom".to_string();
+        assert_eq!(user_with_country.address.as_ref().unwrap().country.as_ref().unwrap().name, "United Kingdom");
+        
+        // Fallback: using closure
+        let age_kp = writable_keypath!(|u: &mut TestUser| &mut u.age);
+        *age_kp.get_mut(&mut user) = 31;
+        assert_eq!(user.age, 31);
+    }
+    
+    #[test]
+    fn test_writable_opt_keypath_macro() {
+        let mut user = TestUser {
+            name: "Alice".to_string(),
+            age: 30,
+            metadata: Some("user".to_string()),
+            address: None,
+        };
+        
+        // Simple Option field mutation using closure
+        let metadata_kp = writable_opt_keypath!(|u: &mut TestUser| u.metadata.as_mut());
+        if let Some(metadata) = metadata_kp.get_mut(&mut user) {
+            *metadata = "admin".to_string();
+        }
+        assert_eq!(user.metadata, Some("admin".to_string()));
+        
+        // None case - should return None
+        let mut user_no_metadata = TestUser {
+            name: "Bob".to_string(),
+            age: 25,
+            metadata: None,
+            address: None,
+        };
+        assert_eq!(metadata_kp.get_mut(&mut user_no_metadata), None);
+        
+        // Nested Option access
+        let mut user_with_address = TestUser {
+            name: "Charlie".to_string(),
+            age: 35,
+            metadata: None,
+            address: Some(TestAddress {
+                street: "123 Main St".to_string(),
+                city: "New York".to_string(),
+                country: None,
+            }),
+        };
+        
+        let street_kp = writable_opt_keypath!(|u: &mut TestUser| u.address.as_mut().map(|a| &mut a.street));
+        if let Some(street) = street_kp.get_mut(&mut user_with_address) {
+            *street = "456 Oak Ave".to_string();
+        }
+        assert_eq!(user_with_address.address.as_ref().unwrap().street, "456 Oak Ave");
+        
+        // Deeper nesting through Options
+        let mut user_with_country = TestUser {
+            name: "David".to_string(),
+            age: 40,
+            metadata: None,
+            address: Some(TestAddress {
+                street: "789 Pine Rd".to_string(),
+                city: "Tokyo".to_string(),
+                country: Some(TestCountry {
+                    name: "Japan".to_string(),
+                }),
+            }),
+        };
+        
+        let country_name_kp = writable_opt_keypath!(|u: &mut TestUser| u.address.as_mut().and_then(|a| a.country.as_mut().map(|c| &mut c.name)));
+        if let Some(country_name) = country_name_kp.get_mut(&mut user_with_country) {
+            *country_name = "Nippon".to_string();
+        }
+        assert_eq!(user_with_country.address.as_ref().unwrap().country.as_ref().unwrap().name, "Nippon");
+        
+        // Fallback: using closure
+        let metadata_kp2 = writable_opt_keypath!(|u: &mut TestUser| u.metadata.as_mut());
+        if let Some(metadata) = metadata_kp2.get_mut(&mut user) {
+            *metadata = "super_admin".to_string();
+        }
+        assert_eq!(user.metadata, Some("super_admin".to_string()));
     }
 }
