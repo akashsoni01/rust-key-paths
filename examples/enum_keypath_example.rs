@@ -1,4 +1,4 @@
-use rust_keypaths::EnumKeyPaths;
+use rust_keypaths::EnumKeyPath;
 
 #[derive(Debug, Clone)]
 struct User {
@@ -20,15 +20,15 @@ enum SomeOtherStatus {
 
 fn main() {
     // ---------- EnumPath ----------
-    let cp = EnumKeyPaths::readable_enum(
+    let cp = EnumKeyPath::readable_enum(
         |user: User| Status::Active(user),
-        |u| match u {
+        |u: &Status| match u {
             Status::Active(e) => Some(e),
             _ => None,
         },
     );
     // let cp2 = enum_keypath!(Status::Inactive(()));
-    let cp2 = EnumKeyPaths::readable_enum(
+    let cp2 = EnumKeyPath::readable_enum(
         |_unit: ()| Status::Inactive(()),
         |u| match u {
             Status::Inactive(_) => Some(&()),
@@ -37,7 +37,7 @@ fn main() {
     );
 
     // let cp3 = enum_keypath!(SomeOtherStatus::Active(String));
-    let cp3 = EnumKeyPaths::readable_enum(
+    let cp3 = EnumKeyPath::readable_enum(
         |s: String| SomeOtherStatus::Active(s),
         |u| match u {
             SomeOtherStatus::Active(e) => Some(e),
@@ -49,7 +49,7 @@ fn main() {
     }
 
     // let cp4 = enum_keypath!(SomeOtherStatus::Inactive);
-    let cp4 = EnumKeyPaths::readable_enum(
+    let cp4 = EnumKeyPath::readable_enum(
         |_unit: ()| SomeOtherStatus::Inactive,
         |_u| None::<&()>,
     );

@@ -1407,12 +1407,13 @@ where
 }
 
 // Enum-specific keypaths
-#[derive(Clone)]
-pub struct EnumKeyPaths;
-
 /// EnumKeyPath - A keypath for enum variants that supports both extraction and embedding
 /// Uses generic type parameters instead of dynamic dispatch for zero-cost abstraction
-pub struct EnumKeyPath<Enum, Variant, ExtractFn, EmbedFn> 
+/// 
+/// This struct serves dual purpose:
+/// 1. As a concrete keypath instance: `EnumKeyPath<Enum, Variant, ExtractFn, EmbedFn>`
+/// 2. As a namespace for static factory methods: `EnumKeyPath::readable_enum(...)`
+pub struct EnumKeyPath<Enum = (), Variant = (), ExtractFn = fn(&()) -> Option<&()>, EmbedFn = fn(()) -> ()> 
 where
     ExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
     EmbedFn: Fn(Variant) -> Enum + 'static,
@@ -1458,7 +1459,8 @@ where
     }
 }
 
-impl EnumKeyPaths {
+// Static factory methods for EnumKeyPath
+impl EnumKeyPath {
     /// Create a readable enum keypath with both extraction and embedding
     /// Returns an EnumKeyPath that supports both get() and embed() operations
     pub fn readable_enum<Enum, Variant, ExtractFn, EmbedFn>(
@@ -1472,7 +1474,7 @@ impl EnumKeyPaths {
         EnumKeyPath::new(extractor, embedder)
     }
     
-    // Extract from a specific enum variant
+    /// Extract from a specific enum variant
     pub fn for_variant<Enum, Variant, ExtractFn>(
         extractor: ExtractFn
     ) -> OptionalKeyPath<Enum, Variant, impl for<'r> Fn(&'r Enum) -> Option<&'r Variant>>
@@ -1482,7 +1484,7 @@ impl EnumKeyPaths {
         OptionalKeyPath::new(extractor)
     }
     
-    // Match against multiple variants (returns a tagged union)
+    /// Match against multiple variants (returns a tagged union)
     pub fn for_match<Enum, Output, MatchFn>(
         matcher: MatchFn
     ) -> KeyPath<Enum, Output, impl for<'r> Fn(&'r Enum) -> &'r Output>
@@ -1492,43 +1494,42 @@ impl EnumKeyPaths {
         KeyPath::new(matcher)
     }
     
-    // Extract from Result<T, E>
+    /// Extract from Result<T, E> - Ok variant
     pub fn for_ok<T, E>() -> OptionalKeyPath<Result<T, E>, T, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r T>> {
         OptionalKeyPath::new(|result: &Result<T, E>| result.as_ref().ok())
     }
     
+    /// Extract from Result<T, E> - Err variant
     pub fn for_err<T, E>() -> OptionalKeyPath<Result<T, E>, E, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r E>> {
         OptionalKeyPath::new(|result: &Result<T, E>| result.as_ref().err())
     }
     
-    // Extract from Option<T>
+    /// Extract from Option<T> - Some variant
     pub fn for_some<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
     
-    // Static method for Option<T> -> Option<&T> (alias for for_some for consistency)
+    /// Extract from Option<T> - Some variant (alias for for_some for consistency)
     pub fn for_option<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
     
-    // Static methods for container unwrapping (returns KeyPath)
-    // Box<T> -> T
+    /// Unwrap Box<T> -> T
     pub fn for_box<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
         KeyPath::new(|b: &Box<T>| b.as_ref())
     }
     
-    // Arc<T> -> T
+    /// Unwrap Arc<T> -> T
     pub fn for_arc<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
         KeyPath::new(|arc: &Arc<T>| arc.as_ref())
     }
     
-    // Rc<T> -> T
+    /// Unwrap Rc<T> -> T
     pub fn for_rc<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
         KeyPath::new(|rc: &std::rc::Rc<T>| rc.as_ref())
     }
 
-    // Writable versions
-    // Box<T> -> T (mutable)
+    /// Unwrap Box<T> -> T (mutable)
     pub fn for_box_mut<T>() -> WritableKeyPath<Box<T>, T, impl for<'r> Fn(&'r mut Box<T>) -> &'r mut T> {
         WritableKeyPath::new(|b: &mut Box<T>| b.as_mut())
     }
@@ -2536,5 +2537,354 @@ fn some_fn() {
             *metadata = "super_admin".to_string();
         }
         assert_eq!(user.metadata, Some("super_admin".to_string()));
+    }
+}
+
+// ========== WithContainer Trait ==========
+
+/// Trait for no-clone callback-based access to container types
+/// Provides methods to execute closures with references to values inside containers
+/// without requiring cloning of the values
+pub trait WithContainer<Root, Value> {
+    /// Execute a closure with a reference to the value inside an Arc
+    fn with_arc<F, R>(&self, arc: &Arc<Root>, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a reference to the value inside a Box
+    fn with_box<F, R>(&self, boxed: &Box<Root>, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a mutable reference to the value inside a Box
+    fn with_box_mut<F, R>(&self, boxed: &mut Box<Root>, f: F) -> R
+    where
+        F: FnOnce(&mut Value) -> R;
+
+    /// Execute a closure with a reference to the value inside an Rc
+    fn with_rc<F, R>(&self, rc: &Rc<Root>, f: F) -> R
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a reference to the value inside a Result
+    fn with_result<F, R, E>(&self, result: &Result<Root, E>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a mutable reference to the value inside a Result
+    fn with_result_mut<F, R, E>(&self, result: &mut Result<Root, E>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R;
+
+    /// Execute a closure with a reference to the value inside an Option
+    fn with_option<F, R>(&self, option: &Option<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a mutable reference to the value inside an Option
+    fn with_option_mut<F, R>(&self, option: &mut Option<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R;
+
+    /// Execute a closure with a reference to the value inside a RefCell
+    fn with_refcell<F, R>(&self, refcell: &RefCell<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a mutable reference to the value inside a RefCell
+    fn with_refcell_mut<F, R>(&self, refcell: &RefCell<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R;
+
+    #[cfg(feature = "tagged")]
+    /// Execute a closure with a reference to the value inside a Tagged
+    fn with_tagged<F, R, Tag>(&self, tagged: &Tagged<Root, Tag>, f: F) -> R
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a reference to the value inside a Mutex
+    fn with_mutex<F, R>(&self, mutex: &Mutex<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a mutable reference to the value inside a Mutex
+    fn with_mutex_mut<F, R>(&self, mutex: &mut Mutex<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R;
+
+    /// Execute a closure with a reference to the value inside an RwLock
+    fn with_rwlock<F, R>(&self, rwlock: &RwLock<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a mutable reference to the value inside an RwLock
+    fn with_rwlock_mut<F, R>(&self, rwlock: &mut RwLock<Root>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R;
+
+    /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
+    fn with_arc_rwlock<F, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: F) -> Option<R>
+    where
+        F: FnOnce(&Value) -> R;
+
+    /// Execute a closure with a mutable reference to the value inside an Arc<RwLock<Root>>
+    fn with_arc_rwlock_mut<F, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Value) -> R;
+}
+
+// Implement WithContainer for KeyPath
+impl<Root, Value, F> WithContainer<Root, Value> for KeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value + Clone,
+{
+    fn with_arc<Callback, R>(&self, arc: &Arc<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_arc(arc, f)
+    }
+
+    fn with_box<Callback, R>(&self, boxed: &Box<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_box(boxed, f)
+    }
+
+    fn with_box_mut<Callback, R>(&self, _boxed: &mut Box<Root>, _f: Callback) -> R
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        panic!("KeyPath does not support mutable access - use WritableKeyPath instead")
+    }
+
+    fn with_rc<Callback, R>(&self, rc: &Rc<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_rc(rc, f)
+    }
+
+    fn with_result<Callback, R, E>(&self, result: &Result<Root, E>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_result(result, f)
+    }
+
+    fn with_result_mut<Callback, R, E>(&self, _result: &mut Result<Root, E>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    fn with_option<Callback, R>(&self, option: &Option<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_option(option, f)
+    }
+
+    fn with_option_mut<Callback, R>(&self, _option: &mut Option<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    fn with_refcell<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_refcell(refcell, f)
+    }
+
+    fn with_refcell_mut<Callback, R>(&self, _refcell: &RefCell<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    #[cfg(feature = "tagged")]
+    fn with_tagged<Tag, Callback, R>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> R
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_tagged(tagged, f)
+    }
+
+    fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_mutex(mutex, f)
+    }
+
+    fn with_mutex_mut<Callback, R>(&self, _mutex: &mut Mutex<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_rwlock(rwlock, f)
+    }
+
+    fn with_rwlock_mut<Callback, R>(&self, _rwlock: &mut RwLock<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_arc_rwlock(arc_rwlock, f)
+    }
+
+    fn with_arc_rwlock_mut<Callback, R>(&self, _arc_rwlock: &Arc<RwLock<Root>>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+}
+
+// Implement WithContainer for OptionalKeyPath, WritableKeyPath, and WritableOptionalKeyPath
+// (Similar implementations - using existing methods)
+impl<Root, Value, F> WithContainer<Root, Value> for OptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value> + Clone,
+{
+    fn with_arc<Callback, R>(&self, arc: &Arc<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_arc(arc, f)
+    }
+
+    fn with_box<Callback, R>(&self, boxed: &Box<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_box(boxed, f)
+    }
+
+    fn with_box_mut<Callback, R>(&self, _boxed: &mut Box<Root>, _f: Callback) -> R
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        panic!("OptionalKeyPath does not support mutable access")
+    }
+
+    fn with_rc<Callback, R>(&self, rc: &Rc<Root>, f: Callback) -> R
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_rc(rc, f)
+    }
+
+    fn with_result<Callback, R, E>(&self, result: &Result<Root, E>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_result(result, f)
+    }
+
+    fn with_result_mut<Callback, R, E>(&self, _result: &mut Result<Root, E>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    fn with_option<Callback, R>(&self, option: &Option<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_option(option, f)
+    }
+
+    fn with_option_mut<Callback, R>(&self, _option: &mut Option<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    fn with_refcell<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_refcell(refcell, f)
+    }
+
+    fn with_refcell_mut<Callback, R>(&self, _refcell: &RefCell<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    #[cfg(feature = "tagged")]
+    fn with_tagged<Tag, Callback, R>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> R
+    where
+        Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_tagged(tagged, f)
+    }
+
+    fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_mutex(mutex, f)
+    }
+
+    fn with_mutex_mut<Callback, R>(&self, _mutex: &mut Mutex<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_rwlock(rwlock, f)
+    }
+
+    fn with_rwlock_mut<Callback, R>(&self, _rwlock: &mut RwLock<Root>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
+    }
+
+    fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&Value) -> R,
+    {
+        self.with_arc_rwlock(arc_rwlock, f)
+    }
+
+    fn with_arc_rwlock_mut<Callback, R>(&self, _arc_rwlock: &Arc<RwLock<Root>>, _f: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        None
     }
 }

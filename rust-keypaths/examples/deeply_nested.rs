@@ -1,4 +1,4 @@
-use rust_keypaths::{OptionalKeyPath, KeyPath, EnumKeyPaths};
+use rust_keypaths::{OptionalKeyPath, KeyPath, EnumKeyPath};
 
 // cd /didl/rust-key-paths/rust-keypaths && cargo run --example deeply_nested 2>&1 | tail -3
 #[derive(Debug)]
@@ -60,7 +60,7 @@ fn main() {
     let dsf_kp = OptionalKeyPath::new(|d: &DarkStruct| d.dsf.as_ref());
     let desf_kp = OptionalKeyPath::new(|d: &DeeperStruct| d.desf.as_ref());
     
-    // Create enum variant keypath for SomeEnum::B manually using EnumKeyPaths
+    // Create enum variant keypath for SomeEnum::B manually using EnumKeyPath
     // (commented out for later use with variant_of helper)
     // let enum_b_kp = variant_of(|e: &SomeEnum| {
     //     if let SomeEnum::B(ds) = e {
@@ -70,8 +70,8 @@ fn main() {
     //     }
     // });
     
-    // Create enum variant keypath manually using EnumKeyPaths::for_variant()
-    let enum_b_kp = EnumKeyPaths::for_variant(|e: &SomeEnum| {
+    // Create enum variant keypath manually using EnumKeyPath::for_variant()
+    let enum_b_kp = EnumKeyPath::for_variant(|e: &SomeEnum| {
         if let SomeEnum::B(ds) = e {
             Some(ds)
         } else {

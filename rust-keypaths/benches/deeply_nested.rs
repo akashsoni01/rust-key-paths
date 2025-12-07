@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rust_keypaths::{OptionalKeyPath, WritableOptionalKeyPath, EnumKeyPaths};
+use rust_keypaths::{OptionalKeyPath, WritableOptionalKeyPath, EnumKeyPath};
 // cargo bench --bench deeply_nested
 // cd /rust-keypaths && cargo bench --bench deeply_nested 2>&1 | grep -E "(read_omsf|read_desf|write_omsf|write_desf).*time:" | head -8
 
@@ -96,7 +96,7 @@ fn bench_read_desf(c: &mut Criterion) {
     let scsf_kp = OptionalKeyPath::new(|s: &SomeComplexStruct| s.scsf.as_ref());
     let sosf_kp = OptionalKeyPath::new(|s: &SomeOtherStruct| s.sosf.as_ref());
     let omse_kp = OptionalKeyPath::new(|o: &OneMoreStruct| o.omse.as_ref());
-    let enum_b_kp = EnumKeyPaths::for_variant(|e: &SomeEnum| {
+    let enum_b_kp = EnumKeyPath::for_variant(|e: &SomeEnum| {
         if let SomeEnum::B(ds) = e {
             Some(ds)
         } else {
@@ -152,7 +152,7 @@ fn bench_keypath_creation(c: &mut Criterion) {
             let scsf_kp = OptionalKeyPath::new(|s: &SomeComplexStruct| s.scsf.as_ref());
             let sosf_kp = OptionalKeyPath::new(|s: &SomeOtherStruct| s.sosf.as_ref());
             let omse_kp = OptionalKeyPath::new(|o: &OneMoreStruct| o.omse.as_ref());
-            let enum_b_kp = EnumKeyPaths::for_variant(|e: &SomeEnum| {
+            let enum_b_kp = EnumKeyPath::for_variant(|e: &SomeEnum| {
                 if let SomeEnum::B(ds) = e {
                     Some(ds)
                 } else {

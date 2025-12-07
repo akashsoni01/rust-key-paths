@@ -67,15 +67,15 @@ fn main() {
     
     let mut result_user: Result<User, String> = Ok(user.clone());
 
-    // Read via EnumKeyPaths::for_ok()
-    use rust_keypaths::EnumKeyPaths;
+    // Read via EnumKeyPath::for_ok()
+    use rust_keypaths::EnumKeyPath;
     let name_path_clone = KeyPath::new(|u: &User| &u.name);
-    let name_path_result = EnumKeyPaths::for_ok::<User, String>().then(name_path_clone.to_optional());
+    let name_path_result = EnumKeyPath::for_ok::<User, String>().then(name_path_clone.to_optional());
     if let Some(name) = name_path_result.get(&result_user) {
         println!("  Name from Result: {}", name);
     }
 
-    // Write via EnumKeyPaths::for_ok() for writable - need to use WritableOptionalKeyPath
+    // Write via EnumKeyPath::for_ok() for writable - need to use WritableOptionalKeyPath
     // For writable, we need to manually create the keypath
     let name_path_w_result = WritableOptionalKeyPath::new(|result: &mut Result<User, String>| {
         result.as_mut().ok().map(|u| &mut u.name)
@@ -92,7 +92,7 @@ fn main() {
 
     // Read via OptionalKeyPath - need to chain through Option first
     let name_path_clone2 = KeyPath::new(|u: &User| &u.name);
-    let option_path = EnumKeyPaths::for_some::<User>();
+    let option_path = EnumKeyPath::for_some::<User>();
     let name_path_through_option = option_path.then(name_path_clone2.to_optional());
     if let Some(name) = name_path_through_option.get(&option_user) {
         println!("  Name from Option: {}", name);

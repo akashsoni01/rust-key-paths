@@ -1,7 +1,7 @@
 // Example demonstrating the for_result() adapter for KeyPaths
 // Run with: cargo run --example result_adapter_example
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, EnumKeyPaths};
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, EnumKeyPath};
 
 #[derive(Debug, Clone)]
 struct User {
@@ -31,11 +31,11 @@ fn main() {
     let ok_result = Ok(user.clone());
     let err_result: Result<User, String> = Err("User not found".to_string());
 
-    // Adapt keypaths for Result using EnumKeyPaths::for_ok()
+    // Adapt keypaths for Result using EnumKeyPath::for_ok()
     // Chain: Result<User, String> -> User -> field
-    let name_path_result = EnumKeyPaths::for_ok::<User, String>().then(name_path.to_optional());
-    let age_path_result = EnumKeyPaths::for_ok::<User, String>().then(age_path.to_optional());
-    let email_path_result = EnumKeyPaths::for_ok::<User, String>().then(email_path);
+    let name_path_result = EnumKeyPath::for_ok::<User, String>().then(name_path.to_optional());
+    let age_path_result = EnumKeyPath::for_ok::<User, String>().then(age_path.to_optional());
+    let email_path_result = EnumKeyPath::for_ok::<User, String>().then(email_path);
 
     // Access data from Ok result
     if let Some(name) = name_path_result.get(&ok_result) {
@@ -132,7 +132,7 @@ fn main() {
     ];
 
     let name_path_clone = KeyPath::new(|u: &User| &u.name);
-    let name_path_result_str = EnumKeyPaths::for_ok::<User, &str>().then(name_path_clone.to_optional());
+    let name_path_result_str = EnumKeyPath::for_ok::<User, &str>().then(name_path_clone.to_optional());
 
     // Process results with different error types
     for (i, result) in api_results.iter().enumerate() {

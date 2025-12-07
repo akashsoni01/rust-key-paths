@@ -4862,8 +4862,10 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                         let inner_ty = &unnamed.unnamed.first().unwrap().ty;
                         
                         // Single-field variant - extract the inner value
+                        // Generate EnumKeyPath for single-field variants to support embedding
                         if variant_scope.includes_read() {
                             let embed_fn = format_ident!("{}_case_embed", snake);
+                            let enum_kp_fn = format_ident!("{}_case_enum", snake);
                             tokens.extend(quote! {
                                 pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
@@ -4871,6 +4873,13 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                                 // Alias for fr_fn - returns OptionalKeyPath (enum casepaths are always optional)
                                 pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                                // EnumKeyPath version with embedding support
+                                pub fn #enum_kp_fn() -> rust_keypaths::EnumKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty> + 'static, impl Fn(#inner_ty) -> #name + 'static> {
+                                    rust_keypaths::EnumKeyPath::readable_enum(
+                                        |value: #inner_ty| #name::#v_ident(value),
+                                        |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
+                                    )
                                 }
                                 // Embed method - creates the enum variant from a value
                                 pub fn #embed_fn(value: #inner_ty) -> #name {
