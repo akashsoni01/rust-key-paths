@@ -1,6 +1,6 @@
 [package]
 name = "rust-keypaths"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2024"
 description = "A static dispatch, faster alternative to rust-key-paths - Type-safe, composable keypaths for Rust with superior performance"
 authors = ["Your Name <your.email@example.com>"]
@@ -10,7 +10,7 @@ keywords = ["keypath", "type-safe", "composable", "static-dispatch", "zero-cost"
 categories = ["data-structures"]
 
 [dependencies]
-tagged-core = { version = "0.8", optional = true }
+tagged-core = { version = "1.0.1", optional = true }
 parking_lot = { version = "0.12", optional = true }
 
 [features]

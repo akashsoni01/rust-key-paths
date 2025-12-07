@@ -55,11 +55,8 @@ fn main() {
     // For enum variants, we use _case_fw() which returns WritableOptionalKeyPath
     
     // Manually create keypath to unwrap Box<SomeOtherStruct>
-    let box_unwrap = WritableOptionalKeyPath::new(|s: &mut SomeComplexStruct| {
-        Some(&mut *s.scsf)  // Dereference Box to get &mut SomeOtherStruct
-    });
     
-    let op = box_unwrap
+    let op = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())  // Convert to OptionalKeyPath for chaining
         .then(OneMoreStruct::omse_w().to_optional())  // Convert to OptionalKeyPath for chaining
         .then(SomeEnum::b_case_fw())  // Enum variant returns WritableOptionalKeyPath

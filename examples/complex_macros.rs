@@ -28,6 +28,7 @@ struct Settings {
 }
 
 #[derive(Debug, Casepaths)]
+#[All]
 enum Connection {
     Disconnected,
     Connecting(u32),
@@ -35,6 +36,7 @@ enum Connection {
 }
 
 #[derive(Debug, Casepaths)]
+#[All]
 enum Status {
     Active(User),
     Inactive,
