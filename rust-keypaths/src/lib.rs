@@ -196,6 +196,79 @@ where
         }
     }
     
+    // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
+    pub fn for_arc_root(self) -> OptionalKeyPath<Arc<Root>, Value, impl for<'r> Fn(&'r Arc<Root>) -> Option<&'r Value> + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |arc: &Arc<Root>| {
+                Some(getter(arc.as_ref()))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Overload: Adapt root type to Box<Root> when Value is Sized (not a container)
+    pub fn for_box_root(self) -> OptionalKeyPath<Box<Root>, Value, impl for<'r> Fn(&'r Box<Root>) -> Option<&'r Value> + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |boxed: &Box<Root>| {
+                Some(getter(boxed.as_ref()))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Overload: Adapt root type to Rc<Root> when Value is Sized (not a container)
+    pub fn for_rc_root(self) -> OptionalKeyPath<Rc<Root>, Value, impl for<'r> Fn(&'r Rc<Root>) -> Option<&'r Value> + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |rc: &Rc<Root>| {
+                Some(getter(rc.as_ref()))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    /// This unwraps the Result and applies the keypath to the Ok value
+    pub fn for_result<E>(self) -> OptionalKeyPath<Result<Root, E>, Value, impl for<'r> Fn(&'r Result<Root, E>) -> Option<&'r Value> + 'static>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+        E: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |result: &Result<Root, E>| {
+                result.as_ref().ok().map(|root| getter(root))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
     /// Convert a KeyPath to OptionalKeyPath for chaining
     /// This allows non-optional keypaths to be chained with then()
     pub fn to_optional(self) -> OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>
@@ -833,6 +906,61 @@ where
         }
     }
     
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    /// This unwraps the Result and applies the keypath to the Ok value
+    pub fn for_result<E>(self) -> OptionalKeyPath<Result<Root, E>, Value, impl for<'r> Fn(&'r Result<Root, E>) -> Option<&'r Value> + 'static>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+        E: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |result: &Result<Root, E>| {
+                result.as_ref().ok().and_then(|root| getter(root))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
+    pub fn for_arc_root(self) -> OptionalKeyPath<Arc<Root>, Value, impl for<'r> Fn(&'r Arc<Root>) -> Option<&'r Value> + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |arc: &Arc<Root>| {
+                getter(arc.as_ref())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Overload: Adapt root type to Rc<Root> when Value is Sized (not a container)
+    pub fn for_rc_root(self) -> OptionalKeyPath<Rc<Root>, Value, impl for<'r> Fn(&'r Rc<Root>) -> Option<&'r Value> + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        OptionalKeyPath {
+            getter: move |rc: &Rc<Root>| {
+                getter(rc.as_ref())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
     /// Execute a closure with a reference to the value inside an Option
     pub fn with_option<Callback, R>(&self, option: &Option<Root>, f: Callback) -> Option<R>
     where
@@ -913,6 +1041,43 @@ where
     
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> &'r mut Value {
         (self.getter)(root)
+    }
+    
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    /// This unwraps the Result and applies the keypath to the Ok value
+    pub fn for_result<E>(self) -> WritableOptionalKeyPath<Result<Root, E>, Value, impl for<'r> Fn(&'r mut Result<Root, E>) -> Option<&'r mut Value> + 'static>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+        E: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |result: &mut Result<Root, E>| {
+                result.as_mut().ok().map(|root| getter(root))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Overload: Adapt root type to Box<Root> when Value is Sized (not a container)
+    pub fn for_box_root(self) -> WritableKeyPath<Box<Root>, Value, impl for<'r> Fn(&'r mut Box<Root>) -> &'r mut Value + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableKeyPath {
+            getter: move |boxed: &mut Box<Root>| {
+                getter(boxed.as_mut())
+            },
+            _phantom: PhantomData,
+        }
     }
     
     /// Convert a WritableKeyPath to WritableOptionalKeyPath for chaining
@@ -1141,6 +1306,83 @@ where
         WritableOptionalKeyPath {
             getter: move |root: &mut Root| {
                 getter(root).map(|rc| rc.deref_mut())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    /// This unwraps the Result and applies the keypath to the Ok value
+    pub fn for_result<E>(self) -> WritableOptionalKeyPath<Result<Root, E>, Value, impl for<'r> Fn(&'r mut Result<Root, E>) -> Option<&'r mut Value> + 'static>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+        E: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |result: &mut Result<Root, E>| {
+                result.as_mut().ok().and_then(|root| getter(root))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Overload: Adapt root type to Box<Root> when Value is Sized (not a container)
+    pub fn for_box_root(self) -> WritableOptionalKeyPath<Box<Root>, Value, impl for<'r> Fn(&'r mut Box<Root>) -> Option<&'r mut Value> + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |boxed: &mut Box<Root>| {
+                getter(boxed.as_mut())
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
+    pub fn for_arc_root(self) -> WritableOptionalKeyPath<Arc<Root>, Value, impl for<'r> Fn(&'r mut Arc<Root>) -> Option<&'r mut Value> + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |arc: &mut Arc<Root>| {
+                // Arc doesn't support mutable access without interior mutability
+                // This will always return None, but we provide it for API consistency
+                None
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
+    // Overload: Adapt root type to Rc<Root> when Value is Sized (not a container)
+    pub fn for_rc_root(self) -> WritableOptionalKeyPath<Rc<Root>, Value, impl for<'r> Fn(&'r mut Rc<Root>) -> Option<&'r mut Value> + 'static>
+    where
+        Value: Sized,
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |rc: &mut Rc<Root>| {
+                // Rc doesn't support mutable access without interior mutability
+                // This will always return None, but we provide it for API consistency
+                None
             },
             _phantom: PhantomData,
         }

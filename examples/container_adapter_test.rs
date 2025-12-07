@@ -33,7 +33,7 @@ fn main() {
     // ===== Test 1: Arc Readable =====
     println!("--- Test 1: Arc with Readable KeyPath ---");
     let arc_data = Arc::new(test_data.clone());
-    let name_path_arc = name_path.clone().for_arc();
+    let name_path_arc = name_path.clone().for_arc_root();
 
     if let Some(name) = name_path_arc.get(&arc_data) {
         println!("  Arc name: {}", name);
@@ -43,7 +43,7 @@ fn main() {
 
     // ===== Test 2: Arc with Failable Readable =====
     println!("--- Test 2: Arc with Failable Readable KeyPath ---");
-    let optional_path_arc = optional_path.clone().for_arc();
+    let optional_path_arc = optional_path.clone().for_arc_root();
 
     if let Some(optional_val) = optional_path_arc.get(&arc_data) {
         println!("  Arc optional: {}", optional_val);
@@ -64,7 +64,7 @@ fn main() {
     // ===== Test 4: Box Readable =====
     println!("--- Test 4: Box with Readable KeyPath ---");
     let box_data = Box::new(test_data.clone());
-    let name_path_box = name_path.clone().for_box();
+    let name_path_box = name_path.clone().for_box_root();
 
     if let Some(name) = name_path_box.get(&box_data) {
         println!("  Box name: {}", name);
@@ -75,7 +75,7 @@ fn main() {
     // ===== Test 5: Box Writable =====
     println!("--- Test 5: Box with Writable KeyPath ---");
     let mut box_data_mut = Box::new(test_data.clone());
-    let name_path_box_w = name_path_w.clone().for_box();
+    let name_path_box_w = name_path_w.clone().for_box_root();
 
     let name = name_path_box_w.get_mut(&mut box_data_mut);
     {
@@ -89,10 +89,9 @@ fn main() {
     // ===== Test 6: Box Failable Writable =====
     println!("--- Test 6: Box with Failable Writable KeyPath ---");
     let mut box_data_opt = Box::new(test_data.clone());
-    let optional_path_box_w = optional_path_w.clone().for_box();
+    let optional_path_box_w = optional_path_w.clone().for_box_root();
 
-    let opt_val = optional_path_box_w.get_mut(&mut box_data_opt);
-    {
+    if let Some(opt_val) = optional_path_box_w.get_mut(&mut box_data_opt) {
         println!("  Original optional: {}", opt_val);
         *opt_val = "New Value".to_string();
         println!("  Modified optional: {}", opt_val);
@@ -103,11 +102,11 @@ fn main() {
     // ===== Test 7: Rc Readable =====
     println!("--- Test 7: Rc with Readable KeyPath ---");
     let rc_data = Rc::new(test_data.clone());
-    let value_path_rc = value_path.clone().for_rc();
+    let value_path_rc = value_path.clone().for_rc_root();
 
-    if let Some(&value) = value_path_rc.get(&rc_data) {
+    if let Some(value) = value_path_rc.get(&rc_data) {
         println!("  Rc value: {}", value);
-        assert_eq!(value, 42, "Rc readable should return correct value");
+        assert_eq!(*value, 42, "Rc readable should return correct value");
     }
     println!("✓ Test 7 passed\n");
 
@@ -138,7 +137,7 @@ fn main() {
         }),
     ];
 
-    let value_path_arc = value_path.clone().for_arc();
+    let value_path_arc = value_path.clone().for_arc_root();
 
     let sum: u32 = collection
         .iter()
@@ -164,19 +163,18 @@ fn main() {
         }),
     ];
 
-    let value_path_box_w = value_path_w.clone().for_box();
+    let value_path_box_w = value_path_w.clone().for_box_root();
 
     // Increment all values
     for item in &mut box_collection {
-        if let Some(value) = value_path_box_w.get_mut(item) {
-            *value += 10;
-        }
+        let value = value_path_box_w.get_mut(item);
+        *value += 10;
     }
 
     // Verify modifications
     let new_sum: u32 = box_collection
         .iter()
-        .filter_map(|item| value_path.clone().for_box().get(item).copied())
+        .filter_map(|item| value_path.clone().for_box_root().get(item).copied())
         .sum();
 
     println!("  Sum after increment: {}", new_sum);
@@ -203,7 +201,7 @@ fn main() {
         }),
     ];
 
-    let optional_path_rc = optional_path.clone().for_rc();
+    let optional_path_rc = optional_path.clone().for_rc_root();
 
     let with_optional: Vec<&Rc<TestStruct>> = rc_collection
         .iter()
@@ -221,9 +219,9 @@ fn main() {
     let box_item = Box::new(test_data.clone());
     let rc_item = Rc::new(test_data.clone());
 
-    let name_path_arc_12 = name_path.clone().for_arc();
-    let name_path_box_12 = name_path.clone().for_box();
-    let name_path_rc_12 = name_path.clone().for_rc();
+    let name_path_arc_12 = name_path.clone().for_arc_root();
+    let name_path_box_12 = name_path.clone().for_box_root();
+    let name_path_rc_12 = name_path.clone().for_rc_root();
 
     let arc_name = name_path_arc_12.get(&arc_item).unwrap();
     let box_name = name_path_box_12.get(&box_item).unwrap();
@@ -258,16 +256,14 @@ fn main() {
     
     let name_path_result_w = name_path_w.clone().for_result::<String>();
 
-    let name = name_path_result_w.get_mut(&mut ok_data_mut);
-    {
+    if let Some(name) = name_path_result_w.get_mut(&mut ok_data_mut) {
         println!("  Original Result name: {}", name);
         *name = "Modified Result".to_string();
         println!("  Modified Result name: {}", name);
         assert_eq!(name, "Modified Result", "Result writable should allow modification for Ok");
     }
     
-    let _ = name_path_result_w.get_mut(&mut err_data_mut);
-    {
+    if name_path_result_w.get_mut(&mut err_data_mut).is_some() {
         panic!("Result writable should return None for Err");
     }
     println!("✓ Test 14 passed\n");
@@ -313,16 +309,14 @@ fn main() {
     
     let optional_path_result_w = optional_path_w.clone().for_result::<String>();
 
-    let opt_val = optional_path_result_w.get_mut(&mut ok_data_opt_mut);
-    {
+    if let Some(opt_val) = optional_path_result_w.get_mut(&mut ok_data_opt_mut) {
         println!("  Original Result optional: {}", opt_val);
         *opt_val = "Modified".to_string();
         println!("  Modified Result optional: {}", opt_val);
         assert_eq!(opt_val, "Modified", "Result failable writable should allow modification for Ok with Some");
     }
     
-    let _ = optional_path_result_w.get_mut(&mut err_data_opt_mut);
-    {
+    if optional_path_result_w.get_mut(&mut err_data_opt_mut).is_some() {
         panic!("Result failable writable should return None for Err");
     }
     println!("✓ Test 16 passed\n");
