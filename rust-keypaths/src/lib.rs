@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::marker::PhantomData;
 use std::any::{Any, TypeId};
 use std::rc::Rc;
+use std::cell::RefCell;
 
 // ========== TYPE ALIASES FOR SIMPLIFIED USAGE ==========
 // These type aliases help reduce complexity when working with keypaths
@@ -143,6 +144,60 @@ where
     {
         option.as_ref().map(|root| {
             let value = self.get(root);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside a Result
+    pub fn with_result<Callback, R, E>(&self, result: &Result<Root, E>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        result.as_ref().ok().map(|root| {
+            let value = self.get(root);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a reference to the value inside a Box
+    pub fn with_box<Callback, R>(&self, boxed: &Box<Root>, f: Callback) -> R
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        let value = self.get(boxed);
+        f(value)
+    }
+    
+    /// Execute a closure with a reference to the value inside an Arc
+    pub fn with_arc<Callback, R>(&self, arc: &Arc<Root>, f: Callback) -> R
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        let value = self.get(arc);
+        f(value)
+    }
+    
+    /// Execute a closure with a reference to the value inside an Rc
+    pub fn with_rc<Callback, R>(&self, rc: &Rc<Root>, f: Callback) -> R
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        let value = self.get(rc);
+        f(value)
+    }
+    
+    /// Execute a closure with a reference to the value inside a RefCell
+    pub fn with_refcell<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> R,
+    {
+        refcell.try_borrow().ok().map(|borrow| {
+            let value = self.get(&*borrow);
             f(value)
         })
     }
@@ -751,6 +806,76 @@ where
             },
             _phantom: PhantomData,
         }
+    }
+    
+    /// Execute a closure with a mutable reference to the value inside a Box
+    pub fn with_box_mut<Callback, R>(&self, boxed: &mut Box<Root>, f: Callback) -> R
+    where
+        F: Clone,
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        let value = self.get_mut(boxed);
+        f(value)
+    }
+    
+    /// Execute a closure with a mutable reference to the value inside a Result
+    pub fn with_result_mut<Callback, R, E>(&self, result: &mut Result<Root, E>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        result.as_mut().ok().map(|root| {
+            let value = self.get_mut(root);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a mutable reference to the value inside an Option
+    pub fn with_option_mut<Callback, R>(&self, option: &mut Option<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        option.as_mut().map(|root| {
+            let value = self.get_mut(root);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a mutable reference to the value inside a RefCell
+    pub fn with_refcell_mut<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        refcell.try_borrow_mut().ok().map(|mut borrow| {
+            let value = self.get_mut(&mut *borrow);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a mutable reference to the value inside a Mutex
+    pub fn with_mutex_mut<Callback, R>(&self, mutex: &mut Mutex<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        mutex.get_mut().ok().map(|root| {
+            let value = self.get_mut(root);
+            f(value)
+        })
+    }
+    
+    /// Execute a closure with a mutable reference to the value inside an RwLock
+    pub fn with_rwlock_mut<Callback, R>(&self, rwlock: &mut RwLock<Root>, f: Callback) -> Option<R>
+    where
+        F: Clone,
+        Callback: FnOnce(&mut Value) -> R,
+    {
+        rwlock.write().ok().map(|mut guard| {
+            let value = self.get_mut(&mut *guard);
+            f(value)
+        })
     }
 }
 
