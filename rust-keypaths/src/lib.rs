@@ -1411,29 +1411,29 @@ where
 pub struct EnumKeyPaths;
 
 /// EnumKeyPath - A keypath for enum variants that supports both extraction and embedding
-pub struct EnumKeyPath<Enum, Variant, ExtractFn> 
+/// Uses generic type parameters instead of dynamic dispatch for zero-cost abstraction
+pub struct EnumKeyPath<Enum, Variant, ExtractFn, EmbedFn> 
 where
     ExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
+    EmbedFn: Fn(Variant) -> Enum + 'static,
 {
     extractor: OptionalKeyPath<Enum, Variant, ExtractFn>,
-    embedder: Box<dyn Fn(Variant) -> Enum + 'static>,
+    embedder: EmbedFn,
 }
 
-impl<Enum, Variant, ExtractFn> EnumKeyPath<Enum, Variant, ExtractFn>
+impl<Enum, Variant, ExtractFn, EmbedFn> EnumKeyPath<Enum, Variant, ExtractFn, EmbedFn>
 where
     ExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
+    EmbedFn: Fn(Variant) -> Enum + 'static,
 {
     /// Create a new EnumKeyPath with extractor and embedder functions
-    pub fn new<EmbedFn>(
+    pub fn new(
         extractor: ExtractFn,
         embedder: EmbedFn,
-    ) -> Self
-    where
-        EmbedFn: Fn(Variant) -> Enum + 'static,
-    {
+    ) -> Self {
         Self {
             extractor: OptionalKeyPath::new(extractor),
-            embedder: Box::new(embedder),
+            embedder,
         }
     }
     
@@ -1451,14 +1451,20 @@ where
     pub fn as_optional(&self) -> &OptionalKeyPath<Enum, Variant, ExtractFn> {
         &self.extractor
     }
+    
+    /// Convert to OptionalKeyPath (loses embedding capability but gains composition)
+    pub fn to_optional(self) -> OptionalKeyPath<Enum, Variant, ExtractFn> {
+        self.extractor
+    }
 }
 
 impl EnumKeyPaths {
     /// Create a readable enum keypath with both extraction and embedding
+    /// Returns an EnumKeyPath that supports both get() and embed() operations
     pub fn readable_enum<Enum, Variant, ExtractFn, EmbedFn>(
         embedder: EmbedFn,
         extractor: ExtractFn,
-    ) -> EnumKeyPath<Enum, Variant, ExtractFn>
+    ) -> EnumKeyPath<Enum, Variant, ExtractFn, EmbedFn>
     where
         ExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
         EmbedFn: Fn(Variant) -> Enum + 'static,
