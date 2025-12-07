@@ -91,7 +91,7 @@ impl Level1Struct {
 fn bench_read_nested_option(c: &mut Criterion) {
     let mut group = c.benchmark_group("read_nested_option");
     
-    let mut instance = Level1Struct::new();
+    let instance = Level1Struct::new();
     let kp = Level1Struct::level1_field_fr()
             .then(Level2Struct::level2_field_fr())
             .then(Level3Struct::level3_field_fr());
@@ -99,7 +99,7 @@ fn bench_read_nested_option(c: &mut Criterion) {
     // Keypath approach: Level1 -> Level2 -> Level3    
     group.bench_function("keypath", |b| {
         b.iter(|| {
-            let result = kp.get(black_box(& instance));
+            let result = kp.get(black_box(&instance));
             black_box(result)
         })
     });
@@ -357,16 +357,16 @@ fn bench_composition_overhead(c: &mut Criterion) {
     group.bench_function("pre_composed", |b| {
         b.iter(|| {
             let result = pre_composed.get_mut(black_box(&mut instance));
-            black_box(result)
+            black_box(result.is_some())
         })
     });
     
     // Composed on-the-fly
     group.bench_function("composed_on_fly", |b| {
         b.iter(|| {
-            let keypath = Level1Struct::level1_field_fw()
-                .then(Level2Struct::level2_field_fw())
-                .then(Level3Struct::level3_field_fw());
+            let keypath = Level1Struct::level1_field_fr()
+                .then(Level2Struct::level2_field_fr())
+                .then(Level3Struct::level3_field_fr());
             let result = keypath.get(black_box(&instance)).map(|s| s.len());
             black_box(result)
         })

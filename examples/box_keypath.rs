@@ -58,9 +58,9 @@ fn main() {
     
     let op = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())  // Convert to OptionalKeyPath for chaining
-        .then(OneMoreStruct::omse_w().to_optional())  // Convert to OptionalKeyPath for chaining
+        .then(OneMoreStruct::omse_fw())  // Convert to OptionalKeyPath for chaining
         .then(SomeEnum::b_case_fw())  // Enum variant returns WritableOptionalKeyPath
-        .then(DarkStruct::dsf_w().to_optional());  // Convert to OptionalKeyPath for chaining
+        .then(DarkStruct::dsf_fw());  // Convert to OptionalKeyPath for chaining
     
     let mut instance = SomeComplexStruct::new();
     

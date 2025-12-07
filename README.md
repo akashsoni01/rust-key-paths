@@ -17,8 +17,8 @@ Inspired by **Swift's KeyPath / CasePath** system, this feature rich crate lets 
 
 ```toml
 [dependencies]
-rust-keypaths = "1.0.0"
-keypaths-proc = "1.0.0"
+rust-keypaths = "1.0.2"
+keypaths-proc = "1.0.1"
 ```
 
 ### Legacy: `key-paths-core` + `key-paths-derive` (v1.6.0)
@@ -32,9 +32,6 @@ keypaths-proc = "1.0.0"
 key-paths-core = "1.6.0"  # Use 1.6.0 for dynamic dispatch
 key-paths-derive = "1.1.0"
 ```
-
-**Migration Guide**: See [Migration Notes](#migration-notes) below.
-
 ---
 
 ## ✨ Features
@@ -66,24 +63,6 @@ key-paths-core = "1.6.0"  # Use 1.6.0 for dynamic dispatch
 key-paths-derive = "1.1.0"
 ```
 
-## 📋 Migration Notes
-
-### When to Use `rust-keypaths` (Static Dispatch)
-
-✅ **Use `rust-keypaths` if you:**
-- Want the best performance (write operations can be faster than manual unwrapping!)
-- Don't need `Send + Sync` bounds
-- Are starting a new project
-- Want better compiler optimizations
-
-### When to Use `key-paths-core` 1.6.0 (Dynamic Dispatch)
-
-⚠️ **Use `key-paths-core` 1.6.0 if you:**
-- Need `Send + Sync` bounds for multithreaded scenarios
-- Require dynamic dispatch with trait objects
-- Have existing code using the enum-based `KeyPaths` API
-- Need compatibility with older versions
-
 ### API Differences
 
 **rust-keypaths (Static Dispatch):**
@@ -106,302 +85,87 @@ let writable_kp = KeyPaths::writable(|s: &mut Struct| &mut s.field);
 
 ---
 
-## 🎯 Choose Your Macro
+## 🚀 Examples
 
-### `#[derive(Keypath)]` - Simple & Beginner-Friendly
-- **One method per field**: `field_name()` 
-- **Smart keypath selection**: Automatically chooses readable or failable readable based on field type
-- **No option chaining**: Perfect for beginners and simple use cases
-- **Clean API**: Just call `Struct::field_name()` and you're done!
+### Deep Nested Composition with Box and Enums
+
+This example demonstrates keypath composition through deeply nested structures with `Box<T>` and enum variants:
 
 ```rust
-use key_paths_derive::Keypath;
-#[derive(Keypath)]
-struct User {
-    name: String,           // -> User::name() returns readable keypath
-    email: Option<String>,  // -> User::email() returns failable readable keypath
-}
-
-// Usage
-let user = User { name: "Alice".into(), email: Some("akash@example.com".into()) };
-let name_keypath = User::name();
-let email_keypath = User::email();
-let name = name_keypath.get(&user);        // Some("Alice")
-let email = email_keypath.get(&user);      // Some("akash@example.com")
-```
-
-### `#[derive(Keypaths)]` - Advanced & Feature-Rich
-- **Multiple methods per field**: `field_r()`, `field_w()`, `field_fr()`, `field_fw()`, `field_o()`, `field_fo()`
-- **Full control**: Choose exactly which type of keypath you need
-- **Option chaining**: Perfect for intermediate and advanced developers
-- **Comprehensive**: Supports all container types and access patterns
-
-```rust
-use key_paths_derive::Keypaths;
-
-#[derive(Keypaths)]
-#[Readable] // Default scope for every field is Readable, others Writable, Owned and All.
-struct User {
-    name: String,
-    email: Option<String>,
-}
-
-// Usage - you choose the exact method
-let user = User { name: "Alice".into(), email: Some("akash@example.com".into()) };
-let name_keypath = User::name_r();
-let email_keypath = User::email_fr();
-let name = name_keypath.get(&user);      // Some("Alice") - readable
-let email = email_keypath.get(&user);   // Some("akash@example.com") - failable readable
-```
----
-
-### Widely used - Deeply nested struct
-```rust
-use key_paths_derive::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
-#[Writable] // Default scope for every field is Readable, others Writable, Owned and All.
+#[Writable]
 struct SomeComplexStruct {
-    scsf: Option<SomeOtherStruct>,
+    scsf: Box<SomeOtherStruct>,
 }
 
+impl SomeComplexStruct {
+    fn new() -> Self {
+        Self {
+            scsf: Box::new(SomeOtherStruct {
+                sosf: OneMoreStruct {
+                    omsf: String::from("no value for now"),
+                    omse: SomeEnum::B(DarkStruct {
+                        dsf: String::from("dark field"),
+                    }),
+                },
+            }),
+        }
+    }
+}
 
 #[derive(Debug, Keypaths)]
-#[Writable] // Default scope for every field is Readable, others Writable, Owned and All.
+#[Writable]
 struct SomeOtherStruct {
-    sosf: Option<OneMoreStruct>,
-}
-
-#[derive(Debug, Keypaths)]
-#[Writable] // Default scope for every field is Readable, others Writable, Owned and All.
-struct OneMoreStruct {
-    omsf: Option<String>,
-    omse: Option<SomeEnum>,
+    sosf: OneMoreStruct,
 }
 
 #[derive(Debug, Casepaths)]
+#[Writable]
 enum SomeEnum {
     A(String),
     B(DarkStruct),
 }
 
 #[derive(Debug, Keypaths)]
-#[Writable] // Default scope for every field is Readable, others Writable, Owned and All.
+#[Writable]
+struct OneMoreStruct {
+    omsf: String,
+    omse: SomeEnum,
+}
+
+#[derive(Debug, Keypaths)]
+#[Writable]
 struct DarkStruct {
-    dsf: Option<String>,
+    dsf: String,
 }
-
-
-impl SomeComplexStruct {
-    fn new() -> Self {
-        Self {
-            scsf: Some(SomeOtherStruct {
-                sosf: Some(OneMoreStruct {
-                    omsf: Some(String::from("no value for now")),
-                    omse: Some(SomeEnum::B(DarkStruct {
-                        dsf: Some(String::from("dark field")),
-                    })),
-                }),
-            }),
-        }
-    }
-}
-
 
 fn main() {
-    let dsf_kp = SomeComplexStruct::scsf_fw()
+    use rust_keypaths::WritableOptionalKeyPath;
+    
+    // Compose keypath through Box, nested structs, and enum variants
+    let keypath = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_w())
+        .then(SomeEnum::b_case_fw())
         .then(DarkStruct::dsf_fw());
-
+    
     let mut instance = SomeComplexStruct::new();
     
-    if let Some(omsf) = dsf_kp.get_mut(&mut instance) {
-        *omsf = String::from("This is changed 🖖🏿");
+    // Mutate deeply nested field through composed keypath
+    if let Some(dsf) = keypath.get_mut(&mut instance) {
+        *dsf = String::from("we can update the field of struct with the other way unlocked by keypaths");
         println!("instance = {:?}", instance);
-
     }
-}
-```
-
-**Recommendation**: Start with `#[derive(Keypath)]` for simplicity, upgrade to `#[derive(Keypaths)]` when you need more control!
-
-### Keypath vs Keypaths - When to Use Which?
-
-| Feature | `#[derive(Keypath)]` | `#[derive(Keypaths)]` |
-|---------|---------------------|----------------------|
-| **API Complexity** | Simple - one method per field | Advanced - multiple methods per field |
-| **Learning Curve** | Beginner-friendly | Requires understanding of keypath types |
-| **Container Support** | Basic containers only | Full container support including `Result`, `Mutex`, `RwLock`, `Wea****k` |
-| **Option Chaining** | No - smart selection only | Yes - full control over failable vs non-failable |
-| **Writable Access** | Limited | Full writable support |
-| **Use Case** | Simple field access, beginners | Complex compositions, advanced users |
-
-**When to use `Keypath`:**
-- You're new to keypaths
-- You want simple, clean field access
-- You don't need complex option chaining
-- You're working with basic types
-
-**When to use `Keypaths`:**
-- You need full control over keypath types
-- You're composing complex nested structures
-- You need writable access to fields
-- You're working with advanced container types
-
----
-
-## 🚀 Examples
-
-See `examples/` for many runnable samples. Below are a few highlights.
-
-### Quick Start - Simple Keypaths Usage
-```rust
-use key_paths_derive::Keypath;
-
-#[derive(Keypath)]
-struct User {
-    name: String,
-    age: u32,
-    email: Option<String>,
-}
-
-fn main() {
-    let user = User {
-        name: "Alice".to_string(),
-        age: 30,
-        email: Some("akash@example.com".to_string()),
-    };
-
-    // Access fields using keypaths
-    let name_keypath = User::name();
-    let age_keypath = User::age();
-    let email_keypath = User::email();
-    
-    let name = name_keypath.get(&user);        // Some("Alice")
-    let age = age_keypath.get(&user);          // Some(30)
-    let email = email_keypath.get(&user);      // Some("akash@example.com")
-
-    println!("Name: {:?}", name);
-    println!("Age: {:?}", age);
-    println!("Email: {:?}", email);
-}
-```
----
-
-### Attribute-Scoped Generation (NEW!)
-Struct-level and field-level attributes let you control which keypath methods are emitted. The default scope is `Readable`, but you can opt into `Writable`, `Owned`, or `All` on individual fields or the entire type.
-
-```rust
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
-
-#[derive(Clone, Debug, Keypaths)]
-#[Readable] // default scope for every field
-struct Account {
-    nickname: Option<String>, // inherits #[Readable]
-    #[Writable]
-    balance: i64, // writable accessors only
-    #[Owned]
-    recovery_token: Option<String>, // owned accessors only
-}
-
-fn main() {
-    let mut account = Account {
-        nickname: Some("ace".into()),
-        balance: 1_000,
-        recovery_token: Some("token-123".into()),
-    };
-
-    let nickname = Account::nickname_fr().get(&account);
-    let owned_token = Account::recovery_token_fo().get_failable_owned(account.clone());
-
-    if let Some(balance) = Account::balance_w().get_mut(&mut account) {
-        *balance += 500;
-    }
-
-    println!("nickname: {:?}", nickname);
-    println!("balance: {}", account.balance);
-    println!("recovery token: {:?}", owned_token);
 }
 ```
 
 Run it yourself:
 
+```bash
+cargo run --example box_keypath
 ```
-cargo run --example attribute_scopes
-```
-
----
-
-## 📦 Container Adapters & References (NEW!)
-
-KeyPaths now support smart pointers, containers, and references via adapter methods:
-
-### Smart Pointer Adapters
-
-Use `.for_arc()`, `.for_box()`, or `.for_rc()` to adapt keypaths for wrapped types:
-
-```rust
-use key_paths_derive::Keypaths;
-use std::sync::Arc;
-
-#[derive(Keypath)]
-struct Product {
-    name: String,
-    price: f64,
-}
-
-let products: Vec<Arc<Product>> = vec![
-    Arc::new(Product { name: "Laptop".into(), price: 999.99 }),
-];
-
-// Adapt keypath to work with Arc<Product>
-let price_path = Product::price().for_arc();
-
-let affordable: Vec<&Arc<Product>> = products
-    .iter()
-    .filter(|p| price_path.get(p).map_or(false, |&price| price < 100.0))
-    .collect();
-```
-
-### Reference Support
-
-Use `.get_ref()` and `.get_mut_ref()` for collections of references:
-
-```rust
-use key_paths_derive::Keypaths;
-
-#[derive(Keypath)]
-struct Product {
-    name: String,
-    price: f64,
-}
-
-let products: Vec<&Product> = hashmap.values().collect();
-let price_path = Product::price();
-
-for product_ref in &products {
-    if let Some(&price) = price_path.get_ref(product_ref) {
-        println!("Price: ${}", price);
-    }
-}
-```
-
-**Supported Adapters:**
-- `.for_arc()` - Works with `Arc<T>` (read-only)
-- `.for_box()` - Works with `Box<T>` (read & write)
-- `.for_rc()` - Works with `Rc<T>` (read-only)
-- `.get_ref()` - Works with `&T` references
-- `.get_mut_ref()` - Works with `&mut T` references
-
-**Examples:**
-- [`examples/container_adapters.rs`](examples/container_adapters.rs) - Smart pointer usage
-- [`examples/reference_keypaths.rs`](examples/reference_keypaths.rs) - Reference collections
-- [`key-paths-core/examples/container_adapter_test.rs`](key-paths-core/examples/container_adapter_test.rs) - Test suite
-
-**Documentation:** See [`CONTAINER_ADAPTERS.md`](CONTAINER_ADAPTERS.md) and [`REFERENCE_SUPPORT.md`](REFERENCE_SUPPORT.md)
 
 ---
 
@@ -435,25 +199,30 @@ The rust-key-paths library is being used by several exciting crates in the Rust 
 
 ## ⚡ Performance
 
-KeyPaths are optimized for performance with minimal overhead:
+KeyPaths are optimized for performance with minimal overhead. Below are benchmark results comparing **direct unwrap** vs **keypaths** for different operations (all times in picoseconds):
 
-| Operation | Overhead | Notes |
-|-----------|----------|-------|
-| **Read (3 levels)** | 1.46x (46% slower) | Only ~177 ps absolute difference |
-| **Write (3 levels)** | 10.9x slower | ~3.77 ns absolute difference |
-| **Deep Read (5 levels, no enum)** | 23.3x slower | Pure Option chain |
-| **Deep Read (5 levels, with enum)** | 25.1x slower | Includes enum case path + Box adapter |
-| **Reused Read** | **93.6x faster** ⚡ | Primary benefit - reuse keypaths! |
-| **Pre-composed** | Optimal | 384x faster than on-the-fly composition |
+| Operation | Direct Unwrap | KeyPath | Overhead | Notes |
+|-----------|---------------|---------|----------|-------|
+| **Read (3 levels)** | 379.28 ps | 820.81 ps | 2.16x | ~441 ps absolute difference |
+| **Write (3 levels)** | 377.04 ps | 831.65 ps | 2.21x | ~454 ps absolute difference |
+| **Deep Read (5 levels, no enum)** | 379.37 ps | 926.83 ps | 2.44x | Pure Option chain |
+| **Deep Read (5 levels, with enum)** | 384.10 ps | 1,265.3 ps | 3.29x | Includes enum case path + Box adapter |
+| **Write (5 levels, with enum)** | 385.23 ps | 1,099.7 ps | 2.85x | Writable with enum case path |
+| **Keypath Creation** | N/A | 325.60 ps | N/A | One-time cost, negligible |
+| **Reused Read (100x)** | 36,808 ps | 36,882 ps | 1.00x | **Near-zero overhead when reused!** ⚡ |
+| **Pre-composed** | N/A | 848.26 ps | N/A | 1.45x faster than on-the-fly |
+| **Composed on-the-fly** | N/A | 1,234.0 ps | N/A | Composition overhead |
 
-**Key Optimizations Applied:**
-- ✅ Direct `match` composition (Phase 1) - eliminated `and_then` overhead
-- ✅ `Rc` instead of `Arc` - faster for single-threaded use
-- ✅ Aggressive inlining - `#[inline(always)]` on hot paths
+**Key Findings:**
+- ✅ **Reused keypaths** have near-zero overhead (1.00x vs baseline)
+- ✅ **Pre-composition** provides 1.45x speedup over on-the-fly composition
+- ✅ **Write operations** show similar overhead to reads (2.21x vs 2.16x)
+- ✅ **Deep nesting** with enums has higher overhead (3.29x) but remains manageable
+- ✅ Single-use overhead is minimal (~400-500 ps for typical operations)
 
 **Best Practices:**
-- **Pre-compose keypaths** before loops/iterations
-- **Reuse keypaths** whenever possible to get the 98x speedup
+- **Pre-compose keypaths** before loops/iterations (1.45x faster)
+- **Reuse keypaths** whenever possible (near-zero overhead)
 - Single-use overhead is negligible (< 1 ns for reads)
 - Deep nested paths with enums have higher overhead but still manageable
 
