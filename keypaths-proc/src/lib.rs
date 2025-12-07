@@ -4968,54 +4968,43 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident).to_partial()
-                                }
-                                pub fn #w_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident).to_partial()
-                                }
-                                pub fn #fr_fn() -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #r_fn() -> rust_keypaths::PartialOptionalKeyPath<#name> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref()).to_partial()
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #w_fn() -> rust_keypaths::PartialWritableOptionalKeyPath<#name> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut()).to_partial()
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident).to_partial()
+                                pub fn #fr_fn() -> rust_keypaths::PartialOptionalKeyPath<#name> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref()).to_partial()
                                 }
-                                pub fn #fo_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident).to_partial()
+                                pub fn #fw_fn() -> rust_keypaths::PartialWritableOptionalKeyPath<#name> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut()).to_partial()
                                 }
+                                // Owned keypath methods - these don't make sense for Option types
+                                // as we can't return owned values from references
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #fr_at_fn(index: usize) -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #fr_at_fn(index: usize) -> rust_keypaths::PartialOptionalKeyPath<#name> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(index)).to_partial()
                                 }
-                                pub fn #fw_at_fn(index: usize) -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #fw_at_fn(index: usize) -> rust_keypaths::PartialWritableOptionalKeyPath<#name> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(index)).to_partial()
                                 }
                                 pub fn #r_fn() -> rust_keypaths::PartialKeyPath<#name> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident).to_partial()
                                 }
-                                pub fn #w_fn() -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #w_fn() -> rust_keypaths::PartialWritableKeyPath<#name> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident).to_partial()
                                 }
-                                pub fn #fr_fn() -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #fr_fn() -> rust_keypaths::PartialOptionalKeyPath<#name> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.first()).to_partial()
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #fw_fn() -> rust_keypaths::PartialWritableOptionalKeyPath<#name> {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.first_mut()).to_partial()
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident).to_partial()
-                                }
-                                pub fn #fo_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.into_iter().next()).to_partial()
-                                }
+                                // Owned keypath methods - not supported for Vec as we need references
                             });
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
@@ -5023,28 +5012,22 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #r_fn() -> rust_keypaths::PartialKeyPath<#name> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident).to_partial()
                                 }
-                                pub fn #w_fn() -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #w_fn() -> rust_keypaths::PartialWritableKeyPath<#name> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident).to_partial()
                                 }
-                                pub fn #fr_fn(key: String) -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #fr_fn(key: String) -> rust_keypaths::PartialOptionalKeyPath<#name> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key)).to_partial()
                                 }
-                                pub fn #fw_fn(key: String) -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #fw_fn(key: String) -> rust_keypaths::PartialWritableOptionalKeyPath<#name> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key)).to_partial()
                                 }
-                                pub fn #fr_at_fn(key: String) -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #fr_at_fn(key: String) -> rust_keypaths::PartialOptionalKeyPath<#name> {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key)).to_partial()
                                 }
-                                pub fn #fw_at_fn(key: String) -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #fw_at_fn(key: String) -> rust_keypaths::PartialWritableOptionalKeyPath<#name> {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key)).to_partial()
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident).to_partial()
-                                }
-                                pub fn #fo_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.into_iter().next().map(|(_, v)| v)).to_partial()
-                                }
+                                // Owned keypath methods - not supported for HashMap as we need references
                             });
                         }
                         _ => {
@@ -5053,13 +5036,10 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #r_fn() -> rust_keypaths::PartialKeyPath<#name> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident).to_partial()
                                 }
-                                pub fn #w_fn() -> rust_keypaths::PartialKeyPath<#name> {
+                                pub fn #w_fn() -> rust_keypaths::PartialWritableKeyPath<#name> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident).to_partial()
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> rust_keypaths::PartialKeyPath<#name> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident).to_partial()
-                                }
+                                // Owned keypath methods - not supported as we need references
                             });
                         }
                     }
@@ -5109,24 +5089,18 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident).to_any()
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref()).to_any()
                                 }
-                                pub fn #w_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident).to_any()
+                                pub fn #w_fn() -> rust_keypaths::AnyWritableKeyPath {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut()).to_any()
                                 }
                                 pub fn #fr_fn() -> rust_keypaths::AnyKeyPath {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref()).to_any()
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::AnyKeyPath {
+                                pub fn #fw_fn() -> rust_keypaths::AnyWritableKeyPath {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut()).to_any()
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident).to_any()
-                                }
-                                pub fn #fo_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident).to_any()
-                                }
+                                // Owned keypath methods - not supported for Option types
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
@@ -5134,72 +5108,57 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #fr_at_fn(index: usize) -> rust_keypaths::AnyKeyPath {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(index)).to_any()
                                 }
-                                pub fn #fw_at_fn(index: usize) -> rust_keypaths::AnyKeyPath {
+                                pub fn #fw_at_fn(index: usize) -> rust_keypaths::AnyWritableKeyPath {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(index)).to_any()
                                 }
                                 pub fn #r_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident).to_any()
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident)).to_any()
                                 }
-                                pub fn #w_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident).to_any()
+                                pub fn #w_fn() -> rust_keypaths::AnyWritableKeyPath {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut s.#field_ident)).to_any()
                                 }
                                 pub fn #fr_fn() -> rust_keypaths::AnyKeyPath {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.first()).to_any()
                                 }
-                                pub fn #fw_fn() -> rust_keypaths::AnyKeyPath {
+                                pub fn #fw_fn() -> rust_keypaths::AnyWritableKeyPath {
                                     rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.first_mut()).to_any()
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident).to_any()
-                                }
-                                pub fn #fo_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.into_iter().next()).to_any()
-                                }
+                                // Owned keypath methods - not supported for Vec
                             });
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident).to_any()
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident)).to_any()
                                 }
-                                pub fn #w_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident).to_any()
+                                pub fn #w_fn() -> rust_keypaths::AnyWritableKeyPath {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut s.#field_ident)).to_any()
                                 }
                                 pub fn #fr_fn(key: String) -> rust_keypaths::AnyKeyPath {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key)).to_any()
                                 }
-                                pub fn #fw_fn(key: String) -> rust_keypaths::AnyKeyPath {
+                                pub fn #fw_fn(key: String) -> rust_keypaths::AnyWritableKeyPath {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key)).to_any()
                                 }
                                 pub fn #fr_at_fn(key: String) -> rust_keypaths::AnyKeyPath {
                                     rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(&key)).to_any()
                                 }
-                                pub fn #fw_at_fn(key: String) -> rust_keypaths::AnyKeyPath {
+                                pub fn #fw_at_fn(key: String) -> rust_keypaths::AnyWritableKeyPath {
                                     rust_keypaths::WritableOptionalKeyPath::new(move |s: &mut #name| s.#field_ident.get_mut(&key)).to_any()
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident).to_any()
-                                }
-                                pub fn #fo_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.into_iter().next().map(|(_, v)| v)).to_any()
-                                }
+                                // Owned keypath methods - not supported for HashMap
                             });
                         }
                         _ => {
                             // Default case for simple types
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident).to_any()
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident)).to_any()
                                 }
-                                pub fn #w_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident).to_any()
+                                pub fn #w_fn() -> rust_keypaths::AnyWritableKeyPath {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| Some(&mut s.#field_ident)).to_any()
                                 }
-                                // Owned keypath methods
-                                pub fn #o_fn() -> rust_keypaths::AnyKeyPath {
-                                    rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident).to_any()
-                                }
+                                // Owned keypath methods - not supported as we need references
                             });
                         }
                     }

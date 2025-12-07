@@ -1553,6 +1553,12 @@ impl<Root> PartialKeyPath<Root> {
             None
         }
     }
+    
+    /// Get a human-readable name for the value type
+    /// Returns a string representation of the TypeId
+    pub fn kind_name(&self) -> String {
+        format!("{:?}", self.value_type_id)
+    }
 }
 
 /// PartialOptionalKeyPath - Hides the Value type but keeps Root visible
@@ -1818,6 +1824,12 @@ impl AnyKeyPath {
         } else {
             None
         }
+    }
+    
+    /// Get a human-readable name for the value type
+    /// Returns a string representation of the TypeId
+    pub fn kind_name(&self) -> String {
+        format!("{:?}", self.value_type_id)
     }
 }
 
