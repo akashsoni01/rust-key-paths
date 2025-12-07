@@ -32,7 +32,7 @@ members = [
     "key-paths-core",
     "key-paths-derive",
     "key-paths-macros"
-]
+, "keypaths-core"]
 
 [patch.crates-io]
 # key-paths-core = { path = "key-paths-core" }
