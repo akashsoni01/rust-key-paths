@@ -4,48 +4,95 @@ use std::any::{Any, TypeId};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-// ========== TYPE ALIASES FOR SIMPLIFIED USAGE ==========
-// These type aliases help reduce complexity when working with keypaths
-// by providing shorter, more ergonomic names.
-//
-// Note: Due to Rust's type system limitations, we cannot create type aliases
-// that hide the closure type parameter `F`. However, these aliases serve as
-// documentation and can be used in function signatures where the closure type
-// can be inferred or specified with `impl Trait`.
+// ========== HELPER MACROS FOR KEYPATH CREATION ==========
 
-/// Alias for readable keypaths (non-optional, non-writable)
-/// Use this when you need a simple read-only access path
-pub type ReadPath<Root, Value, F> = KeyPath<Root, Value, F>;
+/// Macro to create a `KeyPath` (readable, non-optional)
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use rust_keypaths::keypath;
+/// 
+/// struct User { name: String }
+/// 
+/// // Using a closure
+/// let kp = keypath!(|u: &User| &u.name);
+/// 
+/// // Or with automatic type inference
+/// let kp = keypath!(|u| &u.name);
+/// ```
+#[macro_export]
+macro_rules! keypath {
+    ($closure:expr) => {
+        $crate::KeyPath::new($closure)
+    };
+}
 
-/// Alias for optional readable keypaths
-/// Use this when accessing through Option<T> chains
-pub type ReadOptPath<Root, Value, F> = OptionalKeyPath<Root, Value, F>;
+/// Macro to create an `OptionalKeyPath` (readable, optional)
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use rust_keypaths::opt_keypath;
+/// 
+/// struct User { metadata: Option<String> }
+/// 
+/// // Using a closure
+/// let kp = opt_keypath!(|u: &User| u.metadata.as_ref());
+/// 
+/// // Or with automatic type inference
+/// let kp = opt_keypath!(|u| u.metadata.as_ref());
+/// ```
+#[macro_export]
+macro_rules! opt_keypath {
+    ($closure:expr) => {
+        $crate::OptionalKeyPath::new($closure)
+    };
+}
 
-/// Alias for writable keypaths (non-optional)
-/// Use this when you need mutable access to a direct field
-pub type WritePath<Root, Value, F> = WritableKeyPath<Root, Value, F>;
+/// Macro to create a `WritableKeyPath` (writable, non-optional)
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use rust_keypaths::writable_keypath;
+/// 
+/// struct User { name: String }
+/// 
+/// // Using a closure
+/// let kp = writable_keypath!(|u: &mut User| &mut u.name);
+/// 
+/// // Or with automatic type inference
+/// let kp = writable_keypath!(|u| &mut u.name);
+/// ```
+#[macro_export]
+macro_rules! writable_keypath {
+    ($closure:expr) => {
+        $crate::WritableKeyPath::new($closure)
+    };
+}
 
-/// Alias for optional writable keypaths
-/// Use this when accessing through Option<T> chains with mutable access
-pub type WriteOptPath<Root, Value, F> = WritableOptionalKeyPath<Root, Value, F>;
-
-/// Alias for partial keypaths (type-erased value)
-pub type PartialPath<Root> = PartialKeyPath<Root>;
-
-/// Alias for partial optional keypaths
-pub type PartialOptPath<Root> = PartialOptionalKeyPath<Root>;
-
-/// Alias for partial writable keypaths
-pub type PartialWritePath<Root> = PartialWritableKeyPath<Root>;
-
-/// Alias for partial writable optional keypaths
-pub type PartialWriteOptPath<Root> = PartialWritableOptionalKeyPath<Root>;
-
-/// Alias for fully type-erased keypaths
-pub type AnyPath = AnyKeyPath;
-
-/// Alias for fully type-erased writable keypaths
-pub type AnyWritePath = AnyWritableKeyPath;
+/// Macro to create a `WritableOptionalKeyPath` (writable, optional)
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use rust_keypaths::writable_opt_keypath;
+/// 
+/// struct User { metadata: Option<String> }
+/// 
+/// // Using a closure
+/// let kp = writable_opt_keypath!(|u: &mut User| u.metadata.as_mut());
+/// 
+/// // Or with automatic type inference
+/// let kp = writable_opt_keypath!(|u| u.metadata.as_mut());
+/// ```
+#[macro_export]
+macro_rules! writable_opt_keypath {
+    ($closure:expr) => {
+        $crate::WritableOptionalKeyPath::new($closure)
+    };
+}
 
 // ========== BASE KEYPATH TYPES ==========
 
