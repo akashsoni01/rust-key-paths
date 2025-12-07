@@ -17,6 +17,7 @@ struct Level2Struct {
 }
 
 #[derive(Debug, Clone, Casepaths)]
+#[All]
 enum Level3Enum {
     A(String),
     B(Box<Level3EnumStruct>),
@@ -90,16 +91,15 @@ impl Level1Struct {
 fn bench_read_nested_option(c: &mut Criterion) {
     let mut group = c.benchmark_group("read_nested_option");
     
-    let instance = Level1Struct::new();
+    let mut instance = Level1Struct::new();
+    let kp = Level1Struct::level1_field_fr()
+            .then(Level2Struct::level2_field_fr())
+            .then(Level3Struct::level3_field_fr());
     
-    // Keypath approach: Level1 -> Level2 -> Level3
-    let keypath = Level1Struct::level1_field_fw()
-        .then(Level2Struct::level2_field_fw())
-        .then(Level3Struct::level3_field_fw());
-    
+    // Keypath approach: Level1 -> Level2 -> Level3    
     group.bench_function("keypath", |b| {
         b.iter(|| {
-            let result = keypath.get(black_box(&instance));
+            let result = kp.get(black_box(& instance));
             black_box(result)
         })
     });
@@ -212,8 +212,8 @@ fn bench_deep_nested_with_enum(c: &mut Criterion) {
     let keypath = Level1Struct::level1_field_fr()
         .then(Level2Struct::level2_field_fr())
         .then(Level3Struct::level3_enum_field_fr())
-        .then(Level3Enum::b_case_r())
-        .then(Level3EnumStruct::level3_enum_struct_field_fr().for_box());
+        .then(Level3Enum::b_case_r()).for_box()
+        .then(Level3EnumStruct::level3_enum_struct_field_fr());
     
     group.bench_function("keypath", |b| {
         b.iter(|| {
@@ -249,8 +249,8 @@ fn bench_write_deep_nested_with_enum(c: &mut Criterion) {
     let keypath = Level1Struct::level1_field_fw()
         .then(Level2Struct::level2_field_fw())
         .then(Level3Struct::level3_enum_field_fw())
-        .then(Level3Enum::b_case_w())
-        .then(Level3EnumStruct::level3_enum_struct_field_fw().for_box());
+        .then(Level3Enum::b_case_w()).for_box()
+        .then(Level3EnumStruct::level3_enum_struct_field_fw());
     
     group.bench_function("keypath", |b| {
         let mut instance = Level1Struct::new();
@@ -293,7 +293,7 @@ fn bench_keypath_creation(c: &mut Criterion) {
                 .then(Level2Struct::level2_field_fw())
                 .then(Level3Struct::level3_enum_field_fw())
                 .then(Level3Enum::b_case_w())
-                .then(Level3EnumStruct::level3_enum_struct_field_fw().for_box());
+                .then(Level3EnumStruct::level3_enum_struct_field_fw().for_box_root());
             black_box(keypath)
         })
     });
@@ -310,13 +310,13 @@ fn bench_keypath_reuse(c: &mut Criterion) {
         .then(Level2Struct::level2_field_fw())
         .then(Level3Struct::level3_field_fw());
     
-    let instances: Vec<_> = (0..100).map(|_| Level1Struct::new()).collect();
+    let mut instances: Vec<_> = (0..100).map(|_| Level1Struct::new()).collect();
     
     group.bench_function("keypath_reused", |b| {
         b.iter(|| {
             let mut sum = 0;
-            for instance in &instances {
-                if let Some(value) = keypath.get(instance) {
+            for instance in &mut instances {
+                if let Some(value) = keypath.get_mut(instance) {
                     sum += value.len();
                 }
             }
@@ -347,7 +347,7 @@ fn bench_keypath_reuse(c: &mut Criterion) {
 fn bench_composition_overhead(c: &mut Criterion) {
     let mut group = c.benchmark_group("composition_overhead");
     
-    let instance = Level1Struct::new();
+    let mut instance = Level1Struct::new();
     
     // Pre-composed keypath: Level1 -> Level2 -> Level3
     let pre_composed = Level1Struct::level1_field_fw()
@@ -356,7 +356,7 @@ fn bench_composition_overhead(c: &mut Criterion) {
     
     group.bench_function("pre_composed", |b| {
         b.iter(|| {
-            let result = pre_composed.get(black_box(&instance));
+            let result = pre_composed.get_mut(black_box(&mut instance));
             black_box(result)
         })
     });
