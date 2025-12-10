@@ -1,4 +1,4 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use rust_keypaths::EnumKeyPath;
 use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
@@ -32,20 +32,29 @@ fn main() {
     println!("user.id via kp = {:?}", user_id_kp.get(&user));
 
     // Enum keypaths using core enum helpers
-    let status_active_user = KeyPaths::readable_enum(Status::Active, |s| match s {
-        Status::Active(u) => Some(u),
-        _ => None,
-    });
+    let status_active_user = EnumKeyPath::readable_enum(
+        |u: User| Status::Active(u),
+        |s: &Status| match s {
+            Status::Active(u) => Some(u),
+            _ => None,
+        }
+    );
 
-    let status_inactive_unit = KeyPaths::readable_enum(Status::Inactive, |s| match s {
-        Status::Inactive(u) => Some(u),
-        _ => None,
-    });
+    let status_inactive_unit = EnumKeyPath::readable_enum(
+        |u: ()| Status::Inactive(u),
+        |s: &Status| match s {
+            Status::Inactive(u) => Some(u),
+            _ => None,
+        }
+    );
 
-    let some_other_active = KeyPaths::readable_enum(SomeOtherStatus::Active, |s| match s {
-        SomeOtherStatus::Active(v) => Some(v),
-        _ => None,
-    });
+    let some_other_active = EnumKeyPath::readable_enum(
+        |v: String| SomeOtherStatus::Active(v),
+        |s: &SomeOtherStatus| match s {
+            SomeOtherStatus::Active(v) => Some(v),
+            _ => None,
+        }
+    );
 
     let status = Status::Active(User {
         id: 42,
@@ -57,10 +66,14 @@ fn main() {
     }
 
     // Compose enum kp with derived struct field kp (consumes the keypath)
-    let active_user_name = KeyPaths::readable_enum(Status::Active, |s| match s {
-        Status::Active(u) => Some(u),
-        _ => None,
-    })
+    let active_user_name = EnumKeyPath::readable_enum(
+        |u: User| Status::Active(u),
+        |s: &Status| match s {
+            Status::Active(u) => Some(u),
+            _ => None,
+        }
+    )
+    .to_optional()
     .then(User::name_r().to_optional());
 
     println!("Active user name = {:?}", active_user_name.get(&status));
