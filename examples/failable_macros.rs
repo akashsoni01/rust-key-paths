@@ -1,4 +1,4 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use rust_keypaths::{OptionalKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
@@ -48,13 +48,11 @@ fn main() {
     let engine_fw = Car::engine_fw();
     let hp_w = Engine::horsepower_w();
 
-    let garage = garage_fw.get_mut(&mut city);
-    {
+    if let Some(garage) = garage_fw.get_mut(&mut city) {
         if let Some(car) = car_fw.get_mut(garage) {
             if let Some(engine) = engine_fw.get_mut(car) {
-                if let Some(hp) = hp_w.get_mut(engine) {
-                    *hp += 30;
-                }
+                let hp = hp_w.get_mut(engine);
+                *hp += 30;
             }
         }
     }
@@ -64,8 +62,7 @@ fn main() {
     // Demonstrate short-circuiting when any Option is None
     let mut city2 = City { garage: None };
     println!("Missing chain get = {:?}", city_hp.get(&city2));
-    let garage = garage_fw.get_mut(&mut city2);
-    {
+    if let Some(garage) = garage_fw.get_mut(&mut city2) {
         // won't run
         let _ = garage;
     } else {
