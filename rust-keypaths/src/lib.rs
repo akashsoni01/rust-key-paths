@@ -1980,6 +1980,80 @@ where
     pub fn to_writable_optional(self) -> WritableOptionalKeyPath<Root, Value, WriteFn> {
         WritableOptionalKeyPath::new(self.writable)
     }
+    
+    /// Compose this keypath with another FailableCombinedKeyPath
+    /// Returns a new FailableCombinedKeyPath that chains both keypaths
+    pub fn then<SubValue, SubReadFn, SubWriteFn, SubOwnedFn>(
+        self,
+        next: FailableCombinedKeyPath<Value, SubValue, SubReadFn, SubWriteFn, SubOwnedFn>,
+    ) -> FailableCombinedKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue> + 'static, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue> + 'static, impl Fn(Root) -> Option<SubValue> + 'static>
+    where
+        SubReadFn: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+        SubWriteFn: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
+        SubOwnedFn: Fn(Value) -> Option<SubValue> + 'static,
+        ReadFn: 'static,
+        WriteFn: 'static,
+        OwnedFn: 'static,
+        Value: 'static,
+        Root: 'static,
+        SubValue: 'static,
+    {
+        let first_read = self.readable;
+        let first_write = self.writable;
+        let first_owned = self.owned;
+        let second_read = next.readable;
+        let second_write = next.writable;
+        let second_owned = next.owned;
+        
+        FailableCombinedKeyPath::new(
+            move |root: &Root| {
+                first_read(root).and_then(|value| second_read(value))
+            },
+            move |root: &mut Root| {
+                first_write(root).and_then(|value| second_write(value))
+            },
+            move |root: Root| {
+                first_owned(root).and_then(|value| second_owned(value))
+            },
+        )
+    }
+    
+    /// Compose with OptionalKeyPath (readable only)
+    /// Returns a FailableCombinedKeyPath that uses the readable from OptionalKeyPath
+    /// and creates dummy writable/owned closures that return None
+    pub fn then_optional<SubValue, SubReadFn>(
+        self,
+        next: OptionalKeyPath<Value, SubValue, SubReadFn>,
+    ) -> FailableCombinedKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue> + 'static, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue> + 'static, impl Fn(Root) -> Option<SubValue> + 'static>
+    where
+        SubReadFn: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+        ReadFn: 'static,
+        WriteFn: 'static,
+        OwnedFn: 'static,
+        Value: 'static,
+        Root: 'static,
+        SubValue: 'static,
+    {
+        let first_read = self.readable;
+        let first_write = self.writable;
+        let first_owned = self.owned;
+        let second_read = next.getter;
+        
+        FailableCombinedKeyPath::new(
+            move |root: &Root| {
+                first_read(root).and_then(|value| second_read(value))
+            },
+            move |_root: &mut Root| {
+                None // Writable not supported when composing with OptionalKeyPath
+            },
+            move |root: Root| {
+                first_owned(root).and_then(|value| {
+                    // Try to get owned value, but OptionalKeyPath doesn't support owned
+                    None
+                })
+            },
+        )
+    }
 }
 
 // Factory function for FailableCombinedKeyPath
