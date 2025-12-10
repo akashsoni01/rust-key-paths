@@ -1923,6 +1923,82 @@ pub struct AnyWritableKeyPath {
     value_type_id: TypeId,
 }
 
+/// FailableCombinedKeyPath - A keypath that supports readable, writable, and owned access patterns
+/// 
+/// This keypath type combines the functionality of OptionalKeyPath, WritableOptionalKeyPath,
+/// and adds owned access. It's useful when you need all three access patterns for the same field.
+#[derive(Clone)]
+pub struct FailableCombinedKeyPath<Root, Value, ReadFn, WriteFn, OwnedFn>
+where
+    ReadFn: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+    WriteFn: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+    OwnedFn: Fn(Root) -> Option<Value> + 'static,
+{
+    readable: ReadFn,
+    writable: WriteFn,
+    owned: OwnedFn,
+    _phantom: PhantomData<(Root, Value)>,
+}
+
+impl<Root, Value, ReadFn, WriteFn, OwnedFn> FailableCombinedKeyPath<Root, Value, ReadFn, WriteFn, OwnedFn>
+where
+    ReadFn: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+    WriteFn: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+    OwnedFn: Fn(Root) -> Option<Value> + 'static,
+{
+    /// Create a new FailableCombinedKeyPath with all three access patterns
+    pub fn new(readable: ReadFn, writable: WriteFn, owned: OwnedFn) -> Self {
+        Self {
+            readable,
+            writable,
+            owned,
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Get an immutable reference to the value (readable access)
+    pub fn get<'r>(&self, root: &'r Root) -> Option<&'r Value> {
+        (self.readable)(root)
+    }
+    
+    /// Get a mutable reference to the value (writable access)
+    pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut Value> {
+        (self.writable)(root)
+    }
+    
+    /// Get an owned value (owned access) - consumes the root
+    pub fn get_failable_owned(&self, root: Root) -> Option<Value> {
+        (self.owned)(root)
+    }
+    
+    /// Convert to OptionalKeyPath (loses writable and owned capabilities)
+    pub fn to_optional(self) -> OptionalKeyPath<Root, Value, ReadFn> {
+        OptionalKeyPath::new(self.readable)
+    }
+    
+    /// Convert to WritableOptionalKeyPath (loses owned capability)
+    pub fn to_writable_optional(self) -> WritableOptionalKeyPath<Root, Value, WriteFn> {
+        WritableOptionalKeyPath::new(self.writable)
+    }
+}
+
+// Factory function for FailableCombinedKeyPath
+impl FailableCombinedKeyPath<(), (), fn(&()) -> Option<&()>, fn(&mut ()) -> Option<&mut ()>, fn(()) -> Option<()>> {
+    /// Create a FailableCombinedKeyPath with all three access patterns
+    pub fn failable_combined<Root, Value, ReadFn, WriteFn, OwnedFn>(
+        readable: ReadFn,
+        writable: WriteFn,
+        owned: OwnedFn,
+    ) -> FailableCombinedKeyPath<Root, Value, ReadFn, WriteFn, OwnedFn>
+    where
+        ReadFn: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+        WriteFn: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+        OwnedFn: Fn(Root) -> Option<Value> + 'static,
+    {
+        FailableCombinedKeyPath::new(readable, writable, owned)
+    }
+}
+
 impl AnyWritableKeyPath {
     pub fn new<Root, Value>(keypath: WritableOptionalKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>) -> Self
     where
