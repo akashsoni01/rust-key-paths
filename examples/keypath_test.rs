@@ -1,4 +1,5 @@
-use key_paths_derive::Keypath;
+use keypaths_proc::Keypath;
+use rust_keypaths::FailableCombinedKeyPath;
 use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -30,7 +31,7 @@ struct UserProfile {
 struct TupleStruct(String, Option<i32>, Vec<f64>);
 
 fn main() {
-    let user = User {
+    let mut user = User {
         name: "Alice".to_string(),
         age: 30,
         email: Some("alice@example.com".to_string()),

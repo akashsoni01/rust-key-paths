@@ -1,4 +1,5 @@
-use key_paths_derive::Keypath;
+use keypaths_proc::Keypath;
+use rust_keypaths::FailableCombinedKeyPath;
 use std::collections::{HashMap, HashSet, VecDeque, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
