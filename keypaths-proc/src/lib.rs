@@ -120,6 +120,96 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
     Ok(scope)
 }
 
+/// Derives keypath methods for struct fields.
+///
+/// This macro generates methods to create keypaths for accessing struct fields.
+/// By default, it generates readable keypaths, but you can control which methods
+/// are generated using attributes.
+///
+/// # Generated Methods
+///
+/// For each field `field_name`, the following methods are generated (depending on attributes):
+///
+/// - `field_name_r()` - Returns a `KeyPath<Struct, FieldType>` for non-optional fields
+/// - `field_name_w()` - Returns a `WritableKeyPath<Struct, FieldType>` for non-optional fields
+/// - `field_name_fr()` - Returns an `OptionalKeyPath<Struct, InnerType>` for optional/container fields
+/// - `field_name_fw()` - Returns a `WritableOptionalKeyPath<Struct, InnerType>` for optional/container fields
+/// - `field_name_fr_at(index)` - Returns an `OptionalKeyPath` for indexed access (Vec, HashMap, etc.)
+/// - `field_name_fw_at(index)` - Returns a `WritableOptionalKeyPath` for indexed mutable access
+/// - `field_name_o()` - Returns a `KeyPath` for owned access (when `#[Owned]` is used)
+/// - `field_name_fo()` - Returns an `OptionalKeyPath` for owned optional access
+///
+/// # Attributes
+///
+/// ## Struct-level attributes:
+///
+/// - `#[All]` - Generate all methods (readable, writable, and owned)
+/// - `#[Readable]` - Generate only readable methods (default)
+/// - `#[Writable]` - Generate only writable methods
+/// - `#[Owned]` - Generate only owned methods
+///
+/// ## Field-level attributes:
+///
+/// - `#[Readable]` - Generate readable methods for this field only
+/// - `#[Writable]` - Generate writable methods for this field only
+/// - `#[Owned]` - Generate owned methods for this field only
+/// - `#[All]` - Generate all methods for this field
+///
+/// # Supported Field Types
+///
+/// The macro automatically handles various container types:
+///
+/// - `Option<T>` - Generates failable keypaths
+/// - `Vec<T>` - Generates keypaths with iteration support
+/// - `Box<T>`, `Rc<T>`, `Arc<T>` - Generates keypaths that dereference
+/// - `HashMap<K, V>`, `BTreeMap<K, V>` - Generates key-based access methods
+/// - `Result<T, E>` - Generates failable keypaths for `Ok` variant
+/// - Tuple structs - Generates `f0_r()`, `f1_r()`, etc. for each field
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use keypaths_proc::Keypaths;
+///
+/// #[derive(Keypaths)]
+/// #[All]  // Generate all methods
+/// struct User {
+///     name: String,
+///     age: Option<u32>,
+///     tags: Vec<String>,
+/// }
+///
+/// // Usage:
+/// let name_path = User::name_r();  // KeyPath<User, String>
+/// let age_path = User::age_fr();   // OptionalKeyPath<User, u32>
+/// let tags_path = User::tags_r();  // KeyPath<User, Vec<String>>
+///
+/// let user = User {
+///     name: "Alice".to_string(),
+///     age: Some(30),
+///     tags: vec!["admin".to_string()],
+/// };
+///
+/// // Read values
+/// let name = name_path.get(&user);
+/// let age = age_path.get(&user);  // Returns Option<&u32>
+/// ```
+///
+/// # Field-level Control
+///
+/// ```rust,ignore
+/// #[derive(Keypaths)]
+/// struct Config {
+///     #[Readable]  // Only readable methods for this field
+///     api_key: String,
+///
+///     #[Writable]  // Only writable methods for this field
+///     counter: u32,
+///
+///     #[All]  // All methods for this field
+///     settings: Option<Settings>,
+/// }
+/// ```
 #[proc_macro_derive(Keypaths, attributes(Readable, Writable, Owned, All))]
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -3492,6 +3582,35 @@ fn to_snake_case(name: &str) -> String {
     out
 }
 
+/// Derives only writable keypath methods for struct fields.
+///
+/// This macro is a convenience wrapper that generates only writable keypaths,
+/// equivalent to using `#[derive(Keypaths)]` with `#[Writable]` on the struct.
+///
+/// # Generated Methods
+///
+/// For each field `field_name`, generates:
+///
+/// - `field_name_w()` - Returns a `WritableKeyPath<Struct, FieldType>` for non-optional fields
+/// - `field_name_fw()` - Returns a `WritableOptionalKeyPath<Struct, InnerType>` for optional/container fields
+/// - `field_name_fw_at(index)` - Returns a `WritableOptionalKeyPath` for indexed mutable access
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use keypaths_proc::WritableKeypaths;
+///
+/// #[derive(WritableKeypaths)]
+/// struct Counter {
+///     value: u32,
+///     history: Vec<u32>,
+/// }
+///
+/// // Usage:
+/// let mut counter = Counter { value: 0, history: vec![] };
+/// let value_path = Counter::value_w();
+/// *value_path.get_mut(&mut counter) += 1;
+/// ```
 #[proc_macro_derive(WritableKeypaths)]
 pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -3878,6 +3997,34 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Derives a single keypath method for each struct field.
+///
+/// This macro generates a simplified set of keypath methods, creating only
+/// the most commonly used readable keypaths. It's a lighter-weight alternative
+/// to `Keypaths` when you only need basic field access.
+///
+/// # Generated Methods
+///
+/// For each field `field_name`, generates:
+///
+/// - `field_name_r()` - Returns a `KeyPath<Struct, FieldType>` for direct field access
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use keypaths_proc::Keypath;
+///
+/// #[derive(Keypath)]
+/// struct Point {
+///     x: f64,
+///     y: f64,
+/// }
+///
+/// // Usage:
+/// let point = Point { x: 1.0, y: 2.0 };
+/// let x_path = Point::x_r();
+/// let x_value = x_path.get(&point);  // &f64
+/// ```
 #[proc_macro_derive(Keypath)]
 pub fn derive_keypath(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -4407,6 +4554,43 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Derives only readable keypath methods for struct fields.
+///
+/// This macro is a convenience wrapper that generates only readable keypaths,
+/// equivalent to using `#[derive(Keypaths)]` with `#[Readable]` on the struct.
+///
+/// # Generated Methods
+///
+/// For each field `field_name`, generates:
+///
+/// - `field_name_r()` - Returns a `KeyPath<Struct, FieldType>` for non-optional fields
+/// - `field_name_fr()` - Returns an `OptionalKeyPath<Struct, InnerType>` for optional/container fields
+/// - `field_name_fr_at(index)` - Returns an `OptionalKeyPath` for indexed access
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use keypaths_proc::ReadableKeypaths;
+///
+/// #[derive(ReadableKeypaths)]
+/// struct User {
+///     name: String,
+///     email: Option<String>,
+///     tags: Vec<String>,
+/// }
+///
+/// // Usage:
+/// let user = User {
+///     name: "Alice".to_string(),
+///     email: Some("alice@example.com".to_string()),
+///     tags: vec!["admin".to_string()],
+/// };
+///
+/// let name_path = User::name_r();
+/// let email_path = User::email_fr();
+/// let name = name_path.get(&user);  // &String
+/// let email = email_path.get(&user);  // Option<&String>
+/// ```
 #[proc_macro_derive(ReadableKeypaths)]
 pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -4815,6 +4999,76 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Derives case path methods for enum variants.
+///
+/// Case paths (also known as prisms) provide a way to access and manipulate
+/// enum variants in a composable way. They allow you to extract values from
+/// enum variants and embed values back into variants.
+///
+/// # Generated Methods
+///
+/// For each variant `VariantName` with a single field of type `T`:
+///
+/// - `variant_name_case_r()` - Returns an `OptionalKeyPath<Enum, T>` for reading
+/// - `variant_name_case_w()` - Returns a `WritableOptionalKeyPath<Enum, T>` for writing
+/// - `variant_name_case_fr()` - Alias for `variant_name_case_r()`
+/// - `variant_name_case_fw()` - Alias for `variant_name_case_w()`
+/// - `variant_name_case_embed(value)` - Returns `Enum` by embedding a value into the variant
+/// - `variant_name_case_enum()` - Returns an `EnumKeyPath<Enum, T>` with both extraction and embedding
+///
+/// For unit variants (no fields):
+///
+/// - `variant_name_case_fr()` - Returns an `OptionalKeyPath<Enum, ()>` that checks if variant matches
+///
+/// For multi-field tuple variants:
+///
+/// - `variant_name_case_fr()` - Returns an `OptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
+/// - `variant_name_case_fw()` - Returns a `WritableOptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
+///
+/// # Attributes
+///
+/// ## Enum-level attributes:
+///
+/// - `#[All]` - Generate all methods (readable and writable)
+/// - `#[Readable]` - Generate only readable methods (default)
+/// - `#[Writable]` - Generate only writable methods
+///
+/// ## Variant-level attributes:
+///
+/// - `#[Readable]` - Generate readable methods for this variant only
+/// - `#[Writable]` - Generate writable methods for this variant only
+/// - `#[All]` - Generate all methods for this variant
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use keypaths_proc::Casepaths;
+///
+/// #[derive(Casepaths)]
+/// #[All]
+/// enum Status {
+///     Active(String),
+///     Inactive,
+///     Pending(u32),
+/// }
+///
+/// // Usage:
+/// let mut status = Status::Active("online".to_string());
+///
+/// // Extract value from variant
+/// let active_path = Status::active_case_r();
+/// if let Some(value) = active_path.get(&status) {
+///     println!("Status is: {}", value);
+/// }
+///
+/// // Embed value into variant
+/// let new_status = Status::active_case_embed("offline".to_string());
+///
+/// // Use EnumKeyPath for both extraction and embedding
+/// let active_enum = Status::active_case_enum();
+/// let extracted = active_enum.extract(&status);  // Option<&String>
+/// let embedded = active_enum.embed("new".to_string());  // Status::Active("new")
+/// ```
 #[proc_macro_derive(Casepaths, attributes(Readable, Writable, All))]
 pub fn derive_casepaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -4962,6 +5216,56 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Derives type-erased keypath methods with known root type.
+///
+/// `PartialKeyPath` is similar to Swift's `PartialKeyPath<Root>`. It hides
+/// the `Value` type but keeps the `Root` type visible. This is useful for
+/// storing collections of keypaths with the same root type but different value types.
+///
+/// # Generated Methods
+///
+/// For each field `field_name`, generates:
+///
+/// - `field_name_r()` - Returns a `PartialKeyPath<Struct>` for readable access
+/// - `field_name_w()` - Returns a `PartialWritableKeyPath<Struct>` for writable access
+/// - `field_name_fr()` - Returns a `PartialOptionalKeyPath<Struct>` for optional fields
+/// - `field_name_fw()` - Returns a `PartialWritableOptionalKeyPath<Struct>` for optional writable fields
+///
+/// # Type Erasure
+///
+/// The `get()` method returns `&dyn Any`, requiring downcasting to access the actual value.
+/// Use `get_as::<Root, Value>()` for type-safe access when you know the value type.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use keypaths_proc::PartialKeypaths;
+/// use rust_keypaths::PartialKeyPath;
+///
+/// #[derive(PartialKeypaths)]
+/// struct User {
+///     name: String,
+///     age: u32,
+///     email: Option<String>,
+/// }
+///
+/// // Usage:
+/// let mut paths: Vec<PartialKeyPath<User>> = vec![
+///     User::name_r(),
+///     User::age_r(),
+/// ];
+///
+/// let user = User {
+///     name: "Alice".to_string(),
+///     age: 30,
+///     email: Some("alice@example.com".to_string()),
+/// };
+///
+/// // Access values (requires type information)
+/// if let Some(name) = paths[0].get_as::<User, String>(&user) {
+///     println!("Name: {}", name);
+/// }
+/// ```
 #[proc_macro_derive(PartialKeypaths)]
 pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -5082,6 +5386,59 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Derives fully type-erased keypath methods.
+///
+/// `AnyKeyPath` is similar to Swift's `AnyKeyPath`. It hides both the `Root`
+/// and `Value` types, making it useful for storing keypaths from different
+/// struct types in the same collection.
+///
+/// # Generated Methods
+///
+/// For each field `field_name`, generates:
+///
+/// - `field_name_r()` - Returns an `AnyKeyPath` for readable access
+/// - `field_name_w()` - Returns an `AnyWritableKeyPath` for writable access
+/// - `field_name_fr()` - Returns an `AnyKeyPath` for optional fields
+/// - `field_name_fw()` - Returns an `AnyWritableKeyPath` for optional writable fields
+///
+/// # Type Erasure
+///
+/// The `get()` method returns `&dyn Any`, requiring downcasting to access the actual value.
+/// Use `get_as::<Root, Value>()` for type-safe access when you know both root and value types.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use keypaths_proc::AnyKeypaths;
+/// use rust_keypaths::AnyKeyPath;
+///
+/// #[derive(AnyKeypaths)]
+/// struct User {
+///     name: String,
+///     age: u32,
+/// }
+///
+/// #[derive(AnyKeypaths)]
+/// struct Product {
+///     price: f64,
+/// }
+///
+/// // Usage:
+/// let mut paths: Vec<AnyKeyPath> = vec![
+///     User::name_r(),
+///     Product::price_r(),
+/// ];
+///
+/// let user = User {
+///     name: "Alice".to_string(),
+///     age: 30,
+/// };
+///
+/// // Access values (requires both root and value type information)
+/// if let Some(name) = paths[0].get_as::<User, String>(&user) {
+///     println!("Name: {}", name);
+/// }
+/// ```
 #[proc_macro_derive(AnyKeypaths)]
 pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
