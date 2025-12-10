@@ -306,7 +306,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.into_iter().next())
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.first())
                                     }
                                 },
                             );
@@ -1792,7 +1792,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit)
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref())
                                     }
                                 },
                             );
@@ -1880,7 +1880,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.into_iter().next())
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                     }
                                 },
                             );
@@ -2185,7 +2185,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.into_iter().next())
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                     }
                                 },
                             );
@@ -2240,7 +2240,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.into_iter().next())
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                     }
                                 },
                             );
@@ -2306,7 +2306,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.into_iter().next())
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                     }
                                 },
                             );
@@ -2372,7 +2372,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.into_iter().next())
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                     }
                                 },
                             );
@@ -2438,7 +2438,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.into_iter().next())
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.first())
                                     }
                                 },
                             );
@@ -2779,7 +2779,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     // Owned keypath methods
                                     pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
-                                        rust_keypaths::KeyPath::new(|s: &#name| s.#idx_lit)
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
                             );
@@ -2789,7 +2789,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(s.#idx_lit))
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                     }
                                 },
                             );

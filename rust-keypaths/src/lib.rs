@@ -446,6 +446,16 @@ where
         }
     }
     
+    /// Get an iterator over a Vec when Value is Vec<T>
+    /// Returns Some(iterator) if the value is a Vec, None otherwise
+    pub fn iter<'r, T>(&self, root: &'r Root) -> Option<std::slice::Iter<'r, T>>
+    where
+        Value: AsRef<[T]> + 'r,
+    {
+        let value_ref: &'r Value = self.get(root);
+        Some(value_ref.as_ref().iter())
+    }
+    
 }
 
 // Extension methods for KeyPath to support Arc<RwLock> and Arc<Mutex> directly
@@ -1224,6 +1234,16 @@ where
             let value = self.get_mut(&mut *guard);
             f(value)
         })
+    }
+    
+    /// Get a mutable iterator over a Vec when Value is Vec<T>
+    /// Returns Some(iterator) if the value is a Vec, None otherwise
+    pub fn iter_mut<'r, T>(&self, root: &'r mut Root) -> Option<std::slice::IterMut<'r, T>>
+    where
+        Value: AsMut<[T]> + 'r,
+    {
+        let value_ref: &'r mut Value = self.get_mut(root);
+        Some(value_ref.as_mut().iter_mut())
     }
 }
 
