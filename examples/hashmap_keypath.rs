@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use key_paths_derive::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
 #[All]
@@ -86,6 +86,7 @@ struct SomeOtherStruct {
 }
 
 #[derive(Debug, Casepaths)]
+#[All]
 enum SomeEnum {
     A(Vec<String>),
     B(DarkStruct),
@@ -111,19 +112,19 @@ fn main() {
         .then(SomeEnum::b_case_w())
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
-    let omsf = op.get_mut(&mut instance);
-    **omsf =
-        String::from("we can change the field with the other way unlocked by keypaths");
+    if let Some(omsf) = op.get_mut(&mut instance) {
+        *omsf = String::from("we can change the field with the other way unlocked by keypaths");
+    }
     println!("instance = {:?}", instance);
 
-    let op: KeyPath<SomeComplexStruct, String, impl for<\'r> Fn(&\'r SomeComplexStruct) -> &\'r String> = SomeComplexStruct::scsf_fw_at("0".to_string())
+    let op = SomeComplexStruct::scsf_fw_at("0".to_string())
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
         .then(SomeEnum::b_case_w())
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
-    let omsf = op.get_mut(&mut instance);
-    **omsf =
-        String::from("we can change the field with the other way unlocked by keypaths");
+    if let Some(omsf) = op.get_mut(&mut instance) {
+        *omsf = String::from("we can change the field with the other way unlocked by keypaths");
+    }
     println!("instance = {:?}", instance);
 }

@@ -483,7 +483,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.into_values().next())
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.values().next())
                                     }
                                 },
                             );
@@ -3362,14 +3362,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
+                                            |e: &#name| match e { #name::#v_ident(v) => Some(&v), _ => None }
                                         )
                                     }
                                     pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
                                         rust_keypaths::KeyPaths::writable_enum(
                                             #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None },
+                                            |e: &#name| match e { #name::#v_ident(v) => Some(&v), _ => None },
+                                            |e: &mut #name| match e { #name::#v_ident(v) => Some(&mut v), _ => None },
                                         )
                                     }
                                 });
@@ -3379,7 +3379,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
                                         rust_keypaths::KeyPaths::readable_enum(
                                             #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
+                                            |e: &#name| match e { #name::#v_ident(v) => Some(&v), _ => None }
                                         )
                                     }
                                 });
