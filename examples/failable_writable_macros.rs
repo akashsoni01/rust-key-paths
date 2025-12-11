@@ -1,4 +1,3 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
@@ -42,8 +41,7 @@ fn main() {
     let hp_fw = Engine::horsepower_fw();
 
     // Mutate through the entire chain (only if each Option is Some)
-    let garage = garage_fw.get_mut(&mut city);
-    {
+    if let Some(garage) = garage_fw.get_mut(&mut city) {
         if let Some(car) = car_fw.get_mut(garage) {
             if let Some(engine) = engine_fw.get_mut(car) {
                 if let Some(hp) = hp_fw.get_mut(engine) {
@@ -57,8 +55,7 @@ fn main() {
 
     // Show short-circuit: with a missing link, nothing happens
     let mut city_missing = City { garage: None };
-    let garage = garage_fw.get_mut(&mut city_missing);
-    {
+    if let Some(garage) = garage_fw.get_mut(&mut city_missing) {
         if let Some(car) = car_fw.get_mut(garage) {
             if let Some(engine) = engine_fw.get_mut(car) {
                 if let Some(hp) = hp_fw.get_mut(engine) {
