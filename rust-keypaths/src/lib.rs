@@ -1102,6 +1102,24 @@ where
         }
     }
     
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    /// This unwraps the Option and applies the keypath to the Some value
+    pub fn for_option(self) -> WritableOptionalKeyPath<Option<Root>, Value, impl for<'r> Fn(&'r mut Option<Root>) -> Option<&'r mut Value> + 'static>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |option: &mut Option<Root>| {
+                option.as_mut().map(|root| getter(root))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
     /// Convert a WritableKeyPath to WritableOptionalKeyPath for chaining
     /// This allows non-optional writable keypaths to be chained with then()
     pub fn to_optional(self) -> WritableOptionalKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>
@@ -1272,6 +1290,24 @@ where
         (self.getter)(root)
     }
     
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    /// This unwraps the Option and applies the keypath to the Some value
+    pub fn for_option(self) -> WritableOptionalKeyPath<Option<Root>, Value, impl for<'r> Fn(&'r mut Option<Root>) -> Option<&'r mut Value> + 'static>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        
+        WritableOptionalKeyPath {
+            getter: move |option: &mut Option<Root>| {
+                option.as_mut().and_then(|root| getter(root))
+            },
+            _phantom: PhantomData,
+        }
+    }
+    
     // Swift-like operator for chaining WritableOptionalKeyPath
     pub fn then<SubValue, G>(
         self,
@@ -1419,9 +1455,13 @@ where
             _phantom: PhantomData,
         }
     }
-    
+}
+
+// Static factory methods for WritableOptionalKeyPath
+impl WritableOptionalKeyPath<(), (), fn(&mut ()) -> Option<&mut ()>> {
     // Static method for Option<T> -> Option<&mut T>
-    pub fn for_option<T>() -> WritableOptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r mut Option<T>) -> Option<&'r mut T>> {
+    // Note: This is a factory method. Use instance method `for_option()` to adapt existing keypaths.
+    pub fn for_option_static<T>() -> WritableOptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r mut Option<T>) -> Option<&'r mut T>> {
         WritableOptionalKeyPath::new(|opt: &mut Option<T>| opt.as_mut())
     }
 }
