@@ -1,4 +1,4 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use rust_keypaths::WritableOptionalKeyPath;
 
 #[derive(Debug)]
 struct Engine {
@@ -28,8 +28,7 @@ fn main() {
     let kp = kp_car.then(kp_engine).then(kp_hp);
 
     println!("{garage:?}");
-    let hp = kp.get_mut(&mut garage);
-    {
+    if let Some(hp) = kp.get_mut(&mut garage) {
         *hp = 200;
     }
 
