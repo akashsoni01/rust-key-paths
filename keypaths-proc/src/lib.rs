@@ -4324,10 +4324,16 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
 
                 match &variant.fields {
                     Fields::Unit => {
-                        // Unit variant - return readable keypath to the variant itself
+                        // Unit variant - return failable readable keypath to the variant itself
                         tokens.extend(quote! {
-                            pub fn #snake() -> rust_keypaths::KeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> &'r #name> {
-                                rust_keypaths::KeyPath::new(|s: &#name| s)
+                            pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>> {
+                                rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
+                                    #name::#v_ident => {
+                                        static UNIT: () = ();
+                                        Some(&UNIT)
+                                    },
+                                    _ => None,
+                                })
                             }
                         });
                     }
@@ -4360,7 +4366,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::HashMap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4370,7 +4376,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::BTreeMap, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4460,7 +4466,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Mutex, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4470,7 +4476,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::RwLock, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4480,7 +4486,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Weak, Some(inner_ty)) => {
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4491,7 +4497,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 (WrapperKind::None, None) => {
                                     // Basic type - return failable readable keypath
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4502,7 +4508,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 _ => {
                                     // Unknown type - return failable readable keypath
                                     tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
+                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                                 #name::#v_ident(inner) => Some(inner),
                                                 _ => None,
@@ -4514,7 +4520,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         } else {
                             // Multi-field tuple variant - return failable readable keypath to the variant
                             tokens.extend(quote! {
-                                pub fn #snake() -> rust_keypaths::KeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> &'r #name> {
+                                pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> Option<&'r #name>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                         #name::#v_ident(..) => Some(s),
                                         _ => None,
@@ -4526,7 +4532,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     Fields::Named(_named) => {
                         // Named field variant - return failable readable keypath to the variant
                         tokens.extend(quote! {
-                            pub fn #snake() -> rust_keypaths::KeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> &'r #name> {
+                            pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> Option<&'r #name>> {
                                 rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
                                     #name::#v_ident { .. } => Some(s),
                                     _ => None,
