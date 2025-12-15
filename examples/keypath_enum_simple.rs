@@ -16,7 +16,7 @@ enum Status {
     Position(f64, f64),
     
     // Named field variant
-    User { name: String, age: u32 },
+    User { name: String, age: Option<u32> },
 }
 
 fn main() {
@@ -53,7 +53,7 @@ fn main() {
     // Test named field variant
     let user = Status::User { 
         name: "Alice".to_string(), 
-        age: 30 
+        age: Some(30) 
     };
     if let Some(user_status_name) = Status::user_name_r().get(&user) {
         println!("User status name : {:?}", user_status_name);
