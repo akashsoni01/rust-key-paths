@@ -1,4 +1,4 @@
-use key_paths_derive::Keypath;
+use keypaths_proc::Keypath;
 use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;

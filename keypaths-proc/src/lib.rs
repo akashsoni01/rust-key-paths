@@ -4059,7 +4059,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For HashMap<K,V>, return readable keypath to the container
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
@@ -4067,7 +4067,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For BTreeMap<K,V>, return readable keypath to the container
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
@@ -4075,7 +4075,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For Box<T>, return readable keypath to inner type
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &*s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#field_ident))
                                 }
                             });
                         }
@@ -4083,7 +4083,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For Rc<T>/Arc<T>, return readable keypath to inner type
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &*s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#field_ident))
                                 }
                             });
                         }
@@ -4139,7 +4139,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For Mutex<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
@@ -4147,7 +4147,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For RwLock<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
@@ -4155,7 +4155,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For Weak<T>, return readable keypath to the container (not inner type due to lifetime issues)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
@@ -4163,7 +4163,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For basic types, return readable keypath
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
@@ -4171,7 +4171,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             // For unknown types, return readable keypath
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
@@ -4206,28 +4206,28 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                 }
                             });
                         }
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                 }
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#idx_lit))
                                 }
                             });
                         }
                         (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &*s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#idx_lit))
                                 }
                             });
                         }
@@ -4276,35 +4276,35 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         (WrapperKind::Mutex, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                 }
                             });
                         }
                         (WrapperKind::RwLock, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                 }
                             });
                         }
                         (WrapperKind::Weak, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                 }
                             });
                         }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                 }
                             });
                         }
                         _ => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#idx_lit))
                                 }
                             });
                         }
