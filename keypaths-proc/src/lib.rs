@@ -1207,7 +1207,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.map(|b| *b))
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|b| &**b))
                                     }
                                 },
                             );
@@ -1251,7 +1251,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.map(|r| (*r).clone()))
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|r| &**r))
                                     }
                                 },
                             );
@@ -1295,7 +1295,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.map(|a| (*a).clone()))
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|a| &**a))
                                     }
                                 },
                             );

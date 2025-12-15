@@ -63,7 +63,7 @@ fn main() {
         // },
     };
     println!("Value");
-    if let Some(value) = NestedContainerExample::value_fr().then(SomeStruct::value_fr().for_box()).get(&example) {
+    if let Some(value) = NestedContainerExample::value_fr().for_box().then(SomeStruct::value_fr()).get(&example) {
         // *value = String::from("changed");
         println!("   Changed value: {:?}", value);
     }
