@@ -11,7 +11,7 @@ fn main() {
     };
 
     // Immutable iteration
-    if let Some(iter) = kp.iter::<String>(&g) {
+    // if let Some(iter) = kp.iter::<String>(&g) {
     if let Some(iter) = kp.iter(&g) {
         for c in iter {
             println!("car: {}", c);
