@@ -28,9 +28,13 @@ struct UserSettings {
 }
 
 // Generic form field that binds to any field type
-struct FormField<T: 'static, F: 'static> {
-    read_path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
-    write_path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
+// Uses type erasure to store keypaths with different closure types
+struct FormField<T: 'static, F: 'static> 
+where
+    F: Clone + std::fmt::Display + 'static,
+{
+    read_path: Box<dyn Fn(&T) -> Option<F>>,
+    write_path: Box<dyn Fn(&mut T, F) -> Result<(), String>>,
     label: &'static str,
     field_name: &'static str,
     validator: fn(&F) -> Result<(), String>,
@@ -38,18 +42,32 @@ struct FormField<T: 'static, F: 'static> {
 
 impl<T, F> FormField<T, F>
 where
-    F: Clone + std::fmt::Display,
+    F: Clone + std::fmt::Display + 'static,
 {
-    fn new(
-        read_path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
-        write_path: KeyPath<T, F, impl for<\'r> Fn(&\'r T) -> &\'r F>,
+    fn new<FR, FW>(
+        read_path: OptionalKeyPath<T, F, FR>,
+        write_path: WritableOptionalKeyPath<T, F, FW>,
         label: &'static str,
         field_name: &'static str,
         validator: fn(&F) -> Result<(), String>,
-    ) -> Self {
+    ) -> Self
+    where
+        FR: for<'r> Fn(&'r T) -> Option<&'r F> + 'static,
+        FW: for<'r> Fn(&'r mut T) -> Option<&'r mut F> + 'static,
+    {
         Self {
-            read_path,
-            write_path,
+            read_path: Box::new(move |t: &T| read_path.get(t).cloned()),
+            write_path: Box::new(move |t: &mut T, value: F| {
+                // Validate first
+                (validator)(&value)?;
+                // Then write
+                if let Some(target) = write_path.get_mut(t) {
+                    *target = value;
+                    Ok(())
+                } else {
+                    Err(format!("Failed to write to field '{}'", field_name))
+                }
+            }),
             label,
             field_name,
             validator,
@@ -58,21 +76,12 @@ where
 
     // Read current value from the model
     fn read(&self, model: &T) -> Option<F> {
-        self.read_path.get(model).cloned()
+        (self.read_path)(model)
     }
 
     // Write new value to the model
     fn write(&self, model: &mut T, value: F) -> Result<(), String> {
-        // Validate first
-        (self.validator)(&value)?;
-
-        // Then write
-        if let Some(target) = self.write_path.get_mut(model) {
-            *target = value;
-            Ok(())
-        } else {
-            Err(format!("Failed to write to field '{}'", self.field_name))
-        }
+        (self.write_path)(model, value)
     }
 
     // Validate without writing
@@ -215,8 +224,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: name
     form.add_string_field(FormField::new(
-        UserProfile::name_r(),
-        UserProfile::name_w(),
+        UserProfile::name_fr(),
+        UserProfile::name_fw(),
         "Full Name",
         "name",
         |s| {
@@ -230,8 +239,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: email
     form.add_string_field(FormField::new(
-        UserProfile::email_r(),
-        UserProfile::email_w(),
+        UserProfile::email_fr(),
+        UserProfile::email_fw(),
         "Email Address",
         "email",
         |s| {
@@ -245,8 +254,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Number field: age
     form.add_u32_field(FormField::new(
-        UserProfile::age_r(),
-        UserProfile::age_w(),
+        UserProfile::age_fr(),
+        UserProfile::age_fw(),
         "Age",
         "age",
         |&age| {
@@ -260,8 +269,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: theme (nested)
     form.add_string_field(FormField::new(
-        UserProfile::settings_r().to_optional().then(UserSettings::theme_r().to_optional()),
-        UserProfile::settings_w().to_optional().then(UserSettings::theme_w()),
+        UserProfile::settings_fr().then(UserSettings::theme_fr()),
+        UserProfile::settings_fw().then(UserSettings::theme_fw()),
         "Theme",
         "theme",
         |s| {
@@ -275,8 +284,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Number field: font_size (nested)
     form.add_u32_field(FormField::new(
-        UserProfile::settings_r().to_optional().then(UserSettings::font_size_r().to_optional()),
-        UserProfile::settings_w().to_optional().then(UserSettings::font_size_w()),
+        UserProfile::settings_fr().then(UserSettings::font_size_fr()),
+        UserProfile::settings_fw().then(UserSettings::font_size_fw()),
         "Font Size",
         "font_size",
         |&size| {
@@ -290,10 +299,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Bool field: notifications (nested)
     form.add_bool_field(FormField::new(
-        UserProfile::settings_r()
-            .then(UserSettings::notifications_enabled_r().to_optional()),
-        UserProfile::settings_w()
-            .then(UserSettings::notifications_enabled_w()),
+        UserProfile::settings_fr().then(UserSettings::notifications_enabled_fr()),
+        UserProfile::settings_fw().then(UserSettings::notifications_enabled_fw()),
         "Notifications",
         "notifications",
         |_| Ok(()), // No validation needed for bool

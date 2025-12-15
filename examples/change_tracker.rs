@@ -168,7 +168,7 @@ fn main() {
 
     // Add paths to track (need both readable for comparison and writable for updates)
     tracker.add_path(
-        AppState::user_r().to_optional().then(User::name_r().to_optional()),
+        AppState::user_r().to_optional().then(User::name_fr()),
         AppState::user_w().to_optional().then(User::name_w().to_optional()),
         vec!["user".into(), "name".into()],
     );
