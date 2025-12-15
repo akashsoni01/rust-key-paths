@@ -39,28 +39,23 @@ fn main() {
     }
     
     // Test Mutex<T> with Keypaths
-    if let Some(mutex_ref) = ContainerTest::mutex_data_r().get(&container) {
-        println!("✅ Mutex reference: {:?}", mutex_ref);
-    }
+    let mutex_ref = ContainerTest::mutex_data_r().get(&container);
+    println!("✅ Mutex reference: {:?}", mutex_ref);
     
     // Test RwLock<T> with Keypaths
-    if let Some(rwlock_ref) = ContainerTest::rwlock_data_r().get(&container) {
-        println!("✅ RwLock reference: {:?}", rwlock_ref);
-    }
+    let rwlock_ref = ContainerTest::rwlock_data_r().get(&container);
+    println!("✅ RwLock reference: {:?}", rwlock_ref);
     
     // Test Weak<T> with Keypaths
-    if let Some(weak_ref) = ContainerTest::weak_ref_r().get(&container) {
-        println!("✅ Weak reference: {:?}", weak_ref);
-    }
+    let weak_ref = ContainerTest::weak_ref_r().get(&container);
+    println!("✅ Weak reference: {:?}", weak_ref);
 
     // Test basic types
-    if let Some(name) = ContainerTest::name_r().get(&container) {
-        println!("✅ Name: {}", name);
-    }
+    let name = ContainerTest::name_r().get(&container);
+    println!("✅ Name: {}", name);
 
-    if let Some(age) = ContainerTest::age_r().get(&container) {
-        println!("✅ Age: {}", age);
-    }
+    let age = ContainerTest::age_r().get(&container);
+    println!("✅ Age: {}", age);
 
     println!("\n=== Keypaths Macro - All new container types supported! ===");
 }
