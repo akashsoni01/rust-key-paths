@@ -1009,8 +1009,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
                             );
@@ -1043,8 +1043,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
                             );
@@ -1127,8 +1127,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
                             );
@@ -1704,8 +1704,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 method_scope,
                                 MethodKind::Readable,
                                 quote! {
-                                    pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
                                     }
                                 },
                             );
