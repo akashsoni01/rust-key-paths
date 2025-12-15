@@ -68,6 +68,15 @@ fn main() {
         }
     }
 
+    /*
+    The code creates Weak::new(), which is an empty weak reference with no associated strong reference. Since there's no Rc or Arc backing it, .upgrade() returns None.
+    To see a successful upgrade, create the Weak from an Rc or Arc. For example:
+    let rc = Rc::new("Shared reference".to_string());
+    let weak_ref = Rc::downgrade(&rc);  // Create Weak from Rc
+    // Now weak_ref.upgrade() will return Some(Rc)
+    The current example uses Weak::new() (empty), so the upgrade fails as expected. This demonstrates that Weak references can be empty and that .upgrade() may return None.
+    The keypath correctly returns a reference to the Weak container; the upgrade failure is due to the Weak being empty, not a keypath issue.
+    */
     // Test Weak<T> - returns reference to the Weak container
     if let Some(weak_ref) = ContainerTest::weak_ref_r().get(&container) {
         println!("Weak reference: {:?}", weak_ref);
