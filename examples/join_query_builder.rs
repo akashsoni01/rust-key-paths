@@ -85,27 +85,27 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
     }
 
     // Inner join: returns only matching pairs
-    fn inner_join<K, O, F>(&self, left_key: KeyPath<L, K, impl for<\'r> Fn(&\'r L) -> &\'r K>, right_key: KeyPath<R, K, impl for<\'r> Fn(&\'r R) -> &\'r K>, mapper: F) -> Vec<O>
+    fn inner_join<K, O, F, PL, PR>(&self, left_key: KeyPath<L, K, PL>, right_key: KeyPath<R, K, PR>, mapper: F) -> Vec<O>
     where
         K: Eq + std::hash::Hash + Clone + 'static,
         F: Fn(&L, &R) -> O,
+        PL: for<'r> Fn(&'r L) -> &'r K + 'static,
+        PR: for<'r> Fn(&'r R) -> &'r K + 'static,
     {
         // Build index for right side for O(n) lookup
         let mut right_index: HashMap<K, Vec<&R>> = HashMap::new();
         for item in self.right.iter() {
-            if let Some(key) = right_key.get(item).cloned() {
-                right_index.entry(key).or_insert_with(Vec::new).push(item);
-            }
+            let key = right_key.get(item).clone();
+            right_index.entry(key).or_insert_with(Vec::new).push(item);
         }
 
         // Join left with indexed right
         let mut results = Vec::new();
         for left_item in self.left.iter() {
-            if let Some(key) = left_key.get(left_item).cloned() {
-                if let Some(right_items) = right_index.get(&key) {
-                    for right_item in right_items {
-                        results.push(mapper(left_item, right_item));
-                    }
+            let key = left_key.get(left_item).clone();
+            if let Some(right_items) = right_index.get(&key) {
+                for right_item in right_items {
+                    results.push(mapper(left_item, right_item));
                 }
             }
         }
@@ -114,29 +114,27 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
     }
 
     // Left join: returns all left items, with optional right matches
-    fn left_join<K, O, F>(&self, left_key: KeyPath<L, K, impl for<\'r> Fn(&\'r L) -> &\'r K>, right_key: KeyPath<R, K, impl for<\'r> Fn(&\'r R) -> &\'r K>, mapper: F) -> Vec<O>
+    fn left_join<K, O, F, PL, PR>(&self, left_key: KeyPath<L, K, PL>, right_key: KeyPath<R, K, PR>, mapper: F) -> Vec<O>
     where
         K: Eq + std::hash::Hash + Clone + 'static,
         F: Fn(&L, Option<&R>) -> O,
+        PL: for<'r> Fn(&'r L) -> &'r K + 'static,
+        PR: for<'r> Fn(&'r R) -> &'r K + 'static,
     {
         // Build index for right side
         let mut right_index: HashMap<K, Vec<&R>> = HashMap::new();
         for item in self.right.iter() {
-            if let Some(key) = right_key.get(item).cloned() {
-                right_index.entry(key).or_insert_with(Vec::new).push(item);
-            }
+            let key = right_key.get(item).clone();
+            right_index.entry(key).or_insert_with(Vec::new).push(item);
         }
 
         // Join left with indexed right
         let mut results = Vec::new();
         for left_item in self.left.iter() {
-            if let Some(key) = left_key.get(left_item).cloned() {
-                if let Some(right_items) = right_index.get(&key) {
-                    for right_item in right_items {
-                        results.push(mapper(left_item, Some(right_item)));
-                    }
-                } else {
-                    results.push(mapper(left_item, None));
+            let key = left_key.get(left_item).clone();
+            if let Some(right_items) = right_index.get(&key) {
+                for right_item in right_items {
+                    results.push(mapper(left_item, Some(right_item)));
                 }
             } else {
                 results.push(mapper(left_item, None));
@@ -147,10 +145,10 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
     }
 
     // Filter join: only matching pairs that satisfy a predicate
-    fn inner_join_where<K, O, F, P>(
+    fn inner_join_where<K, O, F, P, PL, PR>(
         &self,
-        left_key: KeyPath<L, K, impl for<\'r> Fn(&\'r L) -> &\'r K>,
-        right_key: KeyPath<R, K, impl for<\'r> Fn(&\'r R) -> &\'r K>,
+        left_key: KeyPath<L, K, PL>,
+        right_key: KeyPath<R, K, PR>,
         predicate: P,
         mapper: F,
     ) -> Vec<O>
@@ -158,24 +156,24 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
         K: Eq + std::hash::Hash + Clone + 'static,
         F: Fn(&L, &R) -> O,
         P: Fn(&L, &R) -> bool,
+        PL: for<'r> Fn(&'r L) -> &'r K + 'static,
+        PR: for<'r> Fn(&'r R) -> &'r K + 'static,
     {
         // Build index for right side
         let mut right_index: HashMap<K, Vec<&R>> = HashMap::new();
         for item in self.right.iter() {
-            if let Some(key) = right_key.get(item).cloned() {
-                right_index.entry(key).or_insert_with(Vec::new).push(item);
-            }
+            let key = right_key.get(item).clone();
+            right_index.entry(key).or_insert_with(Vec::new).push(item);
         }
 
         // Join left with indexed right, applying predicate
         let mut results = Vec::new();
         for left_item in self.left.iter() {
-            if let Some(key) = left_key.get(left_item).cloned() {
-                if let Some(right_items) = right_index.get(&key) {
-                    for right_item in right_items {
-                        if predicate(left_item, right_item) {
-                            results.push(mapper(left_item, right_item));
-                        }
+            let key = left_key.get(left_item).clone();
+            if let Some(right_items) = right_index.get(&key) {
+                for right_item in right_items {
+                    if predicate(left_item, right_item) {
+                        results.push(mapper(left_item, right_item));
                     }
                 }
             }
