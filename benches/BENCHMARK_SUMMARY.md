@@ -90,6 +90,22 @@ open target/criterion/keypath_vs_unwrap/read_nested_option/report/index.html
 
 **Conclusion**: **Always pre-compose keypaths when possible!** Pre-composed keypaths are 248x faster than creating them on-the-fly. Create keypaths once before loops/iterations for optimal performance.
 
+### 8. Ten Level Deep Nested Access
+**Scenario**: Reading and writing through 10 levels of nested `Option` types
+
+**Findings**:
+- **Read**: KeyPaths: **891.36 ps** (mean) [873.38 ps - 915.11 ps]
+- **Read**: Direct Unwrap: **398.23 ps** (mean) [393.52 ps - 403.50 ps]
+- **Read Overhead**: **2.24x slower** (124% overhead)
+- **Write**: KeyPaths: **21.429 ns** (mean) [20.210 ns - 23.626 ns]
+- **Write**: Direct Unwrap: **19.900 ns** (mean) [19.677 ns - 20.145 ns]
+- **Write Overhead**: **1.08x slower** (8% overhead, essentially identical) ⚡
+
+**Conclusion**: 
+- **Read operations**: Show 2.24x overhead for 10-level deep access, but absolute difference is still minimal (~493 ps)
+- **Write operations**: **Excellent performance!** Only 1.08x overhead (8%), essentially identical to direct unwraps. This demonstrates that KeyPaths scale well even for very deep nesting.
+- The write performance is particularly impressive - even at 10 levels deep, KeyPaths maintain near-zero overhead for write operations.
+
 ## Key Insights
 
 ### ✅ KeyPaths Advantages
@@ -127,6 +143,8 @@ open target/criterion/keypath_vs_unwrap/read_nested_option/report/index.html
 | Creation (one-time) | 542.20 ns | N/A | One-time cost |
 | Pre-composed | 561.88 ps | N/A | Optimal |
 | Composed on-fly | 215.89 ns | N/A | 384x slower than pre-composed |
+| **Ten Level Read** | **891.36 ps** | **398.23 ps** | **2.24x slower** |
+| **Ten Level Write** | **21.429 ns** | **19.900 ns** | **1.08x slower** (essentially identical) ⚡ |
 
 ## Performance After Optimizations (Rc + Phase 1 & 3)
 
@@ -247,6 +265,7 @@ KeyPaths provide:
 - Read operations now have minimal overhead (1.46x, ~178 ps absolute difference)
 - Write operations have higher overhead (10.7x) but absolute difference is still small (~3.72 ns)
 - Deep nested paths show higher overhead (23.3x without enum, 25.1x with enum) but are still manageable for most use cases
+- **Ten-level deep writes show excellent performance** (1.08x overhead, essentially identical to direct unwraps) ⚡
 - Enum case paths add ~7% overhead compared to pure Option chains
 - **Optimizations applied**: Phase 1 (direct match) + Rc migration = 43% read performance improvement
 

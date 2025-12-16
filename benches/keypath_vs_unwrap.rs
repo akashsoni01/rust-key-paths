@@ -467,40 +467,41 @@ fn bench_ten_level(c: &mut Criterion) {
     let mut group = c.benchmark_group("ten_level");
     
     // Read benchmark
-    let instance = TenLevel1Struct::new();
-    let read_kp = TenLevel1Struct::level1_field_fr()
-        .then(TenLevel2Struct::level2_field_fr())
-        .then(TenLevel3Struct::level3_field_fr())
-        .then(TenLevel4Struct::level4_field_fr())
-        .then(TenLevel5Struct::level5_field_fr())
-        .then(TenLevel6Struct::level6_field_fr())
-        .then(TenLevel7Struct::level7_field_fr())
-        .then(TenLevel8Struct::level8_field_fr())
-        .then(TenLevel9Struct::level9_field_fr())
-        .then(TenLevel10Struct::level10_field_fr());
-    
+    let instance = TenLevel1Struct::new();    
     group.bench_function("read", |b| {
         b.iter(|| {
+            let read_kp = TenLevel1Struct::level1_field_fr()
+            .then(TenLevel2Struct::level2_field_fr())
+            .then(TenLevel3Struct::level3_field_fr())
+            .then(TenLevel4Struct::level4_field_fr())
+            .then(TenLevel5Struct::level5_field_fr())
+            .then(TenLevel6Struct::level6_field_fr())
+            .then(TenLevel7Struct::level7_field_fr())
+            .then(TenLevel8Struct::level8_field_fr())
+            .then(TenLevel9Struct::level9_field_fr())
+            .then(TenLevel10Struct::level10_field_fr());    
             let result = read_kp.get(black_box(&instance));
+
             black_box(result.is_some())
         })
     });
     
     // Write benchmark
     let mut instance_mut = TenLevel1Struct::new();
-    let write_kp = TenLevel1Struct::level1_field_fw()
-        .then(TenLevel2Struct::level2_field_fw())
-        .then(TenLevel3Struct::level3_field_fw())
-        .then(TenLevel4Struct::level4_field_fw())
-        .then(TenLevel5Struct::level5_field_fw())
-        .then(TenLevel6Struct::level6_field_fw())
-        .then(TenLevel7Struct::level7_field_fw())
-        .then(TenLevel8Struct::level8_field_fw())
-        .then(TenLevel9Struct::level9_field_fw())
-        .then(TenLevel10Struct::level10_field_fw());
     
     group.bench_function("write", |b| {
         b.iter(|| {
+            let write_kp = TenLevel1Struct::level1_field_fw()
+            .then(TenLevel2Struct::level2_field_fw())
+            .then(TenLevel3Struct::level3_field_fw())
+            .then(TenLevel4Struct::level4_field_fw())
+            .then(TenLevel5Struct::level5_field_fw())
+            .then(TenLevel6Struct::level6_field_fw())
+            .then(TenLevel7Struct::level7_field_fw())
+            .then(TenLevel8Struct::level8_field_fw())
+            .then(TenLevel9Struct::level9_field_fw())
+            .then(TenLevel10Struct::level10_field_fw());
+    
             if let Some(value) = write_kp.get_mut(black_box(&mut instance_mut)) {
                 *value = String::from("updated value");
             }

@@ -17,6 +17,8 @@ All benchmarks have been updated to measure only the `get()`/`get_mut()` call ti
 | **Creation (one-time)** | 542.20 ns | N/A | One-time cost | Keypath creation overhead |
 | **Pre-composed** | 561.88 ps | N/A | Optimal | Pre-composed keypath access |
 | **Composed on-fly** | 215.89 ns | N/A | 384x slower than pre-composed | On-the-fly composition |
+| **Ten Level Read** | 891.36 ps | 398.23 ps | **2.24x slower** | 10-level deep nested Option chain read |
+| **Ten Level Write** | 21.429 ns | 19.900 ns | **1.08x slower** (essentially identical) ⚡ | 10-level deep nested Option chain write |
 
 ## Key Observations
 

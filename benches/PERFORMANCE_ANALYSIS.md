@@ -15,6 +15,8 @@ Benchmark results show that **write operations have higher overhead (13.1x-28.1x
 | **Deep Read (with enum)** | 9.565 ns | 390.12 ps | **24.5x slower** | Deep nested access with enum case path (corrected benchmark) |
 | **Write Deep (with enum)** | 9.743 ns | 389.16 ps | **25.0x slower** | Write access with enum case path |
 | **Reused Read** | 568.07 ps | 37.296 ns | **65.7x faster** ⚡ | Multiple accesses with same keypath |
+| **Ten Level Read** | 891.36 ps | 398.23 ps | **2.24x slower** (124% overhead) | 10-level deep nested Option chain read |
+| **Ten Level Write** | 21.429 ns | 19.900 ns | **1.08x slower** (8% overhead, essentially identical) ⚡ | 10-level deep nested Option chain write |
 
 **Key Findings** (After Phase 1 & 3 Optimizations + Rc Migration):
 - **Read operations**: **43% improvement!** Now only 1.46x overhead (was 2.45x), absolute difference ~178 ps
