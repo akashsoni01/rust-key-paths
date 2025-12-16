@@ -1,4 +1,4 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use rust_keypaths::WritableOptionalKeyPath;
 
 // Example usage (SOUND: User actually owns Address)
 #[derive(Debug)]
@@ -81,7 +81,8 @@ fn main() {
         shipping_cost: 5.0,
     };
 
-    let electronics_path: KeyPath<Product, Electronics, impl for<\'r> Fn(&\'r Product) -> &\'r Electronics> = KeyPaths::writable_enum(
+    // Create writable enum keypath for Electronics variant
+    let electronics_path = WritableOptionalKeyPath::writable_enum(
         |v| Product::Electronics(v),
         |p: &Product| match p {
             Product::Electronics(electronics) => Some(electronics),
@@ -99,8 +100,7 @@ fn main() {
     let product_to_price = electronics_path.then(price_path);
 
     // Apply the composed KeyPath
-    let price = product_to_price.get_mut(&mut inventory.items[1]);
-    {
+    if let Some(price) = product_to_price.get_mut(&mut inventory.items[1]) {
         println!("Original smartphone price: ${}", price);
         *price = 649.99;
         println!("New smartphone price: ${:?}", inventory.items[1].price());
@@ -110,8 +110,7 @@ fn main() {
 
     // Product -> Book -> price
     // Now, try on a product that doesn't match the path
-    let _ = product_to_price.get_mut(&mut inventory.items[0]);
-    {
+    if let Some(_) = product_to_price.get_mut(&mut inventory.items[0]) {
         // This won't be executed
     } else {
         println!("Path not found for the book.");

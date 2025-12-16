@@ -1464,6 +1464,39 @@ impl WritableOptionalKeyPath<(), (), fn(&mut ()) -> Option<&mut ()>> {
     pub fn for_option_static<T>() -> WritableOptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r mut Option<T>) -> Option<&'r mut T>> {
         WritableOptionalKeyPath::new(|opt: &mut Option<T>| opt.as_mut())
     }
+    
+    /// Backword compatibility method for writable enum keypath
+    // Create a writable enum keypath for enum variants
+    /// This allows both reading and writing to enum variant fields
+    /// 
+    /// # Arguments
+    /// * `embedder` - Function to embed a value into the enum variant (for API consistency, not used)
+    /// * `read_extractor` - Function to extract a read reference from the enum (for API consistency, not used)
+    /// * `write_extractor` - Function to extract a mutable reference from the enum
+    /// 
+    /// # Example
+    /// ```rust
+    /// enum Color { Other(RGBU8) }
+    /// struct RGBU8(u8, u8, u8);
+    /// 
+    /// let case_path = WritableOptionalKeyPath::writable_enum(
+    ///     |v| Color::Other(v),
+    ///     |p: &Color| match p { Color::Other(rgb) => Some(rgb), _ => None },
+    ///     |p: &mut Color| match p { Color::Other(rgb) => Some(rgb), _ => None },
+    /// );
+    /// ```
+    pub fn writable_enum<Enum, Variant, EmbedFn, ReadExtractFn, WriteExtractFn>(
+        _embedder: EmbedFn,
+        _read_extractor: ReadExtractFn,
+        write_extractor: WriteExtractFn,
+    ) -> WritableOptionalKeyPath<Enum, Variant, impl for<'r> Fn(&'r mut Enum) -> Option<&'r mut Variant> + 'static>
+    where
+        EmbedFn: Fn(Variant) -> Enum + 'static,
+        ReadExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
+        WriteExtractFn: for<'r> Fn(&'r mut Enum) -> Option<&'r mut Variant> + 'static,
+    {
+        WritableOptionalKeyPath::new(write_extractor)
+    }
 }
 
 // Enum-specific keypaths

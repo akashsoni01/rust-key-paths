@@ -33,7 +33,7 @@
 //     println!("{:?}", p);
 
 //     let v = kp.get_mut(&mut p);
-    {
+    // {
 //         *v = 34
 //     }
 //     // kp.get_mut(&mut p); // this will return none as kp is readable
