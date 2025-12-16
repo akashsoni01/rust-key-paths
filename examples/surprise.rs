@@ -28,6 +28,7 @@ struct Settings {
 }
 
 #[derive(Debug, Casepaths)]
+#[All]
 enum Connection {
     Disconnected,
     Connecting(u32),
@@ -35,6 +36,7 @@ enum Connection {
 }
 
 #[derive(Debug, Casepaths)]
+#[All]
 enum Status {
     Active(User),
     Inactive,
@@ -77,6 +79,7 @@ fn main() {
 
     // 1) Read a nested optional field via failable readable compose
     let first_user_profile_name = App::users_r()
+        .to_optional()
         .then(OptionalKeyPath::new(|v: &Vec<User>| v.first()))
         .then(User::profile_fr())
         .then(Profile::display_name_r().to_optional());
@@ -89,12 +92,10 @@ fn main() {
     let settings_fw = App::settings_fw();
     let db_fw = Settings::db_fw();
     let db_port_w = DbConfig::f0_w();
-    let settings = settings_fw.get_mut(&mut app);
-    {
+    if let Some(settings) = settings_fw.get_mut(&mut app) {
         if let Some(db) = db_fw.get_mut(settings) {
-            if let Some(port) = db_port_w.get_mut(db) {
-                *port += 1;
-            }
+            let port = db_port_w.get_mut(db);
+            *port += 1;
         }
     }
     println!(
@@ -106,18 +107,20 @@ fn main() {
     app.connection = Connection::Connected("10.0.0.1".into());
     let connected_case = Connection::connected_case_w();
     // compose requires a keypath from App -> Connection first
-    let app_connection_w = App::connection_w();
+    let app_connection_w = App::connection_w().to_optional();
     let app_connected_ip = app_connection_w.then(connected_case);
-    let ip = app_connected_ip.get_mut(&mut app);
-    {
+    if let Some(ip) = app_connected_ip.get_mut(&mut app) {
         ip.push_str(":8443");
     }
     println!("app.connection = {:?}", app.connection);
 
     // 4) Enum readable case path for state without payload
     app.connection = Connection::Disconnected;
-    let disc = Connection::disconnected_case_r();
-    println!("is disconnected? {:?}", disc.get(&app.connection).is_some());
+    // Unit variants don't have case methods - check directly
+    match app.connection {
+        Connection::Disconnected => println!("is disconnected? true"),
+        _ => println!("is disconnected? false"),
+    }
 
     // 5) Iterate immutably and mutably via derived vec keypaths
     let users_r = App::users_r();
@@ -138,21 +141,18 @@ fn main() {
     let first_user_fr = OptionalKeyPath::new(|v: &Vec<User>| v.first());
     let profile_fr = User::profile_fr();
     let age_w = Profile::age_w();
-    if let Some(u0) = first_user_fr.get(&app.users) {
+    if let Some(_u0) = first_user_fr.get(&app.users) {
         // borrow helper
-        let mut app_ref = &mut app.users[0];
-        let p = profile_fr.get_mut(&mut app_ref);
-    {
-            if let Some(age) = age_w.get_mut(p) {
-                *age += 1;
-            }
+        if let Some(profile) = app.users[0].profile.as_mut() {
+            let age = age_w.get_mut(profile);
+            *age += 1;
         }
     }
     println!("first user after bday = {:?}", app.users.first());
 
     // 7) Embed: build a Connected from payload
     let connected_r = Connection::connected_case_r();
-    let new_conn = connected_r.embed("192.168.0.1".to_string());
+    let new_conn = Connection::Connected("192.168.0.1".to_string());
     println!("embedded = {:?}", new_conn);
 
     // 8) Additional enum with casepaths: Status
@@ -167,8 +167,7 @@ fn main() {
 
     let st_pending = Status::pending_case_w();
     st = Status::Pending(5);
-    let v = st_pending.get_mut(&mut st);
-    {
+    if let Some(v) = st_pending.get_mut(&mut st) {
         *v += 1;
     }
     println!("status after pending increment = {:?}", st);

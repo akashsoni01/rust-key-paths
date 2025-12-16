@@ -48,8 +48,7 @@ fn main() {
     let name_option_path_w = name_path_w.clone().for_option();
     
     // Modify name in Option<User>
-    let name = name_option_path_w.get_mut(&mut &mut option_user_mut);
-    {
+    if let Some(name) = name_option_path_w.get_mut(&mut option_user_mut) {
         *name = "Alice Updated".to_string();
         println!("  Updated name in Option: {}", name);
     }

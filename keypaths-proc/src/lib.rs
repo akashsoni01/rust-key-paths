@@ -560,7 +560,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Readable,
                                 quote! {
                                     pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::KeyPath::new(|s: &#name| &*s.#field_ident)
+                                        rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident.as_ref())
                                     }
                                 },
                             );
@@ -571,7 +571,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Readable,
                                 quote! {
                                     pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&*s.#field_ident))
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(s.#field_ident.as_ref()))
                                     }
                                 },
                             );
@@ -581,7 +581,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::KeyPath::new(|s: &#name| (*s.#field_ident).clone())
+                                        rust_keypaths::KeyPath::new(|s: &#name| s.#field_ident.as_ref())
                                     }
                                 },
                             );
@@ -592,7 +592,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 MethodKind::Owned,
                                 quote! {
                                     pub fn #fo_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fo, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fo>> {
-                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some((*s.#field_ident).clone()))
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(s.#field_ident.as_ref()))
                                     }
                                 },
                             );

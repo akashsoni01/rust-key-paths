@@ -1,8 +1,9 @@
 use std::{rc::Rc, sync::Arc};
 
-use key_paths_derive::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
+#[All]
 struct SomeComplexStruct {
     scsf: Rc<SomeOtherStruct>,
     // scsf2: Option<Arc<SomeOtherStruct>>,
@@ -25,23 +26,27 @@ impl SomeComplexStruct {
 }
 
 #[derive(Debug, Keypaths, Clone)]
+#[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
 #[derive(Debug, Casepaths, Clone)]
+#[All]
 enum SomeEnum {
     A(String),
     B(DarkStruct),
 }
 
 #[derive(Debug, Keypaths, Clone)]
+#[All]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
 #[derive(Debug, Keypaths, Clone)]
+#[All]
 struct DarkStruct {
     dsf: String,
 }
@@ -51,7 +56,7 @@ fn main() {
     let op = SomeComplexStruct::scsf_fr()
         .then(SomeOtherStruct::sosf_fr())
         .then(OneMoreStruct::omse_fr())
-        .then(SomeEnum::b_case_r().to_optional())
+        .then(SomeEnum::b_case_r())
         .then(DarkStruct::dsf_fr());
     let mut instance = SomeComplexStruct::new();
     if let Some(omsf) = op.get(&instance) {

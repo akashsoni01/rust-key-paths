@@ -456,6 +456,18 @@ where
         Some(value_ref.as_ref().iter())
     }
     
+    /// Extract values from a slice of owned values
+    /// Returns a Vec of references to the extracted values
+    pub fn extract_from_slice<'r>(&self, slice: &'r [Root]) -> Vec<&'r Value> {
+        slice.iter().map(|item| self.get(item)).collect()
+    }
+    
+    /// Extract values from a slice of references
+    /// Returns a Vec of references to the extracted values
+    pub fn extract_from_ref_slice<'r>(&self, slice: &'r [&Root]) -> Vec<&'r Value> {
+        slice.iter().map(|item| self.get(item)).collect()
+    }
+    
 }
 
 // Extension methods for KeyPath to support Arc<RwLock> and Arc<Mutex> directly
@@ -1262,6 +1274,18 @@ where
     {
         let value_ref: &'r mut Value = self.get_mut(root);
         Some(value_ref.as_mut().iter_mut())
+    }
+    
+    /// Extract mutable values from a slice of owned mutable values
+    /// Returns a Vec of mutable references to the extracted values
+    pub fn extract_mut_from_slice<'r>(&self, slice: &'r mut [Root]) -> Vec<&'r mut Value> {
+        slice.iter_mut().map(|item| self.get_mut(item)).collect()
+    }
+    
+    /// Extract mutable values from a slice of mutable references
+    /// Returns a Vec of mutable references to the extracted values
+    pub fn extract_mut_from_ref_slice<'r>(&self, slice: &'r mut [&'r mut Root]) -> Vec<&'r mut Value> {
+        slice.iter_mut().map(|item| self.get_mut(*item)).collect()
     }
 }
 

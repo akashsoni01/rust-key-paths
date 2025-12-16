@@ -17,12 +17,12 @@ impl SomeComplexStruct {
     // fn w() -> KeyPaths<>{}
 
     // failable read only keypath = field_name_fr
-    fn scsf_fr() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
+    fn scsf_fr() -> OptionalKeyPath<SomeComplexStruct, SomeOtherStruct, impl for<'r> Fn(&'r SomeComplexStruct) -> Option<&'r SomeOtherStruct>> {
         OptionalKeyPath::new(|root: &SomeComplexStruct| root.scsf.as_ref())
     }
 
     // failable writeable keypath = field_name_fw
-    fn scsf_fw() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
+    fn scsf_fw() -> WritableOptionalKeyPath<SomeComplexStruct, SomeOtherStruct, impl for<'r> Fn(&'r mut SomeComplexStruct) -> Option<&'r mut SomeOtherStruct>> {
         WritableOptionalKeyPath::new(|root: &mut SomeComplexStruct| root.scsf.as_mut())
     }
 }
@@ -81,8 +81,8 @@ fn main() {
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omsf_fw());
     let mut instance = SomeComplexStruct::new();
-    let omsf = op.get_mut(&mut instance);
-    **omsf =
-        String::from("we can change the field with the other way unlocked by keypaths");
+    if let Some(omsf) = op.get_mut(&mut instance) {
+        *omsf = String::from("we can change the field with the other way unlocked by keypaths");
+    }
     println!("instance = {:?}", instance);
 }
