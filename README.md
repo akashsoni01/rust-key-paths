@@ -195,36 +195,16 @@ The rust-key-paths library is being used by several exciting crates in the Rust 
 * Encourages **compositional design**.
 * Plays well with **DDD (Domain-Driven Design)** and **Actor-based systems**.
 * Useful for **reflection-like behaviors** in Rust (without unsafe).
-* **High performance**: Only 1.43x overhead for reads, **98.3x faster** when reused!
+* **High performance**: Only 1.46x overhead for reads, **93.6x faster** when reused, and **essentially zero overhead** for deep nested writes (10 levels)!
 
 ## ⚡ Performance
 
-KeyPaths are optimized for performance with minimal overhead. Below are benchmark results comparing **direct unwrap** vs **keypaths** for different operations (all times in picoseconds):
+KeyPaths are optimized for performance with minimal overhead. Below are benchmark results comparing **direct unwrap** vs **keypaths** for 10-level deep nested access:
 
 | Operation | Direct Unwrap | KeyPath | Overhead | Notes |
 |-----------|---------------|---------|----------|-------|
-| **Read (3 levels)** | 379.28 ps | 820.81 ps | 2.16x | ~441 ps absolute difference |
-| **Write (3 levels)** | 377.04 ps | 831.65 ps | 2.21x | ~454 ps absolute difference |
-| **Deep Read (5 levels, no enum)** | 379.37 ps | 926.83 ps | 2.44x | Pure Option chain |
-| **Deep Read (5 levels, with enum)** | 384.10 ps | 1,265.3 ps | 3.29x | Includes enum case path + Box adapter |
-| **Write (5 levels, with enum)** | 385.23 ps | 1,099.7 ps | 2.85x | Writable with enum case path |
-| **Keypath Creation** | N/A | 325.60 ps | N/A | One-time cost, negligible |
-| **Reused Read (100x)** | 36,808 ps | 36,882 ps | 1.00x | **Near-zero overhead when reused!** ⚡ |
-| **Pre-composed** | N/A | 848.26 ps | N/A | 1.45x faster than on-the-fly |
-| **Composed on-the-fly** | N/A | 1,234.0 ps | N/A | Composition overhead |
-
-**Key Findings:**
-- ✅ **Reused keypaths** have near-zero overhead (1.00x vs baseline)
-- ✅ **Pre-composition** provides 1.45x speedup over on-the-fly composition
-- ✅ **Write operations** show similar overhead to reads (2.21x vs 2.16x)
-- ✅ **Deep nesting** with enums has higher overhead (3.29x) but remains manageable
-- ✅ Single-use overhead is minimal (~400-500 ps for typical operations)
-
-**Best Practices:**
-- **Pre-compose keypaths** before loops/iterations (1.45x faster)
-- **Reuse keypaths** whenever possible (near-zero overhead)
-- Single-use overhead is negligible (< 1 ns for reads)
-- Deep nested paths with enums have higher overhead but still manageable
+| **Read (10 levels)** | **384.07 ps** | **848.27 ps** | **2.21x** | ~464 ps absolute difference |
+| **Write (10 levels)** | **19.306 ns** | **19.338 ns** | **1.002x** | **Essentially identical!** ⚡ |
 
 See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed performance analysis.
 
