@@ -1681,6 +1681,132 @@ impl<Root> PartialKeyPath<Root> {
     pub fn kind_name(&self) -> String {
         format!("{:?}", self.value_type_id)
     }
+    
+    /// Adapt this keypath to work with Arc<Root> instead of Root
+    pub fn for_arc(&self) -> PartialOptionalKeyPath<Arc<Root>>
+    where
+        Root: 'static,
+    {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+        
+        PartialOptionalKeyPath {
+            getter: Rc::new(move |arc: &Arc<Root>| {
+                Some(getter(arc.as_ref()))
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Adapt this keypath to work with Box<Root> instead of Root
+    pub fn for_box(&self) -> PartialOptionalKeyPath<Box<Root>>
+    where
+        Root: 'static,
+    {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+        
+        PartialOptionalKeyPath {
+            getter: Rc::new(move |boxed: &Box<Root>| {
+                Some(getter(boxed.as_ref()))
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Adapt this keypath to work with Rc<Root> instead of Root
+    pub fn for_rc(&self) -> PartialOptionalKeyPath<Rc<Root>>
+    where
+        Root: 'static,
+    {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+        
+        PartialOptionalKeyPath {
+            getter: Rc::new(move |rc: &Rc<Root>| {
+                Some(getter(rc.as_ref()))
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    pub fn for_option(&self) -> PartialOptionalKeyPath<Option<Root>>
+    where
+        Root: 'static,
+    {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+        
+        PartialOptionalKeyPath {
+            getter: Rc::new(move |opt: &Option<Root>| {
+                opt.as_ref().map(|root| getter(root))
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    pub fn for_result<E>(&self) -> PartialOptionalKeyPath<Result<Root, E>>
+    where
+        Root: 'static,
+        E: 'static,
+    {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+        
+        PartialOptionalKeyPath {
+            getter: Rc::new(move |result: &Result<Root, E>| {
+                result.as_ref().ok().map(|root| getter(root))
+            }),
+            value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Adapt this keypath to work with Arc<RwLock<Root>> instead of Root
+    /// Note: This requires the Root to be cloned first, then use the keypath on the cloned value
+    /// Example: `keypath.get_as::<Value>(&arc_rwlock.read().unwrap().clone())`
+    pub fn for_arc_rwlock(&self) -> PartialOptionalKeyPath<Arc<RwLock<Root>>>
+    where
+        Root: Clone + 'static,
+    {
+        // We can't return a reference from a guard, so we return None
+        // Users should clone the root first: arc_rwlock.read().unwrap().clone()
+        PartialOptionalKeyPath {
+            getter: Rc::new(move |_arc_rwlock: &Arc<RwLock<Root>>| {
+                // Cannot return reference from temporary guard
+                // User should clone the root first and use the keypath on the cloned value
+                None
+            }),
+            value_type_id: self.value_type_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    /// Adapt this keypath to work with Arc<Mutex<Root>> instead of Root
+    /// Note: This requires the Root to be cloned first, then use the keypath on the cloned value
+    /// Example: `keypath.get_as::<Value>(&arc_mutex.lock().unwrap().clone())`
+    pub fn for_arc_mutex(&self) -> PartialOptionalKeyPath<Arc<Mutex<Root>>>
+    where
+        Root: Clone + 'static,
+    {
+        // We can't return a reference from a guard, so we return None
+        // Users should clone the root first: arc_mutex.lock().unwrap().clone()
+        PartialOptionalKeyPath {
+            getter: Rc::new(move |_arc_mutex: &Arc<Mutex<Root>>| {
+                // Cannot return reference from temporary guard
+                // User should clone the root first and use the keypath on the cloned value
+                None
+            }),
+            value_type_id: self.value_type_id,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 /// PartialOptionalKeyPath - Hides the Value type but keeps Root visible
@@ -1952,6 +2078,155 @@ impl AnyKeyPath {
     /// Returns a string representation of the TypeId
     pub fn kind_name(&self) -> String {
         format!("{:?}", self.value_type_id)
+    }
+    
+    /// Adapt this keypath to work with Arc<Root> instead of Root
+    pub fn for_arc<Root>(&self) -> AnyKeyPath
+    where
+        Root: Any + 'static,
+    {
+        let root_type_id = self.root_type_id;
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        
+        AnyKeyPath {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(arc) = any.downcast_ref::<Arc<Root>>() {
+                    getter(arc.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Arc<Root>>(),
+            value_type_id,
+        }
+    }
+    
+    /// Adapt this keypath to work with Box<Root> instead of Root
+    pub fn for_box<Root>(&self) -> AnyKeyPath
+    where
+        Root: Any + 'static,
+    {
+        let root_type_id = self.root_type_id;
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        
+        AnyKeyPath {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(boxed) = any.downcast_ref::<Box<Root>>() {
+                    getter(boxed.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Box<Root>>(),
+            value_type_id,
+        }
+    }
+    
+    /// Adapt this keypath to work with Rc<Root> instead of Root
+    pub fn for_rc<Root>(&self) -> AnyKeyPath
+    where
+        Root: Any + 'static,
+    {
+        let root_type_id = self.root_type_id;
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        
+        AnyKeyPath {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(rc) = any.downcast_ref::<Rc<Root>>() {
+                    getter(rc.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Rc<Root>>(),
+            value_type_id,
+        }
+    }
+    
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    pub fn for_option<Root>(&self) -> AnyKeyPath
+    where
+        Root: Any + 'static,
+    {
+        let root_type_id = self.root_type_id;
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        
+        AnyKeyPath {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(opt) = any.downcast_ref::<Option<Root>>() {
+                    opt.as_ref().and_then(|root| getter(root as &dyn Any))
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Option<Root>>(),
+            value_type_id,
+        }
+    }
+    
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    pub fn for_result<Root, E>(&self) -> AnyKeyPath
+    where
+        Root: Any + 'static,
+        E: Any + 'static,
+    {
+        let root_type_id = self.root_type_id;
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        
+        AnyKeyPath {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(result) = any.downcast_ref::<Result<Root, E>>() {
+                    result.as_ref().ok().and_then(|root| getter(root as &dyn Any))
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Result<Root, E>>(),
+            value_type_id,
+        }
+    }
+    
+    /// Adapt this keypath to work with Arc<RwLock<Root>> instead of Root
+    /// Note: This requires the Root to be cloned first, then use the keypath on the cloned value
+    pub fn for_arc_rwlock<Root>(&self) -> AnyKeyPath
+    where
+        Root: Any + Clone + 'static,
+    {
+        // We can't return a reference from a guard, so we return None
+        // Users should clone the root first
+        AnyKeyPath {
+            getter: Rc::new(move |_any: &dyn Any| {
+                // Cannot return reference from temporary guard
+                // User should clone the root first and use the keypath on the cloned value
+                None
+            }),
+            root_type_id: TypeId::of::<Arc<RwLock<Root>>>(),
+            value_type_id: self.value_type_id,
+        }
+    }
+    
+    /// Adapt this keypath to work with Arc<Mutex<Root>> instead of Root
+    /// Note: This requires the Root to be cloned first, then use the keypath on the cloned value
+    pub fn for_arc_mutex<Root>(&self) -> AnyKeyPath
+    where
+        Root: Any + Clone + 'static,
+    {
+        // We can't return a reference from a guard, so we return None
+        // Users should clone the root first
+        AnyKeyPath {
+            getter: Rc::new(move |_any: &dyn Any| {
+                // Cannot return reference from temporary guard
+                // User should clone the root first and use the keypath on the cloned value
+                None
+            }),
+            root_type_id: TypeId::of::<Arc<Mutex<Root>>>(),
+            value_type_id: self.value_type_id,
+        }
     }
 }
 
