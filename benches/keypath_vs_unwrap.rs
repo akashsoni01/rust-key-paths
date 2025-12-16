@@ -375,6 +375,189 @@ fn bench_composition_overhead(c: &mut Criterion) {
     group.finish();
 }
 
+// 10-level deep struct definitions
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel1Struct {
+    level1_field: Option<TenLevel2Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel2Struct {
+    level2_field: Option<TenLevel3Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel3Struct {
+    level3_field: Option<TenLevel4Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel4Struct {
+    level4_field: Option<TenLevel5Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel5Struct {
+    level5_field: Option<TenLevel6Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel6Struct {
+    level6_field: Option<TenLevel7Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel7Struct {
+    level7_field: Option<TenLevel8Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel8Struct {
+    level8_field: Option<TenLevel9Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel9Struct {
+    level9_field: Option<TenLevel10Struct>,
+}
+
+#[derive(Debug, Clone, Keypaths)]
+#[All]
+struct TenLevel10Struct {
+    level10_field: Option<String>,
+}
+
+impl TenLevel1Struct {
+    fn new() -> Self {
+        Self {
+            level1_field: Some(TenLevel2Struct {
+                level2_field: Some(TenLevel3Struct {
+                    level3_field: Some(TenLevel4Struct {
+                        level4_field: Some(TenLevel5Struct {
+                            level5_field: Some(TenLevel6Struct {
+                                level6_field: Some(TenLevel7Struct {
+                                    level7_field: Some(TenLevel8Struct {
+                                        level8_field: Some(TenLevel9Struct {
+                                            level9_field: Some(TenLevel10Struct {
+                                                level10_field: Some(String::from("level 10 value")),
+                                            }),
+                                        }),
+                                    }),
+                                }),
+                            }),
+                        }),
+                    }),
+                }),
+            }),
+        }
+    }
+}
+
+// Benchmark: 10-level deep read and write operations
+fn bench_ten_level(c: &mut Criterion) {
+    let mut group = c.benchmark_group("ten_level");
+    
+    // Read benchmark
+    let instance = TenLevel1Struct::new();
+    let read_kp = TenLevel1Struct::level1_field_fr()
+        .then(TenLevel2Struct::level2_field_fr())
+        .then(TenLevel3Struct::level3_field_fr())
+        .then(TenLevel4Struct::level4_field_fr())
+        .then(TenLevel5Struct::level5_field_fr())
+        .then(TenLevel6Struct::level6_field_fr())
+        .then(TenLevel7Struct::level7_field_fr())
+        .then(TenLevel8Struct::level8_field_fr())
+        .then(TenLevel9Struct::level9_field_fr())
+        .then(TenLevel10Struct::level10_field_fr());
+    
+    group.bench_function("read", |b| {
+        b.iter(|| {
+            let result = read_kp.get(black_box(&instance));
+            black_box(result.is_some())
+        })
+    });
+    
+    // Write benchmark
+    let mut instance_mut = TenLevel1Struct::new();
+    let write_kp = TenLevel1Struct::level1_field_fw()
+        .then(TenLevel2Struct::level2_field_fw())
+        .then(TenLevel3Struct::level3_field_fw())
+        .then(TenLevel4Struct::level4_field_fw())
+        .then(TenLevel5Struct::level5_field_fw())
+        .then(TenLevel6Struct::level6_field_fw())
+        .then(TenLevel7Struct::level7_field_fw())
+        .then(TenLevel8Struct::level8_field_fw())
+        .then(TenLevel9Struct::level9_field_fw())
+        .then(TenLevel10Struct::level10_field_fw());
+    
+    group.bench_function("write", |b| {
+        b.iter(|| {
+            if let Some(value) = write_kp.get_mut(black_box(&mut instance_mut)) {
+                *value = String::from("updated value");
+            }
+            black_box(())
+        })
+    });
+    
+    // Traditional approach for comparison (read)
+    group.bench_function("read_traditional", |b| {
+        b.iter(|| {
+            let result = instance
+                .level1_field
+                .as_ref()
+                .and_then(|l2| l2.level2_field.as_ref())
+                .and_then(|l3| l3.level3_field.as_ref())
+                .and_then(|l4| l4.level4_field.as_ref())
+                .and_then(|l5| l5.level5_field.as_ref())
+                .and_then(|l6| l6.level6_field.as_ref())
+                .and_then(|l7| l7.level7_field.as_ref())
+                .and_then(|l8| l8.level8_field.as_ref())
+                .and_then(|l9| l9.level9_field.as_ref())
+                .and_then(|l10| l10.level10_field.as_ref());
+            black_box(result.is_some())
+        })
+    });
+    
+    // Traditional approach for comparison (write)
+    group.bench_function("write_traditional", |b| {
+        b.iter(|| {
+            if let Some(l2) = instance_mut.level1_field.as_mut() {
+                if let Some(l3) = l2.level2_field.as_mut() {
+                    if let Some(l4) = l3.level3_field.as_mut() {
+                        if let Some(l5) = l4.level4_field.as_mut() {
+                            if let Some(l6) = l5.level5_field.as_mut() {
+                                if let Some(l7) = l6.level6_field.as_mut() {
+                                    if let Some(l8) = l7.level7_field.as_mut() {
+                                        if let Some(l9) = l8.level8_field.as_mut() {
+                                            if let Some(l10) = l9.level9_field.as_mut() {
+                                                if let Some(value) = l10.level10_field.as_mut() {
+                                                    *value = String::from("updated value");
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            black_box(())
+        })
+    });
+    
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_read_nested_option,
@@ -384,7 +567,8 @@ criterion_group!(
     bench_write_deep_nested_with_enum,
     bench_keypath_creation,
     bench_keypath_reuse,
-    bench_composition_overhead
+    bench_composition_overhead,
+    bench_ten_level
 );
 criterion_main!(benches);
 
