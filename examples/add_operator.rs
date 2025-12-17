@@ -1,4 +1,4 @@
-//! Example demonstrating the `>>` (Shr) operator for keypath chaining
+//! Example demonstrating the `+` (Add) operator for keypath chaining
 //!
 //! ## Requirements
 //!
@@ -18,13 +18,11 @@
 //!
 //! **IMPORTANT**: You must use the nightly toolchain:
 //! ```bash
-//! cargo +nightly run --example shr_operator --features nightly
+//! cargo +nightly run --example add_operator --features nightly
 //! ```
 //!
-//! Using stable Rust will fail because `#![feature]` cannot be used on stable.
-//!
-//! On stable Rust, the example will show how to use `then()` methods instead,
-//! which provide the same functionality without requiring nightly features.
+//! On stable Rust, use `keypath1.then(keypath2)` instead, which provides
+//! the same functionality without requiring nightly features.
 
 // Enable the feature gate when nightly feature is enabled
 // NOTE: This requires Rust nightly toolchain - it will fail on stable Rust
@@ -55,35 +53,35 @@ struct Company {
 }
 
 fn main() {
-    println!("=== Shr Operator (>>) Examples ===\n");
+    println!("=== Add Operator (+) Examples ===\n");
 
-    // Example 1: KeyPath >> KeyPath
+    // Example 1: KeyPath + KeyPath
     example_keypath_chaining();
     
-    // Example 2: KeyPath >> OptionalKeyPath
+    // Example 2: KeyPath + OptionalKeyPath
     example_keypath_to_optional();
     
-    // Example 3: OptionalKeyPath >> OptionalKeyPath
+    // Example 3: OptionalKeyPath + OptionalKeyPath
     example_optional_chaining();
     
-    // Example 4: WritableKeyPath >> WritableKeyPath
+    // Example 4: WritableKeyPath + WritableKeyPath
     example_writable_chaining();
     
-    // Example 5: WritableKeyPath >> WritableOptionalKeyPath
+    // Example 5: WritableKeyPath + WritableOptionalKeyPath
     example_writable_to_optional();
     
-    // Example 6: WritableOptionalKeyPath >> WritableOptionalKeyPath
+    // Example 6: WritableOptionalKeyPath + WritableOptionalKeyPath
     example_writable_optional_chaining();
     
-    // Example 7: Comparison with then() method
-    example_comparison_with_then();
+    // Example 7: Comparison with then() method and >> operator
+    example_comparison();
 }
 
 #[cfg(feature = "nightly")]
 fn example_keypath_chaining() {
-    use std::ops::Shr;
+    use std::ops::Add;
     
-    println!("1. KeyPath >> KeyPath");
+    println!("1. KeyPath + KeyPath");
     
     let user = User {
         name: "Alice".to_string(),
@@ -100,24 +98,24 @@ fn example_keypath_chaining() {
     let address_kp = keypath!(|u: &User| &u.address);
     let street_kp = keypath!(|a: &Address| &a.street);
     
-    // Chain using >> operator (requires nightly feature)
-    let user_street_kp = address_kp >> street_kp;
+    // Chain using + operator (requires nightly feature)
+    let user_street_kp = address_kp + street_kp;
     
     println!("   User street: {}", user_street_kp.get(&user));
-    println!("   ✓ KeyPath >> KeyPath works!\n");
+    println!("   ✓ KeyPath + KeyPath works!\n");
 }
 
 #[cfg(not(feature = "nightly"))]
 fn example_keypath_chaining() {
-    println!("1. KeyPath >> KeyPath (requires nightly feature)");
+    println!("1. KeyPath + KeyPath (requires nightly feature)");
     println!("   Use keypath1.then(keypath2) instead on stable Rust\n");
 }
 
 #[cfg(feature = "nightly")]
 fn example_keypath_to_optional() {
-    use std::ops::Shr;
+    use std::ops::Add;
     
-    println!("2. KeyPath >> OptionalKeyPath");
+    println!("2. KeyPath + OptionalKeyPath");
     
     let user = User {
         name: "Bob".to_string(),
@@ -133,26 +131,26 @@ fn example_keypath_to_optional() {
     let address_kp = keypath!(|u: &User| &u.address);
     let zip_code_kp = opt_keypath!(|a: &Address| a.zip_code.as_ref());
     
-    // Chain KeyPath with OptionalKeyPath
-    let user_zip_kp = address_kp >> zip_code_kp;
+    // Chain KeyPath with OptionalKeyPath using +
+    let user_zip_kp = address_kp + zip_code_kp;
     
     if let Some(zip) = user_zip_kp.get(&user) {
         println!("   User zip code: {}", zip);
     }
-    println!("   ✓ KeyPath >> OptionalKeyPath works!\n");
+    println!("   ✓ KeyPath + OptionalKeyPath works!\n");
 }
 
 #[cfg(not(feature = "nightly"))]
 fn example_keypath_to_optional() {
-    println!("2. KeyPath >> OptionalKeyPath (requires nightly feature)");
+    println!("2. KeyPath + OptionalKeyPath (requires nightly feature)");
     println!("   Use keypath1.then_optional(opt_keypath2) instead on stable Rust\n");
 }
 
 #[cfg(feature = "nightly")]
 fn example_optional_chaining() {
-    use std::ops::Shr;
+    use std::ops::Add;
     
-    println!("3. OptionalKeyPath >> OptionalKeyPath");
+    println!("3. OptionalKeyPath + OptionalKeyPath");
     
     let company = Company {
         name: "Acme Corp".to_string(),
@@ -172,26 +170,26 @@ fn example_optional_chaining() {
     let address_kp = opt_keypath!(|u: &User| Some(&u.address));
     let street_kp = opt_keypath!(|a: &Address| Some(&a.street));
     
-    // Chain multiple OptionalKeyPaths
-    let company_owner_street_kp = owner_kp >> address_kp >> street_kp;
+    // Chain multiple OptionalKeyPaths using +
+    let company_owner_street_kp = owner_kp + address_kp + street_kp;
     
     if let Some(street) = company_owner_street_kp.get(&company) {
         println!("   Company owner's street: {}", street);
     }
-    println!("   ✓ OptionalKeyPath >> OptionalKeyPath works!\n");
+    println!("   ✓ OptionalKeyPath + OptionalKeyPath works!\n");
 }
 
 #[cfg(not(feature = "nightly"))]
 fn example_optional_chaining() {
-    println!("3. OptionalKeyPath >> OptionalKeyPath (requires nightly feature)");
+    println!("3. OptionalKeyPath + OptionalKeyPath (requires nightly feature)");
     println!("   Use opt_keypath1.then(opt_keypath2) instead on stable Rust\n");
 }
 
 #[cfg(feature = "nightly")]
 fn example_writable_chaining() {
-    use std::ops::Shr;
+    use std::ops::Add;
     
-    println!("4. WritableKeyPath >> WritableKeyPath");
+    println!("4. WritableKeyPath + WritableKeyPath");
     
     let mut user = User {
         name: "David".to_string(),
@@ -207,26 +205,26 @@ fn example_writable_chaining() {
     let address_wkp = writable_keypath!(|u: &mut User| &mut u.address);
     let city_wkp = writable_keypath!(|a: &mut Address| &mut a.city);
     
-    // Chain writable keypaths
-    let user_city_wkp = address_wkp >> city_wkp;
+    // Chain writable keypaths using +
+    let user_city_wkp = address_wkp + city_wkp;
     
     *user_city_wkp.get_mut(&mut user) = "Osaka".to_string();
     
     println!("   Updated city: {}", user.address.city);
-    println!("   ✓ WritableKeyPath >> WritableKeyPath works!\n");
+    println!("   ✓ WritableKeyPath + WritableKeyPath works!\n");
 }
 
 #[cfg(not(feature = "nightly"))]
 fn example_writable_chaining() {
-    println!("4. WritableKeyPath >> WritableKeyPath (requires nightly feature)");
+    println!("4. WritableKeyPath + WritableKeyPath (requires nightly feature)");
     println!("   Use writable_keypath1.then(writable_keypath2) instead on stable Rust\n");
 }
 
 #[cfg(feature = "nightly")]
 fn example_writable_to_optional() {
-    use std::ops::Shr;
+    use std::ops::Add;
     
-    println!("5. WritableKeyPath >> WritableOptionalKeyPath");
+    println!("5. WritableKeyPath + WritableOptionalKeyPath");
     
     let mut user = User {
         name: "Eve".to_string(),
@@ -242,27 +240,27 @@ fn example_writable_to_optional() {
     let address_wkp = writable_keypath!(|u: &mut User| &mut u.address);
     let zip_code_wokp = writable_opt_keypath!(|a: &mut Address| a.zip_code.as_mut());
     
-    // Chain WritableKeyPath with WritableOptionalKeyPath
-    let user_zip_wokp = address_wkp >> zip_code_wokp;
+    // Chain WritableKeyPath with WritableOptionalKeyPath using +
+    let user_zip_wokp = address_wkp + zip_code_wokp;
     
     if let Some(zip) = user_zip_wokp.get_mut(&mut user) {
         *zip = "10116".to_string();
         println!("   Updated zip code: {}", zip);
     }
-    println!("   ✓ WritableKeyPath >> WritableOptionalKeyPath works!\n");
+    println!("   ✓ WritableKeyPath + WritableOptionalKeyPath works!\n");
 }
 
 #[cfg(not(feature = "nightly"))]
 fn example_writable_to_optional() {
-    println!("5. WritableKeyPath >> WritableOptionalKeyPath (requires nightly feature)");
+    println!("5. WritableKeyPath + WritableOptionalKeyPath (requires nightly feature)");
     println!("   Use writable_keypath1.then_optional(writable_opt_keypath2) instead on stable Rust\n");
 }
 
 #[cfg(feature = "nightly")]
 fn example_writable_optional_chaining() {
-    use std::ops::Shr;
+    use std::ops::Add;
     
-    println!("6. WritableOptionalKeyPath >> WritableOptionalKeyPath");
+    println!("6. WritableOptionalKeyPath + WritableOptionalKeyPath");
     
     let mut company = Company {
         name: "Tech Inc".to_string(),
@@ -281,24 +279,24 @@ fn example_writable_optional_chaining() {
     let owner_wokp = writable_opt_keypath!(|c: &mut Company| c.owner.as_mut());
     let metadata_wokp = writable_opt_keypath!(|u: &mut User| u.metadata.as_mut());
     
-    // Chain WritableOptionalKeyPaths
-    let company_owner_metadata_wokp = owner_wokp >> metadata_wokp;
+    // Chain WritableOptionalKeyPaths using +
+    let company_owner_metadata_wokp = owner_wokp + metadata_wokp;
     
     if let Some(metadata) = company_owner_metadata_wokp.get_mut(&mut company) {
         *metadata = "Founder & CEO".to_string();
         println!("   Updated owner metadata: {}", metadata);
     }
-    println!("   ✓ WritableOptionalKeyPath >> WritableOptionalKeyPath works!\n");
+    println!("   ✓ WritableOptionalKeyPath + WritableOptionalKeyPath works!\n");
 }
 
 #[cfg(not(feature = "nightly"))]
 fn example_writable_optional_chaining() {
-    println!("6. WritableOptionalKeyPath >> WritableOptionalKeyPath (requires nightly feature)");
+    println!("6. WritableOptionalKeyPath + WritableOptionalKeyPath (requires nightly feature)");
     println!("   Use writable_opt_keypath1.then(writable_opt_keypath2) instead on stable Rust\n");
 }
 
-fn example_comparison_with_then() {
-    println!("7. Comparison: >> operator vs then() method");
+fn example_comparison() {
+    println!("7. Comparison: + operator vs then() method vs >> operator");
     
     let user = User {
         name: "Grace".to_string(),
@@ -320,23 +318,29 @@ fn example_comparison_with_then() {
     
     #[cfg(feature = "nightly")]
     {
-        use std::ops::Shr;
+        use std::ops::{Add, Shr};
+        
+        // Using + operator (requires nightly feature)
+        let user_street_add = address_kp.clone() + street_kp.clone();
+        println!("   Using +: {}", user_street_add.get(&user));
         
         // Using >> operator (requires nightly feature)
-        let user_street_shr = address_kp >> street_kp;
+        let user_street_shr = address_kp + street_kp;
         println!("   Using >>: {}", user_street_shr.get(&user));
-        println!("   ✓ Both methods produce the same result!\n");
+        
+        println!("   ✓ All three methods produce the same result!\n");
     }
     
     #[cfg(not(feature = "nightly"))]
     {
+        println!("   Using +: (requires nightly feature)");
         println!("   Using >>: (requires nightly feature)");
         println!("   ✓ Use then() method on stable Rust for the same functionality!\n");
     }
     
     println!("=== Summary ===");
-    println!("The >> operator provides a convenient syntax for chaining keypaths.");
+    println!("The + operator provides a convenient syntax for chaining keypaths.");
+    println!("Both + and >> operators require nightly Rust with the 'nightly' feature.");
     println!("On stable Rust, use the then() methods which provide the same functionality.");
-    println!("Enable the 'nightly' feature to use the >> operator syntax.");
 }
 

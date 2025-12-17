@@ -1,8 +1,13 @@
+// Enable feature gate when nightly feature is enabled
+// NOTE: This will only work with nightly Rust toolchain
+#![cfg_attr(feature = "nightly", feature(impl_trait_in_assoc_type))]
+
 use std::sync::{Arc, Mutex, RwLock};
 use std::marker::PhantomData;
 use std::any::{Any, TypeId};
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::ops::Add;
 
 #[cfg(feature = "tagged")]
 use tagged_core::Tagged;
@@ -2667,7 +2672,7 @@ where
 // 2. Enable the `nightly` feature: `rust-keypaths = { features = ["nightly"] }`
 // 3. Enable the feature gate in YOUR code (binaries, examples, tests):
 //    ```rust
-//    #![feature(impl_trait_in_assoc_types)]
+//    #![feature(impl_trait_in_assoc_type)]
 //    ```
 //
 // Usage example:
@@ -2697,9 +2702,126 @@ where
 // - `FailableCombinedKeyPath >> OptionalKeyPath` → `FailableCombinedKeyPath`
 //
 // NOTE: The feature gate cannot be enabled in library code that needs to compile
-// on stable Rust. The Shr implementations are gated behind `#[cfg(feature = "nightly")]`
-// and will only compile when both the feature is enabled AND the user has enabled
-// the feature gate in their own code.
+// on stable Rust. Both Shr (>>) and Add (+) implementations are gated behind 
+// `#[cfg(feature = "nightly")]` and will only compile when both the feature is 
+// enabled AND the user has enabled the feature gate in their own code.
+
+// ========== ADD OPERATOR IMPLEMENTATIONS (+ operator) ==========
+// 
+// The `+` operator provides the same functionality as `then()` and `>>` operators.
+// Like `>>`, it requires nightly Rust with the `nightly` feature enabled.
+//
+// Usage example (requires nightly):
+// ```rust
+// #![feature(impl_trait_in_assoc_type)]  // Must be in YOUR code
+// use rust_keypaths::{keypath, KeyPath};
+// 
+// struct User { address: Address }
+// struct Address { street: String }
+// 
+// let kp1 = keypath!(|u: &User| &u.address);
+// let kp2 = keypath!(|a: &Address| &a.street);
+// let chained = kp1 + kp2; // Works with nightly feature
+// ```
+//
+// On stable Rust, use `keypath1.then(keypath2)` instead.
+//
+// Supported combinations (same as `then()` and `>>`):
+// - `KeyPath + KeyPath` → `KeyPath`
+// - `KeyPath + OptionalKeyPath` → `OptionalKeyPath`
+// - `OptionalKeyPath + OptionalKeyPath` → `OptionalKeyPath`
+// - `WritableKeyPath + WritableKeyPath` → `WritableKeyPath`
+// - `WritableKeyPath + WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+// - `WritableOptionalKeyPath + WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+
+#[cfg(feature = "nightly")]
+mod add_impls {
+    use super::*;
+    
+    // Implement Add for KeyPath + KeyPath: returns KeyPath
+    impl<Root, Value, F, SubValue, G> Add<KeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
+        G: for<'r> Fn(&'r Value) -> &'r SubValue + 'static,
+        Value: 'static,
+    {
+        type Output = KeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> &'r SubValue>;
+        
+        fn add(self, rhs: KeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+    
+    // Implement Add for KeyPath + OptionalKeyPath: returns OptionalKeyPath  
+    impl<Root, Value, F, SubValue, G> Add<OptionalKeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+        Value: 'static,
+    {
+        type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
+        
+        fn add(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then_optional(rhs)
+        }
+    }
+    
+    // Implement Add for OptionalKeyPath + OptionalKeyPath: returns OptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Add<OptionalKeyPath<Value, SubValue, G>> for OptionalKeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+        Value: 'static,
+    {
+        type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
+        
+        fn add(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+    
+    // Implement Add for WritableKeyPath + WritableKeyPath: returns WritableKeyPath
+    impl<Root, Value, F, SubValue, G> Add<WritableKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+        G: for<'r> Fn(&'r mut Value) -> &'r mut SubValue + 'static,
+        Value: 'static,
+    {
+        type Output = WritableKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> &'r mut SubValue>;
+        
+        fn add(self, rhs: WritableKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+    
+    // Implement Add for WritableKeyPath + WritableOptionalKeyPath: returns WritableOptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Add<WritableOptionalKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
+        Value: 'static,
+    {
+        type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
+        
+        fn add(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then_optional(rhs)
+        }
+    }
+    
+    // Implement Add for WritableOptionalKeyPath + WritableOptionalKeyPath: returns WritableOptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Add<WritableOptionalKeyPath<Value, SubValue, G>> for WritableOptionalKeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
+        Value: 'static,
+    {
+        type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
+        
+        fn add(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+}
 
 #[cfg(feature = "nightly")]
 mod shr_impls {
