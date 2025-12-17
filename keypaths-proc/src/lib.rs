@@ -1003,7 +1003,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(inner_ty)) => {
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1021,6 +1021,48 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                         rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
+                                    }
+                                },
+                            );
+                            // Helper method for Mutex: acquire lock, get value via keypath, clone
+                            let mutex_fr_at_fn = format_ident!("{}_mutex_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #mutex_fr_at_fn<Value, F>(kp: rust_keypaths::KeyPath<#inner_ty, Value, F>) -> impl Fn(&std::sync::Mutex<#inner_ty>) -> Option<Value>
+                                    where
+                                        Value: Clone,
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        move |mutex: &std::sync::Mutex<#inner_ty>| {
+                                            let guard = mutex.lock().ok()?;
+                                            Some(kp.get(&*guard).clone())
+                                        }
+                                    }
+                                },
+                            );
+                            // Helper method for Mutex: acquire lock, get mutable reference via keypath, apply closure
+                            let mutex_fw_at_fn = format_ident!("{}_mutex_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #mutex_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Mutex<#inner_ty>) -> Option<()>
+                                    where
+                                        KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                        F: FnOnce(&mut Value),
+                                        Value: 'static,
+                                    {
+                                        move |mutex: &std::sync::Mutex<#inner_ty>| {
+                                            let mut guard: std::sync::MutexGuard<#inner_ty> = mutex.lock().ok()?;
+                                            // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
+                                            let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
+                                            f(mutable_pointer);
+                                            Some(())
+                                        }
                                     }
                                 },
                             );
@@ -1037,7 +1079,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(inner_ty)) => {
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1058,6 +1100,48 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            // Helper method for RwLock: acquire read lock, get value via keypath, clone
+                            let rwlock_fr_at_fn = format_ident!("{}_rwlock_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #rwlock_fr_at_fn<Value, F>(kp: rust_keypaths::KeyPath<#inner_ty, Value, F>) -> impl Fn(&std::sync::RwLock<#inner_ty>) -> Option<Value>
+                                    where
+                                        Value: Clone,
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        move |rwlock: &std::sync::RwLock<#inner_ty>| {
+                                            let guard = rwlock.read().ok()?;
+                                            Some(kp.get(&*guard).clone())
+                                        }
+                                    }
+                                },
+                            );
+                            // Helper method for RwLock: acquire write lock, get mutable reference via keypath, apply closure
+                            let rwlock_fw_at_fn = format_ident!("{}_rwlock_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #rwlock_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::RwLock<#inner_ty>) -> Option<()>
+                                    where
+                                        KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                        F: FnOnce(&mut Value),
+                                        Value: 'static,
+                                    {
+                                        move |rwlock: &std::sync::RwLock<#inner_ty>| {
+                                            let mut guard: std::sync::RwLockWriteGuard<#inner_ty> = rwlock.write().ok()?;
+                                            // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
+                                            let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
+                                            f(mutable_pointer);
+                                            Some(())
+                                        }
+                                    }
+                                },
+                            );
                             // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
                             // Only providing container-level access
                             push_method(
@@ -1071,7 +1155,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                         }
-                        (WrapperKind::ArcMutex, Some(_inner_ty)) => {
+                        (WrapperKind::ArcMutex, Some(inner_ty)) => {
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1079,6 +1163,48 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            // Helper method for Arc<Mutex<T>>: acquire lock, get value via keypath, clone
+                            let arc_mutex_fr_at_fn = format_ident!("{}_arc_mutex_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #arc_mutex_fr_at_fn<Value, F>(kp: rust_keypaths::KeyPath<#inner_ty, Value, F>) -> impl Fn(&std::sync::Arc<std::sync::Mutex<#inner_ty>>) -> Option<Value>
+                                    where
+                                        Value: Clone,
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        move |arc_mutex: &std::sync::Arc<std::sync::Mutex<#inner_ty>>| {
+                                            let guard = arc_mutex.lock().ok()?;
+                                            Some(kp.get(&*guard).clone())
+                                        }
+                                    }
+                                },
+                            );
+                            // Helper method for Arc<Mutex<T>>: acquire lock, get mutable reference via keypath, apply closure
+                            let arc_mutex_fw_at_fn = format_ident!("{}_arc_mutex_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #arc_mutex_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Arc<std::sync::Mutex<#inner_ty>>) -> Option<()>
+                                    where
+                                        KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                        F: FnOnce(&mut Value),
+                                        Value: 'static,
+                                    {
+                                        move |arc_mutex: &std::sync::Arc<std::sync::Mutex<#inner_ty>>| {
+                                            let mut guard: std::sync::MutexGuard<#inner_ty> = arc_mutex.lock().ok()?;
+                                            // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
+                                            let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
+                                            f(mutable_pointer);
+                                            Some(())
+                                        }
                                     }
                                 },
                             );
@@ -1096,7 +1222,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                         }
-                        (WrapperKind::ArcRwLock, Some(_inner_ty)) => {
+                        (WrapperKind::ArcRwLock, Some(inner_ty)) => {
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1104,6 +1230,48 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            // Helper method for Arc<RwLock<T>>: acquire read lock, get value via keypath, clone
+                            let arc_rwlock_fr_at_fn = format_ident!("{}_arc_rwlock_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #arc_rwlock_fr_at_fn<Value, F>(kp: rust_keypaths::KeyPath<#inner_ty, Value, F>) -> impl Fn(&std::sync::Arc<std::sync::RwLock<#inner_ty>>) -> Option<Value>
+                                    where
+                                        Value: Clone,
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        move |arc_rwlock: &std::sync::Arc<std::sync::RwLock<#inner_ty>>| {
+                                            let guard = arc_rwlock.read().ok()?;
+                                            Some(kp.get(&*guard).clone())
+                                        }
+                                    }
+                                },
+                            );
+                            // Helper method for Arc<RwLock<T>>: acquire write lock, get mutable reference via keypath, apply closure
+                            let arc_rwlock_fw_at_fn = format_ident!("{}_arc_rwlock_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #arc_rwlock_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Arc<std::sync::RwLock<#inner_ty>>) -> Option<()>
+                                    where
+                                        KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                        F: FnOnce(&mut Value),
+                                        Value: 'static,
+                                    {
+                                        move |arc_rwlock: &std::sync::Arc<std::sync::RwLock<#inner_ty>>| {
+                                            let mut guard: std::sync::RwLockWriteGuard<#inner_ty> = arc_rwlock.write().ok()?;
+                                            // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
+                                            let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
+                                            f(mutable_pointer);
+                                            Some(())
+                                        }
                                     }
                                 },
                             );
@@ -3754,18 +3922,74 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Mutex, Some(inner_ty)) => {
+                            let mutex_fr_at_fn = format_ident!("{}_mutex_fr_at", field_ident);
+                            let mutex_fw_at_fn = format_ident!("{}_mutex_fw_at", field_ident);
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
+                                }
+                                // Helper method for Mutex: acquire lock, get value via keypath, clone
+                                pub fn #mutex_fr_at_fn<Value, KP>(kp: KP) -> impl Fn(&std::sync::Mutex<#inner_ty>) -> Option<Value>
+                                where
+                                    Value: Clone,
+                                    KP: rust_keypaths::KeyPath<#inner_ty, Value>,
+                                {
+                                    move |mutex: &std::sync::Mutex<#inner_ty>| {
+                                        let guard = mutex.lock().ok()?;
+                                        Some(kp.get(&*guard).clone())
+                                    }
+                                }
+                                // Helper method for Mutex: acquire lock, get mutable reference via keypath, apply closure
+                                pub fn #mutex_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Mutex<#inner_ty>) -> Option<()>
+                                where
+                                    KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    F: FnOnce(&mut Value),
+                                    Value: 'static,
+                                {
+                                    move |mutex: &std::sync::Mutex<#inner_ty>| {
+                                        let mut guard: std::sync::MutexGuard<#inner_ty> = mutex.lock().ok()?;
+                                        // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
+                                        let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
+                                        f(mutable_pointer);
+                                        Some(())
+                                    }
                                 }
                                 // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
                                 // Only providing container-level writable access
                             });
                         }
                         (WrapperKind::RwLock, Some(inner_ty)) => {
+                            let rwlock_fr_at_fn = format_ident!("{}_rwlock_fr_at", field_ident);
+                            let rwlock_fw_at_fn = format_ident!("{}_rwlock_fw_at", field_ident);
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
+                                }
+                                // Helper method for RwLock: acquire read lock, get value via keypath, clone
+                                pub fn #rwlock_fr_at_fn<Value, KP>(kp: KP) -> impl Fn(&std::sync::RwLock<#inner_ty>) -> Option<Value>
+                                where
+                                    Value: Clone,
+                                    KP: rust_keypaths::KeyPath<#inner_ty, Value>,
+                                {
+                                    move |rwlock: &std::sync::RwLock<#inner_ty>| {
+                                        let guard = rwlock.read().ok()?;
+                                        Some(kp.get(&*guard).clone())
+                                    }
+                                }
+                                // Helper method for RwLock: acquire write lock, get mutable reference via keypath, apply closure
+                                pub fn #rwlock_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::RwLock<#inner_ty>) -> Option<()>
+                                where
+                                    KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    F: FnOnce(&mut Value),
+                                    Value: 'static,
+                                {
+                                    move |rwlock: &std::sync::RwLock<#inner_ty>| {
+                                        let mut guard: std::sync::RwLockWriteGuard<#inner_ty> = rwlock.write().ok()?;
+                                        // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
+                                        let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
+                                        f(mutable_pointer);
+                                        Some(())
+                                    }
                                 }
                                 // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
                                 // Only providing container-level writable access
@@ -3933,18 +4157,74 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Mutex, Some(inner_ty)) => {
+                            let mutex_fr_at_fn = format_ident!("f{}_mutex_fr_at", idx);
+                            let mutex_fw_at_fn = format_ident!("f{}_mutex_fw_at", idx);
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
+                                }
+                                // Helper method for Mutex: acquire lock, get value via keypath, clone
+                                pub fn #mutex_fr_at_fn<Value, KP>(kp: KP) -> impl Fn(&std::sync::Mutex<#inner_ty>) -> Option<Value>
+                                where
+                                    Value: Clone,
+                                    KP: rust_keypaths::KeyPath<#inner_ty, Value>,
+                                {
+                                    move |mutex: &std::sync::Mutex<#inner_ty>| {
+                                        let guard = mutex.lock().ok()?;
+                                        Some(kp.get(&*guard).clone())
+                                    }
+                                }
+                                // Helper method for Mutex: acquire lock, get mutable reference via keypath, apply closure
+                                pub fn #mutex_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Mutex<#inner_ty>) -> Option<()>
+                                where
+                                    KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    F: FnOnce(&mut Value),
+                                    Value: 'static,
+                                {
+                                    move |mutex: &std::sync::Mutex<#inner_ty>| {
+                                        let mut guard: std::sync::MutexGuard<#inner_ty> = mutex.lock().ok()?;
+                                        // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
+                                        let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
+                                        f(mutable_pointer);
+                                        Some(())
+                                    }
                                 }
                                 // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
                                 // Only providing container-level writable access
                             });
                         }
                         (WrapperKind::RwLock, Some(inner_ty)) => {
+                            let rwlock_fr_at_fn = format_ident!("f{}_rwlock_fr_at", idx);
+                            let rwlock_fw_at_fn = format_ident!("f{}_rwlock_fw_at", idx);
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
+                                }
+                                // Helper method for RwLock: acquire read lock, get value via keypath, clone
+                                pub fn #rwlock_fr_at_fn<Value, KP>(kp: KP) -> impl Fn(&std::sync::RwLock<#inner_ty>) -> Option<Value>
+                                where
+                                    Value: Clone,
+                                    KP: rust_keypaths::KeyPath<#inner_ty, Value>,
+                                {
+                                    move |rwlock: &std::sync::RwLock<#inner_ty>| {
+                                        let guard = rwlock.read().ok()?;
+                                        Some(kp.get(&*guard).clone())
+                                    }
+                                }
+                                // Helper method for RwLock: acquire write lock, get mutable reference via keypath, apply closure
+                                pub fn #rwlock_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::RwLock<#inner_ty>) -> Option<()>
+                                where
+                                    KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    F: FnOnce(&mut Value),
+                                    Value: 'static,
+                                {
+                                    move |rwlock: &std::sync::RwLock<#inner_ty>| {
+                                        let mut guard: std::sync::RwLockWriteGuard<#inner_ty> = rwlock.write().ok()?;
+                                        // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
+                                        let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
+                                        f(mutable_pointer);
+                                        Some(())
+                                    }
                                 }
                                 // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
                                 // Only providing container-level writable access
