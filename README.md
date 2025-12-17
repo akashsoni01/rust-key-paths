@@ -210,6 +210,102 @@ See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed 
 
 ---
 
+## 🔄 Comparison with Other Lens Libraries
+
+### Limitations of lens-rs, pl-lens, and keypath
+
+Both **lens-rs**, **pl-lens** (Plausible Labs), and **keypath** have several limitations when working with Rust's type system, especially for nested structures:
+
+#### keypath limitations:
+1. **❌ No enum variant support**: No built-in support for enum case paths (prisms)
+2. **❌ No Option<T> chain support**: Requires manual `.and_then()` composition for Option types
+3. **❌ Limited container support**: No built-in support for `Result<T, E>`, `Mutex<T>`, `RwLock<T>`, or collection types
+4. **❌ No failable keypaths**: Cannot easily compose through Option chains with built-in methods
+5. **❌ No writable failable keypaths**: Missing support for composing writable access through Option chains
+6. **❌ Limited composition API**: Less ergonomic composition compared to `.then()` chaining
+7. **⚠️ Maintenance status**: May have limited active maintenance
+
+#### pl-lens limitations:
+1. **❌ No support for `Option<Struct>` nested compositions**: The `#[derive(Lenses)]` macro fails to generate proper lens types for nested structs wrapped in `Option<T>`, requiring manual workarounds
+2. **❌ Limited enum support**: No built-in support for enum variant case paths (prisms)
+3. **❌ No automatic failable composition**: Requires manual composition through `.and_then()` chains for Option types
+4. **❌ Limited container support**: No built-in support for `Result<T, E>`, `Mutex<T>`, `RwLock<T>`, or collection types
+5. **❌ Named fields only**: The derive macro only works with structs that have named fields, not tuple structs
+6. **❌ No writable failable keypaths**: Cannot compose writable access through Option chains easily
+7. **❌ Type system limitations**: The lens composition through Option types requires manual function composition, losing type safety
+
+#### lens-rs limitations:
+1. **❌ Different API design**: Uses a different lens abstraction that doesn't match Rust's ownership model as well
+2. **❌ Limited ecosystem**: Less mature and fewer examples/documentation
+3. **❌ Composition complexity**: More verbose composition syntax
+
+### Feature Comparison Table
+
+| Feature | rust-keypaths | keypath | pl-lens | lens-rs |
+|---------|---------------|---------|---------|---------|
+| **Struct Field Access** | ✅ Readable/Writable | ✅ Readable/Writable | ✅ Readable/Writable | ✅ Partial |
+| **Option<T> Chains** | ✅ Built-in (`_fr`/`_fw`) | ❌ Manual composition | ❌ Manual composition | ❌ Manual |
+| **Enum Case Paths** | ✅ Built-in (CasePaths) | ❌ Not supported | ❌ Not supported | ❌ Limited |
+| **Tuple Structs** | ✅ Full support | ⚠️ Unknown | ❌ Not supported | ❌ Not supported |
+| **Composition** | ✅ `.then()` chaining | ⚠️ Less ergonomic | ⚠️ Manual | ⚠️ Complex |
+| **Result<T, E>** | ✅ Built-in support | ❌ Not supported | ❌ Not supported | ❌ Not supported |
+| **Mutex/RwLock** | ✅ Built-in (`with_mutex`, etc.) | ❌ Not supported | ❌ Not supported | ❌ Not supported |
+| **Arc/Box/Rc** | ✅ Built-in support | ⚠️ Unknown | ⚠️ Limited | ⚠️ Limited |
+| **Collections** | ✅ Vec, HashMap, HashSet, etc. | ❌ Not supported | ❌ Not supported | ❌ Not supported |
+| **Derive Macros** | ✅ `#[derive(Keypaths)]`, `#[derive(Casepaths)]` | ✅ `#[derive(Keypath)]` | ✅ `#[derive(Lenses)]` | ⚠️ Limited |
+| **Deep Nesting** | ✅ Works seamlessly | ⚠️ May require workarounds | ❌ Requires workarounds | ❌ Complex |
+| **Type Safety** | ✅ Full compile-time checks | ✅ Good | ✅ Good | ⚠️ Moderate |
+| **Performance** | ✅ Optimized (1.46x overhead reads, near-zero writes) | ⚠️ Unknown | ⚠️ Unknown | ⚠️ Unknown |
+| **Readable Keypaths** | ✅ `KeyPath` | ✅ Supported | ✅ `RefLens` | ⚠️ Partial |
+| **Writable Keypaths** | ✅ `WritableKeyPath` | ✅ Supported | ✅ `Lens` | ⚠️ Partial |
+| **Failable Readable** | ✅ `OptionalKeyPath` | ❌ Manual | ❌ Manual | ❌ Manual |
+| **Failable Writable** | ✅ `WritableOptionalKeyPath` | ❌ Manual | ❌ Manual | ❌ Manual |
+| **Zero-cost Abstractions** | ✅ Static dispatch | ⚠️ Unknown | ⚠️ Depends | ⚠️ Depends |
+| **Swift KeyPath-like API** | ✅ Inspired by Swift | ⚠️ Partial | ❌ No | ❌ No |
+| **Container Methods** | ✅ `with_mutex`, `with_rwlock`, `with_arc`, etc. | ❌ Not supported | ❌ Not supported | ❌ Not supported |
+| **Iteration Helpers** | ✅ `iter()`, `iter_mut()` | ❌ Not supported | ❌ Not supported | ❌ Not supported |
+| **Derivable References** | ✅ Full support | ✅ Full support | ❌ Not supported | ❌ Not supported |
+| **Active Maintenance** | ✅ Active | ⚠️ Unknown | ⚠️ Unknown | ⚠️ Unknown |
+
+### Key Advantages of rust-keypaths
+
+1. **✅ Native Option support**: Built-in failable keypaths (`_fr`/`_fw`) that compose seamlessly through `Option<T>` chains (unlike keypath, pl-lens, and lens-rs which require manual composition)
+2. **✅ Enum CasePaths**: First-class support for enum variant access (prisms) with `#[derive(Casepaths)]` (unique feature not found in keypath, pl-lens, or lens-rs)
+3. **✅ Container types**: Built-in support for `Result`, `Mutex`, `RwLock`, `Arc`, `Rc`, `Box`, and all standard collections (comprehensive container support unmatched by alternatives)
+4. **✅ Zero-cost abstractions**: Static dispatch with minimal overhead (1.46x for reads, near-zero for writes) - benchmarked and optimized
+5. **✅ Comprehensive derive macros**: Automatic generation for structs (named and tuple), enums, and all container types
+6. **✅ Swift-inspired API**: Familiar API for developers coming from Swift's KeyPath system with `.then()` composition
+7. **✅ Deep composition**: Works seamlessly with 10+ levels of nesting without workarounds (tested and verified)
+8. **✅ Type-safe composition**: Full compile-time type checking with `.then()` method
+9. **✅ Active development**: Regularly maintained with comprehensive feature set and documentation
+
+### Example: Why rust-keypaths is Better for Nested Option Chains
+
+**pl-lens approach** (requires manual work):
+```rust
+// Manual composition - verbose and error-prone
+let result = struct_instance
+    .level1_field
+    .as_ref()
+    .and_then(|l2| l2.level2_field.as_ref())
+    .and_then(|l3| l3.level3_field.as_ref())
+    // ... continues for 10 levels
+```
+
+**rust-keypaths approach** (composable and type-safe):
+```rust
+// Clean composition - type-safe and reusable
+let keypath = Level1::level1_field_fr()
+    .then(Level2::level2_field_fr())
+    .then(Level3::level3_field_fr())
+    // ... continues for 10 levels
+    .then(Level10::level10_field_fr());
+    
+let result = keypath.get(&instance); // Reusable, type-safe, fast
+```
+
+---
+
 ## 🛠 Roadmap
 
 - [x] Compose across structs, options and enum cases
