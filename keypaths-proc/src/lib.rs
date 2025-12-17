@@ -1043,24 +1043,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            // Helper method for Mutex: acquire lock, get mutable reference via keypath, apply closure
+                            // Helper method for Mutex: acquire lock, get mutable reference via keypath, set new value
                             let mutex_fw_at_fn = format_ident!("{}_mutex_fw_at", field_ident);
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #mutex_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Mutex<#inner_ty>) -> Option<()>
+                                    pub fn #mutex_fw_at_fn<Value, KPF>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, new_value: Value) -> impl FnOnce(&std::sync::Mutex<#inner_ty>) -> Option<()>
                                     where
                                         KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
-                                        F: FnOnce(&mut Value),
-                                        Value: 'static,
+                                        Value: Clone + 'static,
                                     {
                                         move |mutex: &std::sync::Mutex<#inner_ty>| {
                                             let mut guard: std::sync::MutexGuard<#inner_ty> = mutex.lock().ok()?;
-                                            // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
                                             let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
-                                            f(mutable_pointer);
+                                            *mutable_pointer = new_value;
                                             Some(())
                                         }
                                     }
@@ -1119,24 +1117,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            // Helper method for RwLock: acquire write lock, get mutable reference via keypath, apply closure
+                            // Helper method for RwLock: acquire write lock, get mutable reference via keypath, set new value
                             let rwlock_fw_at_fn = format_ident!("{}_rwlock_fw_at", field_ident);
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #rwlock_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::RwLock<#inner_ty>) -> Option<()>
+                                    pub fn #rwlock_fw_at_fn<Value, KPF>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, new_value: Value) -> impl FnOnce(&std::sync::RwLock<#inner_ty>) -> Option<()>
                                     where
                                         KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
-                                        F: FnOnce(&mut Value),
-                                        Value: 'static,
+                                        Value: Clone + 'static,
                                     {
                                         move |rwlock: &std::sync::RwLock<#inner_ty>| {
                                             let mut guard: std::sync::RwLockWriteGuard<#inner_ty> = rwlock.write().ok()?;
-                                            // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
                                             let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
-                                            f(mutable_pointer);
+                                            *mutable_pointer = new_value;
                                             Some(())
                                         }
                                     }
@@ -1185,24 +1181,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            // Helper method for Arc<Mutex<T>>: acquire lock, get mutable reference via keypath, apply closure
+                            // Helper method for Arc<Mutex<T>>: acquire lock, get mutable reference via keypath, set new value
                             let arc_mutex_fw_at_fn = format_ident!("{}_arc_mutex_fw_at", field_ident);
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #arc_mutex_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Arc<std::sync::Mutex<#inner_ty>>) -> Option<()>
+                                    pub fn #arc_mutex_fw_at_fn<Value, KPF>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, new_value: Value) -> impl FnOnce(&std::sync::Arc<std::sync::Mutex<#inner_ty>>) -> Option<()>
                                     where
                                         KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
-                                        F: FnOnce(&mut Value),
-                                        Value: 'static,
+                                        Value: Clone + 'static,
                                     {
                                         move |arc_mutex: &std::sync::Arc<std::sync::Mutex<#inner_ty>>| {
                                             let mut guard: std::sync::MutexGuard<#inner_ty> = arc_mutex.lock().ok()?;
-                                            // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
                                             let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
-                                            f(mutable_pointer);
+                                            *mutable_pointer = new_value;
                                             Some(())
                                         }
                                     }
@@ -1252,24 +1246,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            // Helper method for Arc<RwLock<T>>: acquire write lock, get mutable reference via keypath, apply closure
+                            // Helper method for Arc<RwLock<T>>: acquire write lock, get mutable reference via keypath, set new value
                             let arc_rwlock_fw_at_fn = format_ident!("{}_arc_rwlock_fw_at", field_ident);
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #arc_rwlock_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Arc<std::sync::RwLock<#inner_ty>>) -> Option<()>
+                                    pub fn #arc_rwlock_fw_at_fn<Value, KPF>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, new_value: Value) -> impl FnOnce(&std::sync::Arc<std::sync::RwLock<#inner_ty>>) -> Option<()>
                                     where
                                         KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
-                                        F: FnOnce(&mut Value),
-                                        Value: 'static,
+                                        Value: Clone + 'static,
                                     {
                                         move |arc_rwlock: &std::sync::Arc<std::sync::RwLock<#inner_ty>>| {
                                             let mut guard: std::sync::RwLockWriteGuard<#inner_ty> = arc_rwlock.write().ok()?;
-                                            // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
                                             let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
-                                            f(mutable_pointer);
+                                            *mutable_pointer = new_value;
                                             Some(())
                                         }
                                     }
@@ -4174,18 +4166,16 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                         Some(kp.get(&*guard).clone())
                                     }
                                 }
-                                // Helper method for Mutex: acquire lock, get mutable reference via keypath, apply closure
-                                pub fn #mutex_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::Mutex<#inner_ty>) -> Option<()>
+                                // Helper method for Mutex: acquire lock, get mutable reference via keypath, set new value
+                                pub fn #mutex_fw_at_fn<Value, KPF>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, new_value: Value) -> impl FnOnce(&std::sync::Mutex<#inner_ty>) -> Option<()>
                                 where
                                     KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
-                                    F: FnOnce(&mut Value),
-                                    Value: 'static,
+                                    Value: Clone + 'static,
                                 {
                                     move |mutex: &std::sync::Mutex<#inner_ty>| {
                                         let mut guard: std::sync::MutexGuard<#inner_ty> = mutex.lock().ok()?;
-                                        // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
                                         let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
-                                        f(mutable_pointer);
+                                        *mutable_pointer = new_value;
                                         Some(())
                                     }
                                 }
@@ -4211,18 +4201,16 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                                         Some(kp.get(&*guard).clone())
                                     }
                                 }
-                                // Helper method for RwLock: acquire write lock, get mutable reference via keypath, apply closure
-                                pub fn #rwlock_fw_at_fn<Value, KPF, F>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, f: F) -> impl FnOnce(&std::sync::RwLock<#inner_ty>) -> Option<()>
+                                // Helper method for RwLock: acquire write lock, get mutable reference via keypath, set new value
+                                pub fn #rwlock_fw_at_fn<Value, KPF>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, new_value: Value) -> impl FnOnce(&std::sync::RwLock<#inner_ty>) -> Option<()>
                                 where
                                     KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
-                                    F: FnOnce(&mut Value),
-                                    Value: 'static,
+                                    Value: Clone + 'static,
                                 {
                                     move |rwlock: &std::sync::RwLock<#inner_ty>| {
                                         let mut guard: std::sync::RwLockWriteGuard<#inner_ty> = rwlock.write().ok()?;
-                                        // get_mut returns &mut Value - the reference itself is mutable, no 'mut' needed on binding
                                         let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
-                                        f(mutable_pointer);
+                                        *mutable_pointer = new_value;
                                         Some(())
                                     }
                                 }
