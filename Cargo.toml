@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "1.11.4"
+version = "1.11.5"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -14,8 +14,8 @@ include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
 # Primary crates: rust-keypaths (static dispatch, faster) and keypaths-proc (proc macros)
-rust-keypaths = "1.0.6"
-keypaths-proc = "1.0.5"
+rust-keypaths = "1.0.7"
+keypaths-proc = "1.0.6"
 
 # Legacy crates: key-paths-core 1.6.0 for dynamic dispatch, multithreaded needs
 # Note: Use key-paths-core = "1.6.0" if you need dynamic dispatch or Send + Sync bounds
