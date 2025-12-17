@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use std::any::{Any, TypeId};
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::ops::Add;
+use std::ops::Shr;
 
 #[cfg(feature = "tagged")]
 use tagged_core::Tagged;
@@ -2661,9 +2661,9 @@ where
     }
 }
 
-// ========== ADD OPERATOR IMPLEMENTATIONS (+ operator) ==========
+// ========== SHR OPERATOR IMPLEMENTATIONS (>> operator) ==========
 // 
-// The `+` operator provides the same functionality as `then()` methods.
+// The `>>` operator provides the same functionality as `then()` methods.
 // It requires nightly Rust with the `nightly` feature enabled.
 //
 // Usage example (requires nightly):
@@ -2676,25 +2676,25 @@ where
 // 
 // let kp1 = keypath!(|u: &User| &u.address);
 // let kp2 = keypath!(|a: &Address| &a.street);
-// let chained = kp1 + kp2; // Works with nightly feature
+// let chained = kp1 >> kp2; // Works with nightly feature
 // ```
 //
 // On stable Rust, use `keypath1.then(keypath2)` instead.
 //
 // Supported combinations (same as `then()` methods):
-// - `KeyPath + KeyPath` → `KeyPath`
-// - `KeyPath + OptionalKeyPath` → `OptionalKeyPath`
-// - `OptionalKeyPath + OptionalKeyPath` → `OptionalKeyPath`
-// - `WritableKeyPath + WritableKeyPath` → `WritableKeyPath`
-// - `WritableKeyPath + WritableOptionalKeyPath` → `WritableOptionalKeyPath`
-// - `WritableOptionalKeyPath + WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+// - `KeyPath >> KeyPath` → `KeyPath`
+// - `KeyPath >> OptionalKeyPath` → `OptionalKeyPath`
+// - `OptionalKeyPath >> OptionalKeyPath` → `OptionalKeyPath`
+// - `WritableKeyPath >> WritableKeyPath` → `WritableKeyPath`
+// - `WritableKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+// - `WritableOptionalKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
 
 #[cfg(feature = "nightly")]
-mod add_impls {
+mod shr_impls {
     use super::*;
     
-    // Implement Add for KeyPath + KeyPath: returns KeyPath
-    impl<Root, Value, F, SubValue, G> Add<KeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
+    // Implement Shr for KeyPath >> KeyPath: returns KeyPath
+    impl<Root, Value, F, SubValue, G> Shr<KeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
     where
         F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
         G: for<'r> Fn(&'r Value) -> &'r SubValue + 'static,
@@ -2702,13 +2702,13 @@ mod add_impls {
     {
         type Output = KeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> &'r SubValue>;
         
-        fn add(self, rhs: KeyPath<Value, SubValue, G>) -> Self::Output {
+        fn shr(self, rhs: KeyPath<Value, SubValue, G>) -> Self::Output {
             self.then(rhs)
         }
     }
     
-    // Implement Add for KeyPath + OptionalKeyPath: returns OptionalKeyPath  
-    impl<Root, Value, F, SubValue, G> Add<OptionalKeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
+    // Implement Shr for KeyPath >> OptionalKeyPath: returns OptionalKeyPath  
+    impl<Root, Value, F, SubValue, G> Shr<OptionalKeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
     where
         F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
         G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
@@ -2716,13 +2716,13 @@ mod add_impls {
     {
         type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
         
-        fn add(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+        fn shr(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
             self.then_optional(rhs)
         }
     }
     
-    // Implement Add for OptionalKeyPath + OptionalKeyPath: returns OptionalKeyPath
-    impl<Root, Value, F, SubValue, G> Add<OptionalKeyPath<Value, SubValue, G>> for OptionalKeyPath<Root, Value, F>
+    // Implement Shr for OptionalKeyPath >> OptionalKeyPath: returns OptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Shr<OptionalKeyPath<Value, SubValue, G>> for OptionalKeyPath<Root, Value, F>
     where
         F: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
         G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
@@ -2730,13 +2730,13 @@ mod add_impls {
     {
         type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
         
-        fn add(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+        fn shr(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
             self.then(rhs)
         }
     }
     
-    // Implement Add for WritableKeyPath + WritableKeyPath: returns WritableKeyPath
-    impl<Root, Value, F, SubValue, G> Add<WritableKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
+    // Implement Shr for WritableKeyPath >> WritableKeyPath: returns WritableKeyPath
+    impl<Root, Value, F, SubValue, G> Shr<WritableKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
     where
         F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
         G: for<'r> Fn(&'r mut Value) -> &'r mut SubValue + 'static,
@@ -2744,13 +2744,13 @@ mod add_impls {
     {
         type Output = WritableKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> &'r mut SubValue>;
         
-        fn add(self, rhs: WritableKeyPath<Value, SubValue, G>) -> Self::Output {
+        fn shr(self, rhs: WritableKeyPath<Value, SubValue, G>) -> Self::Output {
             self.then(rhs)
         }
     }
     
-    // Implement Add for WritableKeyPath + WritableOptionalKeyPath: returns WritableOptionalKeyPath
-    impl<Root, Value, F, SubValue, G> Add<WritableOptionalKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
+    // Implement Shr for WritableKeyPath >> WritableOptionalKeyPath: returns WritableOptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Shr<WritableOptionalKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
     where
         F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
         G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
@@ -2758,13 +2758,13 @@ mod add_impls {
     {
         type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
         
-        fn add(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+        fn shr(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
             self.then_optional(rhs)
         }
     }
     
-    // Implement Add for WritableOptionalKeyPath + WritableOptionalKeyPath: returns WritableOptionalKeyPath
-    impl<Root, Value, F, SubValue, G> Add<WritableOptionalKeyPath<Value, SubValue, G>> for WritableOptionalKeyPath<Root, Value, F>
+    // Implement Shr for WritableOptionalKeyPath >> WritableOptionalKeyPath: returns WritableOptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Shr<WritableOptionalKeyPath<Value, SubValue, G>> for WritableOptionalKeyPath<Root, Value, F>
     where
         F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
         G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
@@ -2772,7 +2772,7 @@ mod add_impls {
     {
         type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
         
-        fn add(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+        fn shr(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
             self.then(rhs)
         }
     }

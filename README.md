@@ -152,13 +152,13 @@ fn main() {
         .then(SomeEnum::b_case_fw())
         .then(DarkStruct::dsf_fw());
     
-    // Alternatively, use the + operator (requires nightly feature):
+    // Alternatively, use the >> operator (requires nightly feature):
     // #![feature(impl_trait_in_assoc_type)]
     // let keypath = SomeComplexStruct::scsf_fw()
-    //     + SomeOtherStruct::sosf_fw()
-    //     + OneMoreStruct::omse_fw()
-    //     + SomeEnum::b_case_fw()
-    //     + DarkStruct::dsf_fw();
+    //     >> SomeOtherStruct::sosf_fw()
+    //     >> OneMoreStruct::omse_fw()
+    //     >> SomeEnum::b_case_fw()
+    //     >> DarkStruct::dsf_fw();
     
     let mut instance = SomeComplexStruct::new();
     
@@ -176,9 +176,9 @@ Run it yourself:
 cargo run --example box_keypath
 ```
 
-### Keypath Chaining with `+` Operator
+### Keypath Chaining with `>>` Operator
 
-The `+` operator provides a convenient syntax for chaining keypaths. It requires Rust nightly with the `nightly` feature enabled:
+The `>>` operator provides a convenient syntax for chaining keypaths. It requires Rust nightly with the `nightly` feature enabled:
 
 ```rust
 #![feature(impl_trait_in_assoc_type)]  // Must be in YOUR code
@@ -191,8 +191,8 @@ struct Address { street: String }
 let address_kp = keypath!(|u: &User| &u.address);
 let street_kp = keypath!(|a: &Address| &a.street);
 
-// Chain using + operator (requires nightly feature)
-let user_street_kp = address_kp + street_kp;
+// Chain using >> operator (requires nightly feature)
+let user_street_kp = address_kp >> street_kp;
 
 // Use the chained keypath
 let user = User { address: Address { street: "123 Main St".to_string() } };
@@ -205,12 +205,12 @@ let user_street_kp = address_kp.then(street_kp);  // Works on stable
 ```
 
 **Supported combinations:**
-- `KeyPath + KeyPath` → `KeyPath`
-- `KeyPath + OptionalKeyPath` → `OptionalKeyPath`
-- `OptionalKeyPath + OptionalKeyPath` → `OptionalKeyPath`
-- `WritableKeyPath + WritableKeyPath` → `WritableKeyPath`
-- `WritableKeyPath + WritableOptionalKeyPath` → `WritableOptionalKeyPath`
-- `WritableOptionalKeyPath + WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+- `KeyPath >> KeyPath` → `KeyPath`
+- `KeyPath >> OptionalKeyPath` → `OptionalKeyPath`
+- `OptionalKeyPath >> OptionalKeyPath` → `OptionalKeyPath`
+- `WritableKeyPath >> WritableKeyPath` → `WritableKeyPath`
+- `WritableKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+- `WritableOptionalKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
 
 **Running the example:**
 ```bash
