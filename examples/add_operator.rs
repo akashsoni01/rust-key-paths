@@ -73,7 +73,7 @@ fn main() {
     // Example 6: WritableOptionalKeyPath + WritableOptionalKeyPath
     example_writable_optional_chaining();
     
-    // Example 7: Comparison with then() method and >> operator
+    // Example 7: Comparison with then() method
     example_comparison();
 }
 
@@ -296,7 +296,7 @@ fn example_writable_optional_chaining() {
 }
 
 fn example_comparison() {
-    println!("7. Comparison: + operator vs then() method vs >> operator");
+    println!("7. Comparison: + operator vs then() method");
     
     let user = User {
         name: "Grace".to_string(),
@@ -318,29 +318,24 @@ fn example_comparison() {
     
     #[cfg(feature = "nightly")]
     {
-        use std::ops::{Add, Shr};
+        use std::ops::Add;
         
         // Using + operator (requires nightly feature)
-        let user_street_add = address_kp.clone() + street_kp.clone();
+        let user_street_add = address_kp + street_kp;
         println!("   Using +: {}", user_street_add.get(&user));
         
-        // Using >> operator (requires nightly feature)
-        let user_street_shr = address_kp + street_kp;
-        println!("   Using >>: {}", user_street_shr.get(&user));
-        
-        println!("   ✓ All three methods produce the same result!\n");
+        println!("   ✓ Both methods produce the same result!\n");
     }
     
     #[cfg(not(feature = "nightly"))]
     {
         println!("   Using +: (requires nightly feature)");
-        println!("   Using >>: (requires nightly feature)");
         println!("   ✓ Use then() method on stable Rust for the same functionality!\n");
     }
     
     println!("=== Summary ===");
     println!("The + operator provides a convenient syntax for chaining keypaths.");
-    println!("Both + and >> operators require nightly Rust with the 'nightly' feature.");
+    println!("The + operator requires nightly Rust with the 'nightly' feature.");
     println!("On stable Rust, use the then() methods which provide the same functionality.");
 }
 
