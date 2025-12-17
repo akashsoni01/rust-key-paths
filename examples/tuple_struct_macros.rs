@@ -7,7 +7,6 @@ struct Point(u32, Option<u32>, String);
 
 fn main() {
     let mut p = Point(10, Some(20), "name".into());
-
     // Non-Option fields
     let x_r = Point::f0_r();
     let name_w = Point::f2_w();
@@ -22,7 +21,7 @@ fn main() {
     println!("y (fr) = {:?}", y_fr.get(&p));
 
     let y_fw = Point::f1_fw();
-    let y = y_fw.get_mut(&mut p);
+    if let Some(y) = y_fw.get_mut(&mut p)
     {
         *y += 1;
     }

@@ -2031,7 +2031,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     // Owned keypath methods
                                     pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
-                                        rust_keypaths::KeyPath::new(|s: &#name| s.#idx_lit)
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
                             );
@@ -3058,11 +3058,21 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             push_method(
                                 &mut tokens,
                                 method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
+                                        rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
+                                    }
+                                },
+                            );
+                            push_method(
+                                &mut tokens,
+                                method_scope,
                                 MethodKind::Owned,
                                 quote! {
                                     // Owned keypath methods
                                     pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
-                                        rust_keypaths::KeyPath::new(|s: &#name| s.#idx_lit)
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
                                     }
                                 },
                             );
