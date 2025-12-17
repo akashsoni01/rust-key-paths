@@ -7,6 +7,9 @@ use std::cell::RefCell;
 #[cfg(feature = "tagged")]
 use tagged_core::Tagged;
 
+#[cfg(feature = "nightly")]
+use std::ops::Shr;
+
 // ========== HELPER MACROS FOR KEYPATH CREATION ==========
 
 /// Macro to create a `KeyPath` (readable, non-optional)
@@ -466,6 +469,48 @@ where
     /// Returns a Vec of references to the extracted values
     pub fn extract_from_ref_slice<'r>(&self, slice: &'r [&Root]) -> Vec<&'r Value> {
         slice.iter().map(|item| self.get(item)).collect()
+    }
+    
+    /// Chain this keypath with another keypath
+    /// Returns a KeyPath that chains both keypaths
+    pub fn then<SubValue, G>(
+        self,
+        next: KeyPath<Value, SubValue, G>,
+    ) -> KeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> &'r SubValue>
+    where
+        G: for<'r> Fn(&'r Value) -> &'r SubValue,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let first = self.getter;
+        let second = next.getter;
+        
+        KeyPath::new(move |root: &Root| {
+            let value = first(root);
+            second(value)
+        })
+    }
+    
+    /// Chain this keypath with an optional keypath
+    /// Returns an OptionalKeyPath that chains both keypaths
+    pub fn then_optional<SubValue, G>(
+        self,
+        next: OptionalKeyPath<Value, SubValue, G>,
+    ) -> OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>
+    where
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue>,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let first = self.getter;
+        let second = next.getter;
+        
+        OptionalKeyPath::new(move |root: &Root| {
+            let value = first(root);
+            second(value)
+        })
     }
     
 }
@@ -1286,6 +1331,48 @@ where
     /// Returns a Vec of mutable references to the extracted values
     pub fn extract_mut_from_ref_slice<'r>(&self, slice: &'r mut [&'r mut Root]) -> Vec<&'r mut Value> {
         slice.iter_mut().map(|item| self.get_mut(*item)).collect()
+    }
+    
+    /// Chain this keypath with another writable keypath
+    /// Returns a WritableKeyPath that chains both keypaths
+    pub fn then<SubValue, G>(
+        self,
+        next: WritableKeyPath<Value, SubValue, G>,
+    ) -> WritableKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> &'r mut SubValue>
+    where
+        G: for<'r> Fn(&'r mut Value) -> &'r mut SubValue,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let first = self.getter;
+        let second = next.getter;
+        
+        WritableKeyPath::new(move |root: &mut Root| {
+            let value = first(root);
+            second(value)
+        })
+    }
+    
+    /// Chain this keypath with a writable optional keypath
+    /// Returns a WritableOptionalKeyPath that chains both keypaths
+    pub fn then_optional<SubValue, G>(
+        self,
+        next: WritableOptionalKeyPath<Value, SubValue, G>,
+    ) -> WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>
+    where
+        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue>,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let first = self.getter;
+        let second = next.getter;
+        
+        WritableOptionalKeyPath::new(move |root: &mut Root| {
+            let value = first(root);
+            second(value)
+        })
     }
 }
 
@@ -2568,6 +2655,186 @@ where
     /// Convert to PartialWritableOptionalKeyPath (alias for `to_partial()`)
     pub fn to(self) -> PartialWritableOptionalKeyPath<Root> {
         self.to_partial()
+    }
+}
+
+// ========== SHR OPERATOR IMPLEMENTATIONS ==========
+// 
+// The `>>` operator is available when the `nightly` feature is enabled.
+// 
+// **IMPORTANT**: To use the `>>` operator, you must:
+// 1. Use Rust nightly toolchain
+// 2. Enable the `nightly` feature: `rust-keypaths = { features = ["nightly"] }`
+// 3. Enable the feature gate in YOUR code (binaries, examples, tests):
+//    ```rust
+//    #![feature(impl_trait_in_assoc_types)]
+//    ```
+//
+// Usage example:
+// ```rust
+// #![feature(impl_trait_in_assoc_types)]  // Must be in YOUR code
+// use rust_keypaths::{keypath, KeyPath};
+// 
+// struct User { address: Address }
+// struct Address { street: String }
+// 
+// let kp1 = keypath!(|u: &User| &u.address);
+// let kp2 = keypath!(|a: &Address| &a.street);
+// let chained = kp1 >> kp2; // Works with nightly feature
+// ```
+//
+// On stable Rust, use `keypath1.then(keypath2)` instead of `keypath1 >> keypath2`.
+// All keypath types support chaining via `then()` methods with full type inference.
+//
+// Supported combinations:
+// - `KeyPath >> KeyPath` → `KeyPath`
+// - `KeyPath >> OptionalKeyPath` → `OptionalKeyPath`
+// - `OptionalKeyPath >> OptionalKeyPath` → `OptionalKeyPath`
+// - `WritableKeyPath >> WritableKeyPath` → `WritableKeyPath`
+// - `WritableKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+// - `WritableOptionalKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+// - `FailableCombinedKeyPath >> FailableCombinedKeyPath` → `FailableCombinedKeyPath`
+// - `FailableCombinedKeyPath >> OptionalKeyPath` → `FailableCombinedKeyPath`
+//
+// NOTE: The feature gate cannot be enabled in library code that needs to compile
+// on stable Rust. The Shr implementations are gated behind `#[cfg(feature = "nightly")]`
+// and will only compile when both the feature is enabled AND the user has enabled
+// the feature gate in their own code.
+
+#[cfg(feature = "nightly")]
+mod shr_impls {
+    use super::*;
+    
+    // Implement Shr for KeyPath >> KeyPath: returns KeyPath
+    impl<Root, Value, F, SubValue, G> Shr<KeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
+        G: for<'r> Fn(&'r Value) -> &'r SubValue + 'static,
+        Value: 'static,
+    {
+        type Output = KeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> &'r SubValue>;
+        
+        fn shr(self, rhs: KeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+    
+    // Implement Shr for KeyPath >> OptionalKeyPath: returns OptionalKeyPath  
+    impl<Root, Value, F, SubValue, G> Shr<OptionalKeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+        Value: 'static,
+    {
+        type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
+        
+        fn shr(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then_optional(rhs)
+        }
+    }
+    
+    // Implement Shr for OptionalKeyPath >> OptionalKeyPath: returns OptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Shr<OptionalKeyPath<Value, SubValue, G>> for OptionalKeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+        Value: 'static,
+    {
+        type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
+        
+        fn shr(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+    
+    // Implement Shr for WritableKeyPath >> WritableKeyPath: returns WritableKeyPath
+    impl<Root, Value, F, SubValue, G> Shr<WritableKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+        G: for<'r> Fn(&'r mut Value) -> &'r mut SubValue + 'static,
+        Value: 'static,
+    {
+        type Output = WritableKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> &'r mut SubValue>;
+        
+        fn shr(self, rhs: WritableKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+    
+    // Implement Shr for WritableKeyPath >> WritableOptionalKeyPath: returns WritableOptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Shr<WritableOptionalKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
+        Value: 'static,
+    {
+        type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
+        
+        fn shr(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then_optional(rhs)
+        }
+    }
+    
+    // Implement Shr for WritableOptionalKeyPath >> WritableOptionalKeyPath: returns WritableOptionalKeyPath
+    impl<Root, Value, F, SubValue, G> Shr<WritableOptionalKeyPath<Value, SubValue, G>> for WritableOptionalKeyPath<Root, Value, F>
+    where
+        F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
+        Value: 'static,
+    {
+        type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
+        
+        fn shr(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+    
+    // Implement Shr for FailableCombinedKeyPath >> FailableCombinedKeyPath
+    impl<Root, Value, ReadFn, WriteFn, OwnedFn, SubValue, SubReadFn, SubWriteFn, SubOwnedFn> 
+        Shr<FailableCombinedKeyPath<Value, SubValue, SubReadFn, SubWriteFn, SubOwnedFn>> 
+        for FailableCombinedKeyPath<Root, Value, ReadFn, WriteFn, OwnedFn>
+    where
+        ReadFn: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+        WriteFn: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+        OwnedFn: Fn(Root) -> Option<Value> + 'static,
+        SubReadFn: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+        SubWriteFn: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
+        SubOwnedFn: Fn(Value) -> Option<SubValue> + 'static,
+        Value: 'static,
+        Root: 'static,
+        SubValue: 'static,
+    {
+        type Output = FailableCombinedKeyPath<Root, SubValue, 
+            impl for<'r> Fn(&'r Root) -> Option<&'r SubValue> + 'static,
+            impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue> + 'static,
+            impl Fn(Root) -> Option<SubValue> + 'static>;
+        
+        fn shr(self, rhs: FailableCombinedKeyPath<Value, SubValue, SubReadFn, SubWriteFn, SubOwnedFn>) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+    
+    // Implement Shr for FailableCombinedKeyPath >> OptionalKeyPath
+    impl<Root, Value, ReadFn, WriteFn, OwnedFn, SubValue, SubReadFn> 
+        Shr<OptionalKeyPath<Value, SubValue, SubReadFn>> 
+        for FailableCombinedKeyPath<Root, Value, ReadFn, WriteFn, OwnedFn>
+    where
+        ReadFn: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+        WriteFn: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+        OwnedFn: Fn(Root) -> Option<Value> + 'static,
+        SubReadFn: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+        Value: 'static,
+        Root: 'static,
+        SubValue: 'static,
+    {
+        type Output = FailableCombinedKeyPath<Root, SubValue,
+            impl for<'r> Fn(&'r Root) -> Option<&'r SubValue> + 'static,
+            impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue> + 'static,
+            impl Fn(Root) -> Option<SubValue> + 'static>;
+        
+        fn shr(self, rhs: OptionalKeyPath<Value, SubValue, SubReadFn>) -> Self::Output {
+            self.then_optional(rhs)
+        }
     }
 }
 

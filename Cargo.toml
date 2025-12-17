@@ -44,6 +44,7 @@ default = []
 # Features for rust-keypaths (static dispatch)
 parking_lot = ["rust-keypaths/parking_lot"]
 tagged = ["rust-keypaths/tagged"]
+nightly = ["rust-keypaths/nightly"]
 # Legacy features for key-paths-core (dynamic dispatch)
 # parking_lot_legacy = ["key-paths-core/parking_lot"]
 # tagged_core = ["key-paths-core/tagged_core"]
