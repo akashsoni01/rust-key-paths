@@ -11,7 +11,7 @@ struct ContainerTest {
     
     // Synchronization primitives
     mutex_data: Arc<Mutex<SomeStruct>>,
-    rwlock_data: Arc<RwLock<i32>>,
+    rwlock_data: Arc<RwLock<SomeStruct>>,  // Changed to SomeStruct for chain examples
     
     // Reference counting with weak references
     weak_ref: Weak<String>,
@@ -41,7 +41,10 @@ fn main() {
             data: "Hello".to_string(),
             optional_field: Some("Optional value".to_string()),
         })),
-        rwlock_data: Arc::new(RwLock::new(10)),
+        rwlock_data: Arc::new(RwLock::new(SomeStruct { 
+            data: "RwLock Hello".to_string(),
+            optional_field: Some("RwLock Optional".to_string()),
+        })),
         weak_ref: Weak::new(),
         name: "Alice".to_string(),
         age: 30,
@@ -233,24 +236,39 @@ fn main() {
     chained_curried.apply(mutex_ref, |value| {
         println!("✅ Chained curried keypaths (curry_arc_mutex_optional): optional_field: {}", value);
     });
-    // // Test RwLock<T> with ReadableKeypaths
-    // if let Some(rwlock_ref) = ContainerTest::rwlock_data_r().get(&container) {
-    //     println!("✅ RwLock reference: {:?}", rwlock_ref);
-    // }
-    //
-    // // Test Weak<T> with ReadableKeypaths
-    // if let Some(weak_ref) = ContainerTest::weak_ref_r().get(&container) {
-    //     println!("✅ Weak reference: {:?}", weak_ref);
-    // }
-    //
-    // // Test basic types
-    // if let Some(name) = ContainerTest::name_r().get(&container) {
-    //     println!("✅ Name: {}", name);
-    // }
-    //
-    // if let Some(age) = ContainerTest::age_r().get(&container) {
-    //     println!("✅ Age: {}", age);
-    // }
+
+    println!("\n=== Arc<RwLock<T>> Functional Chain Examples ===");
+    
+    // Example 10a: Functional style with Arc<RwLock<T>> - non-optional inner keypath
+    crate::ContainerTest::rwlock_data_r()
+        .chain_arc_rwlock(crate::SomeStruct::data_r())
+        .get(&container, |value| {
+            println!("✅ Functional RwLock (chain_arc_rwlock): ContainerTest::rwlock_data -> data: {}", value);
+        });
+    
+    // Example 10b: Functional style with Arc<RwLock<T>> - optional inner keypath
+    crate::ContainerTest::rwlock_data_r()
+        .chain_arc_rwlock_optional(crate::SomeStruct::optional_field_fr())
+        .get(&container, |value| {
+            println!("✅ Functional RwLock (chain_arc_rwlock_optional): ContainerTest::rwlock_data -> optional_field: {}", value);
+        });
+    
+    // Example 10c: Using curried RwLock keypaths directly
+    let rwlock_data_keypath = crate::ContainerTest::rwlock_data_r();
+    let rwlock_ref = rwlock_data_keypath.get(&container);
+    
+    let data_kp = crate::SomeStruct::data_r();
+    let curried_rwlock = data_kp.curry_arc_rwlock();
+    curried_rwlock.apply(rwlock_ref, |value| {
+        println!("✅ Curried RwLock (curry_arc_rwlock): ContainerTest::rwlock_data -> data: {}", value);
+    });
+    
+    // Example 10d: Using curried optional RwLock keypaths
+    let optional_kp = crate::SomeStruct::optional_field_fr();
+    let curried_rwlock_optional = optional_kp.curry_arc_rwlock_optional();
+    curried_rwlock_optional.apply(rwlock_ref, |value| {
+        println!("✅ Curried RwLock (curry_arc_rwlock_optional): ContainerTest::rwlock_data -> optional_field: {}", value);
+    });
 
     println!("\n=== ReadableKeypaths Macro - All new container types supported! ===");
 }

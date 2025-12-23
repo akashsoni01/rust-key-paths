@@ -135,6 +135,181 @@ where
     }
 }
 
+// ========== FUNCTIONAL RWLOCK KEYPATH CHAINS ==========
+
+/// A composed keypath chain through Arc<RwLock<T>> - functional style
+/// Build the chain first, then apply container at get() time
+/// 
+/// # Example
+/// ```rust
+/// // Functional style: compose first, then apply container at get()
+/// ContainerTest::rwlock_data_r()
+///     .chain_arc_rwlock(SomeStruct::data_r())
+///     .get(&container, |value| println!("Value: {}", value));
+/// ```
+pub struct ArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+{
+    outer_keypath: KeyPath<Root, RwLockValue, F>,
+    inner_keypath: KeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    RwLockValue: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container, executing callback with the value (read lock)
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        let arc_rwlock_ref = self.outer_keypath.get(container);
+        let curried = self.inner_keypath.curry_arc_rwlock();
+        curried.apply(arc_rwlock_ref.borrow(), callback)
+    }
+}
+
+/// A composed optional keypath chain through Arc<RwLock<T>> - functional style
+pub struct ArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+{
+    outer_keypath: KeyPath<Root, RwLockValue, F>,
+    inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    RwLockValue: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container, executing callback with the value (read lock)
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        let arc_rwlock_ref = self.outer_keypath.get(container);
+        let curried = self.inner_keypath.curry_arc_rwlock_optional();
+        curried.apply(arc_rwlock_ref.borrow(), callback)
+    }
+}
+
+/// A composed keypath chain from OptionalKeyPath through Arc<RwLock<T>> - functional style
+pub struct OptionalArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
+    G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+{
+    outer_keypath: OptionalKeyPath<Root, RwLockValue, F>,
+    inner_keypath: KeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
+    G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    RwLockValue: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container, executing callback with the value (read lock)
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
+            let curried = self.inner_keypath.curry_arc_rwlock();
+            curried.apply(arc_rwlock_ref.borrow(), callback)
+        })
+    }
+}
+
+/// A composed optional keypath chain from OptionalKeyPath through Arc<RwLock<T>> - functional style
+pub struct OptionalArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+{
+    outer_keypath: OptionalKeyPath<Root, RwLockValue, F>,
+    inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    RwLockValue: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container, executing callback with the value (read lock)
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
+            let curried = self.inner_keypath.curry_arc_rwlock_optional();
+            curried.apply(arc_rwlock_ref.borrow(), callback)
+        })
+    }
+}
+
+// ========== CURRIED RWLOCK KEYPATH WRAPPERS ==========
+
+/// Wrapper for keypaths that work with Arc<RwLock<Root>> instead of Root
+/// Allows chaining keypaths through Arc<RwLock> containers
+pub struct CurriedArcRwLockKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value,
+{
+    keypath: KeyPath<Root, Value, F>,
+}
+
+impl<Root, Value, F> CurriedArcRwLockKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value,
+{
+    /// Apply this curried keypath to an Arc<RwLock<Root>> with a callback (read lock)
+    pub fn apply<Callback>(&self, arc_rwlock: &Arc<RwLock<Root>>, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&Value) -> (),
+    {
+        arc_rwlock.read().ok().map(|guard| {
+            let value = self.keypath.get(&*guard);
+            callback(value)
+        })
+    }
+}
+
+/// Wrapper for optional keypaths that work with Arc<RwLock<Root>> instead of Root
+pub struct CurriedArcRwLockOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
+{
+    keypath: OptionalKeyPath<Root, Value, F>,
+}
+
+impl<Root, Value, F> CurriedArcRwLockOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
+{
+    /// Apply this curried keypath to an Arc<RwLock<Root>> with a callback (read lock)
+    pub fn apply<Callback>(&self, arc_rwlock: &Arc<RwLock<Root>>, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&Value) -> (),
+    {
+        arc_rwlock.read().ok().and_then(|guard| {
+            self.keypath.get(&*guard).map(|value| callback(value))
+        })
+    }
+}
+
 // ========== CURRIED MUTEX KEYPATH WRAPPER ==========
 
 /// Wrapper for keypaths that work with Mutex<Root> instead of Root
@@ -692,6 +867,64 @@ where
         ArcMutexOptionalKeyPathChain {
             outer_keypath: self,
             inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with an inner keypath through Arc<RwLock<T>> - functional style
+    /// Compose first, then apply container at get() time (uses read lock)
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { rwlock_data: Arc::new(RwLock::new(SomeStruct { data: "test".to_string() })) };
+    /// 
+    /// // Functional style: compose first, apply container at get()
+    /// ContainerTest::rwlock_data_r()
+    ///     .chain_arc_rwlock(SomeStruct::data_r())
+    ///     .get(&container, |value| println!("Data: {}", value));
+    /// ```
+    pub fn chain_arc_rwlock<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: KeyPath<InnerValue, SubValue, G>,
+    ) -> ArcRwLockKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    {
+        ArcRwLockKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with an optional inner keypath through Arc<RwLock<T>> - functional style
+    /// Compose first, then apply container at get() time (uses read lock)
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { rwlock_data: Arc::new(RwLock::new(SomeStruct { optional_field: Some("test".to_string()) })) };
+    /// 
+    /// // Functional style: compose first, apply container at get()
+    /// ContainerTest::rwlock_data_r()
+    ///     .chain_arc_rwlock_optional(SomeStruct::optional_field_fr())
+    ///     .get(&container, |value| println!("Value: {}", value));
+    /// ```
+    pub fn chain_arc_rwlock_optional<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcRwLockOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    {
+        ArcRwLockOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Curry this keypath to work with Arc<RwLock<Root>> instead of Root
+    /// Returns a curried keypath that can apply callbacks to the locked value
+    pub fn curry_arc_rwlock(self) -> CurriedArcRwLockKeyPath<Root, Value, F> {
+        CurriedArcRwLockKeyPath {
+            keypath: self,
         }
     }
 
@@ -1669,6 +1902,64 @@ where
         OptionalArcMutexOptionalKeyPathChain {
             outer_keypath: self,
             inner_keypath,
+        }
+    }
+    
+    /// Chain this optional keypath with an inner keypath through Arc<RwLock<T>> - functional style
+    /// Compose first, then apply container at get() time (uses read lock)
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { rwlock_data: Some(Arc::new(RwLock::new(SomeStruct { data: "test".to_string() }))) };
+    /// 
+    /// // Functional style: compose first, apply container at get()
+    /// ContainerTest::rwlock_data_fr()
+    ///     .chain_arc_rwlock(SomeStruct::data_r())
+    ///     .get(&container, |value| println!("Data: {}", value));
+    /// ```
+    pub fn chain_arc_rwlock<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: KeyPath<InnerValue, SubValue, G>,
+    ) -> OptionalArcRwLockKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    {
+        OptionalArcRwLockKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this optional keypath with an optional inner keypath through Arc<RwLock<T>> - functional style
+    /// Compose first, then apply container at get() time (uses read lock)
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { rwlock_data: Some(Arc::new(RwLock::new(SomeStruct { optional_field: Some("test".to_string()) }))) };
+    /// 
+    /// // Functional style: compose first, apply container at get()
+    /// ContainerTest::rwlock_data_fr()
+    ///     .chain_arc_rwlock_optional(SomeStruct::optional_field_fr())
+    ///     .get(&container, |value| println!("Value: {}", value));
+    /// ```
+    pub fn chain_arc_rwlock_optional<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> OptionalArcRwLockOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    {
+        OptionalArcRwLockOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Curry this optional keypath to work with Arc<RwLock<Root>> instead of Root
+    /// Returns a curried keypath that can apply callbacks to the locked value
+    pub fn curry_arc_rwlock_optional(self) -> CurriedArcRwLockOptionalKeyPath<Root, Value, F> {
+        CurriedArcRwLockOptionalKeyPath {
+            keypath: self,
         }
     }
     
