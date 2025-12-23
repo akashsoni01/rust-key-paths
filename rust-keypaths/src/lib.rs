@@ -1,6 +1,6 @@
 // Enable feature gate when nightly feature is enabled
 // NOTE: This will only work with nightly Rust toolchain
-#![cfg_attr(feature = "nightly", feature(impl_trait_in_assoc_type))]
+// #![cfg_attr(feature = "nightly", feature(impl_trait_in_assoc_type))]
 
 use std::sync::{Arc, Mutex, RwLock};
 use std::marker::PhantomData;
@@ -2689,94 +2689,94 @@ where
 // - `WritableKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
 // - `WritableOptionalKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
 
-#[cfg(feature = "nightly")]
-mod shr_impls {
-    use super::*;
-    
-    // Implement Shr for KeyPath >> KeyPath: returns KeyPath
-    impl<Root, Value, F, SubValue, G> Shr<KeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
-        G: for<'r> Fn(&'r Value) -> &'r SubValue + 'static,
-        Value: 'static,
-    {
-        type Output = KeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> &'r SubValue>;
-        
-        fn shr(self, rhs: KeyPath<Value, SubValue, G>) -> Self::Output {
-            self.then(rhs)
-        }
-    }
-    
-    // Implement Shr for KeyPath >> OptionalKeyPath: returns OptionalKeyPath  
-    impl<Root, Value, F, SubValue, G> Shr<OptionalKeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
-        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
-        Value: 'static,
-    {
-        type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
-        
-        fn shr(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
-            self.then_optional(rhs)
-        }
-    }
-    
-    // Implement Shr for OptionalKeyPath >> OptionalKeyPath: returns OptionalKeyPath
-    impl<Root, Value, F, SubValue, G> Shr<OptionalKeyPath<Value, SubValue, G>> for OptionalKeyPath<Root, Value, F>
-    where
-        F: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
-        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
-        Value: 'static,
-    {
-        type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
-        
-        fn shr(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
-            self.then(rhs)
-        }
-    }
-    
-    // Implement Shr for WritableKeyPath >> WritableKeyPath: returns WritableKeyPath
-    impl<Root, Value, F, SubValue, G> Shr<WritableKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
-    where
-        F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
-        G: for<'r> Fn(&'r mut Value) -> &'r mut SubValue + 'static,
-        Value: 'static,
-    {
-        type Output = WritableKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> &'r mut SubValue>;
-        
-        fn shr(self, rhs: WritableKeyPath<Value, SubValue, G>) -> Self::Output {
-            self.then(rhs)
-        }
-    }
-    
-    // Implement Shr for WritableKeyPath >> WritableOptionalKeyPath: returns WritableOptionalKeyPath
-    impl<Root, Value, F, SubValue, G> Shr<WritableOptionalKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
-    where
-        F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
-        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
-        Value: 'static,
-    {
-        type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
-        
-        fn shr(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
-            self.then_optional(rhs)
-        }
-    }
-    
-    // Implement Shr for WritableOptionalKeyPath >> WritableOptionalKeyPath: returns WritableOptionalKeyPath
-    impl<Root, Value, F, SubValue, G> Shr<WritableOptionalKeyPath<Value, SubValue, G>> for WritableOptionalKeyPath<Root, Value, F>
-    where
-        F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
-        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
-        Value: 'static,
-    {
-        type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
-        
-        fn shr(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
-            self.then(rhs)
-        }
-    }
-}
+// #[cfg(feature = "nightly")]
+// mod shr_impls {
+//     use super::*;
+//
+//     // Implement Shr for KeyPath >> KeyPath: returns KeyPath
+//     impl<Root, Value, F, SubValue, G> Shr<KeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
+//     where
+//         F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
+//         G: for<'r> Fn(&'r Value) -> &'r SubValue + 'static,
+//         Value: 'static,
+//     {
+//         type Output = KeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> &'r SubValue>;
+//
+//         fn shr(self, rhs: KeyPath<Value, SubValue, G>) -> Self::Output {
+//             self.then(rhs)
+//         }
+//     }
+//
+//     // Implement Shr for KeyPath >> OptionalKeyPath: returns OptionalKeyPath
+//     impl<Root, Value, F, SubValue, G> Shr<OptionalKeyPath<Value, SubValue, G>> for KeyPath<Root, Value, F>
+//     where
+//         F: for<'r> Fn(&'r Root) -> &'r Value + 'static,
+//         G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+//         Value: 'static,
+//     {
+//         type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
+//
+//         fn shr(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+//             self.then_optional(rhs)
+//         }
+//     }
+//
+//     // Implement Shr for OptionalKeyPath >> OptionalKeyPath: returns OptionalKeyPath
+//     impl<Root, Value, F, SubValue, G> Shr<OptionalKeyPath<Value, SubValue, G>> for OptionalKeyPath<Root, Value, F>
+//     where
+//         F: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+//         G: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
+//         Value: 'static,
+//     {
+//         type Output = OptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>;
+//
+//         fn shr(self, rhs: OptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+//             self.then(rhs)
+//         }
+//     }
+//
+//     // Implement Shr for WritableKeyPath >> WritableKeyPath: returns WritableKeyPath
+//     impl<Root, Value, F, SubValue, G> Shr<WritableKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
+//     where
+//         F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+//         G: for<'r> Fn(&'r mut Value) -> &'r mut SubValue + 'static,
+//         Value: 'static,
+//     {
+//         type Output = WritableKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> &'r mut SubValue>;
+//
+//         fn shr(self, rhs: WritableKeyPath<Value, SubValue, G>) -> Self::Output {
+//             self.then(rhs)
+//         }
+//     }
+//
+//     // Implement Shr for WritableKeyPath >> WritableOptionalKeyPath: returns WritableOptionalKeyPath
+//     impl<Root, Value, F, SubValue, G> Shr<WritableOptionalKeyPath<Value, SubValue, G>> for WritableKeyPath<Root, Value, F>
+//     where
+//         F: for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+//         G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
+//         Value: 'static,
+//     {
+//         type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
+//
+//         fn shr(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+//             self.then_optional(rhs)
+//         }
+//     }
+//
+//     // Implement Shr for WritableOptionalKeyPath >> WritableOptionalKeyPath: returns WritableOptionalKeyPath
+//     impl<Root, Value, F, SubValue, G> Shr<WritableOptionalKeyPath<Value, SubValue, G>> for WritableOptionalKeyPath<Root, Value, F>
+//     where
+//         F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+//         G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
+//         Value: 'static,
+//     {
+//         type Output = WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>;
+//
+//         fn shr(self, rhs: WritableOptionalKeyPath<Value, SubValue, G>) -> Self::Output {
+//             self.then(rhs)
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
