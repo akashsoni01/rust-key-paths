@@ -1,4 +1,4 @@
-# 🔑 KeyPaths & CasePaths in Rust
+# 🔑 KeyPaths in Rust
 
 Key paths and case paths provide a **safe, composable way to access and modify nested data** in Rust.
 Inspired by **Swift's KeyPath / CasePath** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
@@ -14,11 +14,13 @@ Inspired by **Swift's KeyPath / CasePath** system, this feature rich crate lets 
 - ✅ **Write operations can be faster than manual unwrapping** at deeper nesting levels
 - ✅ **Zero runtime overhead** - No dynamic dispatch costs
 - ✅ **Better inlining** - Compiler can optimize more aggressively
+- ✅ **Functional chains for `Arc<Mutex<T>>`/`Arc<RwLock<T>>`** - Compose keypaths through sync primitives
+- ✅ **parking_lot support** - Optional feature for faster locks
 
 ```toml
 [dependencies]
-rust-keypaths = "1.0.2"
-keypaths-proc = "1.0.1"
+rust-keypaths = "1.1.0"
+keypaths-proc = "1.1.0"
 ```
 
 ### Legacy: `key-paths-core` + `key-paths-derive` (v1.6.0)
@@ -42,6 +44,8 @@ key-paths-derive = "1.1.0"
 - ✅ **Composition** across structs, options and enum cases
 - ✅ **Iteration helpers** over collections via keypaths
 - ✅ **Proc-macros**: `#[derive(Keypaths)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
+- ✅ **Functional chains for `Arc<Mutex<T>>` and `Arc<RwLock<T>>`** - Compose-first, apply-later pattern
+- ✅ **parking_lot support** - Feature-gated support for faster synchronization primitives
 
 ---
 
@@ -51,16 +55,16 @@ key-paths-derive = "1.1.0"
 
 ```toml
 [dependencies]
-rust-keypaths = "1.0.0"
-keypaths-proc = "1.0.0"
+rust-keypaths = "1.1.0"
+keypaths-proc = "1.1.0"
 ```
 
-### Legacy: Dynamic Dispatch (key-paths-core)
+### With parking_lot Support
 
 ```toml
 [dependencies]
-key-paths-core = "1.6.0"  # Use 1.6.0 for dynamic dispatch
-key-paths-derive = "1.1.0"
+rust-keypaths = { version = "1.1.0", features = ["parking_lot"] }
+keypaths-proc = "1.1.0"
 ```
 
 ### API Differences
@@ -73,16 +77,6 @@ let kp = KeyPath::new(|s: &Struct| &s.field);
 let opt_kp = OptionalKeyPath::new(|s: &Struct| s.opt_field.as_ref());
 let writable_kp = WritableKeyPath::new(|s: &mut Struct| &mut s.field);
 ```
-
-**key-paths-core (Dynamic Dispatch):**
-```rust
-use key_paths_core::KeyPaths;
-
-let kp = KeyPaths::readable(|s: &Struct| &s.field);
-let opt_kp = KeyPaths::failable_readable(|s: &Struct| s.opt_field.as_ref());
-let writable_kp = KeyPaths::writable(|s: &mut Struct| &mut s.field);
-```
-
 ---
 
 ## 🚀 Examples
@@ -170,51 +164,109 @@ fn main() {
 }
 ```
 
-Run it yourself:
+### Functional Chains for Arc<Mutex<T>> and Arc<RwLock<T>>
 
-```bash
-cargo run --example box_keypath
-```
-
-### Keypath Chaining with `>>` Operator
-
-The `>>` operator provides a convenient syntax for chaining keypaths. It requires Rust nightly with the `nightly` feature enabled:
+Compose keypaths through synchronization primitives with a functional, compose-first approach:
 
 ```rust
-#![feature(impl_trait_in_assoc_type)]  // Must be in YOUR code
-use rust_keypaths::{keypath, KeyPath};
+use std::sync::{Arc, Mutex, RwLock};
+use keypaths_proc::{Keypaths, WritableKeypaths};
 
-struct User { address: Address }
-struct Address { street: String }
+#[derive(Debug, Keypaths, WritableKeypaths)]
+struct Container {
+    mutex_data: Arc<Mutex<DataStruct>>,
+    rwlock_data: Arc<RwLock<DataStruct>>,
+}
 
-// Create keypaths
-let address_kp = keypath!(|u: &User| &u.address);
-let street_kp = keypath!(|a: &Address| &a.street);
+#[derive(Debug, Keypaths, WritableKeypaths)]
+struct DataStruct {
+    name: String,
+    optional_value: Option<String>,
+}
 
-// Chain using >> operator (requires nightly feature)
-let user_street_kp = address_kp >> street_kp;
-
-// Use the chained keypath
-let user = User { address: Address { street: "123 Main St".to_string() } };
-println!("Street: {}", user_street_kp.get(&user));
+fn main() {
+    let container = Container::new();
+    
+    // Read through Arc<Mutex<T>> - compose the chain, then apply
+    Container::mutex_data_r()
+        .chain_arc_mutex(DataStruct::name_r())
+        .get(&container, |value| {
+            println!("Name: {}", value);
+        });
+    
+    // Write through Arc<Mutex<T>>
+    Container::mutex_data_r()
+        .chain_arc_mutex_writable(DataStruct::name_w())
+        .get_mut(&container, |value| {
+            *value = "New name".to_string();
+        });
+    
+    // Read through Arc<RwLock<T>> (read lock)
+    Container::rwlock_data_r()
+        .chain_arc_rwlock(DataStruct::name_r())
+        .get(&container, |value| {
+            println!("Name: {}", value);
+        });
+    
+    // Write through Arc<RwLock<T>> (write lock)
+    Container::rwlock_data_r()
+        .chain_arc_rwlock_writable(DataStruct::name_w())
+        .get_mut(&container, |value| {
+            *value = "New name".to_string();
+        });
+}
 ```
 
-**On stable Rust**, use the `then()` method instead:
-```rust
-let user_street_kp = address_kp.then(street_kp);  // Works on stable
-```
+**Available chain methods:**
 
-**Supported combinations:**
-- `KeyPath >> KeyPath` → `KeyPath`
-- `KeyPath >> OptionalKeyPath` → `OptionalKeyPath`
-- `OptionalKeyPath >> OptionalKeyPath` → `OptionalKeyPath`
-- `WritableKeyPath >> WritableKeyPath` → `WritableKeyPath`
-- `WritableKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
-- `WritableOptionalKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+| Method | Description |
+|--------|-------------|
+| `chain_arc_mutex(keypath)` | Read through `Arc<Mutex<T>>` |
+| `chain_arc_mutex_optional(keypath)` | Optional read through `Arc<Mutex<T>>` |
+| `chain_arc_mutex_writable(keypath)` | Write through `Arc<Mutex<T>>` |
+| `chain_arc_mutex_writable_optional(keypath)` | Optional write through `Arc<Mutex<T>>` |
+| `chain_arc_rwlock(keypath)` | Read through `Arc<RwLock<T>>` (read lock) |
+| `chain_arc_rwlock_optional(keypath)` | Optional read through `Arc<RwLock<T>>` |
+| `chain_arc_rwlock_writable(keypath)` | Write through `Arc<RwLock<T>>` (write lock) |
+| `chain_arc_rwlock_writable_optional(keypath)` | Optional write through `Arc<RwLock<T>>` |
 
 **Running the example:**
 ```bash
-cargo +nightly run --example add_operator --features nightly
+cargo run --example readable_keypaths_new_containers_test
+```
+
+### parking_lot Support
+
+For faster synchronization with `parking_lot::Mutex` and `parking_lot::RwLock`:
+
+```toml
+[dependencies]
+rust-keypaths = { version = "1.1.0", features = ["parking_lot"] }
+```
+
+```rust
+use std::sync::Arc;
+use parking_lot::{Mutex as ParkingMutex, RwLock as ParkingRwLock};
+
+// Chain methods for parking_lot (feature-gated)
+Container::parking_mutex_data_r()
+    .chain_arc_parking_mutex(DataStruct::name_r())
+    .get(&container, |value| {
+        println!("Name: {}", value);
+    });
+
+Container::parking_rwlock_data_r()
+    .chain_arc_parking_rwlock_writable(DataStruct::name_w())
+    .get_mut(&container, |value| {
+        *value = "New name".to_string();
+    });
+```
+
+**Key advantage:** parking_lot locks **never fail** (no poisoning), so chain methods don't return `Option` for the lock operation itself.
+
+**Running the example:**
+```bash
+cargo run --example parking_lot_chains --features parking_lot
 ```
 
 ---
@@ -251,10 +303,10 @@ The rust-key-paths library is being used by several exciting crates in the Rust 
 
 KeyPaths are optimized for performance with minimal overhead. Below are benchmark results comparing **direct unwrap** vs **keypaths** for 10-level deep nested access:
 
-| Operation | Direct Unwrap | KeyPath | Overhead | Notes |
-|-----------|---------------|---------|----------|-------|
-| **Read (10 levels)** | **384.07 ps** | **848.27 ps** | **2.21x** | ~464 ps absolute difference |
-| **Write (10 levels)** | **19.306 ns** | **19.338 ns** | **1.002x** | **Essentially identical!** ⚡ |
+| Operation | Direct Unwrap | KeyPath | Notes                         |
+|-----------|---------------|---------|-------------------------------|
+| **Read (10 levels)** | **384.07 ps** | **848.27 ps** | ~464 ps absolute difference   |
+| **Write (10 levels)** | **19.306 ns** | **19.338 ns** | **Essentially identical!** ⚡ |
 
 See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed performance analysis.
 
@@ -322,12 +374,14 @@ Both **lens-rs**, **pl-lens** (Plausible Labs), and **keypath** have several lim
 1. **✅ Native Option support**: Built-in failable keypaths (`_fr`/`_fw`) that compose seamlessly through `Option<T>` chains (unlike keypath, pl-lens, and lens-rs which require manual composition)
 2. **✅ Enum CasePaths**: First-class support for enum variant access (prisms) with `#[derive(Casepaths)]` (unique feature not found in keypath, pl-lens, or lens-rs)
 3. **✅ Container types**: Built-in support for `Result`, `Mutex`, `RwLock`, `Arc`, `Rc`, `Box`, and all standard collections (comprehensive container support unmatched by alternatives)
-4. **✅ Zero-cost abstractions**: Static dispatch with minimal overhead (1.46x for reads, near-zero for writes) - benchmarked and optimized
-5. **✅ Comprehensive derive macros**: Automatic generation for structs (named and tuple), enums, and all container types
-6. **✅ Swift-inspired API**: Familiar API for developers coming from Swift's KeyPath system with `.then()` composition
-7. **✅ Deep composition**: Works seamlessly with 10+ levels of nesting without workarounds (tested and verified)
-8. **✅ Type-safe composition**: Full compile-time type checking with `.then()` method
-9. **✅ Active development**: Regularly maintained with comprehensive feature set and documentation
+4. **✅ Functional chains for sync primitives**: Compose keypaths through `Arc<Mutex<T>>` and `Arc<RwLock<T>>` with a clean, functional API
+5. **✅ parking_lot support**: Feature-gated support for faster `parking_lot::Mutex` and `parking_lot::RwLock`
+6. **✅ Zero-cost abstractions**: Static dispatch with minimal overhead (1.46x for reads, near-zero for writes) - benchmarked and optimized
+7. **✅ Comprehensive derive macros**: Automatic generation for structs (named and tuple), enums, and all container types
+8. **✅ Swift-inspired API**: Familiar API for developers coming from Swift's KeyPath system with `.then()` composition
+9. **✅ Deep composition**: Works seamlessly with 10+ levels of nesting without workarounds (tested and verified)
+10. **✅ Type-safe composition**: Full compile-time type checking with `.then()` method
+11. **✅ Active development**: Regularly maintained with comprehensive feature set and documentation
 
 ### Example: Why rust-keypaths is Better for Nested Option Chains
 
@@ -364,7 +418,9 @@ let result = keypath.get(&instance); // Reusable, type-safe, fast
 - [x] Smart pointer adapters (`.for_arc()`, `.for_box()`, `.for_rc()`)
 - [x] Container support for `Result`, `Mutex`, `RwLock`, `Weak`, and collections
 - [x] Helper derive macros (`ReadableKeypaths`, `WritableKeypaths`)
-- [] Derive macros for complex multi-field enum variants
+- [x] Functional chains for `Arc<Mutex<T>>` and `Arc<RwLock<T>>`
+- [x] `parking_lot` support for faster synchronization primitives
+- [ ] Derive macros for complex multi-field enum variants
 ---
 
 ## 📜 License
