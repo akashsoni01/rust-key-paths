@@ -3,7 +3,7 @@ use rust_keypaths::{KeyPath, OptionalKeyPath};
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Weak;
 
-#[derive(Debug, ReadableKeypaths, WritableKeypaths, Clone)]
+#[derive(Debug, ReadableKeypaths, WritableKeypaths)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
@@ -21,34 +21,41 @@ struct ContainerTest {
     age: u32,
 }
 
-#[derive(Debug, Keypaths, WritableKeypaths, Clone)]
+impl ContainerTest {
+    fn new() -> Self {
+        Self {
+            result: Ok("Success!".to_string()),
+            result_int: Ok(42),
+            mutex_data: Arc::new(Mutex::new(SomeStruct {
+                data: "Hello".to_string(),
+                optional_field: Some("Optional value".to_string()),
+            })),
+            rwlock_data: Arc::new(RwLock::new(SomeStruct {
+                data: "RwLock Hello".to_string(),
+                optional_field: Some("RwLock Optional".to_string()),
+            })),
+            weak_ref: Weak::new(),
+            name: "Alice".to_string(),
+            age: 30,
+        }
+    }
+}
+
+
+#[derive(Debug, Keypaths, WritableKeypaths)]
 struct SomeStruct {
     data: String,
     optional_field: Option<String>,
 }
 
-#[derive(Debug, Keypaths, WritableKeypaths, Clone)]
+#[derive(Debug, Keypaths, WritableKeypaths)]
 struct NestedStruct {
     inner: Option<SomeStruct>,
 }
 fn main() {
     println!("=== ReadableKeypaths Macro New Container Types Test ===");
     
-    let container = ContainerTest {
-        result: Ok("Success!".to_string()),
-        result_int: Ok(42),
-        mutex_data: Arc::new(Mutex::new(SomeStruct { 
-            data: "Hello".to_string(),
-            optional_field: Some("Optional value".to_string()),
-        })),
-        rwlock_data: Arc::new(RwLock::new(SomeStruct { 
-            data: "RwLock Hello".to_string(),
-            optional_field: Some("RwLock Optional".to_string()),
-        })),
-        weak_ref: Weak::new(),
-        name: "Alice".to_string(),
-        age: 30,
-    };
+    let container = ContainerTest::new();
 
     // Test Result<T, E> with ReadableKeypaths
     if let Some(value) = ContainerTest::result_fr().get(&container) {
@@ -185,7 +192,7 @@ fn main() {
     let mutex_data_w = crate::ContainerTest::mutex_data_w();
     
     // For writable access through Arc<Mutex<T>>, we need mutable access to the container
-    let mut mutable_container = container.clone();
+    let mut mutable_container = ContainerTest::new();
     
     // Get mutable reference to the Arc<Mutex<SomeStruct>> through the container
     let mutex_ref = mutex_data_w.get_mut(&mut mutable_container);
@@ -245,14 +252,16 @@ fn main() {
         .get(&container, |value| {
             println!("✅ Functional RwLock (chain_arc_rwlock): ContainerTest::rwlock_data -> data: {}", value);
         });
-    
+
+    let mut x = "".to_string();
     // Example 10b: Functional style with Arc<RwLock<T>> - optional inner keypath
     crate::ContainerTest::rwlock_data_r()
         .chain_arc_rwlock_optional(crate::SomeStruct::optional_field_fr())
         .get(&container, |value| {
+            x = value.to_string();
             println!("✅ Functional RwLock (chain_arc_rwlock_optional): ContainerTest::rwlock_data -> optional_field: {}", value);
         });
-    
+    println!("x: {}", x);
     // Example 10c: Using curried RwLock keypaths directly
     let rwlock_data_keypath = crate::ContainerTest::rwlock_data_r();
     let rwlock_ref = rwlock_data_keypath.get(&container);
