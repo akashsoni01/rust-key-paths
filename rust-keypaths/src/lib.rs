@@ -657,21 +657,20 @@ use parking_lot::{Mutex as ParkingMutex, RwLock as ParkingRwLock};
 
 /// A composed keypath chain through Arc<parking_lot::Mutex<T>> - functional style
 #[cfg(feature = "parking_lot")]
-pub struct ArcParkingMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+pub struct ArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
 {
-    outer_keypath: KeyPath<Root, MutexValue, F>,
+    outer_keypath: KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>,
     inner_keypath: KeyPath<InnerValue, SubValue, G>,
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcParkingMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G> ArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
-    MutexValue: std::borrow::Borrow<Arc<ParkingMutex<InnerValue>>>,
 {
     /// Apply the composed keypath chain to a container (read)
     pub fn get<Callback>(self, container: &Root, callback: Callback)
@@ -679,7 +678,7 @@ where
         Callback: FnOnce(&SubValue) -> (),
     {
         let arc_mutex_ref = self.outer_keypath.get(container);
-        let guard = arc_mutex_ref.borrow().lock();
+        let guard = arc_mutex_ref.lock();
         let value = self.inner_keypath.get(&*guard);
         callback(value);
     }
@@ -687,21 +686,20 @@ where
 
 /// A composed optional keypath chain through Arc<parking_lot::Mutex<T>> - functional style
 #[cfg(feature = "parking_lot")]
-pub struct ArcParkingMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+pub struct ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
 {
-    outer_keypath: KeyPath<Root, MutexValue, F>,
+    outer_keypath: KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>,
     inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcParkingMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G> ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
-    MutexValue: std::borrow::Borrow<Arc<ParkingMutex<InnerValue>>>,
 {
     /// Apply the composed keypath chain to a container (read, if value exists)
     pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
@@ -709,28 +707,27 @@ where
         Callback: FnOnce(&SubValue) -> (),
     {
         let arc_mutex_ref = self.outer_keypath.get(container);
-        let guard = arc_mutex_ref.borrow().lock();
+        let guard = arc_mutex_ref.lock();
         self.inner_keypath.get(&*guard).map(|value| callback(value))
     }
 }
 
 /// A composed writable keypath chain through Arc<parking_lot::Mutex<T>> - functional style
 #[cfg(feature = "parking_lot")]
-pub struct ArcParkingMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+pub struct ArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
 {
-    outer_keypath: KeyPath<Root, MutexValue, F>,
+    outer_keypath: KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>,
     inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcParkingMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G> ArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
-    MutexValue: std::borrow::Borrow<Arc<ParkingMutex<InnerValue>>>,
 {
     /// Apply the composed keypath chain to a container with mutable access
     pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> R
@@ -738,7 +735,7 @@ where
         Callback: FnOnce(&mut SubValue) -> R,
     {
         let arc_mutex_ref = self.outer_keypath.get(container);
-        let mut guard = arc_mutex_ref.borrow().lock();
+        let mut guard = arc_mutex_ref.lock();
         let value_ref = self.inner_keypath.get_mut(&mut *guard);
         callback(value_ref)
     }
@@ -746,21 +743,20 @@ where
 
 /// A composed writable optional keypath chain through Arc<parking_lot::Mutex<T>> - functional style
 #[cfg(feature = "parking_lot")]
-pub struct ArcParkingMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+pub struct ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
 {
-    outer_keypath: KeyPath<Root, MutexValue, F>,
+    outer_keypath: KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>,
     inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcParkingMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G> ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
-    MutexValue: std::borrow::Borrow<Arc<ParkingMutex<InnerValue>>>,
 {
     /// Apply the composed keypath chain to a container with mutable access (if value exists)
     pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> Option<R>
@@ -768,28 +764,27 @@ where
         Callback: FnOnce(&mut SubValue) -> R,
     {
         let arc_mutex_ref = self.outer_keypath.get(container);
-        let mut guard = arc_mutex_ref.borrow().lock();
+        let mut guard = arc_mutex_ref.lock();
         self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
     }
 }
 
 /// A composed keypath chain through Arc<parking_lot::RwLock<T>> - functional style
 #[cfg(feature = "parking_lot")]
-pub struct ArcParkingRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+pub struct ArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
 {
-    outer_keypath: KeyPath<Root, RwLockValue, F>,
+    outer_keypath: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>,
     inner_keypath: KeyPath<InnerValue, SubValue, G>,
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcParkingRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G> ArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
-    RwLockValue: std::borrow::Borrow<Arc<ParkingRwLock<InnerValue>>>,
 {
     /// Apply the composed keypath chain to a container (read lock)
     pub fn get<Callback>(self, container: &Root, callback: Callback)
@@ -797,7 +792,7 @@ where
         Callback: FnOnce(&SubValue) -> (),
     {
         let arc_rwlock_ref = self.outer_keypath.get(container);
-        let guard = arc_rwlock_ref.borrow().read();
+        let guard = arc_rwlock_ref.read();
         let value = self.inner_keypath.get(&*guard);
         callback(value);
     }
@@ -805,21 +800,20 @@ where
 
 /// A composed optional keypath chain through Arc<parking_lot::RwLock<T>> - functional style
 #[cfg(feature = "parking_lot")]
-pub struct ArcParkingRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+pub struct ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
 {
-    outer_keypath: KeyPath<Root, RwLockValue, F>,
+    outer_keypath: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>,
     inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcParkingRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G> ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
-    RwLockValue: std::borrow::Borrow<Arc<ParkingRwLock<InnerValue>>>,
 {
     /// Apply the composed keypath chain to a container (read lock, if value exists)
     pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
@@ -827,28 +821,27 @@ where
         Callback: FnOnce(&SubValue) -> (),
     {
         let arc_rwlock_ref = self.outer_keypath.get(container);
-        let guard = arc_rwlock_ref.borrow().read();
+        let guard = arc_rwlock_ref.read();
         self.inner_keypath.get(&*guard).map(|value| callback(value))
     }
 }
 
 /// A composed writable keypath chain through Arc<parking_lot::RwLock<T>> - functional style
 #[cfg(feature = "parking_lot")]
-pub struct ArcParkingRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+pub struct ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
 {
-    outer_keypath: KeyPath<Root, RwLockValue, F>,
+    outer_keypath: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>,
     inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcParkingRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G> ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
-    RwLockValue: std::borrow::Borrow<Arc<ParkingRwLock<InnerValue>>>,
 {
     /// Apply the composed keypath chain to a container with mutable access (write lock)
     pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> R
@@ -856,7 +849,7 @@ where
         Callback: FnOnce(&mut SubValue) -> R,
     {
         let arc_rwlock_ref = self.outer_keypath.get(container);
-        let mut guard = arc_rwlock_ref.borrow().write();
+        let mut guard = arc_rwlock_ref.write();
         let value_ref = self.inner_keypath.get_mut(&mut *guard);
         callback(value_ref)
     }
@@ -864,21 +857,20 @@ where
 
 /// A composed writable optional keypath chain through Arc<parking_lot::RwLock<T>> - functional style
 #[cfg(feature = "parking_lot")]
-pub struct ArcParkingRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+pub struct ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
 {
-    outer_keypath: KeyPath<Root, RwLockValue, F>,
+    outer_keypath: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>,
     inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcParkingRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
-    RwLockValue: std::borrow::Borrow<Arc<ParkingRwLock<InnerValue>>>,
 {
     /// Apply the composed keypath chain to a container with mutable access (write lock, if value exists)
     pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> Option<R>
@@ -886,7 +878,7 @@ where
         Callback: FnOnce(&mut SubValue) -> R,
     {
         let arc_rwlock_ref = self.outer_keypath.get(container);
-        let mut guard = arc_rwlock_ref.borrow().write();
+        let mut guard = arc_rwlock_ref.write();
         self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
     }
 }
@@ -1369,128 +1361,6 @@ where
         G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
     {
         ArcRwLockWritableOptionalKeyPathChain {
-            outer_keypath: self,
-            inner_keypath,
-        }
-    }
-    
-    // ========== PARKING_LOT CHAIN METHODS ==========
-    
-    /// Chain this keypath with an inner keypath through Arc<parking_lot::Mutex<T>> - functional style
-    #[cfg(feature = "parking_lot")]
-    pub fn chain_arc_parking_mutex<InnerValue, SubValue, G>(
-        self,
-        inner_keypath: KeyPath<InnerValue, SubValue, G>,
-    ) -> ArcParkingMutexKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
-    where
-        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
-    {
-        ArcParkingMutexKeyPathChain {
-            outer_keypath: self,
-            inner_keypath,
-        }
-    }
-    
-    /// Chain this keypath with an optional inner keypath through Arc<parking_lot::Mutex<T>>
-    #[cfg(feature = "parking_lot")]
-    pub fn chain_arc_parking_mutex_optional<InnerValue, SubValue, G>(
-        self,
-        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
-    ) -> ArcParkingMutexOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
-    where
-        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
-    {
-        ArcParkingMutexOptionalKeyPathChain {
-            outer_keypath: self,
-            inner_keypath,
-        }
-    }
-    
-    /// Chain this keypath with a writable inner keypath through Arc<parking_lot::Mutex<T>>
-    #[cfg(feature = "parking_lot")]
-    pub fn chain_arc_parking_mutex_writable<InnerValue, SubValue, G>(
-        self,
-        inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
-    ) -> ArcParkingMutexWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
-    where
-        G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
-    {
-        ArcParkingMutexWritableKeyPathChain {
-            outer_keypath: self,
-            inner_keypath,
-        }
-    }
-    
-    /// Chain this keypath with a writable optional inner keypath through Arc<parking_lot::Mutex<T>>
-    #[cfg(feature = "parking_lot")]
-    pub fn chain_arc_parking_mutex_writable_optional<InnerValue, SubValue, G>(
-        self,
-        inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
-    ) -> ArcParkingMutexWritableOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
-    where
-        G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
-    {
-        ArcParkingMutexWritableOptionalKeyPathChain {
-            outer_keypath: self,
-            inner_keypath,
-        }
-    }
-    
-    /// Chain this keypath with an inner keypath through Arc<parking_lot::RwLock<T>> - functional style
-    #[cfg(feature = "parking_lot")]
-    pub fn chain_arc_parking_rwlock<InnerValue, SubValue, G>(
-        self,
-        inner_keypath: KeyPath<InnerValue, SubValue, G>,
-    ) -> ArcParkingRwLockKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
-    where
-        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
-    {
-        ArcParkingRwLockKeyPathChain {
-            outer_keypath: self,
-            inner_keypath,
-        }
-    }
-    
-    /// Chain this keypath with an optional inner keypath through Arc<parking_lot::RwLock<T>>
-    #[cfg(feature = "parking_lot")]
-    pub fn chain_arc_parking_rwlock_optional<InnerValue, SubValue, G>(
-        self,
-        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
-    ) -> ArcParkingRwLockOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
-    where
-        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
-    {
-        ArcParkingRwLockOptionalKeyPathChain {
-            outer_keypath: self,
-            inner_keypath,
-        }
-    }
-    
-    /// Chain this keypath with a writable inner keypath through Arc<parking_lot::RwLock<T>>
-    #[cfg(feature = "parking_lot")]
-    pub fn chain_arc_parking_rwlock_writable<InnerValue, SubValue, G>(
-        self,
-        inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
-    ) -> ArcParkingRwLockWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
-    where
-        G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
-    {
-        ArcParkingRwLockWritableKeyPathChain {
-            outer_keypath: self,
-            inner_keypath,
-        }
-    }
-    
-    /// Chain this keypath with a writable optional inner keypath through Arc<parking_lot::RwLock<T>>
-    #[cfg(feature = "parking_lot")]
-    pub fn chain_arc_parking_rwlock_writable_optional<InnerValue, SubValue, G>(
-        self,
-        inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
-    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
-    where
-        G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
-    {
-        ArcParkingRwLockWritableOptionalKeyPathChain {
             outer_keypath: self,
             inner_keypath,
         }
@@ -2244,6 +2114,132 @@ pub mod containers {
         T: 'static,
     {
         WritableKeyPath::new(|tagged: &mut Tagged<Tag, T>| tagged.deref_mut())
+    }
+}
+
+// ========== PARKING_LOT CHAIN METHODS FOR KEYPATH ==========
+
+#[cfg(feature = "parking_lot")]
+impl<Root, InnerValue, F> KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
+{
+    /// Chain this keypath with an inner keypath through Arc<parking_lot::Mutex<T>> - functional style
+    pub fn chain_arc_parking_mutex<SubValue, G>(
+        self,
+        inner_keypath: KeyPath<InnerValue, SubValue, G>,
+    ) -> ArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    {
+        ArcParkingMutexKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with an optional inner keypath through Arc<parking_lot::Mutex<T>>
+    pub fn chain_arc_parking_mutex_optional<SubValue, G>(
+        self,
+        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    {
+        ArcParkingMutexOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with a writable inner keypath through Arc<parking_lot::Mutex<T>>
+    pub fn chain_arc_parking_mutex_writable<SubValue, G>(
+        self,
+        inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+    {
+        ArcParkingMutexWritableKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with a writable optional inner keypath through Arc<parking_lot::Mutex<T>>
+    pub fn chain_arc_parking_mutex_writable_optional<SubValue, G>(
+        self,
+        inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+    {
+        ArcParkingMutexWritableOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<Root, InnerValue, F> KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
+{
+    /// Chain this keypath with an inner keypath through Arc<parking_lot::RwLock<T>> - functional style
+    pub fn chain_arc_parking_rwlock<SubValue, G>(
+        self,
+        inner_keypath: KeyPath<InnerValue, SubValue, G>,
+    ) -> ArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    {
+        ArcParkingRwLockKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with an optional inner keypath through Arc<parking_lot::RwLock<T>>
+    pub fn chain_arc_parking_rwlock_optional<SubValue, G>(
+        self,
+        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    {
+        ArcParkingRwLockOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with a writable inner keypath through Arc<parking_lot::RwLock<T>>
+    pub fn chain_arc_parking_rwlock_writable<SubValue, G>(
+        self,
+        inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+    {
+        ArcParkingRwLockWritableKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with a writable optional inner keypath through Arc<parking_lot::RwLock<T>>
+    pub fn chain_arc_parking_rwlock_writable_optional<SubValue, G>(
+        self,
+        inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+    {
+        ArcParkingRwLockWritableOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
     }
 }
 
