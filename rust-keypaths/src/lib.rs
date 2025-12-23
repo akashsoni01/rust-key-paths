@@ -8,6 +8,7 @@ use std::any::{Any, TypeId};
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::ops::Shr;
+use std::fmt;
 
 #[cfg(feature = "tagged")]
 use tagged_core::Tagged;
@@ -133,6 +134,29 @@ where
 {
     getter: F,
     _phantom: PhantomData<(Root, Value)>,
+}
+
+impl<Root, Value, F> fmt::Display for KeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let root_name = std::any::type_name::<Root>();
+        let value_name = std::any::type_name::<Value>();
+        // Simplify type names by removing module paths for cleaner output
+        let root_short = root_name.split("::").last().unwrap_or(root_name);
+        let value_short = value_name.split("::").last().unwrap_or(value_name);
+        write!(f, "KeyPath<{} -> {}>", root_short, value_short)
+    }
+}
+
+impl<Root, Value, F> fmt::Debug for KeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
 }
 
 impl<Root, Value, F> KeyPath<Root, Value, F>
@@ -837,6 +861,29 @@ where
     _phantom: PhantomData<(Root, Value)>,
 }
 
+impl<Root, Value, F> fmt::Display for OptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let root_name = std::any::type_name::<Root>();
+        let value_name = std::any::type_name::<Value>();
+        // Simplify type names by removing module paths for cleaner output
+        let root_short = root_name.split("::").last().unwrap_or(root_name);
+        let value_short = value_name.split("::").last().unwrap_or(value_name);
+        write!(f, "OptionalKeyPath<{} -> Option<{}>>", root_short, value_short)
+    }
+}
+
+impl<Root, Value, F> fmt::Debug for OptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
 impl<Root, Value, F> OptionalKeyPath<Root, Value, F>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
@@ -1108,6 +1155,29 @@ where
 {
     getter: F,
     _phantom: PhantomData<(Root, Value)>,
+}
+
+impl<Root, Value, F> fmt::Display for WritableKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> &'r mut Value,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let root_name = std::any::type_name::<Root>();
+        let value_name = std::any::type_name::<Value>();
+        // Simplify type names by removing module paths for cleaner output
+        let root_short = root_name.split("::").last().unwrap_or(root_name);
+        let value_short = value_name.split("::").last().unwrap_or(value_name);
+        write!(f, "WritableKeyPath<{} -> {}>", root_short, value_short)
+    }
+}
+
+impl<Root, Value, F> fmt::Debug for WritableKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> &'r mut Value,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
 }
 
 impl<Root, Value, F> WritableKeyPath<Root, Value, F>
@@ -1387,6 +1457,29 @@ where
 {
     getter: F,
     _phantom: PhantomData<(Root, Value)>,
+}
+
+impl<Root, Value, F> fmt::Display for WritableOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let root_name = std::any::type_name::<Root>();
+        let value_name = std::any::type_name::<Value>();
+        // Simplify type names by removing module paths for cleaner output
+        let root_short = root_name.split("::").last().unwrap_or(root_name);
+        let value_short = value_name.split("::").last().unwrap_or(value_name);
+        write!(f, "WritableOptionalKeyPath<{} -> Option<{}>>", root_short, value_short)
+    }
+}
+
+impl<Root, Value, F> fmt::Debug for WritableOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
 }
 
 impl<Root, Value, F> WritableOptionalKeyPath<Root, Value, F>
