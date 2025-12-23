@@ -142,25 +142,19 @@ fn main() {
         }
     );
     
-    // Example 7c: Using builder pattern - container is evaluated lazily
+    // Example 7c: Functional style - compose first, apply container at get()
     crate::ContainerTest::mutex_data_r()
-        .with_container(|| &container)  // Store lazy accessor using builder pattern
-        .get_arc_mutex_and_apply_keypath(
-            crate::SomeStruct::data_r(),
-            |value| {
-                println!("✅ Builder pattern (with_container): ContainerTest::mutex_data -> data: {}", value);
-            }
-        );
+        .chain_arc_mutex(crate::SomeStruct::data_r())  // Compose the keypath chain
+        .get(&container, |value| {  // Apply container at get() time
+            println!("✅ Functional style (chain_arc_mutex): ContainerTest::mutex_data -> data: {}", value);
+        });
     
-    // Example 7d: Using builder pattern with optional keypath
+    // Example 7d: Functional style with optional inner keypath
     crate::ContainerTest::mutex_data_r()
-        .with_container(|| &container)  // Store lazy accessor
-        .get_arc_mutex_and_apply(
-            crate::SomeStruct::optional_field_fr(),
-            |value| {
-                println!("✅ Builder pattern (with_container + optional): ContainerTest::mutex_data -> optional_field: {}", value);
-            }
-        );
+        .chain_arc_mutex_optional(crate::SomeStruct::optional_field_fr())  // Compose with optional
+        .get(&container, |value| {  // Apply container at get() time
+            println!("✅ Functional style (chain_arc_mutex_optional): ContainerTest::mutex_data -> optional_field: {}", value);
+        });
     
     println!("\n=== Chaining from ContainerTest::mutex_data (Composable API) ===");
     

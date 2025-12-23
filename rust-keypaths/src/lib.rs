@@ -10,127 +10,128 @@ use std::cell::RefCell;
 use std::ops::Shr;
 use std::fmt;
 
-// ========== LAZY KEYPATH BUILDER ==========
+// ========== FUNCTIONAL KEYPATH CHAIN (Compose first, apply container at get) ==========
 
-/// Builder for lazy keypath operations that store a container accessor
-/// Allows deferring container access until the keypath is actually applied
-pub struct LazyKeyPathBuilder<'a, Root, Value, F, GetRoot>
+/// A composed keypath chain through Arc<Mutex<T>> - functional style
+/// Build the chain first, then apply container at get() time
+/// 
+/// # Example
+/// ```rust
+/// // Functional style: compose first, then apply container at get()
+/// ContainerTest::mutex_data_r()
+///     .chain_arc_mutex(SomeStruct::data_r())
+///     .get(&container, |value| println!("Value: {}", value));
+/// ```
+pub struct ArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
-    Root: 'a,
-    F: for<'r> Fn(&'r Root) -> &'r Value,
-    GetRoot: FnOnce() -> &'a Root + 'a,
+    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
 {
-    keypath: KeyPath<Root, Value, F>,
-    get_root: Option<GetRoot>,
+    outer_keypath: KeyPath<Root, MutexValue, F>,
+    inner_keypath: KeyPath<InnerValue, SubValue, G>,
 }
 
-impl<'a, Root, Value, F, GetRoot> LazyKeyPathBuilder<'a, Root, Value, F, GetRoot>
+impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
-    F: for<'r> Fn(&'r Root) -> &'r Value,
-    GetRoot: FnOnce() -> &'a Root,
+    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
 {
-    /// Apply an optional keypath to the lazily accessed container
-    pub fn get_arc_mutex_and_apply<InnerValue, SubValue, G, Callback>(
-        self,
-        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
-        callback: Callback,
-    ) -> Option<()>
+    /// Apply the composed keypath chain to a container, executing callback with the value
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
     where
-        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
-        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
         Callback: FnOnce(&SubValue) -> (),
     {
-        if let Some(get_root) = self.get_root {
-            let root = get_root();
-            let arc_mutex_ref = self.keypath.get(root);
-            let curried = inner_keypath.curry_arc_mutex_optional();
+        let arc_mutex_ref = self.outer_keypath.get(container);
+        let curried = self.inner_keypath.curry_arc_mutex();
+        curried.apply(arc_mutex_ref.borrow(), callback)
+    }
+}
+
+/// A composed optional keypath chain through Arc<Mutex<T>> - functional style
+pub struct ArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+{
+    outer_keypath: KeyPath<Root, MutexValue, F>,
+    inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container, executing callback with the value
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        let arc_mutex_ref = self.outer_keypath.get(container);
+        let curried = self.inner_keypath.curry_arc_mutex_optional();
+        curried.apply(arc_mutex_ref.borrow(), callback)
+    }
+}
+
+/// A composed keypath chain from OptionalKeyPath through Arc<Mutex<T>> - functional style
+pub struct OptionalArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
+    G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+{
+    outer_keypath: OptionalKeyPath<Root, MutexValue, F>,
+    inner_keypath: KeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
+    G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container, executing callback with the value
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        self.outer_keypath.get(container).and_then(|arc_mutex_ref| {
+            let curried = self.inner_keypath.curry_arc_mutex();
             curried.apply(arc_mutex_ref.borrow(), callback)
-        } else {
-            None
-        }
+        })
     }
-    
-    /// Apply a non-optional keypath to the lazily accessed container
-    pub fn get_arc_mutex_and_apply_keypath<InnerValue, SubValue, G, Callback>(
-        self,
-        inner_keypath: KeyPath<InnerValue, SubValue, G>,
-        callback: Callback,
-    ) -> Option<()>
+}
+
+/// A composed optional keypath chain from OptionalKeyPath through Arc<Mutex<T>> - functional style
+pub struct OptionalArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+{
+    outer_keypath: OptionalKeyPath<Root, MutexValue, F>,
+    inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container, executing callback with the value
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
     where
-        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
-        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
         Callback: FnOnce(&SubValue) -> (),
     {
-        if let Some(get_root) = self.get_root {
-            let root = get_root();
-            let arc_mutex_ref = self.keypath.get(root);
-            let curried = inner_keypath.curry_arc_mutex();
+        self.outer_keypath.get(container).and_then(|arc_mutex_ref| {
+            let curried = self.inner_keypath.curry_arc_mutex_optional();
             curried.apply(arc_mutex_ref.borrow(), callback)
-        } else {
-            None
-        }
-    }
-}
-
-/// Builder for lazy optional keypath operations that store a container accessor
-pub struct LazyOptionalKeyPathBuilder<'a, Root, Value, F, GetRoot>
-where
-    Root: 'a,
-    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
-    GetRoot: FnOnce() -> &'a Root + 'a,
-{
-    keypath: OptionalKeyPath<Root, Value, F>,
-    get_root: Option<GetRoot>,
-}
-
-impl<'a, Root, Value, F, GetRoot> LazyOptionalKeyPathBuilder<'a, Root, Value, F, GetRoot>
-where
-    Root: 'a,
-    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
-    GetRoot: FnOnce() -> &'a Root + 'a,
-{
-    /// Apply an optional keypath to the lazily accessed container (if it exists)
-    pub fn get_arc_mutex_and_apply<InnerValue, SubValue, G, Callback>(
-        self,
-        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
-        callback: Callback,
-    ) -> Option<()>
-    where
-        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
-        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
-        Callback: FnOnce(&SubValue) -> (),
-    {
-        if let Some(get_root) = self.get_root {
-            let root = get_root();
-            self.keypath.get(root).and_then(|arc_mutex_ref| {
-                let curried = inner_keypath.curry_arc_mutex_optional();
-                curried.apply(arc_mutex_ref.borrow(), callback)
-            })
-        } else {
-            None
-        }
-    }
-    
-    /// Apply a non-optional keypath to the lazily accessed container (if it exists)
-    pub fn get_arc_mutex_and_apply_keypath<InnerValue, SubValue, G, Callback>(
-        self,
-        inner_keypath: KeyPath<InnerValue, SubValue, G>,
-        callback: Callback,
-    ) -> Option<()>
-    where
-        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
-        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
-        Callback: FnOnce(&SubValue) -> (),
-    {
-        if let Some(get_root) = self.get_root {
-            let root = get_root();
-            self.keypath.get(root).and_then(|arc_mutex_ref| {
-                let curried = inner_keypath.curry_arc_mutex();
-                curried.apply(arc_mutex_ref.borrow(), callback)
-            })
-        } else {
-            None
-        }
+        })
     }
 }
 
@@ -644,28 +645,53 @@ where
         curried.apply(arc_mutex_ref.borrow(), callback)
     }
     
-    /// Create a lazy builder that will access the container when the keypath is applied
-    /// This allows deferring container access until the keypath operation is executed
+    /// Chain this keypath with an inner keypath through Arc<Mutex<T>> - functional style
+    /// Compose first, then apply container at get() time
     /// 
     /// # Example
     /// ```rust
     /// let container = ContainerTest { mutex_data: Arc::new(Mutex::new(SomeStruct { data: "test".to_string() })) };
     /// 
+    /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_r()
-    ///     .with_container(|| &container)  // Store lazy accessor
-    ///     .get_arc_mutex_and_apply_keypath(
-    ///         SomeStruct::data_r(),
-    ///         |value| println!("Data: {}", value)
-    ///     );
+    ///     .chain_arc_mutex(SomeStruct::data_r())
+    ///     .get(&container, |value| println!("Data: {}", value));
     /// ```
-    pub fn with_container<'a, GetRoot>(self, get_root: GetRoot) -> LazyKeyPathBuilder<'a, Root, Value, F, GetRoot>
+    pub fn chain_arc_mutex<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: KeyPath<InnerValue, SubValue, G>,
+    ) -> ArcMutexKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
     where
-        Root: 'a,
-        GetRoot: FnOnce() -> &'a Root + 'a,
+        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
     {
-        LazyKeyPathBuilder {
-            keypath: self,
-            get_root: Some(get_root),
+        ArcMutexKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with an optional inner keypath through Arc<Mutex<T>> - functional style
+    /// Compose first, then apply container at get() time
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { mutex_data: Arc::new(Mutex::new(SomeStruct { optional_field: Some("test".to_string()) })) };
+    /// 
+    /// // Functional style: compose first, apply container at get()
+    /// ContainerTest::mutex_data_r()
+    ///     .chain_arc_mutex_optional(SomeStruct::optional_field_fr())
+    ///     .get(&container, |value| println!("Value: {}", value));
+    /// ```
+    pub fn chain_arc_mutex_optional<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcMutexOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    {
+        ArcMutexOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
         }
     }
 
@@ -1596,27 +1622,53 @@ where
         })
     }
     
-    /// Create a lazy builder that will access the container when the keypath is applied
-    /// This allows deferring container access until the keypath operation is executed
+    /// Chain this optional keypath with an inner keypath through Arc<Mutex<T>> - functional style
+    /// Compose first, then apply container at get() time
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { mutex_data: Some(Arc::new(Mutex::new(SomeStruct { data: "test".to_string() }))) };
+    /// 
+    /// // Functional style: compose first, apply container at get()
+    /// ContainerTest::mutex_data_fr()
+    ///     .chain_arc_mutex(SomeStruct::data_r())
+    ///     .get(&container, |value| println!("Data: {}", value));
+    /// ```
+    pub fn chain_arc_mutex<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: KeyPath<InnerValue, SubValue, G>,
+    ) -> OptionalArcMutexKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+    {
+        OptionalArcMutexKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this optional keypath with an optional inner keypath through Arc<Mutex<T>> - functional style
+    /// Compose first, then apply container at get() time
     /// 
     /// # Example
     /// ```rust
     /// let container = ContainerTest { mutex_data: Some(Arc::new(Mutex::new(SomeStruct { optional_field: Some("test".to_string()) }))) };
     /// 
+    /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_fr()
-    ///     .with_container(|| &container)  // Store lazy accessor
-    ///     .get_arc_mutex_and_apply(
-    ///         SomeStruct::optional_field_fr(),
-    ///         |value| println!("Value: {}", value)
-    ///     );
+    ///     .chain_arc_mutex_optional(SomeStruct::optional_field_fr())
+    ///     .get(&container, |value| println!("Value: {}", value));
     /// ```
-    pub fn with_container<'a, GetRoot>(self, get_root: GetRoot) -> LazyOptionalKeyPathBuilder<'a, Root, Value, F, GetRoot>
+    pub fn chain_arc_mutex_optional<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> OptionalArcMutexOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
     where
-        GetRoot: FnOnce() -> &'a Root,
+        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
     {
-        LazyOptionalKeyPathBuilder {
-            keypath: self,
-            get_root: Some(get_root),
+        OptionalArcMutexOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
         }
     }
     
