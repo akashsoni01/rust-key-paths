@@ -142,6 +142,26 @@ fn main() {
         }
     );
     
+    // Example 7c: Using builder pattern - container is evaluated lazily
+    crate::ContainerTest::mutex_data_r()
+        .with_container(|| &container)  // Store lazy accessor using builder pattern
+        .get_arc_mutex_and_apply_keypath(
+            crate::SomeStruct::data_r(),
+            |value| {
+                println!("✅ Builder pattern (with_container): ContainerTest::mutex_data -> data: {}", value);
+            }
+        );
+    
+    // Example 7d: Using builder pattern with optional keypath
+    crate::ContainerTest::mutex_data_r()
+        .with_container(|| &container)  // Store lazy accessor
+        .get_arc_mutex_and_apply(
+            crate::SomeStruct::optional_field_fr(),
+            |value| {
+                println!("✅ Builder pattern (with_container + optional): ContainerTest::mutex_data -> optional_field: {}", value);
+            }
+        );
+    
     println!("\n=== Chaining from ContainerTest::mutex_data (Composable API) ===");
     
     // Example 7c: Direct composable chain using curry_arc_mutex_optional() (for comparison)
