@@ -24,7 +24,7 @@ where
 
 impl<Root, Value, F> CurriedMutexKeyPath<Root, Value, F>
 where
-    F: for<'r> Fn(&'r Root) -> &'r Value + Clone,
+    F: for<'r> Fn(&'r Root) -> &'r Value,
 {
     /// Apply this curried keypath to a Mutex with a callback
     pub fn apply<Callback>(&self, mutex: &Mutex<Root>, callback: Callback) -> Option<()>
@@ -505,8 +505,6 @@ where
     /// });
     /// ```
     pub fn curry_mutex(self) -> CurriedMutexKeyPath<Root, Value, F>
-    where
-        F: Clone,
     {
         CurriedMutexKeyPath { keypath: self }
     }
@@ -1253,8 +1251,8 @@ where
     /// let mutex = Mutex::new(SomeStruct { data: Some("test".to_string()) });
     /// let data_path = SomeStruct::data_fr();
     /// 
-    /// // Curry the keypath to work with Mutex
-    /// let curried = data_path.curry_mutex();
+    /// // Curry the optional keypath to work with Mutex
+    /// let curried = data_path.curry_mutex_optional();
     /// 
     /// // Chain with another optional keypath
     /// let chained = curried.then(SomeStruct::data_fr());
@@ -1264,9 +1262,7 @@ where
     ///     println!("Data: {}", value);
     /// });
     /// ```
-    pub fn curry_mutex(self) -> CurriedMutexOptionalKeyPath<Root, Value, F>
-    where
-        F: Clone,
+    pub fn curry_mutex_optional(self) -> CurriedMutexOptionalKeyPath<Root, Value, F>
     {
         CurriedMutexOptionalKeyPath { keypath: self }
     }
