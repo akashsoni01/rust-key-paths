@@ -3,7 +3,7 @@ use rust_keypaths::{KeyPath, OptionalKeyPath};
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Weak;
 
-#[derive(Debug, ReadableKeypaths, Clone)]
+#[derive(Debug, ReadableKeypaths, WritableKeypaths, Clone)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
@@ -113,73 +113,103 @@ fn main() {
         println!("✅ UncurryMutex (Optional) - Data: {}", data);
     });
     
-    // Example 7: Chaining CurriedMutexOptionalKeyPath with fr (failable readable)
-    // Create nested structure wrapped in Mutex for chaining demonstration
-    let nested_mutex = Arc::new(Mutex::new(NestedStruct {
-        inner: Some(SomeStruct { 
-            data: "Nested data".to_string(),
-            optional_field: Some("Nested optional".to_string()),
-        }),
-    }));
+    println!("\n=== Chaining from ContainerTest::mutex_data (Composable API) ===");
     
-    // Create keypaths for chaining:
-    // 1. NestedStruct::inner_fr() - gets Option<&SomeStruct> from NestedStruct
-    // 2. SomeStruct::optional_field_fr() - gets Option<&String> from SomeStruct
-    let inner_keypath = crate::NestedStruct::inner_fr();
-    let optional_field_keypath = crate::SomeStruct::optional_field_fr();
+    // Example 7: Composable chaining from ContainerTest::mutex_data with fr
+    // Chain: ContainerTest -> Arc<Mutex<SomeStruct>> -> SomeStruct -> Option<String>
+    // Using the new composable API with curry_arc_mutex_optional()
     
-    // Chain: Mutex<NestedStruct> -> Option<SomeStruct> -> Option<String>
-    // First curry the inner optional keypath with curry_mutex_optional(), then chain with optional_field keypath
-    let chained_fr = inner_keypath.curry_mutex_optional().then(optional_field_keypath);
+    // Method 1: Direct composable chain using curry_arc_mutex_optional()
+    let mutex_data_keypath = crate::ContainerTest::mutex_data_r();
     
-    // Apply the chained keypath - callback only runs if both steps succeed
-    chained_fr.apply(&nested_mutex, |data| {
-        println!("✅ Chained fr keypaths (curry_mutex_optional) - Optional field: {}", data);
+    // Get the Arc<Mutex<SomeStruct>> from container
+    let mutex_ref = mutex_data_keypath.get(&container);
+    
+    // Curry the optional_field keypath to work with Arc<Mutex<SomeStruct>>
+    let optional_field_keypath1 = crate::SomeStruct::optional_field_fr();
+    let chained_fr = optional_field_keypath1.curry_arc_mutex_optional();
+    
+    // Apply directly to Arc<Mutex> - much more composable!
+    chained_fr.apply(mutex_ref, |data| {
+        println!("✅ Composable chain (curry_arc_mutex_optional): ContainerTest::mutex_data -> optional_field: {}", data);
     });
     
-    // Example 8: Chaining with fw (failable writable) keypaths
-    // For writable keypaths, we need to use mutable mutex access
-    // Note: We use Mutex directly (not Arc) for mutable access
-    let mut nested_mutex_mut = Mutex::new(NestedStruct {
-        inner: Some(SomeStruct { 
-            data: "Writable nested data".to_string(),
-            optional_field: Some("Original optional".to_string()),
-        }),
+    // Method 2: Using for_arc_mutex() adapter method
+    let optional_field_keypath2 = crate::SomeStruct::optional_field_fr();
+    let chained_via_adapter = optional_field_keypath2.for_arc_mutex();
+    chained_via_adapter.apply(mutex_ref, |value| {
+        println!("✅ Composable chain (for_arc_mutex): ContainerTest::mutex_data -> optional_field: {}", value);
     });
     
-    // Create writable optional keypaths for optional fields
-    // inner_fw() - gets Option<&mut SomeStruct> from NestedStruct
-    // optional_field_fw() - gets Option<&mut String> from SomeStruct
-    let inner_fw = crate::NestedStruct::inner_fw();
-    let optional_field_fw = crate::SomeStruct::optional_field_fw();
+    // Method 3: Chaining multiple keypaths together
+    // Chain: ContainerTest::mutex_data_r() -> curry_arc_mutex() -> then(optional_field_fr())
+    // Note: We chain through SomeStruct, so we use optional_field_fr() directly
+    let optional_path = crate::SomeStruct::optional_field_fr();
     
-    // Note: For writable keypaths through Mutex, we need to use get_mut() pattern
-    // Since Mutex requires mutable access for writable operations
-    if let Ok(guard) = nested_mutex_mut.get_mut() {
-        // Chain the writable optional keypaths directly (not through mutex curry)
-        if let Some(field_ref) = inner_fw.get_mut(&mut *guard)
-            .and_then(|inner| optional_field_fw.get_mut(inner)) {
-            *field_ref = "Updated via fw chain".to_string();
-            println!("✅ Chained fw keypaths - Updated optional_field: {}", field_ref);
+    // This demonstrates the composability - we can chain curried keypaths
+    // Since we're already at SomeStruct level, we just curry the optional field path
+    let composed_chain = optional_path.curry_arc_mutex_optional();
+    composed_chain.apply(mutex_ref, |value| {
+        println!("✅ Composed chain: mutex_data -> optional_field: {}", value);
+    });
+    
+    // Example 8: Composable chaining from ContainerTest::mutex_data with fw (failable writable)
+    // Chain: ContainerTest -> Arc<Mutex<SomeStruct>> -> SomeStruct -> Option<String> (mutable)
+    
+    // Get mutex_data from ContainerTest (writable keypath)
+    let mutex_data_w = crate::ContainerTest::mutex_data_w();
+    
+    // For writable access through Arc<Mutex<T>>, we need mutable access to the container
+    let mut mutable_container = container.clone();
+    
+    // Get mutable reference to the Arc<Mutex<SomeStruct>> through the container
+    let mutex_ref = mutex_data_w.get_mut(&mut mutable_container);
+    
+    // For Arc<Mutex<T>>, we need to use lock() instead of get_mut()
+    // Since Arc doesn't allow get_mut(), we use lock() to get mutable access
+    if let Ok(mut guard) = mutex_ref.lock() {
+        // Chain the writable optional keypath
+        let optional_field_fw = crate::SomeStruct::optional_field_fw();
+        if let Some(field_ref) = optional_field_fw.get_mut(&mut *guard) {
+            // field_ref is &mut String (the value inside Option<String>)
+            *field_ref = "Updated via ContainerTest::mutex_data fw chain".to_string();
+            println!("✅ Chained from ContainerTest::mutex_data (fw) - Updated optional_field: {}", field_ref);
         }
     }
     
-    // Example 9: Chaining through Mutex with fr -> fr pattern (different fields)
-    // This shows how to chain multiple optional keypaths through a mutex
-    let mutex_with_nested = Arc::new(Mutex::new(NestedStruct {
-        inner: Some(SomeStruct { 
-            data: "Chain test".to_string(),
-            optional_field: Some("Chain optional".to_string()),
-        }),
-    }));
+    // Note: For fully composable writable chains through Arc<Mutex>, 
+    // you would use the same pattern but with writable curried keypaths
+    // (WritableCurriedArcMutexKeyPath would need to be implemented similarly)
     
-    // Chain fr keypaths: NestedStruct::inner_fr() -> SomeStruct::optional_field_fr()
-    let chain1 = crate::NestedStruct::inner_fr();
-    let chain2 = crate::SomeStruct::optional_field_fr();
-    let chained_through_mutex = chain1.curry_mutex_optional().then(chain2);
+    // Example 9: Multi-level composable chaining from ContainerTest::mutex_data
+    // This demonstrates the full composability of the new API
+    // Pattern: ContainerTest -> mutex_data -> optional_field
     
-    chained_through_mutex.apply(&mutex_with_nested, |data| {
-        println!("✅ Chained fr->fr through Mutex - Optional field: {}", data);
+    let mutex_data_path = crate::ContainerTest::mutex_data_r();
+    let mutex_ref = mutex_data_path.get(&container);
+    
+    // Fully composable chain using curry_arc_mutex_optional()
+    let optional_field_path1 = crate::SomeStruct::optional_field_fr();
+    let fully_composable = optional_field_path1.curry_arc_mutex_optional();
+    fully_composable.apply(mutex_ref, |data| {
+        println!("✅ Fully composable chain (curry_arc_mutex_optional): ContainerTest::mutex_data -> optional_field: {}", data);
+    });
+    
+    // Alternative composable chain using for_arc_mutex()
+    let optional_field_path2 = crate::SomeStruct::optional_field_fr();
+    let adapter_chain = optional_field_path2.for_arc_mutex();
+    adapter_chain.apply(mutex_ref, |data| {
+        println!("✅ Adapter chain (for_arc_mutex): ContainerTest::mutex_data -> optional_field: {}", data);
+    });
+    
+    // Demonstrate chaining curried keypaths together
+    // Since we're accessing optional_field from SomeStruct, we chain directly
+    let optional_kp = crate::SomeStruct::optional_field_fr();
+    
+    // Chain: curry_arc_mutex_optional() - fully composable!
+    let chained_curried = optional_kp.curry_arc_mutex_optional();
+    chained_curried.apply(mutex_ref, |value| {
+        println!("✅ Chained curried keypaths (curry_arc_mutex_optional): optional_field: {}", value);
     });
     // // Test RwLock<T> with ReadableKeypaths
     // if let Some(rwlock_ref) = ContainerTest::rwlock_data_r().get(&container) {

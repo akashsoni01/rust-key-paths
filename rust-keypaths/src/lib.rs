@@ -22,6 +22,99 @@ where
     keypath: KeyPath<Root, Value, F>,
 }
 
+/// Wrapper for keypaths that work with Arc<Mutex<Root>> instead of Root
+/// Allows chaining keypaths through Arc<Mutex> containers
+pub struct CurriedArcMutexKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value,
+{
+    keypath: KeyPath<Root, Value, F>,
+}
+
+impl<Root, Value, F> CurriedArcMutexKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value,
+{
+    /// Apply this curried keypath to an Arc<Mutex<Root>> with a callback
+    pub fn apply<Callback>(&self, arc_mutex: &Arc<Mutex<Root>>, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&Value) -> (),
+    {
+        arc_mutex.lock().ok().map(|guard| {
+            let value = self.keypath.get(&*guard);
+            callback(value);
+        })
+    }
+    
+    /// Chain this curried keypath with another keypath
+    pub fn then<SubValue, G>(
+        self,
+        next: KeyPath<Value, SubValue, G>,
+    ) -> CurriedArcMutexKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> &'r SubValue>
+    where
+        G: for<'r> Fn(&'r Value) -> &'r SubValue,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let chained = self.keypath.then(next);
+        CurriedArcMutexKeyPath { keypath: chained }
+    }
+    
+    /// Chain this curried keypath with an optional keypath
+    pub fn then_optional<SubValue, G>(
+        self,
+        next: OptionalKeyPath<Value, SubValue, G>,
+    ) -> CurriedArcMutexOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>
+    where
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue>,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let chained = self.keypath.then_optional(next);
+        CurriedArcMutexOptionalKeyPath { keypath: chained }
+    }
+}
+
+/// Wrapper for optional keypaths that work with Arc<Mutex<Root>> instead of Root
+pub struct CurriedArcMutexOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
+{
+    keypath: OptionalKeyPath<Root, Value, F>,
+}
+
+impl<Root, Value, F> CurriedArcMutexOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
+{
+    /// Apply this curried keypath to an Arc<Mutex<Root>> with a callback
+    pub fn apply<Callback>(&self, arc_mutex: &Arc<Mutex<Root>>, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&Value) -> (),
+    {
+        arc_mutex.lock().ok().and_then(|guard| {
+            self.keypath.get(&*guard).map(|value| callback(value))
+        })
+    }
+    
+    /// Chain this curried keypath with another optional keypath
+    pub fn then<SubValue, G>(
+        self,
+        next: OptionalKeyPath<Value, SubValue, G>,
+    ) -> CurriedArcMutexOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>
+    where
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue>,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let chained = self.keypath.then(next);
+        CurriedArcMutexOptionalKeyPath { keypath: chained }
+    }
+}
+
 impl<Root, Value, F> CurriedMutexKeyPath<Root, Value, F>
 where
     F: for<'r> Fn(&'r Root) -> &'r Value,
@@ -32,6 +125,18 @@ where
         Callback: FnOnce(&Value) -> (),
     {
         mutex.lock().ok().map(|guard| {
+            let value = self.keypath.get(&*guard);
+            callback(value);
+        })
+    }
+    
+    /// Apply this curried keypath to an Arc<Mutex<Root>> with a callback
+    /// This allows working with Arc<Mutex<T>> directly
+    pub fn apply_arc<Callback>(&self, arc_mutex: &Arc<Mutex<Root>>, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&Value) -> (),
+    {
+        arc_mutex.lock().ok().map(|guard| {
             let value = self.keypath.get(&*guard);
             callback(value);
         })
@@ -92,6 +197,17 @@ where
         })
     }
     
+    /// Apply this curried keypath to an Arc<Mutex<Root>> with a callback
+    /// This allows working with Arc<Mutex<T>> directly
+    pub fn apply_arc<Callback>(&self, arc_mutex: &Arc<Mutex<Root>>, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&Value) -> (),
+    {
+        arc_mutex.lock().ok().and_then(|guard| {
+            self.keypath.get(&*guard).map(|value| callback(value))
+        })
+    }
+    
     /// Chain this curried keypath with another optional keypath
     pub fn then<SubValue, G>(
         self,
@@ -106,6 +222,7 @@ where
         let chained = self.keypath.then(next);
         CurriedMutexOptionalKeyPath { keypath: chained }
     }
+    
 }
 
 #[cfg(feature = "tagged")]
@@ -507,6 +624,27 @@ where
     pub fn curry_mutex(self) -> CurriedMutexKeyPath<Root, Value, F>
     {
         CurriedMutexKeyPath { keypath: self }
+    }
+    
+    /// Curry this keypath to work with Arc<Mutex<Root>> instead of Root
+    /// Returns a CurriedArcMutexKeyPath wrapper that can be chained further
+    /// 
+    /// # Example
+    /// ```rust
+    /// let arc_mutex = Arc::new(Mutex::new(SomeStruct { data: "test".to_string() }));
+    /// let data_path = SomeStruct::data_r();
+    /// 
+    /// // Curry the keypath to work with Arc<Mutex>
+    /// let curried = data_path.curry_arc_mutex();
+    /// 
+    /// // Apply to arc_mutex with callback
+    /// curried.apply(&arc_mutex, |value| {
+    ///     println!("Data: {}", value);
+    /// });
+    /// ```
+    pub fn curry_arc_mutex(self) -> CurriedArcMutexKeyPath<Root, Value, F>
+    {
+        CurriedArcMutexKeyPath { keypath: self }
     }
     
     /// Uncurry: Apply this keypath to a Mutex<Root> instance with a callback
@@ -1203,6 +1341,18 @@ where
         }
     }
     
+    /// Adapt this optional keypath to work with Arc<Mutex<Root>> instead of Root
+    /// This unwraps the Arc and Mutex and applies the keypath to the inner value
+    /// Returns a CurriedArcMutexOptionalKeyPath that can be chained further
+    pub fn for_arc_mutex(self) -> CurriedArcMutexOptionalKeyPath<Root, Value, F>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        CurriedArcMutexOptionalKeyPath { keypath: self }
+    }
+    
     // Overload: Adapt root type to Rc<Root> when Value is Sized (not a container)
     pub fn for_rc_root(self) -> OptionalKeyPath<Rc<Root>, Value, impl for<'r> Fn(&'r Rc<Root>) -> Option<&'r Value> + 'static>
     where
@@ -1265,6 +1415,30 @@ where
     pub fn curry_mutex_optional(self) -> CurriedMutexOptionalKeyPath<Root, Value, F>
     {
         CurriedMutexOptionalKeyPath { keypath: self }
+    }
+    
+    /// Curry this optional keypath to work with Arc<Mutex<Root>> instead of Root
+    /// Returns a CurriedArcMutexOptionalKeyPath wrapper that can be chained further
+    /// 
+    /// # Example
+    /// ```rust
+    /// let arc_mutex = Arc::new(Mutex::new(SomeStruct { data: Some("test".to_string()) }));
+    /// let data_path = SomeStruct::data_fr();
+    /// 
+    /// // Curry the optional keypath to work with Arc<Mutex>
+    /// let curried = data_path.curry_arc_mutex_optional();
+    /// 
+    /// // Chain with another optional keypath
+    /// let chained = curried.then(SomeStruct::data_fr());
+    /// 
+    /// // Apply to arc_mutex with callback
+    /// chained.apply(&arc_mutex, |value| {
+    ///     println!("Data: {}", value);
+    /// });
+    /// ```
+    pub fn curry_arc_mutex_optional(self) -> CurriedArcMutexOptionalKeyPath<Root, Value, F>
+    {
+        CurriedArcMutexOptionalKeyPath { keypath: self }
     }
     
     /// Uncurry: Apply this keypath to a Mutex<Root> instance with a callback
