@@ -1,4 +1,5 @@
 use keypaths_proc::{Keypaths, ReadableKeypaths};
+use rust_keypaths::{KeyPath, OptionalKeyPath};
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Weak;
 
@@ -42,41 +43,72 @@ fn main() {
         println!("✅ Result value: {}", value);
     }
     
+    println!("\n=== CurriedMutexKeyPath Examples ===");
     
-    // // Test Mutex<T> with ReadableKeypaths
-    // if let Some(mutex_ref) = ContainerTest::mutex_data_r().get(&container) {
-    //     println!("✅ Mutex reference: {:?}", mutex_ref);
-    // }
+    // Example 1: CurriedMutexKeyPath with manual KeyPath
+    // Create a manual keypath that implements Clone
+    let data_keypath = KeyPath::new(|s: &SomeStruct| &s.data);
+    
+    // Curry the keypath to work with Mutex<SomeStruct>
+    let curried = data_keypath.curry_mutex();
+    
+    // Apply to the mutex with a callback
+    curried.apply(&container.mutex_data, |data| {
+        println!("✅ CurriedMutexKeyPath - Data: {}", data);
+    });
+    
+    // Example 2: Using uncurry_mutex for direct access
+    // This is a convenience method that combines curry and apply
+    // Create a new keypath since curry_mutex consumes self
+    let data_keypath2 = KeyPath::new(|s: &SomeStruct| &s.data);
+    data_keypath2.uncurry_mutex(&container.mutex_data, |data| {
+        println!("✅ UncurryMutex - Data: {}", data);
+    });
+    
+    println!("\n=== CurriedMutexOptionalKeyPath Examples ===");
+    
+    // Example 3: CurriedMutexOptionalKeyPath with optional keypath
+    // Create an optional keypath (simulating a field that might not exist)
+    // let optional_data_keypath = crate::SomeStruct::data_fr();
     //
+    // Curry the optional keypath to work with Mutex<SomeStruct>
+    // let curried_optional = optional_data_keypath.curry_mutex();
     
-    // Test Mutex<T> with curry/uncurry pattern for chaining
-    // Get the keypath to access data inside SomeStruct
-    let data_path = SomeStruct::data_r();
+    // Apply to the mutex - callback only runs if value exists
+    // curried_optional.apply(&container.mutex_data, |data| {
+    //     println!("✅ CurriedMutexOptionalKeyPath - Data: {}", data);
+    // });
     
-    // Pattern 1: Direct access through Mutex
-    // Get the mutex from the container and access inner data
-    let mutex_field = &container.mutex_data;
-    if let Ok(guard) = mutex_field.lock() {
-        let data = data_path.get(&*guard);
-        println!("✅ Mutex direct access data: {}", data);
+    // Example 4: Using uncurry_mutex with optional keypath
+    // Create a new optional keypath since curry_mutex consumes self
+    let optional_data_keypath2 = OptionalKeyPath::new(|s: &SomeStruct| Some(&s.data));
+    optional_data_keypath2.uncurry_mutex(&container.mutex_data, |data| {
+        println!("✅ UncurryMutex (Optional) - Data: {}", data);
+    });
+    
+    // Example 5: Chaining CurriedMutexOptionalKeyPath
+    // Create nested structure for chaining demonstration
+    #[derive(Debug)]
+    struct NestedStruct {
+        inner: Option<SomeStruct>,
     }
     
-    // Pattern 2: Using curry_mutex for chaining (requires Clone on keypath)
-    // Create a keypath that works with SomeStruct, then curry it for Mutex<SomeStruct>
-    // Note: Macro-generated keypaths may not implement Clone, so this pattern
-    // works best with manually created keypaths that implement Clone
-    let inner_data_path = SomeStruct::data_r();
+    let nested_mutex = Arc::new(Mutex::new(NestedStruct {
+        inner: Some(SomeStruct { data: "Nested data".to_string() }),
+    }));
     
-    // Example of curry_mutex usage (commented out because macro keypaths don't implement Clone):
-    // let curried = inner_data_path.curry_mutex();
-    // curried.apply(mutex_field, |data| {
-    //     println!("✅ Mutex curried data: {}", data);
-    // });
+    // Create keypaths for chaining
+    let inner_keypath = OptionalKeyPath::new(|n: &NestedStruct| n.inner.as_ref());
+    let data_keypath3 = crate::SomeStruct::data_fr();
     
-    // Pattern 3: Using uncurry_mutex (also requires Clone)
-    // inner_data_path.uncurry_mutex(mutex_field, |data| {
-    //     println!("✅ Mutex uncurried data: {}", data);
-    // });
+    // Chain: NestedStruct -> Option<SomeStruct> -> String
+    // First curry the inner keypath, then chain with data keypath
+    let chained = inner_keypath.curry_mutex().then(data_keypath3);
+    
+    // Apply the chained keypath
+    chained.apply(&nested_mutex, |data| {
+        println!("✅ Chained CurriedMutexOptionalKeyPath - Data: {}", data);
+    });
     // // Test RwLock<T> with ReadableKeypaths
     // if let Some(rwlock_ref) = ContainerTest::rwlock_data_r().get(&container) {
     //     println!("✅ RwLock reference: {:?}", rwlock_ref);
