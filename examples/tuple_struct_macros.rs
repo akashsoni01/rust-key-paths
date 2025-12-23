@@ -1,18 +1,17 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Point(u32, Option<u32>, String);
 
 fn main() {
     let mut p = Point(10, Some(20), "name".into());
+
     // Non-Option fields
     let x_r = Point::f0_r();
     let name_w = Point::f2_w();
     println!("x = {:?}", x_r.get(&p));
-    let n = name_w.get_mut(&mut p);
-    {
+    if let Some(n) = name_w.get_mut(&mut p) {
         n.push_str("_edited");
     }
 
@@ -21,8 +20,7 @@ fn main() {
     println!("y (fr) = {:?}", y_fr.get(&p));
 
     let y_fw = Point::f1_fw();
-    if let Some(y) = y_fw.get_mut(&mut p)
-    {
+    if let Some(y) = y_fw.get_mut(&mut p) {
         *y += 1;
     }
 

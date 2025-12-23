@@ -1,8 +1,7 @@
-use rust_keypaths::WritableOptionalKeyPath;
-use keypaths_proc::Keypaths;
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Size {
     width: u32,
     height: u32,
@@ -20,7 +19,6 @@ enum Color {
 struct RGBU8(u8, u8, u8);
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct ABox {
     name: String,
     size: Size,
@@ -37,9 +35,8 @@ fn main() {
         color: Color::Other(RGBU8(10, 20, 30)),
     };
 
-    // Get writable keypath for color field and convert to optional for chaining
-    let color_kp = ABox::color_w().to_optional();
-    let case_path = WritableOptionalKeyPath::writable_enum(
+    let color_kp = ABox::color_w();
+    let case_path = KeyPaths::writable_enum(
         |v| Color::Other(v),
         |c: &Color| match c {
             Color::Other(rgb) => Some(rgb),
@@ -51,7 +48,7 @@ fn main() {
         },
     );
 
-    let color_rgb_kp = color_kp.then(case_path);
+    let color_rgb_kp = color_kp.compose(case_path);
     if let Some(value) = color_rgb_kp.get_mut(&mut a_box) {
         *value = RGBU8(0, 0, 0);
     }

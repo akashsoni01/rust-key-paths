@@ -1,5 +1,5 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, PartialKeyPath, AnyKeyPath};
-use keypaths_proc::Keypaths;
+use key_paths_core::{KeyPaths, PartialKeyPath, AnyKeyPath};
+use key_paths_derive::Keypaths;
 use std::any::Any;
 
 /// Example demonstrating full Swift KeyPath compatibility
@@ -11,7 +11,6 @@ use std::any::Any;
 /// - AnyKeyPath (fully type-erased)
 
 #[derive(Debug, Clone, Keypaths)]
-#[All]
 struct Person {
     name: String,
     age: u32,
@@ -20,7 +19,6 @@ struct Person {
 }
 
 #[derive(Debug, Clone, Keypaths)]
-#[All]
 struct Company {
     name: String,
     employees: Vec<Person>,
@@ -35,7 +33,7 @@ fn main() {
     let person = Person {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("akash@example.com".to_string()),
+        email: Some("alice@example.com".to_string()),
         is_active: true,
     };
 
@@ -67,20 +65,17 @@ fn main() {
     let active_writable = Person::is_active_w();
 
     // Use keypaths for read-write access
-    let name_ref = name_writable.get_mut(&mut person_mut);
-    {
+    if let Some(name_ref) = name_writable.get_mut(&mut person_mut) {
         *name_ref = "Alice Updated".to_string();
         println!("Updated name: {}", name_ref);
     }
 
-    let age_ref = age_writable.get_mut(&mut person_mut);
-    {
+    if let Some(age_ref) = age_writable.get_mut(&mut person_mut) {
         *age_ref = 31;
         println!("Updated age: {}", age_ref);
     }
 
-    let active_ref = active_writable.get_mut(&mut person_mut);
-    {
+    if let Some(active_ref) = active_writable.get_mut(&mut person_mut) {
         *active_ref = false;
         println!("Updated active status: {}", active_ref);
     }
@@ -94,14 +89,12 @@ fn main() {
     let age_ref_writable = KeyPaths::reference_writable(|p: &mut Person| &mut p.age);
 
     // Use reference writable keypaths
-    let name_ref = name_ref_writable.get_mut(&mut person_ref);
-    {
+    if let Some(name_ref) = name_ref_writable.get_mut(&mut person_ref) {
         *name_ref = "Alice Reference".to_string();
         println!("Reference updated name: {}", name_ref);
     }
 
-    let age_ref = age_ref_writable.get_mut(&mut person_ref);
-    {
+    if let Some(age_ref) = age_ref_writable.get_mut(&mut person_ref) {
         *age_ref = 32;
         println!("Reference updated age: {}", age_ref);
     }

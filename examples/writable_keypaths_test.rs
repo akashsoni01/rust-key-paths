@@ -1,4 +1,4 @@
-use keypaths_proc::WritableKeypaths;
+use key_paths_derive::WritableKeypaths;
 use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -33,7 +33,7 @@ fn main() {
     let mut user = User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("akash@example.com".to_string()),
+        email: Some("alice@example.com".to_string()),
         tags: vec!["developer".to_string(), "rust".to_string()],
         preferences: {
             let mut map = HashMap::new();
@@ -95,15 +95,13 @@ fn main() {
     // Test basic writable keypaths
     println!("\n=== Basic Writable Keypaths ===");
     let name_path = User::name_w();
-    let name_ref = name_path.get_mut(&mut user);
-    {
+    if let Some(name_ref) = name_path.get_mut(&mut user) {
         *name_ref = "Alice Updated".to_string();
         println!("Updated name to: {}", name_ref);
     }
 
     let age_path = User::age_w();
-    let age_ref = age_path.get_mut(&mut user);
-    {
+    if let Some(age_ref) = age_path.get_mut(&mut user) {
         *age_ref = 31;
         println!("Updated age to: {}", age_ref);
     }
@@ -112,7 +110,7 @@ fn main() {
     println!("\n=== Failable Writable Keypaths (Option) ===");
     let email_path = User::email_fw();
     if let Some(email_ref) = email_path.get_mut(&mut user) {
-        *email_ref = "akash.updated@example.com".to_string();
+        *email_ref = "alice.updated@example.com".to_string();
         println!("Updated email to: {}", email_ref);
     }
 
@@ -133,8 +131,7 @@ fn main() {
     // Test failable writable keypaths for HashMap
     println!("\n=== Failable Writable Keypaths (HashMap) ===");
     let theme_path = User::preferences_fw("theme".to_string());
-    let theme_ref = theme_path.get_mut(&mut user);
-    {
+    if let Some(theme_ref) = theme_path.get_mut(&mut user) {
         *theme_ref = "light".to_string();
         println!("Updated theme preference to: {}", theme_ref);
     }
@@ -142,8 +139,7 @@ fn main() {
     // Test failable writable keypaths for BTreeMap
     println!("\n=== Failable Writable Keypaths (BTreeMap) ===");
     let math_score_path = User::scores_fw("math".to_string());
-    let score_ref = math_score_path.get_mut(&mut user);
-    {
+    if let Some(score_ref) = math_score_path.get_mut(&mut user) {
         *score_ref = 98;
         println!("Updated math score to: {}", score_ref);
     }
@@ -151,8 +147,7 @@ fn main() {
     // Test failable writable keypaths for VecDeque
     println!("\n=== Failable Writable Keypaths (VecDeque) ===");
     let front_history_path = User::history_fw();
-    let history_ref = front_history_path.get_mut(&mut user);
-    {
+    if let Some(history_ref) = front_history_path.get_mut(&mut user) {
         *history_ref = "updated_login".to_string();
         println!("Updated front history to: {}", history_ref);
     }
@@ -160,8 +155,7 @@ fn main() {
     // Test failable writable keypaths for LinkedList
     println!("\n=== Failable Writable Keypaths (LinkedList) ===");
     let front_note_path = User::notes_fw();
-    let note_ref = front_note_path.get_mut(&mut user);
-    {
+    if let Some(note_ref) = front_note_path.get_mut(&mut user) {
         *note_ref = "Updated important note".to_string();
         println!("Updated front note to: {}", note_ref);
     }
@@ -169,8 +163,7 @@ fn main() {
     // Test writable keypaths for BinaryHeap (container-level only)
     println!("\n=== Writable Keypaths (BinaryHeap) ===");
     let priority_queue_path = User::priority_queue_w();
-    let queue_ref = priority_queue_path.get_mut(&mut user);
-    {
+    if let Some(queue_ref) = priority_queue_path.get_mut(&mut user) {
         queue_ref.push(20);
         println!("Added new priority to queue: 20");
     }
@@ -178,8 +171,7 @@ fn main() {
     // Test Box dereferencing
     println!("\n=== Box Dereferencing ===");
     let bio_path = User::profile_w();
-    let profile_ref = bio_path.get_mut(&mut user);
-    {
+    if let Some(profile_ref) = bio_path.get_mut(&mut user) {
         profile_ref.bio = "Senior Software Developer".to_string();
         println!("Updated profile bio to: {}", profile_ref.bio);
     }

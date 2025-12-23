@@ -1,4 +1,4 @@
-use keypaths_proc::Keypaths;
+use key_paths_derive::Keypaths;
 use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -24,7 +24,6 @@ struct AllContainersTest {
     // Maps
     hashmap_field: HashMap<String, i32>,
     btreemap_field: BTreeMap<String, i32>,
-    empty_touple: (),
 }
 
 fn main() {
@@ -49,6 +48,6 @@ fn main() {
     // Test maps
     let _hashmap_path = AllContainersTest::hashmap_field_r();
     let _btreemap_path = AllContainersTest::btreemap_field_r();
-    let empty_touple = AllContainersTest::empty_touple_fr();
+    
     println!("All containers generated successfully!");
 }

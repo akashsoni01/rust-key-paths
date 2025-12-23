@@ -1,15 +1,13 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::{Casepaths, Keypaths};
+use key_paths_core::KeyPaths;
+use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Profile {
     display_name: String,
     age: u32,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct User {
     id: u64,
     profile: Option<Profile>,
@@ -17,18 +15,15 @@ struct User {
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct DbConfig(u16, String); // (port, url)
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Settings {
     theme: String,
     db: Option<DbConfig>,
 }
 
 #[derive(Debug, Casepaths)]
-#[All]
 enum Connection {
     Disconnected,
     Connecting(u32),
@@ -36,7 +31,6 @@ enum Connection {
 }
 
 #[derive(Debug, Casepaths)]
-#[All]
 enum Status {
     Active(User),
     Inactive,
@@ -44,7 +38,6 @@ enum Status {
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct App {
     users: Vec<User>,
     settings: Option<Settings>,
@@ -79,10 +72,9 @@ fn main() {
 
     // 1) Read a nested optional field via failable readable compose
     let first_user_profile_name = App::users_r()
-        .to_optional()
-        .then(OptionalKeyPath::new(|v: &Vec<User>| v.first()))
-        .then(User::profile_fr())
-        .then(Profile::display_name_r().to_optional());
+        .compose(KeyPaths::failable_readable(|v: &Vec<User>| v.first()))
+        .compose(User::profile_fr())
+        .compose(Profile::display_name_r());
     println!(
         "first_user_profile_name = {:?}",
         first_user_profile_name.get(&app)
@@ -94,8 +86,9 @@ fn main() {
     let db_port_w = DbConfig::f0_w();
     if let Some(settings) = settings_fw.get_mut(&mut app) {
         if let Some(db) = db_fw.get_mut(settings) {
-            let port = db_port_w.get_mut(db);
-            *port += 1;
+            if let Some(port) = db_port_w.get_mut(db) {
+                *port += 1;
+            }
         }
     }
     println!(
@@ -107,8 +100,8 @@ fn main() {
     app.connection = Connection::Connected("10.0.0.1".into());
     let connected_case = Connection::connected_case_w();
     // compose requires a keypath from App -> Connection first
-    let app_connection_w = App::connection_w().to_optional();
-    let app_connected_ip = app_connection_w.then(connected_case);
+    let app_connection_w = App::connection_w();
+    let app_connected_ip = app_connection_w.compose(connected_case);
     if let Some(ip) = app_connected_ip.get_mut(&mut app) {
         ip.push_str(":8443");
     }
@@ -116,11 +109,8 @@ fn main() {
 
     // 4) Enum readable case path for state without payload
     app.connection = Connection::Disconnected;
-    // Unit variants don't have case methods - check directly
-    match app.connection {
-        Connection::Disconnected => println!("is disconnected? true"),
-        _ => println!("is disconnected? false"),
-    }
+    let disc = Connection::disconnected_case_r();
+    println!("is disconnected? {:?}", disc.get(&app.connection).is_some());
 
     // 5) Iterate immutably and mutably via derived vec keypaths
     let users_r = App::users_r();
@@ -138,21 +128,23 @@ fn main() {
     println!("users after tag = {:?}", app.users);
 
     // 6) Compose across many levels: first user -> profile -> age (if present) and increment
-    let first_user_fr = OptionalKeyPath::new(|v: &Vec<User>| v.first());
+    let first_user_fr = KeyPaths::failable_readable(|v: &Vec<User>| v.first());
     let profile_fr = User::profile_fr();
     let age_w = Profile::age_w();
-    if let Some(_u0) = first_user_fr.get(&app.users) {
+    if let Some(u0) = first_user_fr.get(&app.users) {
         // borrow helper
-        if let Some(profile) = app.users[0].profile.as_mut() {
-            let age = age_w.get_mut(profile);
-            *age += 1;
+        let mut app_ref = &mut app.users[0];
+        if let Some(p) = profile_fr.get_mut(&mut app_ref) {
+            if let Some(age) = age_w.get_mut(p) {
+                *age += 1;
+            }
         }
     }
     println!("first user after bday = {:?}", app.users.first());
 
     // 7) Embed: build a Connected from payload
     let connected_r = Connection::connected_case_r();
-    let new_conn = Connection::Connected("192.168.0.1".to_string());
+    let new_conn = connected_r.embed("192.168.0.1".to_string());
     println!("embedded = {:?}", new_conn);
 
     // 8) Additional enum with casepaths: Status
@@ -162,7 +154,7 @@ fn main() {
         tags: vec![],
     });
     let st_active = Status::active_case_r();
-    let st_active_name = st_active.then(User::id_r().to_optional());
+    let st_active_name = st_active.compose(User::id_r());
     println!("status active user id = {:?}", st_active_name.get(&st));
 
     let st_pending = Status::pending_case_w();

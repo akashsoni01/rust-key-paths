@@ -1,5 +1,4 @@
-use keypaths_proc::Keypaths;
-use rust_keypaths::OptionalKeyPath;
+use key_paths_derive::Keypaths;
 use std::sync::Arc;
 use parking_lot::RwLock;
 
@@ -78,7 +77,7 @@ fn main() {
                     id: 1,
                     name: "Alice Johnson".to_string(),
                     contact: Contact {
-                        email: "akash@techcorp.com".to_string(),
+                        email: "alice@techcorp.com".to_string(),
                         phone: Some("+1-555-0101".to_string()),
                         address: Address {
                             street: "456 Employee Ave".to_string(),
@@ -160,11 +159,11 @@ fn main() {
     // Example 1: Simple composition - Company name
     println!("\n1️⃣  Simple Composition - Company Name");
     println!("-------------------------------------");
-    let company_name_path = Organization::company_fr().then(Company::name_fr());
+    let company_name_path = Organization::company_r().then(Company::name_r());
     
     {
         let guard = organization.read();
-        if let Some(name) = company_name_path.get(&*guard) {
+        if let Some(name) = company_name_path.get_ref(&&*guard) {
             println!("✅ Company name: {}", name);
         }
     }
@@ -173,13 +172,12 @@ fn main() {
     println!("\n2️⃣  Two-Level Composition - Headquarters City");
     println!("---------------------------------------------");
     let hq_city_path = Organization::company_r()
-        .to_optional()
-        .then(Company::headquarters_r().to_optional())
-        .then(Address::city_r().to_optional());
+        .then(Company::headquarters_r())
+        .then(Address::city_r());
     
     {
         let guard = organization.read();
-        if let Some(city) = hq_city_path.get(&*guard) {
+        if let Some(city) = hq_city_path.get_ref(&&*guard) {
             println!("✅ Headquarters city: {}", city);
         }
     }
@@ -188,14 +186,13 @@ fn main() {
     println!("\n3️⃣  Three-Level Composition - Headquarters Coordinates");
     println!("----------------------------------------------------");
     let hq_lat_path = Organization::company_r()
-        .to_optional()
-        .then(Company::headquarters_r().to_optional())
+        .then(Company::headquarters_r())
         .then(Address::coordinates_fr())
-        .then(Coordinates::latitude_r().to_optional());
+        .then(Coordinates::latitude_r());
     
     {
         let guard = organization.read();
-        if let Some(latitude) = hq_lat_path.get(&*guard) {
+        if let Some(latitude) = hq_lat_path.get_ref(&&*guard) {
             println!("✅ Headquarters latitude: {}", latitude);
         }
     }
@@ -204,12 +201,11 @@ fn main() {
     println!("\n4️⃣  Four-Level Composition - Global Contact Email");
     println!("------------------------------------------------");
     let global_email_path = Organization::global_contact_r()
-        .to_optional()
-        .then(OptionalKeyPath::new(|c: &Contact| Some(&c.email)));
+        .then(Contact::email_r());
     
     {
         let guard = organization.read();
-        if let Some(email) = global_email_path.get(&*guard) {
+        if let Some(email) = global_email_path.get_ref(&&*guard) {
             println!("✅ Global contact email: {}", email);
         }
     }
@@ -218,14 +214,13 @@ fn main() {
     println!("\n5️⃣  Five-Level Composition - Global Contact Address Coordinates");
     println!("-------------------------------------------------------------");
     let global_coords_path = Organization::global_contact_r()
-        .to_optional()
-        .then(Contact::address_r().to_optional())
+        .then(Contact::address_r())
         .then(Address::coordinates_fr())
-        .then(Coordinates::latitude_r().to_optional());
+        .then(Coordinates::latitude_r());
     
     {
         let guard = organization.read();
-        if let Some(latitude) = global_coords_path.get(&*guard) {
+        if let Some(latitude) = global_coords_path.get_ref(&&*guard) {
             println!("✅ Global contact address latitude: {}", latitude);
         }
     }
@@ -241,8 +236,9 @@ fn main() {
         let org = &*guard;
         if let Some(first_dept) = org.company.departments.first() {
             let dept_budget_path = Department::budget_r();
-            let budget = dept_budget_path.get(&first_dept);
-            println!("✅ First department budget: ${}", budget);
+            if let Some(budget) = dept_budget_path.get_ref(&first_dept) {
+                println!("✅ First department budget: ${}", budget);
+            }
         }
     }
 
@@ -255,9 +251,8 @@ fn main() {
         let org = &*guard;
         if let Some(first_employee) = org.company.employees.first() {
             let employee_contact_path = Employee::contact_r()
-                .to_optional()
-                .then(OptionalKeyPath::new(|c: &Contact| Some(&c.email)));
-            if let Some(email) = employee_contact_path.get(&first_employee) {
+                .then(Contact::email_r());
+            if let Some(email) = employee_contact_path.get_ref(&first_employee) {
                 println!("✅ First employee email: {}", email);
             }
         }
@@ -267,12 +262,11 @@ fn main() {
     println!("\n8️⃣  Global Contact with Optional Phone");
     println!("-------------------------------------");
     let global_phone_path = Organization::global_contact_r()
-        .to_optional()
         .then(Contact::phone_fr());
     
     {
         let guard = organization.read();
-        if let Some(phone) = global_phone_path.get(&*guard) {
+        if let Some(phone) = global_phone_path.get_ref(&&*guard) {
             println!("✅ Global contact phone: {}", phone);
         }
     }
@@ -285,17 +279,17 @@ fn main() {
     println!("--------------------------------------");
     
     // Start with organization
-    let org_path = Organization::company_r().to_optional();
+    let org_path = Organization::company_r();
     
     // Add company level
-    let company_path = org_path.then(Company::headquarters_r().to_optional());
+    let company_path = org_path.then(Company::headquarters_r());
     
     // Add headquarters level
-    let hq_path = company_path.then(Address::city_r().to_optional());
+    let hq_path = company_path.then(Address::city_r());
     
     {
         let guard = organization.read();
-        if let Some(city) = hq_path.get(&*guard) {
+        if let Some(city) = hq_path.get_ref(&&*guard) {
             println!("✅ Headquarters city (step-by-step): {}", city);
         }
     }
@@ -305,13 +299,12 @@ fn main() {
     println!("-------------------------------");
     
     let fluent_path = Organization::company_r()
-        .to_optional()
-        .then(Company::headquarters_r().to_optional())
-        .then(Address::country_r().to_optional());
+        .then(Company::headquarters_r())
+        .then(Address::country_r());
     
     {
         let guard = organization.read();
-        if let Some(country) = fluent_path.get(&*guard) {
+        if let Some(country) = fluent_path.get_ref(&&*guard) {
             println!("✅ Headquarters country (fluent): {}", country);
         }
     }
@@ -321,29 +314,20 @@ fn main() {
     println!("-------------------------------------------");
     
     // Create reusable base paths
-    let company_base = Organization::company_r().to_optional();
-    let hq_base = company_base.then(Company::headquarters_r().to_optional());
+    let company_base = Organization::company_r();
+    let hq_base = company_base.then(Company::headquarters_r());
     let address_base = hq_base.then(Address::coordinates_fr());
     
     // Compose different paths using the same base
-    // Note: We recreate the base path since OptionalKeyPath doesn't implement Clone
-    let hq_lat_path = Organization::company_r()
-        .to_optional()
-        .then(Company::headquarters_r().to_optional())
-        .then(Address::coordinates_fr())
-        .then(Coordinates::latitude_r().to_optional());
-    let hq_lng_path = Organization::company_r()
-        .to_optional()
-        .then(Company::headquarters_r().to_optional())
-        .then(Address::coordinates_fr())
-        .then(Coordinates::longitude_r().to_optional());
+    let hq_lat_path = address_base.clone().then(Coordinates::latitude_r());
+    let hq_lng_path = address_base.then(Coordinates::longitude_r());
     
     {
         let guard = organization.read();
-        if let Some(lat) = hq_lat_path.get(&*guard) {
+        if let Some(lat) = hq_lat_path.get_ref(&&*guard) {
             println!("✅ HQ latitude (reusable): {}", lat);
         }
-        if let Some(lng) = hq_lng_path.get(&*guard) {
+        if let Some(lng) = hq_lng_path.get_ref(&&*guard) {
             println!("✅ HQ longitude (reusable): {}", lng);
         }
     }
@@ -353,14 +337,13 @@ fn main() {
     println!("-------------------------------------");
     
     let optional_coords_path = Organization::company_r()
-        .to_optional()
-        .then(Company::headquarters_r().to_optional())
+        .then(Company::headquarters_r())
         .then(Address::coordinates_fr())
-        .then(Coordinates::latitude_r().to_optional());
+        .then(Coordinates::latitude_r());
     
     {
         let guard = organization.read();
-        if let Some(latitude) = optional_coords_path.get(&*guard) {
+        if let Some(latitude) = optional_coords_path.get_ref(&&*guard) {
             println!("✅ HQ coordinates latitude: {}", latitude);
         } else {
             println!("✅ HQ has no coordinates");
@@ -378,11 +361,12 @@ fn main() {
         // Iterate through employees and use keypaths on each
         for (i, employee) in org.company.employees.iter().enumerate() {
             let employee_name_path = Employee::name_r();
-            let employee_email_path = Employee::contact_r().to_optional().then(OptionalKeyPath::new(|c: &Contact| Some(&c.email)));
+            let employee_email_path = Employee::contact_r().then(Contact::email_r());
             
-            let name = employee_name_path.get(&employee);
-            if let Some(email) = employee_email_path.get(&employee) {
-                println!("✅ Employee {}: {} ({})", i + 1, name, email);
+            if let Some(name) = employee_name_path.get_ref(&employee) {
+                if let Some(email) = employee_email_path.get_ref(&employee) {
+                    println!("✅ Employee {}: {} ({})", i + 1, name, email);
+                }
             }
         }
     }

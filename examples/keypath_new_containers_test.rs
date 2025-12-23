@@ -1,4 +1,4 @@
-use keypaths_proc::Keypaths;
+use key_paths_derive::Keypaths;
 use std::sync::{Mutex, RwLock};
 use std::rc::Weak;
 
@@ -47,46 +47,46 @@ fn main() {
     }
 
     // Test Mutex<T> - returns reference to the Mutex container
-    let mutex_ref = ContainerTest::mutex_data_r().get(&container);
-    println!("Mutex reference: {:?}", mutex_ref);
-    // To access the inner data, you would need to lock it manually
-    if let Ok(data) = mutex_ref.try_lock() {
-        println!("Mutex data: {}", *data);
-    } else {
-        println!("Mutex is locked");
+    if let Some(mutex_ref) = ContainerTest::mutex_data_r().get(&container) {
+        println!("Mutex reference: {:?}", mutex_ref);
+        // To access the inner data, you would need to lock it manually
+        if let Ok(data) = mutex_ref.try_lock() {
+            println!("Mutex data: {}", *data);
+        } else {
+            println!("Mutex is locked");
+        }
     }
 
     // Test RwLock<T> - returns reference to the RwLock container
-    let rwlock_ref = ContainerTest::rwlock_data_r().get(&container);
-    println!("RwLock reference: {:?}", rwlock_ref);
-    // To access the inner data, you would need to lock it manually
-    if let Ok(data) = rwlock_ref.try_read() {
-        println!("RwLock data: {}", *data);
-    } else {
-        println!("RwLock is locked");
+    if let Some(rwlock_ref) = ContainerTest::rwlock_data_r().get(&container) {
+        println!("RwLock reference: {:?}", rwlock_ref);
+        // To access the inner data, you would need to lock it manually
+        if let Ok(data) = rwlock_ref.try_read() {
+            println!("RwLock data: {}", *data);
+        } else {
+            println!("RwLock is locked");
+        }
     }
 
     // Test Weak<T> - returns reference to the Weak container
-    // Note: Weak::new() creates an empty weak reference with no associated strong reference.
-    // Since there's no Rc or Arc backing it, .upgrade() returns None.
-    // To see a successful upgrade, create the Weak from an Rc or Arc:
-    // let rc = Rc::new("Shared reference".to_string());
-    // let weak_ref = Rc::downgrade(&rc);  // Create Weak from Rc
-    let weak_ref = ContainerTest::weak_ref_r().get(&container);
-    println!("Weak reference: {:?}", weak_ref);
-    // To access the inner data, you would need to upgrade it manually
-    if let Some(rc) = weak_ref.upgrade() {
-        println!("Weak ref upgraded to: {}", *rc);
-    } else {
-        println!("Weak ref upgrade failed (expected - Weak::new() creates empty reference)");
+    if let Some(weak_ref) = ContainerTest::weak_ref_r().get(&container) {
+        println!("Weak reference: {:?}", weak_ref);
+        // To access the inner data, you would need to upgrade it manually
+        if let Some(rc) = weak_ref.upgrade() {
+            println!("Weak ref upgraded to: {}", *rc);
+        } else {
+            println!("Weak ref upgrade failed");
+        }
     }
 
     // Test basic types for comparison
-    let name = ContainerTest::name_r().get(&container);
-    println!("Name: {}", name);
+    if let Some(name) = ContainerTest::name_r().get(&container) {
+        println!("Name: {}", name);
+    }
 
-    let age = ContainerTest::age_r().get(&container);
-    println!("Age: {}", age);
+    if let Some(age) = ContainerTest::age_r().get(&container) {
+        println!("Age: {}", age);
+    }
 
     // Test with error cases
     println!("\n=== Error Cases ===");
@@ -115,26 +115,28 @@ fn main() {
     }
 
     // Mutex and RwLock should still work
-    let mutex_ref = ContainerTest::mutex_data_r().get(&error_container);
-    println!("Error container mutex reference: {:?}", mutex_ref);
-    if let Ok(data) = mutex_ref.try_lock() {
-        println!("Error container mutex data: {}", *data);
+    if let Some(mutex_ref) = ContainerTest::mutex_data_r().get(&error_container) {
+        println!("Error container mutex reference: {:?}", mutex_ref);
+        if let Ok(data) = mutex_ref.try_lock() {
+            println!("Error container mutex data: {}", *data);
+        }
     }
 
-    let rwlock_ref = ContainerTest::rwlock_data_r().get(&error_container);
-    println!("Error container rwlock reference: {:?}", rwlock_ref);
-    if let Ok(data) = rwlock_ref.try_read() {
-        println!("Error container rwlock data: {}", *data);
+    if let Some(rwlock_ref) = ContainerTest::rwlock_data_r().get(&error_container) {
+        println!("Error container rwlock reference: {:?}", rwlock_ref);
+        if let Ok(data) = rwlock_ref.try_read() {
+            println!("Error container rwlock data: {}", *data);
+        }
     }
 
     println!("\n=== Keypaths Types ===");
-    println!("result() returns: KeyPath<ContainerTest, String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r String> (failable readable)");
-    println!("result_int() returns: KeyPath<ContainerTest, i32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r i32> (failable readable)");
-    println!("mutex_data() returns: KeyPath<ContainerTest, Mutex<String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r Mutex<String>> (readable)");
-    println!("rwlock_data() returns: KeyPath<ContainerTest, RwLock<i32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r RwLock<i32>> (readable)");
-    println!("weak_ref() returns: KeyPath<ContainerTest, Weak<String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r Weak<String>> (readable)");
-    println!("name() returns: KeyPath<ContainerTest, String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r String> (readable)");
-    println!("age() returns: KeyPath<ContainerTest, u32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r u32> (readable)");
+    println!("result() returns: KeyPaths<ContainerTest, String> (failable readable)");
+    println!("result_int() returns: KeyPaths<ContainerTest, i32> (failable readable)");
+    println!("mutex_data() returns: KeyPaths<ContainerTest, Mutex<String>> (readable)");
+    println!("rwlock_data() returns: KeyPaths<ContainerTest, RwLock<i32>> (readable)");
+    println!("weak_ref() returns: KeyPaths<ContainerTest, Weak<String>> (readable)");
+    println!("name() returns: KeyPaths<ContainerTest, String> (readable)");
+    println!("age() returns: KeyPaths<ContainerTest, u32> (readable)");
 
     println!("\n=== All new container tests completed successfully! ===");
 }

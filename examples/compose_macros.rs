@@ -1,25 +1,22 @@
-use keypaths_proc::Keypaths;
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Engine {
     horsepower: u32,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Car {
     engine: Option<Engine>,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Garage {
     car: Option<Car>,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct City {
     garage: Option<Garage>,
 }
@@ -35,9 +32,9 @@ fn main() {
 
     // Compose using derive-generated failable readable methods
     let city_hp = City::garage_fr()
-        .then(Garage::car_fr())
-        .then(Car::engine_fr())
-        .then(Engine::horsepower_fr());
+        .compose(Garage::car_fr())
+        .compose(Car::engine_fr())
+        .compose(Engine::horsepower_fr());
 
     println!("Horsepower = {:?}", city_hp.get(&city));
 

@@ -7,11 +7,10 @@
 // 5. Track field-level changes
 // cargo run --example form_binding
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
-#[All]
 struct UserProfile {
     name: String,
     email: String,
@@ -20,7 +19,6 @@ struct UserProfile {
 }
 
 #[derive(Debug, Clone, Keypaths)]
-#[All]
 struct UserSettings {
     notifications_enabled: bool,
     theme: String,
@@ -28,13 +26,9 @@ struct UserSettings {
 }
 
 // Generic form field that binds to any field type
-// Uses type erasure to store keypaths with different closure types
-struct FormField<T: 'static, F: 'static> 
-where
-    F: Clone + std::fmt::Display + 'static,
-{
-    read_path: Box<dyn Fn(&T) -> Option<F>>,
-    write_path: Box<dyn Fn(&mut T, F) -> Result<(), String>>,
+struct FormField<T: 'static, F: 'static> {
+    read_path: KeyPaths<T, F>,
+    write_path: KeyPaths<T, F>,
     label: &'static str,
     field_name: &'static str,
     validator: fn(&F) -> Result<(), String>,
@@ -42,32 +36,18 @@ where
 
 impl<T, F> FormField<T, F>
 where
-    F: Clone + std::fmt::Display + 'static,
+    F: Clone + std::fmt::Display,
 {
-    fn new<FR, FW>(
-        read_path: OptionalKeyPath<T, F, FR>,
-        write_path: WritableOptionalKeyPath<T, F, FW>,
+    fn new(
+        read_path: KeyPaths<T, F>,
+        write_path: KeyPaths<T, F>,
         label: &'static str,
         field_name: &'static str,
         validator: fn(&F) -> Result<(), String>,
-    ) -> Self
-    where
-        FR: for<'r> Fn(&'r T) -> Option<&'r F> + 'static,
-        FW: for<'r> Fn(&'r mut T) -> Option<&'r mut F> + 'static,
-    {
+    ) -> Self {
         Self {
-            read_path: Box::new(move |t: &T| read_path.get(t).cloned()),
-            write_path: Box::new(move |t: &mut T, value: F| {
-                // Validate first
-                (validator)(&value)?;
-                // Then write
-                if let Some(target) = write_path.get_mut(t) {
-                    *target = value;
-                    Ok(())
-                } else {
-                    Err(format!("Failed to write to field '{}'", field_name))
-                }
-            }),
+            read_path,
+            write_path,
             label,
             field_name,
             validator,
@@ -76,12 +56,21 @@ where
 
     // Read current value from the model
     fn read(&self, model: &T) -> Option<F> {
-        (self.read_path)(model)
+        self.read_path.get(model).cloned()
     }
 
     // Write new value to the model
     fn write(&self, model: &mut T, value: F) -> Result<(), String> {
-        (self.write_path)(model, value)
+        // Validate first
+        (self.validator)(&value)?;
+
+        // Then write
+        if let Some(target) = self.write_path.get_mut(model) {
+            *target = value;
+            Ok(())
+        } else {
+            Err(format!("Failed to write to field '{}'", self.field_name))
+        }
     }
 
     // Validate without writing
@@ -224,8 +213,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: name
     form.add_string_field(FormField::new(
-        UserProfile::name_fr(),
-        UserProfile::name_fw(),
+        UserProfile::name_r(),
+        UserProfile::name_w(),
         "Full Name",
         "name",
         |s| {
@@ -239,8 +228,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: email
     form.add_string_field(FormField::new(
-        UserProfile::email_fr(),
-        UserProfile::email_fw(),
+        UserProfile::email_r(),
+        UserProfile::email_w(),
         "Email Address",
         "email",
         |s| {
@@ -254,8 +243,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Number field: age
     form.add_u32_field(FormField::new(
-        UserProfile::age_fr(),
-        UserProfile::age_fw(),
+        UserProfile::age_r(),
+        UserProfile::age_w(),
         "Age",
         "age",
         |&age| {
@@ -269,8 +258,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // String field: theme (nested)
     form.add_string_field(FormField::new(
-        UserProfile::settings_fr().then(UserSettings::theme_fr()),
-        UserProfile::settings_fw().then(UserSettings::theme_fw()),
+        UserProfile::settings_r().then(UserSettings::theme_r()),
+        UserProfile::settings_w().then(UserSettings::theme_w()),
         "Theme",
         "theme",
         |s| {
@@ -284,8 +273,8 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Number field: font_size (nested)
     form.add_u32_field(FormField::new(
-        UserProfile::settings_fr().then(UserSettings::font_size_fr()),
-        UserProfile::settings_fw().then(UserSettings::font_size_fw()),
+        UserProfile::settings_r().then(UserSettings::font_size_r()),
+        UserProfile::settings_w().then(UserSettings::font_size_w()),
         "Font Size",
         "font_size",
         |&size| {
@@ -299,8 +288,10 @@ fn create_user_profile_form() -> FormBinding<UserProfile> {
 
     // Bool field: notifications (nested)
     form.add_bool_field(FormField::new(
-        UserProfile::settings_fr().then(UserSettings::notifications_enabled_fr()),
-        UserProfile::settings_fw().then(UserSettings::notifications_enabled_fw()),
+        UserProfile::settings_r()
+            .then(UserSettings::notifications_enabled_r()),
+        UserProfile::settings_w()
+            .then(UserSettings::notifications_enabled_w()),
         "Notifications",
         "notifications",
         |_| Ok(()), // No validation needed for bool
@@ -315,7 +306,7 @@ fn main() {
     // Create initial user profile
     let mut profile = UserProfile {
         name: "Alice".to_string(),
-        email: "akash@example.com".to_string(),
+        email: "alice@example.com".to_string(),
         age: 28,
         settings: UserSettings {
             notifications_enabled: true,
@@ -353,7 +344,7 @@ fn main() {
     }
 
     // Update email
-    match form.update_string(&mut profile, "email", "akash.johnson@example.com".to_string()) {
+    match form.update_string(&mut profile, "email", "alice.johnson@example.com".to_string()) {
         Ok(_) => println!("✓ Updated email successfully"),
         Err(e) => println!("✗ Failed to update email: {}", e),
     }

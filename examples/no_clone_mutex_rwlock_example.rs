@@ -1,7 +1,7 @@
 // Example demonstrating the no-clone approach for Mutex and RwLock with KeyPaths
 // Run with: cargo run --example no_clone_mutex_rwlock_example
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
+use key_paths_core::{KeyPaths, WithContainer};
 use std::sync::{Mutex, RwLock};
 
 #[derive(Debug, Clone)]
@@ -18,13 +18,13 @@ fn main() {
     let user = User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("akash@example.com".to_string()),
+        email: Some("alice@example.com".to_string()),
     };
 
     // Create keypaths
-    let name_path = KeyPath::new(|u: &User| &u.name);
-    let age_path = KeyPath::new(|u: &User| &u.age);
-    let email_path = OptionalKeyPath::new(|u: &User| u.email.as_ref());
+    let name_path = KeyPaths::readable(|u: &User| &u.name);
+    let age_path = KeyPaths::readable(|u: &User| &u.age);
+    let email_path = KeyPaths::failable_readable(|u: &User| u.email.as_ref());
 
     // ===== Example 1: Basic Mutex Usage (No Clone) =====
     println!("--- Example 1: Basic Mutex Usage (No Clone) ---");
@@ -121,7 +121,7 @@ fn main() {
     });
 
     // Modify data through Mutex - no cloning!
-    let name_path_w = WritableKeyPath::new(|u: &mut User| &mut u.name);
+    let name_path_w = KeyPaths::writable(|u: &mut User| &mut u.name);
     name_path_w.clone().with_mutex_mut(&mut mutex_user_mut, |name| {
         *name = "Grace Updated".to_string();
         println!("  Updated name to: {}", name);
@@ -137,7 +137,7 @@ fn main() {
     });
 
     // Modify data through RwLock - no cloning!
-    let age_path_w = WritableKeyPath::new(|u: &mut User| &mut u.age);
+    let age_path_w = KeyPaths::writable(|u: &mut User| &mut u.age);
     age_path_w.clone().with_rwlock_mut(&mut rwlock_user_mut, |age| {
         *age += 1;
         println!("  Updated age to: {}", age);

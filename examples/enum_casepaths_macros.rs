@@ -1,4 +1,5 @@
-use keypaths_proc::{Casepaths, Keypaths};
+use key_paths_core::KeyPaths;
+use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Clone, Keypaths)]
 struct User {
@@ -7,7 +8,6 @@ struct User {
 }
 
 #[derive(Debug, Casepaths)]
-#[All]
 enum Status {
     Active(User),
     Inactive,
@@ -20,10 +20,8 @@ fn main() {
     });
 
     let kp_active = Status::active_case_r();
-    let active_name = Status::active_case_r().then(User::name_r().to_optional());
-    if let Some(name) = active_name.get(&status) {
-        println!("Active name = {:?}", name);
-    }
+    let active_name = Status::active_case_r().compose(User::name_r());
+    println!("Active name = {:?}", active_name.get(&status));
 
     let mut status2 = Status::Active(User {
         id: 2,
@@ -35,8 +33,8 @@ fn main() {
     }
     println!("Status2 = {:?}", status2);
 
-    // Embedding via readable enum - use the generated embed function
-    let embedded = Status::active_case_embed(User {
+    // Embedding via readable enum
+    let embedded = kp_active.embed(User {
         id: 3,
         name: "Cleo".into(),
     });

@@ -1,10 +1,9 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 use std::sync::Arc;
 use parking_lot::{RwLock, Mutex};
 
 #[derive(Keypaths, Clone)]
-#[All]
 struct User {
     name: String,
     age: u32,
@@ -12,7 +11,6 @@ struct User {
 }
 
 #[derive(Keypaths, Clone)]
-#[All]
 struct Profile {
     user: User,
     bio: String,
@@ -26,7 +24,7 @@ fn main() {
     let user = User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("akash@example.com".to_string()),
+        email: Some("alice@example.com".to_string()),
     };
     
     let profile = Profile {
@@ -42,21 +40,22 @@ fn main() {
     
     // Method 1: Direct access with parking_lot::Mutex
     let name_keypath = User::name_r();
-    let name_keypath_w = User::name_w();
     
     // Access name through parking_lot::Mutex
     {
         let guard = parking_mutex_user.lock();
-        let name = name_keypath.get(&*guard);
-        println!("✅ Name from parking_lot::Mutex: {}", name);
+        if let Some(name) = name_keypath.get_ref(&&*guard) {
+            println!("✅ Name from parking_lot::Mutex: {}", name);
+        }
     }
     
     // Modify name through parking_lot::Mutex
     {
         let mut guard = parking_mutex_user.lock();
-        let name = name_keypath_w.get_mut(&mut *guard);
-        *name = "Alice Updated".to_string();
-        println!("✅ Updated name in parking_lot::Mutex: {}", name);
+        if let Some(name) = name_keypath.get_mut(&mut &mut *guard) {
+            *name = "Alice Updated".to_string();
+            println!("✅ Updated name in parking_lot::Mutex: {}", name);
+        }
     }
     
     println!("\n📝 Working with parking_lot::RwLock");
@@ -64,16 +63,16 @@ fn main() {
     
     // Method 2: Direct access with parking_lot::RwLock
     let bio_keypath = Profile::bio_r();
-    let bio_keypath_w = Profile::bio_w();
-    let user_name_keypath = Profile::user_r().to_optional().then(User::name_r().to_optional());
+    let user_name_keypath = Profile::user_r().then(User::name_r());
     
     // Read access through parking_lot::RwLock
     {
         let guard = parking_rwlock_profile.read();
-        let bio = bio_keypath.get(&*guard);
-        println!("✅ Bio from parking_lot::RwLock: {}", bio);
+        if let Some(bio) = bio_keypath.get_ref(&&*guard) {
+            println!("✅ Bio from parking_lot::RwLock: {}", bio);
+        }
         
-        if let Some(name) = user_name_keypath.get(&*guard) {
+        if let Some(name) = user_name_keypath.get_ref(&&*guard) {
             println!("✅ Nested name from parking_lot::RwLock: {}", name);
         }
     }
@@ -81,9 +80,10 @@ fn main() {
     // Write access through parking_lot::RwLock
     {
         let mut guard = parking_rwlock_profile.write();
-        let bio = bio_keypath_w.get_mut(&mut *guard);
-        *bio = "Senior software engineer with passion for Rust and systems programming".to_string();
-        println!("✅ Updated bio in parking_lot::RwLock: {}", bio);
+        if let Some(bio) = bio_keypath.get_mut(&mut &mut *guard) {
+            *bio = "Senior software engineer with passion for Rust and systems programming".to_string();
+            println!("✅ Updated bio in parking_lot::RwLock: {}", bio);
+        }
     }
     
     println!("\n🔧 Creating Universal Lock Adapters");
@@ -93,27 +93,29 @@ fn main() {
     let name_keypath = User::name_r();
     
     // Adapter for parking_lot::Mutex
-    fn parking_mutex_adapter<F>(keypath: KeyPath<User, String, impl for<'r> Fn(&'r User) -> &'r String>, mutex: &Mutex<User>, f: F) 
-    where F: FnOnce(&String) {
+    fn parking_mutex_adapter<F>(keypath: KeyPaths<User, String>, mutex: &Mutex<User>, f: F) 
+    where F: FnOnce(&str) {
         let guard = mutex.lock();
-        let value = keypath.get(&*guard);
-        f(value);
+        if let Some(value) = keypath.get_ref(&&*guard) {
+            f(value);
+        }
     }
     
     // Adapter for parking_lot::RwLock
-    fn parking_rwlock_adapter<F>(keypath: KeyPath<Profile, String, impl for<'r> Fn(&'r Profile) -> &'r String>, rwlock: &RwLock<Profile>, f: F) 
-    where F: FnOnce(&String) {
+    fn parking_rwlock_adapter<F>(keypath: KeyPaths<Profile, String>, rwlock: &RwLock<Profile>, f: F) 
+    where F: FnOnce(&str) {
         let guard = rwlock.read();
-        let value = keypath.get(&*guard);
-        f(value);
+        if let Some(value) = keypath.get_ref(&&*guard) {
+            f(value);
+        }
     }
     
     // Use the adapters
-    parking_mutex_adapter(name_keypath, &parking_mutex_user, |name| {
+    parking_mutex_adapter(name_keypath.clone(), &parking_mutex_user, |name| {
         println!("✅ Adapter - Name from parking_lot::Mutex: {}", name);
     });
     
-    parking_rwlock_adapter(bio_keypath, &parking_rwlock_profile, |bio| {
+    parking_rwlock_adapter(bio_keypath.clone(), &parking_rwlock_profile, |bio| {
         println!("✅ Adapter - Bio from parking_lot::RwLock: {}", bio);
     });
     
@@ -122,39 +124,35 @@ fn main() {
     
     // Method 4: Simple adapter that works with parking_lot locks
     fn with_parking_mutex<T, V, F, R>(
-        keypath: KeyPath<T, V, impl for<'r> Fn(&'r T) -> &'r V>,
+        keypath: KeyPaths<T, V>,
         mutex: &Mutex<T>,
         f: F,
-    ) -> R
+    ) -> Option<R>
     where
         F: FnOnce(&V) -> R,
     {
         let guard = mutex.lock();
-        f(keypath.get(&*guard))
+        keypath.get_ref(&&*guard).map(f)
     }
     
     fn with_parking_rwlock<T, V, F, R>(
-        keypath: KeyPath<T, V, impl for<'r> Fn(&'r T) -> &'r V>,
+        keypath: KeyPaths<T, V>,
         rwlock: &RwLock<T>,
         f: F,
-    ) -> R
+    ) -> Option<R>
     where
         F: FnOnce(&V) -> R,
     {
         let guard = rwlock.read();
-        f(keypath.get(&*guard))
+        keypath.get_ref(&&*guard).map(f)
     }
     
     // Use the simple adapters
-    {
-        let name_keypath = User::name_r();
-        let name = with_parking_mutex(name_keypath, &parking_mutex_user, |name: &String| name.clone());
+    if let Some(name) = with_parking_mutex(name_keypath.clone(), &parking_mutex_user, |name| name.clone()) {
         println!("✅ Simple adapter - Name from parking_lot::Mutex: {}", name);
     }
     
-    {
-        let bio_keypath = Profile::bio_r();
-        let bio = with_parking_rwlock(bio_keypath, &parking_rwlock_profile, |bio: &String| bio.clone());
+    if let Some(bio) = with_parking_rwlock(bio_keypath.clone(), &parking_rwlock_profile, |bio| bio.clone()) {
         println!("✅ Simple adapter - Bio from parking_lot::RwLock: {}", bio);
     }
     
@@ -162,10 +160,10 @@ fn main() {
     println!("----------------------------------------");
     
     // Demonstrate composition with nested keypaths using direct access
-    let nested_name_keypath = Profile::user_r().to_optional().then(User::name_r().to_optional());
+    let nested_name_keypath = Profile::user_r().then(User::name_r());
     {
         let guard = parking_rwlock_profile.read();
-        if let Some(name) = nested_name_keypath.get(&*guard) {
+        if let Some(name) = nested_name_keypath.get_ref(&&*guard) {
             println!("✅ Nested name from parking_lot::RwLock: {}", name);
         }
     }
@@ -174,7 +172,7 @@ fn main() {
     let email_keypath = User::email_fr();
     {
         let guard = parking_mutex_user.lock();
-        if let Some(email) = email_keypath.get(&*guard) {
+        if let Some(email) = email_keypath.get_ref(&&*guard) {
             println!("✅ Email from parking_lot::Mutex: {}", email);
         } else {
             println!("✅ No email in user");
@@ -183,7 +181,7 @@ fn main() {
     
     println!("\n💡 Key Takeaways:");
     println!("==================");
-    println!("1. Direct access: Use lock guards with keypath.get()/get_mut()");
+    println!("1. Direct access: Use lock guards with keypath.get_ref()/get_mut()");
     println!("2. Adapter functions: Create simple functions that handle locking");
     println!("3. Generic adapters: Use traits to work with multiple lock types");
     println!("4. Composable adapters: Create reusable adapter structs");

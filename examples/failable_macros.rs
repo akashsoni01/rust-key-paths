@@ -1,26 +1,22 @@
-use rust_keypaths::{OptionalKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Engine {
     horsepower: u32,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Car {
     engine: Option<Engine>,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct Garage {
     car: Option<Car>,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct City {
     garage: Option<Garage>,
 }
@@ -36,9 +32,9 @@ fn main() {
 
     // Failable readable chain via derive-generated methods on Option fields
     let city_hp = City::garage_fr()
-        .then(Garage::car_fr())
-        .then(Car::engine_fr())
-        .then(Engine::horsepower_r().to_optional());
+        .compose(Garage::car_fr())
+        .compose(Car::engine_fr())
+        .compose(Engine::horsepower_r());
 
     println!("Horsepower (read) = {:?}", city_hp.get(&city));
 
@@ -51,8 +47,9 @@ fn main() {
     if let Some(garage) = garage_fw.get_mut(&mut city) {
         if let Some(car) = car_fw.get_mut(garage) {
             if let Some(engine) = engine_fw.get_mut(car) {
-                let hp = hp_w.get_mut(engine);
-                *hp += 30;
+                if let Some(hp) = hp_w.get_mut(engine) {
+                    *hp += 30;
+                }
             }
         }
     }

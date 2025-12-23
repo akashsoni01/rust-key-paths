@@ -1,9 +1,9 @@
 #[cfg(feature = "tagged_core")]
 use tagged_core::Tagged;
 #[cfg(feature = "tagged_core")]
-use keypaths_proc::Keypaths;
+use key_paths_derive::Keypaths;
 #[cfg(feature = "tagged_core")]
-
+use key_paths_core::WithContainer;
 #[cfg(feature = "tagged_core")]
 use chrono::{DateTime, Utc};
 #[cfg(feature = "tagged_core")]
@@ -40,11 +40,11 @@ fn main() {
     
     // Test direct keypath access to Tagged fields
     println!("\n1. Direct access to Tagged fields:");
-    if let Some(id) = SomeStruct::id_r().get(&test_struct) {
+    if let Some(id) = SomeStruct::id_r().get_ref(&&test_struct) {
         println!("   ID: {}", id);
     }
     
-    if let Some(time) = SomeStruct::time_id_r().get(&test_struct) {
+    if let Some(time) = SomeStruct::time_id_r().get_ref(&&test_struct) {
         println!("   Time: {}", time);
     }
     
@@ -55,7 +55,7 @@ fn main() {
     
     // Now we can use for_tagged to adapt the keypath to work with Tagged<SomeStruct, ()>
     let id_path = SomeStruct::id_r().for_tagged::<()>();
-    if let Some(id) = id_path.get(&tagged_struct) {
+    if let Some(id) = id_path.get_ref(&&tagged_struct) {
         println!("   ID from Tagged<SomeStruct>: {}", id);
     }
     
@@ -72,7 +72,7 @@ fn main() {
     // Test composition with Tagged wrapper
     println!("\n4. Testing composition with Tagged wrapper:");
     let id_string_path = SomeStruct::id_r().for_tagged::<()>();
-    if let Some(id) = id_string_path.get(&tagged_struct) {
+    if let Some(id) = id_string_path.get_ref(&&tagged_struct) {
         println!("   ID as string: {}", id.to_string());
     }
     
@@ -81,7 +81,7 @@ fn main() {
     let maybe_struct: Option<Tagged<SomeStruct, ()>> = Some(Tagged::new(test_struct.clone()));
     let option_id_path = SomeStruct::id_r().for_tagged::<()>().for_option();
     
-    if let Some(id) = option_id_path.get(&maybe_struct) {
+    if let Some(id) = option_id_path.get_ref(&&maybe_struct) {
         println!("   Optional ID: {}", id);
     }
     

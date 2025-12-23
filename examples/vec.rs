@@ -1,16 +1,15 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::{Casepaths, Keypaths};
+use key_paths_core::KeyPaths;
+// use key_paths_core::KeyPaths;
+use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct SomeComplexStruct {
     scsf: Vec<SomeOtherStruct>,
 }
 
 // impl SomeComplexStruct {
 //     fn scsf_fr() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-//         OptionalKeyPath::new(
+//         KeyPaths::failable_readable(
 //             |root: & SomeComplexStruct|
 //             {
 //                 root.scsf.first()
@@ -19,7 +18,7 @@ struct SomeComplexStruct {
 //     }
 
 //     fn scsf_fr_at(index: &'static usize) -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-//         OptionalKeyPath::new(
+//         KeyPaths::failable_readable(
 //             |root: & SomeComplexStruct|
 //             {
 //                 root.scsf.get(*index)
@@ -28,7 +27,7 @@ struct SomeComplexStruct {
 //     }
 
 //     fn scsf_fw() -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-//         WritableOptionalKeyPath::new(
+//         KeyPaths::failable_writable(
 //             |root: &mut SomeComplexStruct|
 //             {
 //                 root.scsf.first_mut()
@@ -37,7 +36,7 @@ struct SomeComplexStruct {
 //     }
 
 //     fn scsf_fw_at(index: usize) -> KeyPaths<SomeComplexStruct, SomeOtherStruct> {
-//         WritableOptionalKeyPath::new(
+//         KeyPaths::failable_writable(
 //             move |root: &mut SomeComplexStruct|
 //             {
 //                 root.scsf.get_mut(index)
@@ -72,27 +71,23 @@ impl SomeComplexStruct {
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
 #[derive(Debug, Casepaths)]
-#[All]
 enum SomeEnum {
     A(Vec<String>),
     B(DarkStruct),
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
 #[derive(Debug, Keypaths)]
-#[All]
 struct DarkStruct {
     dsf: String,
 }
@@ -105,9 +100,9 @@ fn main() {
         .then(SomeEnum::b_case_w())
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
-    if let Some(omsf) = op.get_mut(&mut instance) {
-        *omsf = String::from("we can change the field with the other way unlocked by keypaths");
-    }
+    let omsf = op.get_mut(&mut instance);
+    *omsf.unwrap() =
+        String::from("we can change the field with the other way unlocked by keypaths");
     println!("instance = {:?}", instance);
 
     let op = SomeComplexStruct::scsf_fw()
@@ -116,8 +111,8 @@ fn main() {
         .then(SomeEnum::b_case_w())
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
-    if let Some(omsf) = op.get_mut(&mut instance) {
-        *omsf = String::from("we can change the field with the other way unlocked by keypaths");
-    }
+    let omsf = op.get_mut(&mut instance);
+    *omsf.unwrap() =
+        String::from("we can change the field with the other way unlocked by keypaths");
     println!("instance = {:?}", instance);
 }

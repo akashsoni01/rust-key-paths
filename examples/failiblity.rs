@@ -1,4 +1,4 @@
-use keypaths_proc::Keypaths;
+use key_paths_derive::Keypaths;
 
 
 // #[derive(Keypaths)]

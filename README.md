@@ -1,37 +1,8 @@
 # 🔑 KeyPaths & CasePaths in Rust
 
 Key paths and case paths provide a **safe, composable way to access and modify nested data** in Rust.
-Inspired by **Swift's KeyPath / CasePath** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
+Inspired by **Swift’s KeyPath / CasePath** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
 
----
-
-## 🚀 New: Static Dispatch Implementation
-
-**We now provide two implementations:**
-
-### Primary: `rust-keypaths` + `keypaths-proc` (Recommended)
-- ✅ **Static dispatch** - Faster performance, better compiler optimizations
-- ✅ **Write operations can be faster than manual unwrapping** at deeper nesting levels
-- ✅ **Zero runtime overhead** - No dynamic dispatch costs
-- ✅ **Better inlining** - Compiler can optimize more aggressively
-
-```toml
-[dependencies]
-rust-keypaths = "1.0.2"
-keypaths-proc = "1.0.1"
-```
-
-### Legacy: `key-paths-core` + `key-paths-derive` (v1.6.0)
-- ⚠️ **Dynamic dispatch** - Use only if you need:
-  - `Send + Sync` bounds for multithreaded scenarios
-  - Dynamic dispatch with trait objects
-  - Compatibility with existing code using the enum-based API
-
-```toml
-[dependencies]
-key-paths-core = "1.6.0"  # Use 1.6.0 for dynamic dispatch
-key-paths-derive = "1.1.0"
-```
 ---
 
 ## ✨ Features
@@ -47,175 +18,259 @@ key-paths-derive = "1.1.0"
 
 ## 📦 Installation
 
-### Recommended: Static Dispatch (rust-keypaths)
-
 ```toml
 [dependencies]
-rust-keypaths = "1.0.0"
-keypaths-proc = "1.0.0"
+key-paths-core = "1.6.0"
+key-paths-derive = "1.0.8"
 ```
 
-### Legacy: Dynamic Dispatch (key-paths-core)
+## 🎯 Choose Your Macro
 
-```toml
-[dependencies]
-key-paths-core = "1.6.0"  # Use 1.6.0 for dynamic dispatch
-key-paths-derive = "1.1.0"
-```
+### `#[derive(Keypath)]` - Simple & Beginner-Friendly
+- **One method per field**: `field_name()` 
+- **Smart keypath selection**: Automatically chooses readable or failable readable based on field type
+- **No option chaining**: Perfect for beginners and simple use cases
+- **Clean API**: Just call `Struct::field_name()` and you're done!
 
-### API Differences
-
-**rust-keypaths (Static Dispatch):**
 ```rust
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath};
+use key_paths_derive::Keypath;
 
-let kp = KeyPath::new(|s: &Struct| &s.field);
-let opt_kp = OptionalKeyPath::new(|s: &Struct| s.opt_field.as_ref());
-let writable_kp = WritableKeyPath::new(|s: &mut Struct| &mut s.field);
+#[derive(Keypath)]
+struct User {
+    name: String,           // -> User::name() returns readable keypath
+    email: Option<String>,  // -> User::email() returns failable readable keypath
+}
+
+// Usage
+let user = User { name: "Alice".into(), email: Some("alice@example.com".into()) };
+let name_keypath = User::name();
+let email_keypath = User::email();
+let name = name_keypath.get(&user);        // Some("Alice")
+let email = email_keypath.get(&user);      // Some("alice@example.com")
 ```
 
-**key-paths-core (Dynamic Dispatch):**
+### `#[derive(Keypaths)]` - Advanced & Feature-Rich
+- **Multiple methods per field**: `field_r()`, `field_w()`, `field_fr()`, `field_fw()`, `field_o()`, `field_fo()`
+- **Full control**: Choose exactly which type of keypath you need
+- **Option chaining**: Perfect for intermediate and advanced developers
+- **Comprehensive**: Supports all container types and access patterns
+
 ```rust
-use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 
-let kp = KeyPaths::readable(|s: &Struct| &s.field);
-let opt_kp = KeyPaths::failable_readable(|s: &Struct| s.opt_field.as_ref());
-let writable_kp = KeyPaths::writable(|s: &mut Struct| &mut s.field);
+#[derive(Keypaths)]
+struct User {
+    name: String,
+    email: Option<String>,
+}
+
+// Usage - you choose the exact method
+let user = User { name: "Alice".into(), email: Some("alice@example.com".into()) };
+let name_keypath = User::name_r();
+let email_keypath = User::email_fr();
+let name = name_keypath.get(&user);      // Some("Alice") - readable
+let email = email_keypath.get(&user);   // Some("alice@example.com") - failable readable
 ```
-
 ---
 
-## 🚀 Examples
-
-### Deep Nested Composition with Box and Enums
-
-This example demonstrates keypath composition through deeply nested structures with `Box<T>` and enum variants:
-
+### Widely used - Deeply nested struct
 ```rust
-use keypaths_proc::{Casepaths, Keypaths};
+use key_paths_derive::{Casepaths, Keypaths};
 
 #[derive(Debug, Keypaths)]
-#[Writable]
 struct SomeComplexStruct {
-    scsf: Box<SomeOtherStruct>,
+    scsf: Option<SomeOtherStruct>,
 }
 
-impl SomeComplexStruct {
-    fn new() -> Self {
-        Self {
-            scsf: Box::new(SomeOtherStruct {
-                sosf: OneMoreStruct {
-                    omsf: String::from("no value for now"),
-                    omse: SomeEnum::B(DarkStruct {
-                        dsf: String::from("dark field"),
-                    }),
-                },
-            }),
-        }
-    }
+
+#[derive(Debug, Keypaths)]
+struct SomeOtherStruct {
+    sosf: Option<OneMoreStruct>,
 }
 
 #[derive(Debug, Keypaths)]
-#[Writable]
-struct SomeOtherStruct {
-    sosf: OneMoreStruct,
+struct OneMoreStruct {
+    omsf: Option<String>,
+    omse: Option<SomeEnum>,
 }
 
 #[derive(Debug, Casepaths)]
-#[Writable]
 enum SomeEnum {
     A(String),
     B(DarkStruct),
 }
 
 #[derive(Debug, Keypaths)]
-#[Writable]
-struct OneMoreStruct {
-    omsf: String,
-    omse: SomeEnum,
+struct DarkStruct {
+    dsf: Option<String>,
 }
 
-#[derive(Debug, Keypaths)]
-#[Writable]
-struct DarkStruct {
-    dsf: String,
+
+impl SomeComplexStruct {
+    fn new() -> Self {
+        Self {
+            scsf: Some(SomeOtherStruct {
+                sosf: Some(OneMoreStruct {
+                    omsf: Some(String::from("no value for now")),
+                    omse: Some(SomeEnum::B(DarkStruct {
+                        dsf: Some(String::from("dark field")),
+                    })),
+                }),
+            }),
+        }
+    }
 }
+
 
 fn main() {
-    use rust_keypaths::WritableOptionalKeyPath;
-    
-    // Compose keypath through Box, nested structs, and enum variants
-    // Using .then() method (works on stable Rust)
-    let keypath = SomeComplexStruct::scsf_fw()
+    let dsf_kp = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_fw())
+        .then(SomeEnum::b_case_w())
         .then(DarkStruct::dsf_fw());
-    
-    // Alternatively, use the >> operator (requires nightly feature):
-    // #![feature(impl_trait_in_assoc_type)]
-    // let keypath = SomeComplexStruct::scsf_fw()
-    //     >> SomeOtherStruct::sosf_fw()
-    //     >> OneMoreStruct::omse_fw()
-    //     >> SomeEnum::b_case_fw()
-    //     >> DarkStruct::dsf_fw();
-    
+
     let mut instance = SomeComplexStruct::new();
     
-    // Mutate deeply nested field through composed keypath
-    if let Some(dsf) = keypath.get_mut(&mut instance) {
-        *dsf = String::from("we can update the field of struct with the other way unlocked by keypaths");
+    if let Some(omsf) = dsf_kp.get_mut(&mut instance) {
+        *omsf = String::from("This is changed 🖖🏿");
         println!("instance = {:?}", instance);
+
     }
 }
 ```
 
-Run it yourself:
+**Recommendation**: Start with `#[derive(Keypath)]` for simplicity, upgrade to `#[derive(Keypaths)]` when you need more control!
 
-```bash
-cargo run --example box_keypath
+### Keypath vs Keypaths - When to Use Which?
+
+| Feature | `#[derive(Keypath)]` | `#[derive(Keypaths)]` |
+|---------|---------------------|----------------------|
+| **API Complexity** | Simple - one method per field | Advanced - multiple methods per field |
+| **Learning Curve** | Beginner-friendly | Requires understanding of keypath types |
+| **Container Support** | Basic containers only | Full container support including `Result`, `Mutex`, `RwLock`, `Wea****k` |
+| **Option Chaining** | No - smart selection only | Yes - full control over failable vs non-failable |
+| **Writable Access** | Limited | Full writable support |
+| **Use Case** | Simple field access, beginners | Complex compositions, advanced users |
+
+**When to use `Keypath`:**
+- You're new to keypaths
+- You want simple, clean field access
+- You don't need complex option chaining
+- You're working with basic types
+
+**When to use `Keypaths`:**
+- You need full control over keypath types
+- You're composing complex nested structures
+- You need writable access to fields
+- You're working with advanced container types
+
+---
+
+## 🚀 Examples
+
+See `examples/` for many runnable samples. Below are a few highlights.
+
+### Quick Start - Simple Keypaths Usage
+```rust
+use key_paths_derive::Keypath;
+
+#[derive(Keypath)]
+struct User {
+    name: String,
+    age: u32,
+    email: Option<String>,
+}
+
+fn main() {
+    let user = User {
+        name: "Alice".to_string(),
+        age: 30,
+        email: Some("alice@example.com".to_string()),
+    };
+
+    // Access fields using keypaths
+    let name_keypath = User::name();
+    let age_keypath = User::age();
+    let email_keypath = User::email();
+    
+    let name = name_keypath.get(&user);        // Some("Alice")
+    let age = age_keypath.get(&user);          // Some(30)
+    let email = email_keypath.get(&user);      // Some("alice@example.com")
+
+    println!("Name: {:?}", name);
+    println!("Age: {:?}", age);
+    println!("Email: {:?}", email);
+}
 ```
+---
 
-### Keypath Chaining with `>>` Operator
+## 📦 Container Adapters & References (NEW!)
 
-The `>>` operator provides a convenient syntax for chaining keypaths. It requires Rust nightly with the `nightly` feature enabled:
+KeyPaths now support smart pointers, containers, and references via adapter methods:
+
+### Smart Pointer Adapters
+
+Use `.for_arc()`, `.for_box()`, or `.for_rc()` to adapt keypaths for wrapped types:
 
 ```rust
-#![feature(impl_trait_in_assoc_type)]  // Must be in YOUR code
-use rust_keypaths::{keypath, KeyPath};
+use key_paths_derive::Keypaths;
+use std::sync::Arc;
 
-struct User { address: Address }
-struct Address { street: String }
+#[derive(Keypaths)]
+struct Product {
+    name: String,
+    price: f64,
+}
 
-// Create keypaths
-let address_kp = keypath!(|u: &User| &u.address);
-let street_kp = keypath!(|a: &Address| &a.street);
+let products: Vec<Arc<Product>> = vec![
+    Arc::new(Product { name: "Laptop".into(), price: 999.99 }),
+];
 
-// Chain using >> operator (requires nightly feature)
-let user_street_kp = address_kp >> street_kp;
+// Adapt keypath to work with Arc<Product>
+let price_path = Product::price().for_arc();
 
-// Use the chained keypath
-let user = User { address: Address { street: "123 Main St".to_string() } };
-println!("Street: {}", user_street_kp.get(&user));
+let affordable: Vec<&Arc<Product>> = products
+    .iter()
+    .filter(|p| price_path.get(p).map_or(false, |&price| price < 100.0))
+    .collect();
 ```
 
-**On stable Rust**, use the `then()` method instead:
+### Reference Support
+
+Use `.get_ref()` and `.get_mut_ref()` for collections of references:
+
 ```rust
-let user_street_kp = address_kp.then(street_kp);  // Works on stable
+use key_paths_derive::Keypaths;
+
+#[derive(Keypaths)]
+struct Product {
+    name: String,
+    price: f64,
+}
+
+let products: Vec<&Product> = hashmap.values().collect();
+let price_path = Product::price();
+
+for product_ref in &products {
+    if let Some(&price) = price_path.get_ref(product_ref) {
+        println!("Price: ${}", price);
+    }
+}
 ```
 
-**Supported combinations:**
-- `KeyPath >> KeyPath` → `KeyPath`
-- `KeyPath >> OptionalKeyPath` → `OptionalKeyPath`
-- `OptionalKeyPath >> OptionalKeyPath` → `OptionalKeyPath`
-- `WritableKeyPath >> WritableKeyPath` → `WritableKeyPath`
-- `WritableKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
-- `WritableOptionalKeyPath >> WritableOptionalKeyPath` → `WritableOptionalKeyPath`
+**Supported Adapters:**
+- `.for_arc()` - Works with `Arc<T>` (read-only)
+- `.for_box()` - Works with `Box<T>` (read & write)
+- `.for_rc()` - Works with `Rc<T>` (read-only)
+- `.get_ref()` - Works with `&T` references
+- `.get_mut_ref()` - Works with `&mut T` references
 
-**Running the example:**
-```bash
-cargo +nightly run --example add_operator --features nightly
-```
+**Examples:**
+- [`examples/container_adapters.rs`](examples/container_adapters.rs) - Smart pointer usage
+- [`examples/reference_keypaths.rs`](examples/reference_keypaths.rs) - Reference collections
+- [`key-paths-core/examples/container_adapter_test.rs`](key-paths-core/examples/container_adapter_test.rs) - Test suite
+
+**Documentation:** See [`CONTAINER_ADAPTERS.md`](CONTAINER_ADAPTERS.md) and [`REFERENCE_SUPPORT.md`](REFERENCE_SUPPORT.md)
 
 ---
 
@@ -245,114 +300,6 @@ The rust-key-paths library is being used by several exciting crates in the Rust 
 * Encourages **compositional design**.
 * Plays well with **DDD (Domain-Driven Design)** and **Actor-based systems**.
 * Useful for **reflection-like behaviors** in Rust (without unsafe).
-* **High performance**: Only 1.46x overhead for reads, **93.6x faster** when reused, and **essentially zero overhead** for deep nested writes (10 levels)!
-
-## ⚡ Performance
-
-KeyPaths are optimized for performance with minimal overhead. Below are benchmark results comparing **direct unwrap** vs **keypaths** for 10-level deep nested access:
-
-| Operation | Direct Unwrap | KeyPath | Overhead | Notes |
-|-----------|---------------|---------|----------|-------|
-| **Read (10 levels)** | **384.07 ps** | **848.27 ps** | **2.21x** | ~464 ps absolute difference |
-| **Write (10 levels)** | **19.306 ns** | **19.338 ns** | **1.002x** | **Essentially identical!** ⚡ |
-
-See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed performance analysis.
-
----
-
-## 🔄 Comparison with Other Lens Libraries
-
-### Limitations of lens-rs, pl-lens, and keypath
-
-Both **lens-rs**, **pl-lens** (Plausible Labs), and **keypath** have several limitations when working with Rust's type system, especially for nested structures:
-
-#### keypath limitations:
-1. **❌ No enum variant support**: No built-in support for enum case paths (prisms)
-2. **❌ No Option<T> chain support**: Requires manual `.and_then()` composition for Option types
-3. **❌ Limited container support**: No built-in support for `Result<T, E>`, `Mutex<T>`, `RwLock<T>`, or collection types
-4. **❌ No failable keypaths**: Cannot easily compose through Option chains with built-in methods
-5. **❌ No writable failable keypaths**: Missing support for composing writable access through Option chains
-6. **❌ Limited composition API**: Less ergonomic composition compared to `.then()` chaining
-7. **⚠️ Maintenance status**: May have limited active maintenance
-
-#### pl-lens limitations:
-1. **❌ No support for `Option<Struct>` nested compositions**: The `#[derive(Lenses)]` macro fails to generate proper lens types for nested structs wrapped in `Option<T>`, requiring manual workarounds
-2. **❌ Limited enum support**: No built-in support for enum variant case paths (prisms)
-3. **❌ No automatic failable composition**: Requires manual composition through `.and_then()` chains for Option types
-4. **❌ Limited container support**: No built-in support for `Result<T, E>`, `Mutex<T>`, `RwLock<T>`, or collection types
-5. **❌ Named fields only**: The derive macro only works with structs that have named fields, not tuple structs
-6. **❌ No writable failable keypaths**: Cannot compose writable access through Option chains easily
-7. **❌ Type system limitations**: The lens composition through Option types requires manual function composition, losing type safety
-
-#### lens-rs limitations:
-1. **❌ Different API design**: Uses a different lens abstraction that doesn't match Rust's ownership model as well
-2. **❌ Limited ecosystem**: Less mature and fewer examples/documentation
-3. **❌ Composition complexity**: More verbose composition syntax
-
-### Feature Comparison Table
-
-| Feature | rust-keypaths | keypath | pl-lens | lens-rs |
-|---------|---------------|---------|---------|---------|
-| **Struct Field Access** | ✅ Readable/Writable | ✅ Readable/Writable | ✅ Readable/Writable | ✅ Partial |
-| **Option<T> Chains** | ✅ Built-in (`_fr`/`_fw`) | ❌ Manual composition | ❌ Manual composition | ❌ Manual |
-| **Enum Case Paths** | ✅ Built-in (CasePaths) | ❌ Not supported | ❌ Not supported | ❌ Limited |
-| **Tuple Structs** | ✅ Full support | ⚠️ Unknown | ❌ Not supported | ❌ Not supported |
-| **Composition** | ✅ `.then()` chaining | ⚠️ Less ergonomic | ⚠️ Manual | ⚠️ Complex |
-| **Result<T, E>** | ✅ Built-in support | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Mutex/RwLock** | ✅ Built-in (`with_mutex`, etc.) | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Arc/Box/Rc** | ✅ Built-in support | ⚠️ Unknown | ⚠️ Limited | ⚠️ Limited |
-| **Collections** | ✅ Vec, HashMap, HashSet, etc. | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Derive Macros** | ✅ `#[derive(Keypaths)]`, `#[derive(Casepaths)]` | ✅ `#[derive(Keypath)]` | ✅ `#[derive(Lenses)]` | ⚠️ Limited |
-| **Deep Nesting** | ✅ Works seamlessly | ⚠️ May require workarounds | ❌ Requires workarounds | ❌ Complex |
-| **Type Safety** | ✅ Full compile-time checks | ✅ Good | ✅ Good | ⚠️ Moderate |
-| **Performance** | ✅ Optimized (1.46x overhead reads, near-zero writes) | ⚠️ Unknown | ⚠️ Unknown | ⚠️ Unknown |
-| **Readable Keypaths** | ✅ `KeyPath` | ✅ Supported | ✅ `RefLens` | ⚠️ Partial |
-| **Writable Keypaths** | ✅ `WritableKeyPath` | ✅ Supported | ✅ `Lens` | ⚠️ Partial |
-| **Failable Readable** | ✅ `OptionalKeyPath` | ❌ Manual | ❌ Manual | ❌ Manual |
-| **Failable Writable** | ✅ `WritableOptionalKeyPath` | ❌ Manual | ❌ Manual | ❌ Manual |
-| **Zero-cost Abstractions** | ✅ Static dispatch | ⚠️ Unknown | ⚠️ Depends | ⚠️ Depends |
-| **Swift KeyPath-like API** | ✅ Inspired by Swift | ⚠️ Partial | ❌ No | ❌ No |
-| **Container Methods** | ✅ `with_mutex`, `with_rwlock`, `with_arc`, etc. | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Iteration Helpers** | ✅ `iter()`, `iter_mut()` | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Derivable References** | ✅ Full support | ✅ Full support | ❌ Not supported | ❌ Not supported |
-| **Active Maintenance** | ✅ Active | ⚠️ Unknown | ⚠️ Unknown | ⚠️ Unknown |
-
-### Key Advantages of rust-keypaths
-
-1. **✅ Native Option support**: Built-in failable keypaths (`_fr`/`_fw`) that compose seamlessly through `Option<T>` chains (unlike keypath, pl-lens, and lens-rs which require manual composition)
-2. **✅ Enum CasePaths**: First-class support for enum variant access (prisms) with `#[derive(Casepaths)]` (unique feature not found in keypath, pl-lens, or lens-rs)
-3. **✅ Container types**: Built-in support for `Result`, `Mutex`, `RwLock`, `Arc`, `Rc`, `Box`, and all standard collections (comprehensive container support unmatched by alternatives)
-4. **✅ Zero-cost abstractions**: Static dispatch with minimal overhead (1.46x for reads, near-zero for writes) - benchmarked and optimized
-5. **✅ Comprehensive derive macros**: Automatic generation for structs (named and tuple), enums, and all container types
-6. **✅ Swift-inspired API**: Familiar API for developers coming from Swift's KeyPath system with `.then()` composition
-7. **✅ Deep composition**: Works seamlessly with 10+ levels of nesting without workarounds (tested and verified)
-8. **✅ Type-safe composition**: Full compile-time type checking with `.then()` method
-9. **✅ Active development**: Regularly maintained with comprehensive feature set and documentation
-
-### Example: Why rust-keypaths is Better for Nested Option Chains
-
-**pl-lens approach** (requires manual work):
-```rust
-// Manual composition - verbose and error-prone
-let result = struct_instance
-    .level1_field
-    .as_ref()
-    .and_then(|l2| l2.level2_field.as_ref())
-    .and_then(|l3| l3.level3_field.as_ref())
-    // ... continues for 10 levels
-```
-
-**rust-keypaths approach** (composable and type-safe):
-```rust
-// Clean composition - type-safe and reusable
-let keypath = Level1::level1_field_fr()
-    .then(Level2::level2_field_fr())
-    .then(Level3::level3_field_fr())
-    // ... continues for 10 levels
-    .then(Level10::level10_field_fr());
-    
-let result = keypath.get(&instance); // Reusable, type-safe, fast
-```
 
 ---
 

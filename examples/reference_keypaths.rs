@@ -6,8 +6,8 @@
 // 4. Use get_ref() for reference types
 // cargo run --example reference_keypaths
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Keypaths)]
@@ -70,7 +70,7 @@ fn main() {
     // Use get_ref() to access fields from references
     let name_path = Product::name_r();
     for product_ref in &product_refs {
-        if let Some(name) = name_path.get(product_ref) {
+        if let Some(name) = name_path.get_ref(product_ref) {
             println!("  Product: {}", name);
         }
     }
@@ -83,15 +83,15 @@ fn main() {
     let affordable: Vec<&&Product> = product_refs
         .iter()
         .filter(|&product_ref| {
-            price_path.get(product_ref).map_or(false, |&p| p < 100.0)
-                && in_stock_path.get(product_ref).map_or(false, |&s| s)
+            price_path.get_ref(product_ref).map_or(false, |&p| p < 100.0)
+                && in_stock_path.get_ref(product_ref).map_or(false, |&s| s)
         })
         .collect();
 
     println!("Found {} affordable products in stock:", affordable.len());
     for product_ref in affordable {
-        let name = name_path.get(product_ref).unwrap();
-        let price = price_path.get(product_ref).unwrap();
+        let name = name_path.get_ref(product_ref).unwrap();
+        let price = price_path.get_ref(product_ref).unwrap();
         println!("  • {} - ${:.2}", name, price);
     }
 
@@ -106,7 +106,7 @@ fn main() {
 
     // Access fields through references in HashMap
     if let Some(product_ref) = product_map.get(&1) {
-        if let Some(name) = name_path.get(product_ref) {
+        if let Some(name) = name_path.get_ref(product_ref) {
             println!("  Product ID 1: {}", name);
         }
     }
@@ -117,7 +117,7 @@ fn main() {
 
     let mut by_category: HashMap<String, Vec<&Product>> = HashMap::new();
     for product_ref in &product_refs {
-        if let Some(category) = category_path.get(product_ref) {
+        if let Some(category) = category_path.get_ref(product_ref) {
             by_category
                 .entry(category.clone())
                 .or_insert_with(Vec::new)
@@ -146,14 +146,14 @@ fn main() {
     let expensive: Vec<&&Product> = values_refs
         .iter()
         .filter(|&prod_ref| {
-            price_path.get(prod_ref).map_or(false, |&p| p > 200.0)
+            price_path.get_ref(prod_ref).map_or(false, |&p| p > 200.0)
         })
         .collect();
 
     println!("Found {} expensive products:", expensive.len());
     for prod_ref in expensive {
-        let name = name_path.get(prod_ref).unwrap();
-        let price = price_path.get(prod_ref).unwrap();
+        let name = name_path.get_ref(prod_ref).unwrap();
+        let price = price_path.get_ref(prod_ref).unwrap();
         println!("  • {} - ${:.2}", name, price);
     }
 
@@ -168,7 +168,7 @@ fn main() {
     for (i, batch) in batches.iter().enumerate() {
         println!("  Batch {}: {} products", i + 1, batch.len());
         for product_ref in batch {
-            if let Some(name) = name_path.get(product_ref) {
+            if let Some(name) = name_path.get_ref(product_ref) {
                 println!("    - {}", name);
             }
         }
@@ -185,10 +185,10 @@ fn main() {
         }
     }
 
-    // References: uses .get()
-    println!("\nWith reference data (using .get()):");
+    // References: uses .get_ref()
+    println!("\nWith reference data (using .get_ref()):");
     for product_ref in &product_refs {
-        if let Some(name) = name_path.get(product_ref) {
+        if let Some(name) = name_path.get_ref(product_ref) {
             println!("  • {}", name);
         }
     }
@@ -200,7 +200,7 @@ fn main() {
         User {
             id: 1,
             name: "Alice".to_string(),
-            email: "akash@example.com".to_string(),
+            email: "alice@example.com".to_string(),
             is_active: true,
         },
         User {
@@ -225,10 +225,10 @@ fn main() {
 
     println!("Active users:");
     for user_ref in &user_refs {
-        if let Some(&is_active) = user_active_path.get(user_ref) {
+        if let Some(&is_active) = user_active_path.get_ref(user_ref) {
             if is_active {
-                let name = user_name_path.get(user_ref).unwrap();
-                let email = user_email_path.get(user_ref).unwrap();
+                let name = user_name_path.get_ref(user_ref).unwrap();
+                let email = user_email_path.get_ref(user_ref).unwrap();
                 println!("  • {} <{}>", name, email);
             }
         }

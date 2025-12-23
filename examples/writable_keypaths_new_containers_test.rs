@@ -1,4 +1,4 @@
-use keypaths_proc::WritableKeypaths;
+use key_paths_derive::WritableKeypaths;
 use std::sync::{Mutex, RwLock};
 use std::rc::Weak;
 

@@ -1,4 +1,4 @@
-use rust_keypaths::WritableOptionalKeyPath;
+use key_paths_core::KeyPaths;
 
 // Example usage (SOUND: User actually owns Address)
 #[derive(Debug)]
@@ -81,8 +81,7 @@ fn main() {
         shipping_cost: 5.0,
     };
 
-    // Create writable enum keypath for Electronics variant
-    let electronics_path = WritableOptionalKeyPath::writable_enum(
+    let electronics_path: KeyPaths<Product, Electronics> = KeyPaths::writable_enum(
         |v| Product::Electronics(v),
         |p: &Product| match p {
             Product::Electronics(electronics) => Some(electronics),
@@ -94,10 +93,10 @@ fn main() {
         },
     );
 
-    let price_path = WritableOptionalKeyPath::new(|e: &mut Electronics| Some(&mut e.price));
+    let price_path = KeyPaths::failable_writable(|e: &mut Electronics| Some(&mut e.price));
 
     // Product -> Electronics -> price
-    let product_to_price = electronics_path.then(price_path);
+    let product_to_price = electronics_path.compose(price_path);
 
     // Apply the composed KeyPath
     if let Some(price) = product_to_price.get_mut(&mut inventory.items[1]) {

@@ -6,12 +6,11 @@
 // 4. Build a generic change detection system
 // cargo run --example change_tracker
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use key_paths_core::KeyPaths;
+use key_paths_derive::Keypaths;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
-#[All]
 struct AppState {
     user: User,
     settings: Settings,
@@ -19,7 +18,6 @@ struct AppState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
-#[All]
 struct User {
     id: u64,
     name: String,
@@ -27,14 +25,12 @@ struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
-#[All]
 struct Settings {
     theme: String,
     language: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
-#[Writable]
 struct Cache {
     last_sync: u64,
 }
@@ -52,9 +48,8 @@ struct FieldChange {
 // - Readable paths (_r) work with immutable references for comparison
 // - Writable paths (_w) work with mutable references for updates
 struct ChangeTracker<T: 'static> {
-    // Use closures to store keypaths with different closure types
-    read_paths: Vec<Box<dyn Fn(&T) -> Option<&String>>>,  // For reading/comparing
-    write_paths: Vec<Box<dyn Fn(&mut T) -> Option<&mut String>>>, // For writing changes
+    read_paths: Vec<KeyPaths<T, String>>,  // For reading/comparing
+    write_paths: Vec<KeyPaths<T, String>>, // For writing changes
     path_names: Vec<Vec<String>>,          // Human-readable path identifiers
 }
 
@@ -67,28 +62,14 @@ impl<T> ChangeTracker<T> {
         }
     }
 
-    fn add_path<FR, FW>(
+    fn add_path(
         &mut self,
-        read_path: OptionalKeyPath<T, String, FR>,
-        write_path: WritableOptionalKeyPath<T, String, FW>,
+        read_path: KeyPaths<T, String>,
+        write_path: KeyPaths<T, String>,
         name: Vec<String>,
-    )
-    where
-        FR: for<'r> Fn(&'r T) -> Option<&'r String> + 'static,
-        FW: for<'r> Fn(&'r mut T) -> Option<&'r mut String> + 'static,
-    {
-        // Extract the closures from the keypaths and store them as trait objects
-        // We need to move the keypaths into the closures
-        let read_closure: Box<dyn Fn(&T) -> Option<&String>> = Box::new(move |t: &T| {
-            read_path.get(t)
-        });
-        
-        let write_closure: Box<dyn Fn(&mut T) -> Option<&mut String>> = Box::new(move |t: &mut T| {
-            write_path.get_mut(t)
-        });
-        
-        self.read_paths.push(read_closure);
-        self.write_paths.push(write_closure);
+    ) {
+        self.read_paths.push(read_path);
+        self.write_paths.push(write_path);
         self.path_names.push(name);
     }
 
@@ -96,14 +77,14 @@ impl<T> ChangeTracker<T> {
         let mut changes = Vec::new();
 
         for (path, path_name) in self.read_paths.iter().zip(&self.path_names) {
-            let old_val = path(old);
-            let new_val = path(new);
+            let old_val = path.get(old);
+            let new_val = path.get(new);
 
             if old_val != new_val {
                 changes.push(FieldChange {
                     path: path_name.clone(),
-                    old_value: old_val.map(|s| s.to_string()).unwrap_or_default(),
-                    new_value: new_val.map(|s| s.to_string()).unwrap_or_default(),
+                    old_value: old_val.map(|s| s.clone()).unwrap_or_default(),
+                    new_value: new_val.map(|s| s.clone()).unwrap_or_default(),
                 });
             }
         }
@@ -115,7 +96,7 @@ impl<T> ChangeTracker<T> {
         for change in changes {
             for (path, path_name) in self.write_paths.iter().zip(&self.path_names) {
                 if path_name == &change.path {
-                    if let Some(field) = path(target) {
+                    if let Some(field) = path.get_mut(target) {
                         *field = change.new_value.clone();
                     }
                     break;
@@ -168,20 +149,20 @@ fn main() {
 
     // Add paths to track (need both readable for comparison and writable for updates)
     tracker.add_path(
-        AppState::user_r().to_optional().then(User::name_fr()),
-        AppState::user_w().to_optional().then(User::name_w().to_optional()),
+        AppState::user_r().then(User::name_r()),
+        AppState::user_w().then(User::name_w()),
         vec!["user".into(), "name".into()],
     );
 
     tracker.add_path(
-        AppState::settings_r().to_optional().then(Settings::theme_r().to_optional()),
-        AppState::settings_w().to_optional().then(Settings::theme_w().to_optional()),
+        AppState::settings_r().then(Settings::theme_r()),
+        AppState::settings_w().then(Settings::theme_w()),
         vec!["settings".into(), "theme".into()],
     );
 
     tracker.add_path(
-        AppState::settings_r().to_optional().then(Settings::language_r().to_optional()),
-        AppState::settings_w().to_optional().then(Settings::language_w().to_optional()),
+        AppState::settings_r().then(Settings::language_r()),
+        AppState::settings_w().then(Settings::language_w()),
         vec!["settings".into(), "language".into()],
     );
 
@@ -233,18 +214,15 @@ fn main() {
 
     // Make local changes
     println!("Making local changes...");
-    // Note: WritableKeyPath doesn't have then() - convert to optional first
     if let Some(name) = AppState::user_w()
-        .to_optional()  // Convert WritableKeyPath to WritableOptionalKeyPath for chaining
-        .then(User::name_w().to_optional())
+        .then(User::name_w())
         .get_mut(&mut local_state)
     {
         *name = "Alice C. Johnson".to_string();
     }
 
     if let Some(language) = AppState::settings_w()
-        .to_optional()  // Convert WritableKeyPath to WritableOptionalKeyPath for chaining
-        .then(Settings::language_w().to_optional())
+        .then(Settings::language_w())
         .get_mut(&mut local_state)
     {
         *language = "es".to_string();
