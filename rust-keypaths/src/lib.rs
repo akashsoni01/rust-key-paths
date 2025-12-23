@@ -1478,7 +1478,20 @@ where
     F: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self, f)
+        // Show type information and indicate this is a chain that may fail
+        let root_name = std::any::type_name::<Root>();
+        let value_name = std::any::type_name::<Value>();
+        let root_short = root_name.split("::").last().unwrap_or(root_name);
+        let value_short = value_name.split("::").last().unwrap_or(value_name);
+        
+        // Use alternate format for more detailed debugging
+        if f.alternate() {
+            writeln!(f, "WritableOptionalKeyPath<{} -> Option<{}>>", root_short, value_short)?;
+            writeln!(f, "  ⚠ Chain may break if any intermediate step returns None")?;
+            writeln!(f, "  💡 Use trace_chain() to find where the chain breaks")
+        } else {
+            write!(f, "WritableOptionalKeyPath<{} -> Option<{}>>", root_short, value_short)
+        }
     }
 }
 
@@ -1495,6 +1508,33 @@ where
     
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut Value> {
         (self.getter)(root)
+    }
+    
+    /// Trace the chain to find where it breaks
+    /// Returns Ok(()) if the chain succeeds, or Err with diagnostic information
+    /// 
+    /// # Example
+    /// ```rust
+    /// let path = SomeComplexStruct::scsf_fw()
+    ///     .then(SomeOtherStruct::sosf_fw())
+    ///     .then(SomeEnum::b_case_fw());
+    /// 
+    /// match path.trace_chain(&mut instance) {
+    ///     Ok(()) => println!("Chain succeeded"),
+    ///     Err(msg) => println!("Chain broken: {}", msg),
+    /// }
+    /// ```
+    pub fn trace_chain(&self, root: &mut Root) -> Result<(), String> {
+        match self.get_mut(root) {
+            Some(_) => Ok(()),
+            None => {
+                let root_name = std::any::type_name::<Root>();
+                let value_name = std::any::type_name::<Value>();
+                let root_short = root_name.split("::").last().unwrap_or(root_name);
+                let value_short = value_name.split("::").last().unwrap_or(value_name);
+                Err(format!("{} -> Option<{}> returned None (chain broken at this step)", root_short, value_short))
+            }
+        }
     }
     
     /// Adapt this keypath to work with Option<Root> instead of Root
