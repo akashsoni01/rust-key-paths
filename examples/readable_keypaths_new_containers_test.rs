@@ -279,5 +279,69 @@ fn main() {
         println!("✅ Curried RwLock (curry_arc_rwlock_optional): ContainerTest::rwlock_data -> optional_field: {}", value);
     });
 
+    println!("\n=== Writable Functional Chain Examples (Mutex & RwLock) ===");
+    
+    // Example 11a: Writable Mutex chain - modify data through Arc<Mutex<T>>
+    let container_for_write = ContainerTest::new();
+    crate::ContainerTest::mutex_data_r()
+        .chain_arc_mutex_writable(crate::SomeStruct::data_w())
+        .get_mut(&container_for_write, |value| {
+            *value = "Modified via chain_arc_mutex_writable".to_string();
+            println!("✅ Writable Mutex (chain_arc_mutex_writable): Modified data");
+        });
+    
+    // Verify the change
+    crate::ContainerTest::mutex_data_r()
+        .chain_arc_mutex(crate::SomeStruct::data_r())
+        .get(&container_for_write, |value| {
+            println!("   Verified: data = {}", value);
+        });
+    
+    // Example 11b: Writable optional Mutex chain - modify optional field through Arc<Mutex<T>>
+    crate::ContainerTest::mutex_data_r()
+        .chain_arc_mutex_writable_optional(crate::SomeStruct::optional_field_fw())
+        .get_mut(&container_for_write, |value| {
+            *value = "Modified via chain_arc_mutex_writable_optional".to_string();
+            println!("✅ Writable Mutex Optional (chain_arc_mutex_writable_optional): Modified optional_field");
+        });
+    
+    // Verify the change
+    crate::ContainerTest::mutex_data_r()
+        .chain_arc_mutex_optional(crate::SomeStruct::optional_field_fr())
+        .get(&container_for_write, |value| {
+            println!("   Verified: optional_field = {}", value);
+        });
+    
+    // Example 11c: Writable RwLock chain - modify data through Arc<RwLock<T>>
+    let container_for_rwlock_write = ContainerTest::new();
+    crate::ContainerTest::rwlock_data_r()
+        .chain_arc_rwlock_writable(crate::SomeStruct::data_w())
+        .get_mut(&container_for_rwlock_write, |value| {
+            *value = "Modified via chain_arc_rwlock_writable".to_string();
+            println!("✅ Writable RwLock (chain_arc_rwlock_writable): Modified data");
+        });
+    
+    // Verify the change
+    crate::ContainerTest::rwlock_data_r()
+        .chain_arc_rwlock(crate::SomeStruct::data_r())
+        .get(&container_for_rwlock_write, |value| {
+            println!("   Verified: data = {}", value);
+        });
+    
+    // Example 11d: Writable optional RwLock chain - modify optional field through Arc<RwLock<T>>
+    crate::ContainerTest::rwlock_data_r()
+        .chain_arc_rwlock_writable_optional(crate::SomeStruct::optional_field_fw())
+        .get_mut(&container_for_rwlock_write, |value| {
+            *value = "Modified via chain_arc_rwlock_writable_optional".to_string();
+            println!("✅ Writable RwLock Optional (chain_arc_rwlock_writable_optional): Modified optional_field");
+        });
+    
+    // Verify the change
+    crate::ContainerTest::rwlock_data_r()
+        .chain_arc_rwlock_optional(crate::SomeStruct::optional_field_fr())
+        .get(&container_for_rwlock_write, |value| {
+            println!("   Verified: optional_field = {}", value);
+        });
+
     println!("\n=== ReadableKeypaths Macro - All new container types supported! ===");
 }

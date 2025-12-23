@@ -37,7 +37,7 @@ where
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
     MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
 {
-    /// Apply the composed keypath chain to a container, executing callback with the value
+    /// Apply the composed keypath chain to a container, executing callback with the value (read)
     /// Consumes self - functional style (compose once, apply once)
     pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
     where
@@ -46,6 +46,68 @@ where
         let arc_mutex_ref = self.outer_keypath.get(container);
         let curried = self.inner_keypath.curry_arc_mutex();
         curried.apply(arc_mutex_ref.borrow(), callback)
+    }
+}
+
+// ========== WRITABLE MUTEX KEYPATH CHAINS ==========
+
+/// A composed writable keypath chain through Arc<Mutex<T>> - functional style
+/// Build the chain first, then apply container at get_mut() time
+pub struct ArcMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+{
+    outer_keypath: KeyPath<Root, MutexValue, F>,
+    inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+    MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container with mutable access
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut SubValue) -> R,
+    {
+        let arc_mutex_ref = self.outer_keypath.get(container);
+        arc_mutex_ref.borrow().lock().ok().map(|mut guard| {
+            let value_ref = self.inner_keypath.get_mut(&mut *guard);
+            callback(value_ref)
+        })
+    }
+}
+
+/// A composed writable optional keypath chain through Arc<Mutex<T>> - functional style
+pub struct ArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+{
+    outer_keypath: KeyPath<Root, MutexValue, F>,
+    inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r MutexValue,
+    G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+    MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container with mutable access (if value exists)
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut SubValue) -> R,
+    {
+        let arc_mutex_ref = self.outer_keypath.get(container);
+        arc_mutex_ref.borrow().lock().ok().and_then(|mut guard| {
+            self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+        })
     }
 }
 
@@ -256,6 +318,69 @@ where
         self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
             let curried = self.inner_keypath.curry_arc_rwlock_optional();
             curried.apply(arc_rwlock_ref.borrow(), callback)
+        })
+    }
+}
+
+// ========== WRITABLE RWLOCK KEYPATH CHAINS ==========
+
+/// A composed writable keypath chain through Arc<RwLock<T>> - functional style
+/// Build the chain first, then apply container at get_mut() time (uses write lock)
+pub struct ArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+{
+    outer_keypath: KeyPath<Root, RwLockValue, F>,
+    inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+    RwLockValue: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container with mutable access (write lock)
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut SubValue) -> R,
+    {
+        let arc_rwlock_ref = self.outer_keypath.get(container);
+        arc_rwlock_ref.borrow().write().ok().map(|mut guard| {
+            let value_ref = self.inner_keypath.get_mut(&mut *guard);
+            callback(value_ref)
+        })
+    }
+}
+
+/// A composed writable optional keypath chain through Arc<RwLock<T>> - functional style
+/// Build the chain first, then apply container at get_mut() time (uses write lock)
+pub struct ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+{
+    outer_keypath: KeyPath<Root, RwLockValue, F>,
+    inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
+}
+
+impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+where
+    F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
+    G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+    RwLockValue: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+{
+    /// Apply the composed keypath chain to a container with mutable access (write lock, if value exists)
+    /// Consumes self - functional style (compose once, apply once)
+    pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> Option<R>
+    where
+        Callback: FnOnce(&mut SubValue) -> R,
+    {
+        let arc_rwlock_ref = self.outer_keypath.get(container);
+        arc_rwlock_ref.borrow().write().ok().and_then(|mut guard| {
+            self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
         })
     }
 }
@@ -915,6 +1040,94 @@ where
         G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
     {
         ArcRwLockOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with a writable inner keypath through Arc<Mutex<T>> - functional style
+    /// Compose first, then apply container at get_mut() time
+    /// 
+    /// # Example
+    /// ```rust
+    /// ContainerTest::mutex_data_r()
+    ///     .chain_arc_mutex_writable(SomeStruct::data_w())
+    ///     .get_mut(&container, |value| *value = "new".to_string());
+    /// ```
+    pub fn chain_arc_mutex_writable<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcMutexWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+    {
+        ArcMutexWritableKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with a writable optional inner keypath through Arc<Mutex<T>> - functional style
+    /// Compose first, then apply container at get_mut() time
+    /// 
+    /// # Example
+    /// ```rust
+    /// ContainerTest::mutex_data_r()
+    ///     .chain_arc_mutex_writable_optional(SomeStruct::optional_field_fw())
+    ///     .get_mut(&container, |value| *value = "new".to_string());
+    /// ```
+    pub fn chain_arc_mutex_writable_optional<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcMutexWritableOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+    {
+        ArcMutexWritableOptionalKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with a writable inner keypath through Arc<RwLock<T>> - functional style
+    /// Compose first, then apply container at get_mut() time (uses write lock)
+    /// 
+    /// # Example
+    /// ```rust
+    /// ContainerTest::rwlock_data_r()
+    ///     .chain_arc_rwlock_writable(SomeStruct::data_w())
+    ///     .get_mut(&container, |value| *value = "new".to_string());
+    /// ```
+    pub fn chain_arc_rwlock_writable<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcRwLockWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+    {
+        ArcRwLockWritableKeyPathChain {
+            outer_keypath: self,
+            inner_keypath,
+        }
+    }
+    
+    /// Chain this keypath with a writable optional inner keypath through Arc<RwLock<T>> - functional style
+    /// Compose first, then apply container at get_mut() time (uses write lock)
+    /// 
+    /// # Example
+    /// ```rust
+    /// ContainerTest::rwlock_data_r()
+    ///     .chain_arc_rwlock_writable_optional(SomeStruct::optional_field_fw())
+    ///     .get_mut(&container, |value| *value = "new".to_string());
+    /// ```
+    pub fn chain_arc_rwlock_writable_optional<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcRwLockWritableOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+    {
+        ArcRwLockWritableOptionalKeyPathChain {
             outer_keypath: self,
             inner_keypath,
         }
