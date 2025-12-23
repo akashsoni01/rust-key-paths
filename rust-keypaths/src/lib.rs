@@ -10,6 +10,104 @@ use std::cell::RefCell;
 use std::ops::Shr;
 use std::fmt;
 
+// ========== CURRIED MUTEX KEYPATH WRAPPER ==========
+
+/// Wrapper for keypaths that work with Mutex<Root> instead of Root
+/// Allows chaining keypaths through Mutex containers
+/// Uses callback pattern to handle Mutex guard lifetime
+pub struct CurriedMutexKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value,
+{
+    keypath: KeyPath<Root, Value, F>,
+}
+
+impl<Root, Value, F> CurriedMutexKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> &'r Value + Clone,
+{
+    /// Apply this curried keypath to a Mutex with a callback
+    pub fn apply<Callback>(&self, mutex: &Mutex<Root>, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&Value) -> (),
+    {
+        mutex.lock().ok().map(|guard| {
+            let value = self.keypath.get(&*guard);
+            callback(value);
+        })
+    }
+    
+    /// Chain this curried keypath with another keypath
+    /// Returns a CurriedMutexKeyPath that chains both
+    pub fn then<SubValue, G>(
+        self,
+        next: KeyPath<Value, SubValue, G>,
+    ) -> CurriedMutexKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> &'r SubValue>
+    where
+        G: for<'r> Fn(&'r Value) -> &'r SubValue,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let chained = self.keypath.then(next);
+        CurriedMutexKeyPath { keypath: chained }
+    }
+    
+    /// Chain this curried keypath with an optional keypath
+    /// Returns a CurriedMutexOptionalKeyPath that chains both
+    pub fn then_optional<SubValue, G>(
+        self,
+        next: OptionalKeyPath<Value, SubValue, G>,
+    ) -> CurriedMutexOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>
+    where
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue>,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let chained = self.keypath.then_optional(next);
+        CurriedMutexOptionalKeyPath { keypath: chained }
+    }
+}
+
+/// Wrapper for optional keypaths that work with Mutex<Root> instead of Root
+pub struct CurriedMutexOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
+{
+    keypath: OptionalKeyPath<Root, Value, F>,
+}
+
+impl<Root, Value, F> CurriedMutexOptionalKeyPath<Root, Value, F>
+where
+    F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
+{
+    /// Apply this curried keypath to a Mutex with a callback
+    pub fn apply<Callback>(&self, mutex: &Mutex<Root>, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&Value) -> (),
+    {
+        mutex.lock().ok().and_then(|guard| {
+            self.keypath.get(&*guard).map(|value| callback(value))
+        })
+    }
+    
+    /// Chain this curried keypath with another optional keypath
+    pub fn then<SubValue, G>(
+        self,
+        next: OptionalKeyPath<Value, SubValue, G>,
+    ) -> CurriedMutexOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue>>
+    where
+        G: for<'r> Fn(&'r Value) -> Option<&'r SubValue>,
+        F: 'static,
+        G: 'static,
+        Value: 'static,
+    {
+        let chained = self.keypath.then(next);
+        CurriedMutexOptionalKeyPath { keypath: chained }
+    }
+}
+
 #[cfg(feature = "tagged")]
 use tagged_core::Tagged;
 
@@ -385,6 +483,53 @@ where
             let value = self.get(&*guard);
             f(value)
         })
+    }
+    
+    /// Curry this keypath to work with Mutex<Root> instead of Root
+    /// Returns a CurriedMutexKeyPath wrapper that can be chained further
+    /// 
+    /// # Example
+    /// ```rust
+    /// let mutex = Mutex::new(SomeStruct { data: "test".to_string() });
+    /// let data_path = SomeStruct::data_r();
+    /// 
+    /// // Curry the keypath to work with Mutex
+    /// let curried = data_path.curry_mutex();
+    /// 
+    /// // Chain with another keypath
+    /// let chained = curried.then(SomeStruct::data_r());
+    /// 
+    /// // Apply to mutex with callback
+    /// chained.apply(&mutex, |value| {
+    ///     println!("Data: {}", value);
+    /// });
+    /// ```
+    pub fn curry_mutex(self) -> CurriedMutexKeyPath<Root, Value, F>
+    where
+        F: Clone,
+    {
+        CurriedMutexKeyPath { keypath: self }
+    }
+    
+    /// Uncurry: Apply this keypath to a Mutex<Root> instance with a callback
+    /// This is a convenience method that uses with_mutex
+    /// 
+    /// # Example
+    /// ```rust
+    /// let mutex = Mutex::new(SomeStruct { data: "test".to_string() });
+    /// let data_path = SomeStruct::data_r();
+    /// 
+    /// // Uncurry and use with callback
+    /// data_path.uncurry_mutex(&mutex, |value| {
+    ///     println!("Data: {}", value);
+    /// });
+    /// ```
+    pub fn uncurry_mutex<Callback>(&self, mutex: &Mutex<Root>, callback: Callback) -> Option<()>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> (),
+    {
+        self.with_mutex(mutex, callback)
     }
     
     /// Execute a closure with a reference to the value inside an RwLock
@@ -1100,6 +1245,53 @@ where
         })
     }
     
+    /// Curry this optional keypath to work with Mutex<Root> instead of Root
+    /// Returns a CurriedMutexOptionalKeyPath wrapper that can be chained further
+    /// 
+    /// # Example
+    /// ```rust
+    /// let mutex = Mutex::new(SomeStruct { data: Some("test".to_string()) });
+    /// let data_path = SomeStruct::data_fr();
+    /// 
+    /// // Curry the keypath to work with Mutex
+    /// let curried = data_path.curry_mutex();
+    /// 
+    /// // Chain with another optional keypath
+    /// let chained = curried.then(SomeStruct::data_fr());
+    /// 
+    /// // Apply to mutex with callback
+    /// chained.apply(&mutex, |value| {
+    ///     println!("Data: {}", value);
+    /// });
+    /// ```
+    pub fn curry_mutex(self) -> CurriedMutexOptionalKeyPath<Root, Value, F>
+    where
+        F: Clone,
+    {
+        CurriedMutexOptionalKeyPath { keypath: self }
+    }
+    
+    /// Uncurry: Apply this keypath to a Mutex<Root> instance with a callback
+    /// This is a convenience method that uses with_mutex
+    /// 
+    /// # Example
+    /// ```rust
+    /// let mutex = Mutex::new(SomeStruct { data: Some("test".to_string()) });
+    /// let data_path = SomeStruct::data_fr();
+    /// 
+    /// // Uncurry and use with callback
+    /// data_path.uncurry_mutex(&mutex, |value| {
+    ///     println!("Data: {}", value);
+    /// });
+    /// ```
+    pub fn uncurry_mutex<Callback>(&self, mutex: &Mutex<Root>, callback: Callback) -> Option<()>
+    where
+        F: Clone,
+        Callback: FnOnce(&Value) -> (),
+    {
+        self.with_mutex(mutex, callback)
+    }
+    
     /// Execute a closure with a reference to the value inside an RwLock
     pub fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
     where
@@ -1372,6 +1564,27 @@ where
         })
     }
     
+    /// Uncurry: Apply this keypath to a Mutex<Root> instance with a callback
+    /// This is a convenience method that uses with_mutex_mut
+    /// 
+    /// # Example
+    /// ```rust
+    /// let mut mutex = Mutex::new(SomeStruct { data: "test".to_string() });
+    /// let data_path = SomeStruct::data_w();
+    /// 
+    /// // Uncurry and use with callback
+    /// data_path.uncurry_mutex(&mut mutex, |value| {
+    ///     *value = "updated".to_string();
+    /// });
+    /// ```
+    pub fn uncurry_mutex<Callback>(&self, mutex: &mut Mutex<Root>, callback: Callback) -> Option<()>
+    where
+        F: Clone,
+        Callback: FnOnce(&mut Value) -> (),
+    {
+        self.with_mutex_mut(mutex, callback)
+    }
+    
     /// Execute a closure with a mutable reference to the value inside an RwLock
     pub fn with_rwlock_mut<Callback, R>(&self, rwlock: &mut RwLock<Root>, f: Callback) -> Option<R>
     where
@@ -1535,6 +1748,29 @@ where
                 Err(format!("{} -> Option<{}> returned None (chain broken at this step)", root_short, value_short))
             }
         }
+    }
+    
+    /// Uncurry: Apply this keypath to a Mutex<Root> instance with a callback
+    /// This is a convenience method that uses with_mutex_mut pattern
+    /// 
+    /// # Example
+    /// ```rust
+    /// let mut mutex = Mutex::new(SomeStruct { data: Some("test".to_string()) });
+    /// let data_path = SomeStruct::data_fw();
+    /// 
+    /// // Uncurry and use with callback
+    /// data_path.uncurry_mutex(&mut mutex, |value| {
+    ///     *value = Some("updated".to_string());
+    /// });
+    /// ```
+    pub fn uncurry_mutex<Callback>(&self, mutex: &mut Mutex<Root>, callback: Callback) -> Option<()>
+    where
+        F: Clone,
+        Callback: FnOnce(&mut Value) -> (),
+    {
+        mutex.get_mut().ok().and_then(|root| {
+            self.get_mut(root).map(|value| callback(value))
+        })
     }
     
     /// Adapt this keypath to work with Option<Root> instead of Root
