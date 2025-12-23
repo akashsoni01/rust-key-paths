@@ -387,7 +387,74 @@ where
     
     pub fn get<'r>(&self, root: &'r Root) -> &'r Value {
         (self.getter)(root)
-}
+    }
+    
+    /// Get the Arc<Mutex<InnerValue>> from the container and apply an optional keypath to it
+    /// This is a convenience method that combines get() and curry_arc_mutex_optional()
+    /// Reduces boilerplate of getting mutex ref and applying keypath
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { mutex_data: Arc::new(Mutex::new(SomeStruct { optional_field: Some("test".to_string()) })) };
+    /// 
+    /// // Instead of:
+    /// // let mutex_ref = ContainerTest::mutex_data_r().get(&container);
+    /// // let curried = SomeStruct::optional_field_fr().curry_arc_mutex_optional();
+    /// // curried.apply(mutex_ref, |value| { ... });
+    /// 
+    /// // You can now do:
+    /// ContainerTest::mutex_data_r().get_arc_mutex_and_apply(
+    ///     &container,
+    ///     SomeStruct::optional_field_fr(),
+    ///     |value| println!("Value: {}", value)
+    /// );
+    /// ```
+    pub fn get_arc_mutex_and_apply<InnerValue, SubValue, G, Callback>(
+        &self,
+        root: &Root,
+        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+        callback: Callback,
+    ) -> Option<()>
+    where
+        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        let arc_mutex_ref = self.get(root);
+        let curried = inner_keypath.curry_arc_mutex_optional();
+        // Use Borrow to convert &Value to &Arc<Mutex<InnerValue>>
+        curried.apply(arc_mutex_ref.borrow(), callback)
+    }
+    
+    /// Get the Arc<Mutex<InnerValue>> from the container and apply a non-optional keypath to it
+    /// This is a convenience method that combines get() and curry_arc_mutex()
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { mutex_data: Arc::new(Mutex::new(SomeStruct { data: "test".to_string() })) };
+    /// 
+    /// ContainerTest::mutex_data_r().get_arc_mutex_and_apply_keypath(
+    ///     &container,
+    ///     SomeStruct::data_r(),
+    ///     |value| println!("Data: {}", value)
+    /// );
+    /// ```
+    pub fn get_arc_mutex_and_apply_keypath<InnerValue, SubValue, G, Callback>(
+        &self,
+        root: &Root,
+        inner_keypath: KeyPath<InnerValue, SubValue, G>,
+        callback: Callback,
+    ) -> Option<()>
+    where
+        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        let arc_mutex_ref = self.get(root);
+        let curried = inner_keypath.curry_arc_mutex();
+        // Use Borrow to convert &Value to &Arc<Mutex<InnerValue>>
+        curried.apply(arc_mutex_ref.borrow(), callback)
+    }
 
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
     // Box<T> -> T
@@ -1178,6 +1245,76 @@ where
     
     pub fn get<'r>(&self, root: &'r Root) -> Option<&'r Value> {
         (self.getter)(root)
+    }
+    
+    /// Get the Arc<Mutex<InnerValue>> from the container (if it exists) and apply an optional keypath to it
+    /// This is a convenience method that combines get() and curry_arc_mutex_optional()
+    /// Reduces boilerplate of getting mutex ref and applying keypath
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { mutex_data: Some(Arc::new(Mutex::new(SomeStruct { optional_field: Some("test".to_string()) }))) };
+    /// 
+    /// // Instead of:
+    /// // if let Some(mutex_ref) = ContainerTest::mutex_data_fr().get(&container) {
+    /// //     let curried = SomeStruct::optional_field_fr().curry_arc_mutex_optional();
+    /// //     curried.apply(mutex_ref, |value| { ... });
+    /// // }
+    /// 
+    /// // You can now do:
+    /// ContainerTest::mutex_data_fr().get_arc_mutex_and_apply(
+    ///     &container,
+    ///     SomeStruct::optional_field_fr(),
+    ///     |value| println!("Value: {}", value)
+    /// );
+    /// ```
+    pub fn get_arc_mutex_and_apply<InnerValue, SubValue, G, Callback>(
+        &self,
+        root: &Root,
+        inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
+        callback: Callback,
+    ) -> Option<()>
+    where
+        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+        G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        self.get(root).and_then(|arc_mutex_ref| {
+            let curried = inner_keypath.curry_arc_mutex_optional();
+            // Use Borrow to convert &Value to &Arc<Mutex<InnerValue>>
+            curried.apply(arc_mutex_ref.borrow(), callback)
+        })
+    }
+    
+    /// Get the Arc<Mutex<InnerValue>> from the container (if it exists) and apply a non-optional keypath to it
+    /// This is a convenience method that combines get() and curry_arc_mutex()
+    /// 
+    /// # Example
+    /// ```rust
+    /// let container = ContainerTest { mutex_data: Some(Arc::new(Mutex::new(SomeStruct { data: "test".to_string() }))) };
+    /// 
+    /// ContainerTest::mutex_data_fr().get_arc_mutex_and_apply_keypath(
+    ///     &container,
+    ///     SomeStruct::data_r(),
+    ///     |value| println!("Data: {}", value)
+    /// );
+    /// ```
+    pub fn get_arc_mutex_and_apply_keypath<InnerValue, SubValue, G, Callback>(
+        &self,
+        root: &Root,
+        inner_keypath: KeyPath<InnerValue, SubValue, G>,
+        callback: Callback,
+    ) -> Option<()>
+    where
+        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+        G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
+        Callback: FnOnce(&SubValue) -> (),
+    {
+        self.get(root).and_then(|arc_mutex_ref| {
+            let curried = inner_keypath.curry_arc_mutex();
+            // Use Borrow to convert &Value to &Arc<Mutex<InnerValue>>
+            curried.apply(arc_mutex_ref.borrow(), callback)
+        })
     }
     
     // Swift-like operator for chaining OptionalKeyPath

@@ -113,23 +113,43 @@ fn main() {
         println!("✅ UncurryMutex (Optional) - Data: {}", data);
     });
     
+    println!("\n=== Chaining from ContainerTest::mutex_data (Simplified Helper API) ===");
+    
+    // Example 7: Using the new helper method get_arc_mutex_and_apply()
+    // This reduces complexity by combining get() and curry_arc_mutex_optional() in one call
+    // Chain: ContainerTest -> Arc<Mutex<SomeStruct>> -> SomeStruct -> Option<String>
+    
+    // Before (verbose):
+    // let mutex_ref = ContainerTest::mutex_data_r().get(&container);
+    // let curried = SomeStruct::optional_field_fr().curry_arc_mutex_optional();
+    // curried.apply(mutex_ref, |value| { ... });
+    
+    // After (simplified with helper):
+    crate::ContainerTest::mutex_data_r().get_arc_mutex_and_apply(
+        &container,
+        crate::SomeStruct::optional_field_fr(),
+        |value| {
+            println!("✅ Simplified helper (get_arc_mutex_and_apply): ContainerTest::mutex_data -> optional_field: {}", value);
+        }
+    );
+    
+    // Example 7b: Using helper with non-optional keypath
+    crate::ContainerTest::mutex_data_r().get_arc_mutex_and_apply_keypath(
+        &container,
+        crate::SomeStruct::data_r(),
+        |value| {
+            println!("✅ Simplified helper (get_arc_mutex_and_apply_keypath): ContainerTest::mutex_data -> data: {}", value);
+        }
+    );
+    
     println!("\n=== Chaining from ContainerTest::mutex_data (Composable API) ===");
     
-    // Example 7: Composable chaining from ContainerTest::mutex_data with fr
-    // Chain: ContainerTest -> Arc<Mutex<SomeStruct>> -> SomeStruct -> Option<String>
-    // Using the new composable API with curry_arc_mutex_optional()
-    
-    // Method 1: Direct composable chain using curry_arc_mutex_optional()
+    // Example 7c: Direct composable chain using curry_arc_mutex_optional() (for comparison)
     let mutex_data_keypath = crate::ContainerTest::mutex_data_r();
-    
-    // Get the Arc<Mutex<SomeStruct>> from container
     let mutex_ref = mutex_data_keypath.get(&container);
     
-    // Curry the optional_field keypath to work with Arc<Mutex<SomeStruct>>
     let optional_field_keypath1 = crate::SomeStruct::optional_field_fr();
     let chained_fr = optional_field_keypath1.curry_arc_mutex_optional();
-    
-    // Apply directly to Arc<Mutex> - much more composable!
     chained_fr.apply(mutex_ref, |data| {
         println!("✅ Composable chain (curry_arc_mutex_optional): ContainerTest::mutex_data -> optional_field: {}", data);
     });
@@ -139,18 +159,6 @@ fn main() {
     let chained_via_adapter = optional_field_keypath2.for_arc_mutex();
     chained_via_adapter.apply(mutex_ref, |value| {
         println!("✅ Composable chain (for_arc_mutex): ContainerTest::mutex_data -> optional_field: {}", value);
-    });
-    
-    // Method 3: Chaining multiple keypaths together
-    // Chain: ContainerTest::mutex_data_r() -> curry_arc_mutex() -> then(optional_field_fr())
-    // Note: We chain through SomeStruct, so we use optional_field_fr() directly
-    let optional_path = crate::SomeStruct::optional_field_fr();
-    
-    // This demonstrates the composability - we can chain curried keypaths
-    // Since we're already at SomeStruct level, we just curry the optional field path
-    let composed_chain = optional_path.curry_arc_mutex_optional();
-    composed_chain.apply(mutex_ref, |value| {
-        println!("✅ Composed chain: mutex_data -> optional_field: {}", value);
     });
     
     // Example 8: Composable chaining from ContainerTest::mutex_data with fw (failable writable)
