@@ -1,4 +1,4 @@
-use key_paths_derive::WritableKeypaths;
+use keypaths_proc::WritableKeypaths;
 
 #[derive(Debug, WritableKeypaths)]
 struct Person {

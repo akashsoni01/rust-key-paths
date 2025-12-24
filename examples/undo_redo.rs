@@ -7,10 +7,12 @@
 // 5. Display history of changes
 // cargo run --example undo_redo
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct Document {
     title: String,
     content: String,
@@ -18,6 +20,7 @@ struct Document {
 }
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct DocumentMetadata {
     author: String,
     tags: Vec<String>,
@@ -26,7 +29,7 @@ struct DocumentMetadata {
 
 // Generic command pattern using keypaths
 struct ChangeCommand<T: 'static, F: Clone + 'static> {
-    path: KeyPaths<T, F>,
+    path: Box<dyn Fn(&mut T) -> Option<&mut F>>,
     old_value: F,
     new_value: F,
     description: String,
@@ -34,13 +37,13 @@ struct ChangeCommand<T: 'static, F: Clone + 'static> {
 
 impl<T, F: Clone> ChangeCommand<T, F> {
     fn execute(&self, target: &mut T) {
-        if let Some(field) = self.path.get_mut(target) {
+        if let Some(field) = (self.path)(target) {
             *field = self.new_value.clone();
         }
     }
 
     fn undo(&self, target: &mut T) {
-        if let Some(field) = self.path.get_mut(target) {
+        if let Some(field) = (self.path)(target) {
             *field = self.old_value.clone();
         }
     }
@@ -150,16 +153,25 @@ impl<T> UndoStack<T> {
 }
 
 // Helper to create change commands for strings
-fn make_string_change<T: 'static>(
+fn make_string_change<T: 'static, P, R>(
     target: &T,
-    path: KeyPaths<T, String>,
-    read_path: KeyPaths<T, String>,
+    path: WritableOptionalKeyPath<T, String, P>,
+    read_path: OptionalKeyPath<T, String, R>,
     new_value: String,
     description: String,
-) -> Box<dyn Command<T>> {
-    let old_value = read_path.get(target).unwrap().clone();
+) -> Box<dyn Command<T>>
+where
+    P: for<'r> Fn(&'r mut T) -> Option<&'r mut String> + 'static,
+    R: for<'r> Fn(&'r T) -> Option<&'r String> + 'static,
+{
+    let old_value = read_path.get(target).map(|s| s.clone()).unwrap_or_default();
+    let path_rc = Rc::new(path);
+    let path_clone = path_rc.clone();
+    let path_box: Box<dyn Fn(&mut T) -> Option<&mut String>> = Box::new(move |t: &mut T| {
+        path_clone.get_mut(t)
+    });
     Box::new(ChangeCommand {
-        path,
+        path: path_box,
         old_value,
         new_value,
         description,
@@ -167,16 +179,25 @@ fn make_string_change<T: 'static>(
 }
 
 // Helper to create change commands for u32
-fn make_u32_change<T: 'static>(
+fn make_u32_change<T: 'static, P, R>(
     target: &T,
-    path: KeyPaths<T, u32>,
-    read_path: KeyPaths<T, u32>,
+    path: WritableOptionalKeyPath<T, u32, P>,
+    read_path: OptionalKeyPath<T, u32, R>,
     new_value: u32,
     description: String,
-) -> Box<dyn Command<T>> {
-    let old_value = *read_path.get(target).unwrap();
+) -> Box<dyn Command<T>>
+where
+    P: for<'r> Fn(&'r mut T) -> Option<&'r mut u32> + 'static,
+    R: for<'r> Fn(&'r T) -> Option<&'r u32> + 'static,
+{
+    let old_value = read_path.get(target).copied().unwrap_or_default();
+    let path_rc = Rc::new(path);
+    let path_clone = path_rc.clone();
+    let path_box: Box<dyn Fn(&mut T) -> Option<&mut u32>> = Box::new(move |t: &mut T| {
+        path_clone.get_mut(t)
+    });
     Box::new(ChangeCommand {
-        path,
+        path: path_box,
         old_value,
         new_value,
         description,
@@ -184,16 +205,25 @@ fn make_u32_change<T: 'static>(
 }
 
 // Helper to create change commands for Vec<String>
-fn make_vec_string_change<T: 'static>(
+fn make_vec_string_change<T: 'static, P, R>(
     target: &T,
-    path: KeyPaths<T, Vec<String>>,
-    read_path: KeyPaths<T, Vec<String>>,
+    path: WritableOptionalKeyPath<T, Vec<String>, P>,
+    read_path: OptionalKeyPath<T, Vec<String>, R>,
     new_value: Vec<String>,
     description: String,
-) -> Box<dyn Command<T>> {
-    let old_value = read_path.get(target).unwrap().clone();
+) -> Box<dyn Command<T>>
+where
+    P: for<'r> Fn(&'r mut T) -> Option<&'r mut Vec<String>> + 'static,
+    R: for<'r> Fn(&'r T) -> Option<&'r Vec<String>> + 'static,
+{
+    let old_value = read_path.get(target).map(|v| v.clone()).unwrap_or_default();
+    let path_rc = Rc::new(path);
+    let path_clone = path_rc.clone();
+    let path_box: Box<dyn Fn(&mut T) -> Option<&mut Vec<String>>> = Box::new(move |t: &mut T| {
+        path_clone.get_mut(t)
+    });
     Box::new(ChangeCommand {
-        path,
+        path: path_box,
         old_value,
         new_value,
         description,
@@ -224,8 +254,8 @@ fn main() {
     println!("--- Change 1: Update title ---");
     let cmd = make_string_change(
         &doc,
-        Document::title_w(),
-        Document::title_r(),
+        Document::title_w().to_optional(),
+        Document::title_r().to_optional(),
         "Updated Document".to_string(),
         "Change title to 'Updated Document'".to_string(),
     );
@@ -236,8 +266,8 @@ fn main() {
     println!("\n--- Change 2: Update content ---");
     let cmd = make_string_change(
         &doc,
-        Document::content_w(),
-        Document::content_r(),
+        Document::content_w().to_optional(),
+        Document::content_r().to_optional(),
         "Hello, Rust!".to_string(),
         "Change content to 'Hello, Rust!'".to_string(),
     );
@@ -248,8 +278,8 @@ fn main() {
     println!("\n--- Change 3: Update author (nested field) ---");
     let cmd = make_string_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::author_w()),
-        Document::metadata_r().then(DocumentMetadata::author_r()),
+        Document::metadata_w().to_optional().then(DocumentMetadata::author_w().to_optional()),
+        Document::metadata_r().to_optional().then(DocumentMetadata::author_r().to_optional()),
         "Bob".to_string(),
         "Change author to 'Bob'".to_string(),
     );
@@ -260,8 +290,8 @@ fn main() {
     println!("\n--- Change 4: Update revision ---");
     let cmd = make_u32_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::revision_w()),
-        Document::metadata_r().then(DocumentMetadata::revision_r()),
+        Document::metadata_w().to_optional().then(DocumentMetadata::revision_w().to_optional()),
+        Document::metadata_r().to_optional().then(DocumentMetadata::revision_r().to_optional()),
         2,
         "Increment revision to 2".to_string(),
     );
@@ -272,8 +302,8 @@ fn main() {
     println!("\n--- Change 5: Update tags ---");
     let cmd = make_vec_string_change(
         &doc,
-        Document::metadata_w().then(DocumentMetadata::tags_w()),
-        Document::metadata_r().then(DocumentMetadata::tags_r()),
+        Document::metadata_w().to_optional().then(DocumentMetadata::tags_w().to_optional()),
+        Document::metadata_r().to_optional().then(DocumentMetadata::tags_r().to_optional()),
         vec!["draft".to_string(), "reviewed".to_string()],
         "Add 'reviewed' tag".to_string(),
     );
@@ -357,8 +387,8 @@ fn main() {
     println!("\n=== Making New Change (clears redo history) ===");
     let cmd = make_string_change(
         &doc,
-        Document::content_w(),
-        Document::content_r(),
+        Document::content_w().to_optional(),
+        Document::content_r().to_optional(),
         "Hello, KeyPaths!".to_string(),
         "Change content to 'Hello, KeyPaths!'".to_string(),
     );

@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 #[derive(Debug)]
 enum Payment {
     Cash { amount: u32 },
@@ -14,7 +14,7 @@ fn main() {
     //     // embed: Rc::new(|v| Payment::Cash { amount: v }),
     //     embed: Rc::new(|v| Payment::Cash { amount: v.clone() }),
     // };
-    let kp = KeyPaths::writable_enum(
+    let kp = WritableOptionalKeyPath::writable_enum(
         |v| Payment::Cash { amount: v },
         |p: &Payment| match p {
             Payment::Cash { amount } => Some(amount),
@@ -31,9 +31,8 @@ fn main() {
     println!("{:?}", p);
 
     if let Some(v) = kp.get_mut(&mut p) {
-        *v = 34
+        *v = 34;
     }
-    // kp.get_mut(&mut p); // this will return none as kp is readable
 
     println!("{:?}", p);
 }

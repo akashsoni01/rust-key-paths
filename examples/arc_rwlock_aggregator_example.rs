@@ -1,8 +1,9 @@
-use key_paths_core::{KeyPaths, WithContainer};
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
+use keypaths_proc::Keypaths;
 use std::sync::{Arc, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
+#[All]
 struct User {
     name: String,
     age: u32,
@@ -10,6 +11,7 @@ struct User {
 }
 
 #[derive(Keypaths, Clone, Debug)]
+#[All]
 struct Profile {
     user: User,
     bio: String,
@@ -30,7 +32,7 @@ fn main() {
     let arc_rwlock_user = Arc::new(RwLock::new(User {
         name: "Alice Johnson".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
     }));
 
     let arc_rwlock_profile = Arc::new(RwLock::new(Profile {
@@ -87,7 +89,7 @@ fn main() {
     println!("\n4️⃣  Deeply Nested Field Access");
     println!("-----------------------------");
     
-    let theme_keypath = Profile::settings_r().then(Settings::theme_r());
+    let theme_keypath = Profile::settings_r().to_optional().then(Settings::theme_r().to_optional());
     let arc_rwlock_theme_keypath = theme_keypath.for_arc_rwlock();
     
     if let Some(theme) = arc_rwlock_theme_keypath.get_failable_owned(arc_rwlock_profile.clone()) {
@@ -110,7 +112,7 @@ fn main() {
     println!("\n6️⃣  Nested Access with with_arc_rwlock()");
     println!("---------------------------------------");
     
-    let user_name_keypath = Profile::user_r().then(User::name_r());
+    let user_name_keypath = Profile::user_r().to_optional().then(User::name_r().to_optional());
     if let Some(name) = user_name_keypath.with_arc_rwlock(&arc_rwlock_profile, |name| name.clone()) {
         println!("✅ Profile user name via with_arc_rwlock(): {}", name);
     }
@@ -149,7 +151,7 @@ fn main() {
     }
 
     // Verify the change
-    let theme_keypath = Profile::settings_r().then(Settings::theme_r());
+    let theme_keypath = Profile::settings_r().to_optional().then(Settings::theme_r().to_optional());
     if let Some(theme) = theme_keypath.with_arc_rwlock(&arc_rwlock_profile, |theme| theme.clone()) {
         println!("✅ New theme after update: {}", theme);
     }

@@ -1,4 +1,4 @@
-use key_paths_derive::Keypath;
+use keypaths_proc::Keypath;
 use std::collections::{HashMap, HashSet, VecDeque, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -61,7 +61,7 @@ fn main() {
     
     let metadata_msg = Message::Metadata({
         let mut map = HashMap::new();
-        map.insert("sender".to_string(), "alice".to_string());
+        map.insert("sender".to_string(), "akash".to_string());
         map.insert("timestamp".to_string(), "2024-01-01".to_string());
         map
     });
@@ -143,14 +143,14 @@ fn main() {
     }
     
     println!("\n=== Enum Keypaths Types ===");
-    println!("ping() returns: KeyPaths<Message, Message> (readable)");
-    println!("text() returns: KeyPaths<Message, String> (failable readable)");
-    println!("number() returns: KeyPaths<Message, i32> (failable readable)");
-    println!("email() returns: KeyPaths<Message, String> (failable readable)");
-    println!("tags() returns: KeyPaths<Message, String> (failable readable)");
-    println!("metadata() returns: KeyPaths<Message, HashMap<String, String>> (failable readable)");
-    println!("coordinate() returns: KeyPaths<Message, Message> (failable readable)");
-    println!("user() returns: KeyPaths<Message, Message> (failable readable)");
+    println!("ping() returns: KeyPath<Message, Message, impl for<\'r> Fn(&\'r Message) -> &\'r Message> (readable)");
+    println!("text() returns: KeyPath<Message, String, impl for<\'r> Fn(&\'r Message) -> &\'r String> (failable readable)");
+    println!("number() returns: KeyPath<Message, i32, impl for<\'r> Fn(&\'r Message) -> &\'r i32> (failable readable)");
+    println!("email() returns: KeyPath<Message, String, impl for<\'r> Fn(&\'r Message) -> &\'r String> (failable readable)");
+    println!("tags() returns: KeyPath<Message, String, impl for<\'r> Fn(&\'r Message) -> &\'r String> (failable readable)");
+    println!("metadata() returns: KeyPath<Message, HashMap<String, String, impl for<\'r> Fn(&\'r Message) -> &\'r HashMap<String, String>> (failable readable)");
+    println!("coordinate() returns: KeyPath<Message, Message, impl for<\'r> Fn(&\'r Message) -> &\'r Message> (failable readable)");
+    println!("user() returns: KeyPath<Message, Message, impl for<\'r> Fn(&\'r Message) -> &\'r Message> (failable readable)");
     
     println!("\n=== All enum keypath tests completed successfully! ===");
 }

@@ -1,5 +1,6 @@
-use key_paths_derive::Keypaths;
-use key_paths_core::WithContainer;
+use keypaths_proc::Keypaths;
+use rust_keypaths::KeyPath;
+
 use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
@@ -23,7 +24,7 @@ fn main() {
     let arc_mutex_user = Arc::new(Mutex::new(User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
     }));
 
     let arc_rwlock_profile = Arc::new(RwLock::new(Profile {
@@ -82,8 +83,8 @@ fn main() {
 
     // Method 1: Using with_arc_rwlock (no cloning)
     let bio_keypath = Profile::bio_r();
-    let user_name_keypath = Profile::user_r().then(User::name_r());
-    let user_age_keypath = Profile::user_r().then(User::age_r());
+    let user_name_keypath = Profile::user_r().to_optional().then(User::name_r().to_optional());
+    let user_age_keypath = Profile::user_r().to_optional().then(User::age_r().to_optional());
 
     // Use with_rwlock for no-clone access
     bio_keypath.clone().with_rwlock(&arc_rwlock_profile, |bio| {
@@ -126,8 +127,8 @@ fn main() {
     println!("\n📝 Example 1: Multi-level Composition (No Clone)");
     println!("-----------------------------------------------");
     
-    let nested_email_path = Profile::user_r().then(User::email_fr());
-    nested_email_path.with_rwlock(&arc_rwlock_profile, |email| {
+    let nested_email_path = Profile::user_r().to_optional().then(User::email_fr());
+    nested_email_path.with_arc_rwlock_direct(&arc_rwlock_profile, |email| {
         println!("✅ Nested email from Arc<RwLock<Profile>> (no clone): {:?}", email);
     });
 
@@ -149,7 +150,7 @@ fn main() {
     let complex_email_path = Profile::user_r()
         .then(User::email_fr());
     
-    complex_email_path.with_rwlock(&complex_profile, |email| {
+    complex_email_path.with_arc_rwlock_direct(&complex_profile, |email| {
         println!("✅ Complex nested email (no clone): {:?}", email);
     });
 
@@ -171,20 +172,20 @@ fn main() {
     
     // Create reusable base paths
     let user_base = Profile::user_r();
-    let user_name_path = user_base.clone().then(User::name_r());
-    let user_age_path = user_base.clone().then(User::age_r());
+    let user_name_path = user_base.clone().then(User::name_r().to_optional());
+    let user_age_path = user_base.clone().then(User::age_r().to_optional());
     let user_email_path = user_base.then(User::email_fr());
 
     // Use the same base paths with different containers
-    user_name_path.with_rwlock(&arc_rwlock_profile, |name| {
+    user_name_path.with_arc_rwlock_direct(&arc_rwlock_profile, |name| {
         println!("✅ Reusable name path (no clone): {}", name);
     });
 
-    user_age_path.with_rwlock(&arc_rwlock_profile, |age| {
+    user_age_path.with_arc_rwlock_direct(&arc_rwlock_profile, |age| {
         println!("✅ Reusable age path (no clone): {}", age);
     });
 
-    user_email_path.with_rwlock(&arc_rwlock_profile, |email| {
+    user_email_path.with_arc_rwlock_direct(&arc_rwlock_profile, |email| {
         println!("✅ Reusable email path (no clone): {:?}", email);
     });
 
@@ -196,13 +197,13 @@ fn main() {
     let name_path = User::name_r();
     
     // With Arc<Mutex<T>>
-    name_path.with_mutex(&arc_mutex_user, |name| {
+    name_path.with_arc_mutex_direct(&arc_mutex_user, |name| {
         println!("✅ Name from Arc<Mutex<User>> (no clone): {}", name);
     });
     
     // With Arc<RwLock<T>> (through Profile)
-    let profile_name_path = Profile::user_r().then(User::name_r());
-    profile_name_path.with_rwlock(&arc_rwlock_profile, |name| {
+    let profile_name_path = Profile::user_r().to_optional().then(User::name_r().to_optional());
+    profile_name_path.with_arc_rwlock_direct(&arc_rwlock_profile, |name| {
         println!("✅ Name from Arc<RwLock<Profile>> (no clone): {}", name);
     });
 

@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug)]
 struct Size {
@@ -21,6 +21,6 @@ fn main() {
         name: "MyRect".into(),
     };
 
-    let width_direct = KeyPaths::readable(|r: &Rectangle| &r.size.width);
+    let width_direct = KeyPath::new(|r: &Rectangle| &r.size.width);
     println!("Width: {:?}", width_direct.get(&rect));
 }

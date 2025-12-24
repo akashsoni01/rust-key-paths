@@ -1,10 +1,10 @@
 [package]
 name = "rust-key-paths"
-version = "1.8.0"
+version = "1.15.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
-description = "Keypaths, ReadableKeyPath, WritableKeyPath and EnumKeypath for struct and enums in Rust."
+description = "Keypaths for Rust: Static dispatch implementation (rust-keypaths) and legacy dynamic dispatch (key-paths-core). Type-safe, composable access to nested data structures."
 repository = "https://github.com/codefonsi/rust-key-paths"
 homepage = "https://github.com/codefonsi/rust-key-paths"
 documentation = "https://docs.rs/rust-key-paths"
@@ -13,30 +13,51 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-key-paths-core = { path = "key-paths-core", version = "1.6.0", features = ["tagged_core"] }
-key-paths-derive = { path = "key-paths-derive", version = "1.0.8"}
+# Primary crates: rust-keypaths (static dispatch, faster) and keypaths-proc (proc macros)
+rust-keypaths = "1.4.0"
+keypaths-proc = "1.4.0"
+
+# Legacy crates: key-paths-core 1.6.0 for dynamic dispatch, multithreaded needs
+# Note: Use key-paths-core = "1.6.0" if you need dynamic dispatch or Send + Sync bounds
+# key-paths-core = { path = "key-paths-core", version = "1.6.0", features = ["tagged_core"] }
+# key-paths-derive = { path = "key-paths-derive", version = "1.1.0"}
 
 
 [workspace]
 resolver = "3" # or "3"
 members = [
+    "rust-keypaths",
+    "keypaths-proc",
+    # Legacy members (kept for backward compatibility)
     "key-paths-core",
-    "key-paths-derive"
-]
+    "key-paths-derive",
+    "key-paths-macros"
+, "keypaths-core"]
 
 [patch.crates-io]
-key-paths-core = { path = "key-paths-core" }
-key-paths-derive = { path = "key-paths-derive" }
-
+# key-paths-core = { path = "key-paths-core" }
+# key-paths-derive = { path = "key-paths-derive" }
+rust-keypaths = { path = "rust-keypaths" }
+keypaths-proc = { path = "keypaths-proc" }
 [features]
 default = []
-parking_lot = ["key-paths-core/parking_lot"]
-tagged_core = ["key-paths-core/tagged_core"]
+# Features for rust-keypaths (static dispatch)
+parking_lot = ["rust-keypaths/parking_lot"]
+tagged = ["rust-keypaths/tagged"]
+nightly = ["rust-keypaths/nightly"]
+# Legacy features for key-paths-core (dynamic dispatch)
+# parking_lot_legacy = ["key-paths-core/parking_lot"]
+# tagged_core = ["key-paths-core/tagged_core"]
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 parking_lot = "0.12"
-tagged-core = "0.7.0"
+tagged-core = "0.8.0"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "keypath_vs_unwrap"
+harness = false

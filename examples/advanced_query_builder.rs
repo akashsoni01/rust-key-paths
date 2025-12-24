@@ -8,9 +8,12 @@
 // 6. Chain complex queries
 // cargo run --example advanced_query_builder
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+// use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+// use keypaths_proc::Keypaths;
 use std::collections::HashMap;
+
+use keypaths_proc::Keypaths;
+use rust_keypaths::KeyPath;
 
 #[derive(Debug, Clone, Keypaths)]
 struct Product {
@@ -25,7 +28,7 @@ struct Product {
 // Query builder with advanced SQL-like operations
 struct Query<'a, T: 'static> {
     data: &'a [T],
-    filters: Vec<Box<dyn Fn(&T) -> bool>>,
+    filters: Vec<Box<dyn Fn(&T) -> bool + 'a>>,
 }
 
 impl<'a, T: 'static + Clone> Query<'a, T> {
@@ -37,12 +40,16 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Add a filter predicate
-    fn where_<F>(mut self, path: KeyPaths<T, F>, predicate: impl Fn(&F) -> bool + 'static) -> Self
+    fn where_<F, P>(mut self, path: KeyPath<T, F, P>, predicate: impl Fn(&F) -> bool + 'static) -> Self
     where
         F: 'static,
+        P: for<'r> Fn(&'r T) -> &'r F + 'static,
     {
+        // Store the keypath in a Box to move it into the closure
+        // Since KeyPath has a get method, we can box it and use it
+        let path_box: Box<dyn Fn(&T) -> &F> = Box::new(move |t: &T| path.get(t));
         self.filters.push(Box::new(move |item| {
-            path.get(item).map_or(false, |val| predicate(val))
+            predicate(path_box(item))
         }));
         self
     }
@@ -88,7 +95,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Order by a field (ascending) - for types that implement Ord
-    fn order_by<F>(&self, path: KeyPaths<T, F>) -> Vec<T>
+    fn order_by<F>(&self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>) -> Vec<T>
     where
         F: Ord + Clone + 'static,
     {
@@ -99,12 +106,12 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
             .cloned()
             .collect();
 
-        results.sort_by_key(|item| path.get(item).cloned());
+        results.sort_by_key(|item| path.get(item).clone());
         results
     }
 
     // Order by a field (descending) - for types that implement Ord
-    fn order_by_desc<F>(&self, path: KeyPaths<T, F>) -> Vec<T>
+    fn order_by_desc<F>(&self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>) -> Vec<T>
     where
         F: Ord + Clone + 'static,
     {
@@ -116,15 +123,15 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
             .collect();
 
         results.sort_by(|a, b| {
-            let a_val = path.get(a).cloned();
-            let b_val = path.get(b).cloned();
+            let a_val = path.get(a).clone();
+            let b_val = path.get(b).clone();
             b_val.cmp(&a_val)
         });
         results
     }
 
     // Order by a float field (ascending) - for f64
-    fn order_by_float(&self, path: KeyPaths<T, f64>) -> Vec<T> {
+    fn order_by_float(&self, path: KeyPath<T, f64, impl for<'r> Fn(&'r T) -> &'r f64>) -> Vec<T> {
         let mut results: Vec<T> = self
             .data
             .iter()
@@ -133,15 +140,15 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
             .collect();
 
         results.sort_by(|a, b| {
-            let a_val = path.get(a).cloned().unwrap_or(0.0);
-            let b_val = path.get(b).cloned().unwrap_or(0.0);
+            let a_val = *path.get(a);
+            let b_val = *path.get(b);
             a_val.partial_cmp(&b_val).unwrap_or(std::cmp::Ordering::Equal)
         });
         results
     }
 
     // Order by a float field (descending) - for f64
-    fn order_by_float_desc(&self, path: KeyPaths<T, f64>) -> Vec<T> {
+    fn order_by_float_desc(&self, path: KeyPath<T, f64, impl for<'r> Fn(&'r T) -> &'r f64>) -> Vec<T> {
         let mut results: Vec<T> = self
             .data
             .iter()
@@ -150,27 +157,27 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
             .collect();
 
         results.sort_by(|a, b| {
-            let a_val = path.get(a).cloned().unwrap_or(0.0);
-            let b_val = path.get(b).cloned().unwrap_or(0.0);
+            let a_val = *path.get(a);
+            let b_val = *path.get(b);
             b_val.partial_cmp(&a_val).unwrap_or(std::cmp::Ordering::Equal)
         });
         results
     }
 
     // Select/project a single field from results
-    fn select<F>(&self, path: KeyPaths<T, F>) -> Vec<F>
+    fn select<F>(&self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>) -> Vec<F>
     where
         F: Clone + 'static,
     {
         self.data
             .iter()
             .filter(|item| self.filters.iter().all(|f| f(item)))
-            .filter_map(|item| path.get(item).cloned())
+            .map(|item| path.get(item).clone())
             .collect()
     }
 
     // Group by a field
-    fn group_by<F>(&self, path: KeyPaths<T, F>) -> HashMap<F, Vec<T>>
+    fn group_by<F>(&self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>) -> HashMap<F, Vec<T>>
     where
         F: Eq + std::hash::Hash + Clone + 'static,
     {
@@ -178,9 +185,8 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
 
         for item in self.data.iter() {
             if self.filters.iter().all(|f| f(item)) {
-                if let Some(key) = path.get(item).cloned() {
-                    groups.entry(key).or_insert_with(Vec::new).push(item.clone());
-                }
+                let key = path.get(item).clone();
+                groups.entry(key).or_insert_with(Vec::new).push(item.clone());
             }
         }
 
@@ -188,23 +194,23 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Aggregate functions
-    fn sum<F>(&self, path: KeyPaths<T, F>) -> F
+    fn sum<F>(&self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>) -> F
     where
         F: Clone + std::ops::Add<Output = F> + Default + 'static,
     {
         self.data
             .iter()
             .filter(|item| self.filters.iter().all(|f| f(item)))
-            .filter_map(|item| path.get(item).cloned())
+            .map(|item| path.get(item).clone())
             .fold(F::default(), |acc, val| acc + val)
     }
 
-    fn avg(&self, path: KeyPaths<T, f64>) -> Option<f64> {
+    fn avg(&self, path: KeyPath<T, f64, impl for<'r> Fn(&'r T) -> &'r f64>) -> Option<f64> {
         let items: Vec<f64> = self
             .data
             .iter()
             .filter(|item| self.filters.iter().all(|f| f(item)))
-            .filter_map(|item| path.get(item).cloned())
+            .map(|item| *path.get(item))
             .collect();
 
         if items.is_empty() {
@@ -214,43 +220,43 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
         }
     }
 
-    fn min<F>(&self, path: KeyPaths<T, F>) -> Option<F>
+    fn min<F>(&self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>) -> Option<F>
     where
         F: Ord + Clone + 'static,
     {
         self.data
             .iter()
             .filter(|item| self.filters.iter().all(|f| f(item)))
-            .filter_map(|item| path.get(item).cloned())
+            .map(|item| path.get(item).clone())
             .min()
     }
 
-    fn max<F>(&self, path: KeyPaths<T, F>) -> Option<F>
+    fn max<F>(&self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>) -> Option<F>
     where
         F: Ord + Clone + 'static,
     {
         self.data
             .iter()
             .filter(|item| self.filters.iter().all(|f| f(item)))
-            .filter_map(|item| path.get(item).cloned())
+            .map(|item| path.get(item).clone())
             .max()
     }
 
     // Min for float fields
-    fn min_float(&self, path: KeyPaths<T, f64>) -> Option<f64> {
+    fn min_float(&self, path: KeyPath<T, f64, impl for<'r> Fn(&'r T) -> &'r f64>) -> Option<f64> {
         self.data
             .iter()
             .filter(|item| self.filters.iter().all(|f| f(item)))
-            .filter_map(|item| path.get(item).cloned())
+            .map(|item| *path.get(item))
             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
 
     // Max for float fields
-    fn max_float(&self, path: KeyPaths<T, f64>) -> Option<f64> {
+    fn max_float(&self, path: KeyPath<T, f64, impl for<'r> Fn(&'r T) -> &'r f64>) -> Option<f64> {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
-            .filter_map(|item| path.get(item).cloned())
+            .filter(|item| self.filters.iter().all(|f: &Box<dyn Fn(&T) -> bool>| f(item)))
+            .map(|item| *path.get(item))
             .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
 

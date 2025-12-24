@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::WritableOptionalKeyPath;
 
 #[derive(Debug)]
 struct Engine {
@@ -20,12 +20,12 @@ fn main() {
         }),
     };
 
-    let kp_car = KeyPaths::failable_writable(|g: &mut Garage| g.car.as_mut());
-    let kp_engine = KeyPaths::failable_writable(|c: &mut Car| c.engine.as_mut());
-    let kp_hp = KeyPaths::failable_writable(|e: &mut Engine| Some(&mut e.horsepower));
+    let kp_car = WritableOptionalKeyPath::new(|g: &mut Garage| g.car.as_mut());
+    let kp_engine = WritableOptionalKeyPath::new(|c: &mut Car| c.engine.as_mut());
+    let kp_hp = WritableOptionalKeyPath::new(|e: &mut Engine| Some(&mut e.horsepower));
 
     // Compose: Garage -> Car -> Engine -> horsepower
-    let kp = kp_car.compose(kp_engine).compose(kp_hp);
+    let kp = kp_car.then(kp_engine).then(kp_hp);
 
     println!("{garage:?}");
     if let Some(hp) = kp.get_mut(&mut garage) {

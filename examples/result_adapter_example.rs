@@ -1,7 +1,7 @@
 // Example demonstrating the for_result() adapter for KeyPaths
 // Run with: cargo run --example result_adapter_example
 
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, EnumKeyPath};
 
 #[derive(Debug, Clone)]
 struct User {
@@ -17,13 +17,13 @@ fn main() {
     let user = User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
     };
 
     // Create keypaths
-    let name_path = KeyPaths::readable(|u: &User| &u.name);
-    let age_path = KeyPaths::readable(|u: &User| &u.age);
-    let email_path = KeyPaths::failable_readable(|u: &User| u.email.as_ref());
+    let name_path = KeyPath::new(|u: &User| &u.name);
+    let age_path = KeyPath::new(|u: &User| &u.age);
+    let email_path = OptionalKeyPath::new(|u: &User| u.email.as_ref());
 
     // ===== Example 1: Basic Result Usage =====
     println!("--- Example 1: Basic Result Usage ---");
@@ -31,10 +31,11 @@ fn main() {
     let ok_result = Ok(user.clone());
     let err_result: Result<User, String> = Err("User not found".to_string());
 
-    // Adapt keypaths for Result
-    let name_path_result = name_path.clone().for_result::<String>();
-    let age_path_result = age_path.clone().for_result::<String>();
-    let email_path_result = email_path.clone().for_result::<String>();
+    // Adapt keypaths for Result using EnumKeyPath::for_ok()
+    // Chain: Result<User, String> -> User -> field
+    let name_path_result = EnumKeyPath::for_ok::<User, String>().then(name_path.to_optional());
+    let age_path_result = EnumKeyPath::for_ok::<User, String>().then(age_path.to_optional());
+    let email_path_result = EnumKeyPath::for_ok::<User, String>().then(email_path);
 
     // Access data from Ok result
     if let Some(name) = name_path_result.get(&ok_result) {
@@ -130,7 +131,8 @@ fn main() {
         Err("Rate limit exceeded"),
     ];
 
-    let name_path_result_str = name_path.clone().for_result::<&str>();
+    let name_path_clone = KeyPath::new(|u: &User| &u.name);
+    let name_path_result_str = EnumKeyPath::for_ok::<User, &str>().then(name_path_clone.to_optional());
 
     // Process results with different error types
     for (i, result) in api_results.iter().enumerate() {

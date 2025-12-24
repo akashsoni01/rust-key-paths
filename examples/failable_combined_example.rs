@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, FailableCombinedKeyPath};
 
 // Example struct to demonstrate FailableCombined keypath
 #[derive(Debug, Clone)]
@@ -24,11 +24,10 @@ fn main() {
     
     // Create a FailableCombined keypath for the address field
     // This keypath can handle all three access patterns: readable, writable, and owned
-    let address_keypath = KeyPaths::<Person, String>::failable_combined(
+    let address_keypath = FailableCombinedKeyPath::failable_combined(
         // Readable closure - returns Option<&String>
         |person: &Person| person.address.as_ref(),
         // Writable closure - returns Option<&mut String>  
-
         |person: &mut Person| person.address.as_mut(),
         // Owned closure - returns Option<String> (takes ownership of Person, moves only the address)
         |person: Person| person.address,

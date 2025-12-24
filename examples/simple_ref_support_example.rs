@@ -2,10 +2,11 @@
 // This example shows how to work with collections of references using keypaths
 // cargo run --example simple_ref_support_example
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct Person {
     name: String,
     age: u32,
@@ -18,7 +19,7 @@ fn main() {
     let person1 = Person {
         name: "Alice Johnson".to_string(),
         age: 30,
-        email: "alice@example.com".to_string(),
+        email: "akash@example.com".to_string(),
     };
 
     let person2 = Person {

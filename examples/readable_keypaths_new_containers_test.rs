@@ -1,16 +1,30 @@
-use key_paths_derive::ReadableKeypaths;
-use std::sync::{Mutex, RwLock};
-use std::rc::Weak;
+//! Example demonstrating functional keypath chains for Arc<Mutex<T>> and Arc<RwLock<T>>
+//!
+//! This example shows how to use the then_arc_mutex_at_kp and then_arc_rwlock_at_kp methods
+//! to access and modify data through synchronization primitives in a functional style.
+//!
+//! Run with: cargo run --example readable_keypaths_new_containers_test
 
-#[derive(Debug, ReadableKeypaths)]
+use keypaths_proc::{Keypaths, ReadableKeypaths, WritableKeypaths};
+use rust_keypaths::KeyPath;
+use std::rc::Weak;
+use std::sync::Arc;
+
+#[derive(Debug, Keypaths)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
     result_int: Result<i32, String>,
     
     // Synchronization primitives
-    mutex_data: Mutex<String>,
-    rwlock_data: RwLock<i32>,
+    /// Important - it is mandatory to use std::sync::Mutex over Mutex and use std::sync::Mutex; statement
+    /// as our parser for Keypaths written for parking_lot as default if you want to use std then use with full import syntax
+    /// 
+    mutex_data: Arc<std::sync::Mutex<SomeStruct>>,
+    /// Important - it is mandatory to use std::sync::RwLock over RwLock and use std::sync::RwLock; statement
+    /// as our parser for Keypaths written for parking_lot as default if you want to use std then use with full import syntax
+    ///
+    rwlock_data: Arc<std::sync::RwLock<SomeStruct>>,
     
     // Reference counting with weak references
     weak_ref: Weak<String>,
@@ -20,47 +34,156 @@ struct ContainerTest {
     age: u32,
 }
 
+impl ContainerTest {
+    fn new() -> Self {
+        Self {
+            result: Ok("Success!".to_string()),
+            result_int: Ok(42),
+            mutex_data: Arc::new(std::sync::Mutex::new(SomeStruct {
+                data: "Hello".to_string(),
+                optional_field: Some("Optional value".to_string()),
+            })),
+            rwlock_data: Arc::new(std::sync::RwLock::new(SomeStruct {
+                data: "RwLock Hello".to_string(),
+                optional_field: Some("RwLock Optional".to_string()),
+            })),
+            weak_ref: Weak::new(),
+            name: "Alice".to_string(),
+            age: 30,
+        }
+    }
+}
+
+#[derive(Debug, Keypaths, WritableKeypaths)]
+struct SomeStruct {
+    data: String,
+    optional_field: Option<String>,
+}
+
 fn main() {
-    println!("=== ReadableKeypaths Macro New Container Types Test ===");
+    println!("=== Functional Keypath Chains for Arc<Mutex<T>> and Arc<RwLock<T>> ===\n");
     
-    let container = ContainerTest {
-        result: Ok("Success!".to_string()),
-        result_int: Ok(42),
-        mutex_data: Mutex::new("Mutex content".to_string()),
-        rwlock_data: RwLock::new(100),
-        weak_ref: Weak::new(),
-        name: "Alice".to_string(),
-        age: 30,
-    };
+    let container = ContainerTest::new();
 
     // Test Result<T, E> with ReadableKeypaths
     if let Some(value) = ContainerTest::result_fr().get(&container) {
         println!("✅ Result value: {}", value);
     }
     
-    // Test Mutex<T> with ReadableKeypaths
-    if let Some(mutex_ref) = ContainerTest::mutex_data_r().get(&container) {
-        println!("✅ Mutex reference: {:?}", mutex_ref);
-    }
+    // ==========================================================
+    println!("\n=== Arc<Mutex<T>> Chain Examples ===\n");
+    // ==========================================================
     
-    // Test RwLock<T> with ReadableKeypaths
-    if let Some(rwlock_ref) = ContainerTest::rwlock_data_r().get(&container) {
-        println!("✅ RwLock reference: {:?}", rwlock_ref);
-    }
+    // Example 1: Read through Arc<Mutex<T>> with then_arc_mutex_at_kp
+    ContainerTest::rwlock_data_fr_at(SomeStruct::data_r()).get(&container, |value| {
+        println!("asdf = {}", value);
+    });
+    ContainerTest::mutex_data_r()
+        .then_arc_mutex_at_kp(SomeStruct::data_r())
+        .get(&container, |value| {
+            println!("✅ then_arc_mutex_at_kp (read): data = {}", value);
+        });
     
-    // Test Weak<T> with ReadableKeypaths
-    if let Some(weak_ref) = ContainerTest::weak_ref_r().get(&container) {
-        println!("✅ Weak reference: {:?}", weak_ref);
-    }
+    // Example 2: Read optional field through Arc<Mutex<T>>
+    ContainerTest::mutex_data_r()
+        .then_arc_mutex_optional_at_kp(SomeStruct::optional_field_fr())
+        .get(&container, |value| {
+            println!("✅ then_arc_mutex_optional_at_kp (read): optional_field = {}", value);
+        });
+    
+    // Example 3: Write through Arc<Mutex<T>>
+    let write_container = ContainerTest::new();
+    ContainerTest::mutex_data_r()
+        .then_arc_mutex_writable_at_kp(SomeStruct::data_w())
+        .get_mut(&write_container, |value| {
+            *value = "Modified via then_arc_mutex_writable_at_kp".to_string();
+            println!("✅ then_arc_mutex_writable_at_kp (write): Modified data");
+        });
+    
+    // Verify the write
+    ContainerTest::mutex_data_r()
+        .then_arc_mutex_at_kp(SomeStruct::data_r())
+        .get(&write_container, |value| {
+            println!("   Verified: data = {}", value);
+        });
+    
+    // Example 4: Write optional field through Arc<Mutex<T>>
+    ContainerTest::mutex_data_r()
+        .then_arc_mutex_writable_optional_at_kp(SomeStruct::optional_field_fw())
+        .get_mut(&write_container, |value| {
+            *value = "Modified optional via chain".to_string();
+            println!("✅ then_arc_mutex_writable_optional_at_kp (write): Modified optional_field");
+        });
+    
+    // Verify the write
+    ContainerTest::mutex_data_r()
+        .then_arc_mutex_optional_at_kp(SomeStruct::optional_field_fr())
+        .get(&write_container, |value| {
+            println!("   Verified: optional_field = {}", value);
+        });
 
-    // Test basic types
-    if let Some(name) = ContainerTest::name_r().get(&container) {
-        println!("✅ Name: {}", name);
-    }
-
-    if let Some(age) = ContainerTest::age_r().get(&container) {
-        println!("✅ Age: {}", age);
-    }
-
-    println!("\n=== ReadableKeypaths Macro - All new container types supported! ===");
+    // ==========================================================
+    println!("\n=== Arc<RwLock<T>> Chain Examples ===\n");
+    // ==========================================================
+    
+    // Example 5: Read through Arc<RwLock<T>> with then_arc_rwlock_at_kp
+    ContainerTest::rwlock_data_r()
+        .then_arc_rwlock_at_kp(SomeStruct::data_r())
+        .get(&container, |value| {
+            println!("✅ then_arc_rwlock_at_kp (read): data = {}", value);
+        });
+    
+    // Example 6: Read optional field through Arc<RwLock<T>>
+    ContainerTest::rwlock_data_r()
+        .then_arc_rwlock_optional_at_kp(SomeStruct::optional_field_fr())
+        .get(&container, |value| {
+            println!("✅ then_arc_rwlock_optional_at_kp (read): optional_field = {}", value);
+        });
+    
+    // Example 7: Write through Arc<RwLock<T>>
+    let rwlock_write_container = ContainerTest::new();
+    ContainerTest::rwlock_data_r()
+        .then_arc_rwlock_writable_at_kp(SomeStruct::data_w())
+        .get_mut(&rwlock_write_container, |value| {
+            *value = "Modified via then_arc_rwlock_writable_at_kp".to_string();
+            println!("✅ then_arc_rwlock_writable_at_kp (write): Modified data");
+        });
+    
+    // Verify the write
+    ContainerTest::rwlock_data_r()
+        .then_arc_rwlock_at_kp(SomeStruct::data_r())
+        .get(&rwlock_write_container, |value| {
+            println!("   Verified: data = {}", value);
+        });
+    
+    // Example 8: Write optional field through Arc<RwLock<T>>
+    ContainerTest::rwlock_data_r()
+        .then_arc_rwlock_writable_optional_at_kp(SomeStruct::optional_field_fw())
+        .get_mut(&rwlock_write_container, |value| {
+            *value = "Modified optional via rwlock chain".to_string();
+            println!("✅ then_arc_rwlock_writable_optional_at_kp (write): Modified optional_field");
+        });
+    
+    // Verify the write
+    ContainerTest::rwlock_data_r()
+        .then_arc_rwlock_optional_at_kp(SomeStruct::optional_field_fr())
+        .get(&rwlock_write_container, |value| {
+            println!("   Verified: optional_field = {}", value);
+        });
+    
+    // ==========================================================
+    println!("\n=== Summary ===\n");
+    // ==========================================================
+    
+    println!("Available chain methods from KeyPath:");
+    println!("  • then_arc_mutex_at_kp(inner_keypath) -> read through Arc<Mutex<T>>");
+    println!("  • then_arc_mutex_optional_at_kp(inner_optional_keypath) -> read optional through Arc<Mutex<T>>");
+    println!("  • then_arc_mutex_writable_at_kp(inner_writable_keypath) -> write through Arc<Mutex<T>>");
+    println!("  • then_arc_mutex_writable_optional_at_kp(inner_writable_optional_keypath) -> write optional through Arc<Mutex<T>>");
+    println!("  • then_arc_rwlock_at_kp(inner_keypath) -> read through Arc<RwLock<T>>");
+    println!("  • then_arc_rwlock_optional_at_kp(inner_optional_keypath) -> read optional through Arc<RwLock<T>>");
+    println!("  • then_arc_rwlock_writable_at_kp(inner_writable_keypath) -> write through Arc<RwLock<T>>");
+    println!("  • then_arc_rwlock_writable_optional_at_kp(inner_writable_optional_keypath) -> write optional through Arc<RwLock<T>>");
+    
+    println!("\n=== All functional chain examples completed successfully! ===");
 }

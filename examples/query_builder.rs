@@ -6,10 +6,11 @@
 // 4. Access nested fields in query predicates
 // cargo run --example query_builder
 
-use key_paths_core::KeyPaths;
-use key_paths_derive::Keypaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct Product {
     name: String,
     price: f64,
@@ -17,6 +18,7 @@ struct Product {
 }
 
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct ProductDetails {
     category: String,
     in_stock: bool,
@@ -45,12 +47,30 @@ impl<T: 'static> Query<T> {
     // The keypath provides type-safe access to the field,
     // and the predicate defines the filtering logic
     // Note: Use readable keypaths (_r) for queries since we only need read access
-    fn where_<F>(mut self, path: KeyPaths<T, F>, predicate: impl Fn(&F) -> bool + 'static) -> Self
+    fn where_<F, P>(mut self, path: KeyPath<T, F, P>, predicate: impl Fn(&F) -> bool + 'static) -> Self
     where
         F: 'static,
+        P: for<'r> Fn(&'r T) -> &'r F + 'static,
     {
+        let path_rc = std::rc::Rc::new(path);
+        let path_clone = path_rc.clone();
         self.filters.push(Box::new(move |item| {
-            path.get(item).map_or(false, |val| predicate(val))
+            predicate(path_clone.get(item))
+        }));
+        self
+    }
+
+    // Add a filter predicate using an optional keypath
+    // This handles cases where the field might not exist (Option, nested fields, etc.)
+    fn where_optional<F, P>(mut self, path: OptionalKeyPath<T, F, P>, predicate: impl Fn(&F) -> bool + 'static) -> Self
+    where
+        F: 'static,
+        P: for<'r> Fn(&'r T) -> Option<&'r F> + 'static,
+    {
+        let path_rc = std::rc::Rc::new(path);
+        let path_clone = path_rc.clone();
+        self.filters.push(Box::new(move |item| {
+            path_clone.get(item).map_or(false, |val| predicate(val))
         }));
         self
     }
@@ -160,17 +180,17 @@ fn main() {
     // Query 1: Electronics, in stock, price < 1000, rating > 4.0
     println!("--- Query 1: Premium Electronics in Stock ---");
     let query1 = Query::new()
-        .where_(
-            Product::details_r().then(ProductDetails::category_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::category_r().to_optional()),
             |cat| cat == "Electronics",
         )
-        .where_(
-            Product::details_r().then(ProductDetails::in_stock_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::in_stock_r().to_optional()),
             |&in_stock| in_stock,
         )
         .where_(Product::price_r(), |&price| price < 1000.0)
-        .where_(
-            Product::details_r().then(ProductDetails::rating_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::rating_r().to_optional()),
             |&rating| rating > 4.0,
         );
 
@@ -198,8 +218,8 @@ fn main() {
 
     // Query 3: Out of stock items
     println!("\n--- Query 3: Out of Stock Items ---");
-    let query3 = Query::new().where_(
-        Product::details_r().then(ProductDetails::in_stock_r()),
+    let query3 = Query::new().where_optional(
+        Product::details_r().to_optional().then(ProductDetails::in_stock_r().to_optional()),
         |&in_stock| !in_stock,
     );
 
@@ -212,12 +232,12 @@ fn main() {
     // Query 4: Highly rated furniture (rating >= 4.0)
     println!("\n--- Query 4: Highly Rated Furniture ---");
     let query4 = Query::new()
-        .where_(
-            Product::details_r().then(ProductDetails::category_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::category_r().to_optional()),
             |cat| cat == "Furniture",
         )
-        .where_(
-            Product::details_r().then(ProductDetails::rating_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::rating_r().to_optional()),
             |&rating| rating >= 4.0,
         );
 
@@ -232,13 +252,13 @@ fn main() {
 
     // Query 5: Count products by category
     println!("\n--- Query 5: Products by Category ---");
-    let electronics_query = Query::new().where_(
-        Product::details_r().then(ProductDetails::category_r()),
+    let electronics_query = Query::new().where_optional(
+        Product::details_r().to_optional().then(ProductDetails::category_r().to_optional()),
         |cat| cat == "Electronics",
     );
 
-    let furniture_query = Query::new().where_(
-        Product::details_r().then(ProductDetails::category_r()),
+    let furniture_query = Query::new().where_optional(
+        Product::details_r().to_optional().then(ProductDetails::category_r().to_optional()),
         |cat| cat == "Furniture",
     );
 
@@ -249,12 +269,12 @@ fn main() {
     println!("\n--- Query 6: Mid-Range Products ($30-$300) with Good Ratings ---");
     let query6 = Query::new()
         .where_(Product::price_r(), |&price| price >= 30.0 && price <= 300.0)
-        .where_(
-            Product::details_r().then(ProductDetails::rating_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::rating_r().to_optional()),
             |&rating| rating >= 4.0,
         )
-        .where_(
-            Product::details_r().then(ProductDetails::in_stock_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::in_stock_r().to_optional()),
             |&in_stock| in_stock,
         );
 
@@ -272,8 +292,8 @@ fn main() {
     let mut products_mut = products.clone();
 
     let discount_query = Query::new()
-        .where_(
-            Product::details_r().then(ProductDetails::category_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::category_r().to_optional()),
             |cat| cat == "Electronics",
         )
         .where_(Product::price_r(), |&price| price > 100.0);
@@ -293,8 +313,8 @@ fn main() {
     // Verify the changes
     println!("\n--- Verification: Electronics Over $100 (After Discount) ---");
     let verify_query = Query::new()
-        .where_(
-            Product::details_r().then(ProductDetails::category_r()),
+        .where_optional(
+            Product::details_r().to_optional().then(ProductDetails::category_r().to_optional()),
             |cat| cat == "Electronics",
         )
         .where_(Product::price_r(), |&price| price > 100.0);

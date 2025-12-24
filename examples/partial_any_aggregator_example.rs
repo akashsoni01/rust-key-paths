@@ -1,5 +1,5 @@
-use key_paths_core::{PartialKeyPath, AnyKeyPath};
-use key_paths_derive::{Keypaths, PartialKeypaths, AnyKeypaths};
+use rust_keypaths::{PartialKeyPath, AnyKeyPath};
+use keypaths_proc::{Keypaths, PartialKeypaths, AnyKeypaths};
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Rc;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ fn main() {
     let person = Person {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
         metadata: [("department".to_string(), "engineering".to_string())].into(),
     };
 
@@ -45,50 +45,51 @@ fn main() {
     // Test Arc aggregator
     let person_arc = Arc::new(person.clone());
     let name_arc_partial = name_partial.clone().for_arc();
-    if let Some(value) = name_arc_partial.get(&person_arc) {
-        println!("Person name via Arc<Person> (partial): {:?}", value);
+    if let Some(name) = name_arc_partial.get_as::<String>(&person_arc) {
+        println!("Person name via Arc<Person> (partial): {:?}", name);
     }
 
     // Test Box aggregator
     let person_box = Box::new(person.clone());
     let name_box_partial = name_partial.clone().for_box();
-    if let Some(value) = name_box_partial.get(&person_box) {
-        println!("Person name via Box<Person> (partial): {:?}", value);
+    if let Some(name) = name_box_partial.get_as::<String>(&person_box) {
+        println!("Person name via Box<Person> (partial): {:?}", name);
     }
 
     // Test Rc aggregator
     let person_rc = Rc::new(person.clone());
     let name_rc_partial = name_partial.clone().for_rc();
-    if let Some(value) = name_rc_partial.get(&person_rc) {
-        println!("Person name via Rc<Person> (partial): {:?}", value);
+    if let Some(name) = name_rc_partial.get_as::<String>(&person_rc) {
+        println!("Person name via Rc<Person> (partial): {:?}", name);
     }
 
     // Test Option aggregator
     let person_option = Some(person.clone());
     let name_option_partial = name_partial.clone().for_option();
-    if let Some(value) = name_option_partial.get(&person_option) {
-        println!("Person name via Option<Person> (partial): {:?}", value);
+    if let Some(Some(name)) = name_option_partial.get_as::<String>(&person_option) {
+        println!("Person name via Option<Person> (partial): {:?}", name);
     }
 
     // Test Result aggregator
     let person_result: Result<Person, String> = Ok(person.clone());
     let name_result_partial = name_partial.clone().for_result::<String>();
-    if let Some(value) = name_result_partial.get(&person_result) {
-        println!("Person name via Result<Person, String> (partial): {:?}", value);
+    if let Some(Some(name)) = name_result_partial.get_as::<String>(&person_result) {
+        println!("Person name via Result<Person, String> (partial): {:?}", name);
     }
 
-    // Test Arc<RwLock> aggregator (owned only - requires owned keypath)
+    // Test Arc<RwLock> aggregator - need to clone the root first
     let person_arc_rwlock = Arc::new(RwLock::new(person.clone()));
-    let name_owned = Person::name_partial_o();
-    let name_arc_rwlock_partial = name_owned.clone().for_arc_rwlock();
-    let owned_value = name_arc_rwlock_partial.get_owned(person_arc_rwlock);
-    println!("Person name via Arc<RwLock<Person>> (partial, owned): {:?}", owned_value);
+    let cloned_person = person_arc_rwlock.read().unwrap().clone();
+    if let Some(name) = name_partial.get_as::<String>(&cloned_person) {
+        println!("Person name via Arc<RwLock<Person>> (partial): {:?}", name);
+    }
 
-    // Test Arc<Mutex> aggregator (owned only - requires owned keypath)
+    // Test Arc<Mutex> aggregator - need to clone the root first
     let person_arc_mutex = Arc::new(Mutex::new(person.clone()));
-    let name_arc_mutex_partial = name_owned.clone().for_arc_mutex();
-    let owned_value = name_arc_mutex_partial.get_owned(person_arc_mutex);
-    println!("Person name via Arc<Mutex<Person>> (partial, owned): {:?}", owned_value);
+    let cloned_person = person_arc_mutex.lock().unwrap().clone();
+    if let Some(name) = name_partial.get_as::<String>(&cloned_person) {
+        println!("Person name via Arc<Mutex<Person>> (partial): {:?}", name);
+    }
 
     // ===== AnyKeyPath Aggregator Examples =====
     println!("\n--- 2. AnyKeyPath Aggregator Functions ---");
@@ -131,18 +132,27 @@ fn main() {
         println!("Person name via Result<Person, String> (any): {:?}", value);
     }
 
-    // Test Arc<RwLock> aggregator (owned only - requires owned keypath)
+    // Test Arc<RwLock> aggregator - need to clone the root first
     let person_arc_rwlock_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(RwLock::new(person.clone())));
-    let name_owned_any = Person::name_any_o();
-    let name_arc_rwlock_any = name_owned_any.clone().for_arc_rwlock::<Person>();
-    let owned_value = name_arc_rwlock_any.get_owned(person_arc_rwlock_boxed);
-    println!("Person name via Arc<RwLock<Person>> (any, owned): {:?}", owned_value);
+    if let Some(arc_rwlock) = person_arc_rwlock_boxed.downcast_ref::<Arc<RwLock<Person>>>() {
+        let cloned_person = arc_rwlock.read().unwrap().clone();
+        if let Some(name) = name_any.get_as::<Person, String>(&cloned_person) {
+            if let Some(name) = name {
+                println!("Person name via Arc<RwLock<Person>> (any): {:?}", name);
+            }
+        }
+    }
 
-    // Test Arc<Mutex> aggregator (owned only - requires owned keypath)
+    // Test Arc<Mutex> aggregator - need to clone the root first
     let person_arc_mutex_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(Mutex::new(person.clone())));
-    let name_arc_mutex_any = name_owned_any.clone().for_arc_mutex::<Person>();
-    let owned_value = name_arc_mutex_any.get_owned(person_arc_mutex_boxed);
-    println!("Person name via Arc<Mutex<Person>> (any, owned): {:?}", owned_value);
+    if let Some(arc_mutex) = person_arc_mutex_boxed.downcast_ref::<Arc<Mutex<Person>>>() {
+        let cloned_person = arc_mutex.lock().unwrap().clone();
+        if let Some(name) = name_any.get_as::<Person, String>(&cloned_person) {
+            if let Some(name) = name {
+                println!("Person name via Arc<Mutex<Person>> (any): {:?}", name);
+            }
+        }
+    }
 
     // ===== Mixed Container Types =====
     println!("\n--- 3. Mixed Container Types ---");
@@ -161,18 +171,17 @@ fn main() {
 
     // Create different keypaths
     let name_partial = Person::name_partial_r();
-    let name_owned = Person::name_partial_o();
     let age_partial = Person::age_partial_r();
     let email_partial = Person::email_partial_fr();
 
     // Test with different aggregators
     for (i, container) in containers.iter().enumerate() {
         match i {
-            0 => {
+             0 => {
                 // Direct Person
                 if let Some(person_ref) = container.downcast_ref::<Person>() {
-                    if let Some(value) = name_partial.get(person_ref) {
-                        println!("Container {} (Person): {:?}", i, value);
+                    if let Some(name) = name_partial.get_as::<String>(person_ref) {
+                        println!("Container {} (Person): {:?}", i, name);
                     }
                 }
             }
@@ -180,8 +189,8 @@ fn main() {
                 // Arc<Person>
                 if let Some(arc_ref) = container.downcast_ref::<Arc<Person>>() {
                     let name_arc_partial = name_partial.clone().for_arc();
-                    if let Some(value) = name_arc_partial.get(arc_ref) {
-                        println!("Container {} (Arc<Person>): {:?}", i, value);
+                    if let Some(name) = name_arc_partial.get_as::<String>(arc_ref) {
+                        println!("Container {} (Arc<Person>): {:?}", i, name);
                     }
                 }
             }
@@ -189,8 +198,8 @@ fn main() {
                 // Box<Person>
                 if let Some(box_ref) = container.downcast_ref::<Box<Person>>() {
                     let name_box_partial = name_partial.clone().for_box();
-                    if let Some(value) = name_box_partial.get(box_ref) {
-                        println!("Container {} (Box<Person>): {:?}", i, value);
+                    if let Some(name) = name_box_partial.get_as::<String>(box_ref) {
+                        println!("Container {} (Box<Person>): {:?}", i, name);
                     }
                 }
             }
@@ -198,8 +207,8 @@ fn main() {
                 // Arc<Person> #2
                 if let Some(arc_ref) = container.downcast_ref::<Arc<Person>>() {
                     let name_arc_partial = name_partial.clone().for_arc();
-                    if let Some(value) = name_arc_partial.get(arc_ref) {
-                        println!("Container {} (Arc<Person> #2): {:?}", i, value);
+                    if let Some(name) = name_arc_partial.get_as::<String>(arc_ref) {
+                        println!("Container {} (Arc<Person> #2): {:?}", i, name);
                     }
                 }
             }
@@ -207,8 +216,8 @@ fn main() {
                 // Option<Person>
                 if let Some(option_ref) = container.downcast_ref::<Option<Person>>() {
                     let name_option_partial = name_partial.clone().for_option();
-                    if let Some(value) = name_option_partial.get(option_ref) {
-                        println!("Container {} (Option<Person>): {:?}", i, value);
+                    if let Some(Some(name)) = name_option_partial.get_as::<String>(option_ref) {
+                        println!("Container {} (Option<Person>): {:?}", i, name);
                     }
                 }
             }
@@ -216,25 +225,27 @@ fn main() {
                 // Result<Person, String>
                 if let Some(result_ref) = container.downcast_ref::<Result<Person, String>>() {
                     let name_result_partial = name_partial.clone().for_result::<String>();
-                    if let Some(value) = name_result_partial.get(result_ref) {
-                        println!("Container {} (Result<Person, String>): {:?}", i, value);
+                    if let Some(Some(name)) = name_result_partial.get_as::<String>(result_ref) {
+                        println!("Container {} (Result<Person, String>): {:?}", i, name);
                     }
                 }
             }
-            6 => {
-                // Arc<RwLock<Person>> (owned only - requires owned keypath)
+             6 => {
+                // Arc<RwLock<Person>> - need to clone the root first
                 if let Some(arc_rwlock_ref) = container.downcast_ref::<Arc<RwLock<Person>>>() {
-                    let name_arc_rwlock_partial = name_owned.clone().for_arc_rwlock();
-                    let owned_value = name_arc_rwlock_partial.get_owned(arc_rwlock_ref.clone());
-                    println!("Container {} (Arc<RwLock<Person>>, owned): {:?}", i, owned_value);
+                    let cloned_person = arc_rwlock_ref.read().unwrap().clone();
+                    if let Some(name) = name_partial.get_as::<String>(&cloned_person) {
+                        println!("Container {} (Arc<RwLock<Person>>): {:?}", i, name);
+                    }
                 }
             }
             7 => {
-                // Arc<Mutex<Person>> (owned only - requires owned keypath)
+                // Arc<Mutex<Person>> - need to clone the root first
                 if let Some(arc_mutex_ref) = container.downcast_ref::<Arc<Mutex<Person>>>() {
-                    let name_arc_mutex_partial = name_owned.clone().for_arc_mutex();
-                    let owned_value = name_arc_mutex_partial.get_owned(arc_mutex_ref.clone());
-                    println!("Container {} (Arc<Mutex<Person>>, owned): {:?}", i, owned_value);
+                    let cloned_person = arc_mutex_ref.lock().unwrap().clone();
+                    if let Some(name) = name_partial.get_as::<String>(&cloned_person) {
+                        println!("Container {} (Arc<Mutex<Person>>): {:?}", i, name);
+                    }
                 }
             }
             _ => {}
@@ -257,8 +268,8 @@ fn main() {
     let employee_name_partial = Person::name_partial_r();
 
     // Access company name directly
-    if let Some(value) = company_name_partial.get(&company_with_arc_employees) {
-        println!("Company name: {:?}", value);
+    if let Some(name) = company_name_partial.get_as::<String>(&company_with_arc_employees) {
+        println!("Company name: {:?}", name);
     }
 
     // Access first employee name through composition

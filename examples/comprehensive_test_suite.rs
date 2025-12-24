@@ -1,4 +1,4 @@
-use key_paths_derive::Keypaths;
+use keypaths_proc::Keypaths;
 use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -95,7 +95,7 @@ fn main() {
     println!("let value = failable_path.get(&instance);");
     println!();
     println!("// Composition");
-    println!("let composed = ComprehensiveTest::option_string_fr().then(OtherStruct::field_r());");
+    println!("let composed = ComprehensiveTest::option_string_fr().then(OtherStruct::field_r().to_optional());");
     
     println!("\n🎉 Comprehensive test suite completed successfully!");
 }

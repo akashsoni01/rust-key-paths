@@ -1,5 +1,5 @@
-// use key_paths_core::KeyPaths;
-// use key_paths_derive::Casepaths;
+// use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+// use keypaths_proc::Casepaths;
 
 // #[derive(Debug, Casepaths)]
 // enum Payment {
@@ -32,7 +32,8 @@
 
 //     println!("{:?}", p);
 
-//     if let Some(v) = kp.get_mut(&mut p) {
+//     let v = kp.get_mut(&mut p);
+    // {
 //         *v = 34
 //     }
 //     // kp.get_mut(&mut p); // this will return none as kp is readable

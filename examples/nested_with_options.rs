@@ -1,4 +1,4 @@
-use key_paths_derive::Keypaths;
+use keypaths_proc::Keypaths;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Keypaths)]
@@ -8,6 +8,7 @@ struct SomeStruct {
 
 // Example struct demonstrating all nested container combinations
 #[derive(Debug, Clone, Keypaths)]
+#[All]
 struct NestedContainerExample {
     // Option<Box<T>>
     option_box_field: Option<Box<String>>,
@@ -62,7 +63,7 @@ fn main() {
         // },
     };
     println!("Value");
-    if let Some(value) = NestedContainerExample::value_fr().then(SomeStruct::value_fr().for_box()).get(&example) {
+    if let Some(value) = NestedContainerExample::value_fr().for_box().then(SomeStruct::value_fr()).get(&example) {
         // *value = String::from("changed");
         println!("   Changed value: {:?}", value);
     }

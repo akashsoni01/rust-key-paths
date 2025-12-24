@@ -1,5 +1,5 @@
-use key_paths_derive::Keypaths;
-use key_paths_core::WithContainer;
+use keypaths_proc::Keypaths;
+
 use std::sync::Arc;
 
 #[cfg(feature = "parking_lot")]
@@ -35,7 +35,7 @@ fn main() {
         let parking_mutex_user = Arc::new(Mutex::new(User {
             name: "Alice".to_string(),
             age: 30,
-            email: Some("alice@example.com".to_string()),
+            email: Some("akash@example.com".to_string()),
         }));
 
         let parking_rwlock_profile = Arc::new(RwLock::new(Profile {
@@ -82,9 +82,9 @@ fn main() {
 
         // Test for_arc_parking_rwlock aggregator
         let bio_keypath = Profile::bio_r();
-        let user_name_keypath = Profile::user_r().then(User::name_r());
-        let user_age_keypath = Profile::user_r().then(User::age_r());
-        let settings_theme_keypath = Profile::settings_fr().then(Settings::theme_r());
+        let user_name_keypath = Profile::user_r().to_optional().then(User::name_r().to_optional());
+        let user_age_keypath = Profile::user_r().to_optional().then(User::age_r().to_optional());
+        let settings_theme_keypath = Profile::settings_fr().then(Settings::theme_r().to_optional());
 
         // Convert to Arc<parking_lot::RwLock<T>> keypaths
         let bio_parking_rwlock_path = bio_keypath.for_arc_parking_rwlock();

@@ -1,4 +1,4 @@
-use key_paths_core::KeyPaths;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug)]
 struct Engine {
@@ -20,14 +20,14 @@ fn main() {
         }),
     };
 
-    let kp_car = KeyPaths::failable_readable(|g: &Garage| g.car.as_ref());
-    let kp_engine = KeyPaths::failable_readable(|c: &Car| c.engine.as_ref());
-    let kp_hp = KeyPaths::failable_readable(|e: &Engine| Some(&e.horsepower));
+    let kp_car = OptionalKeyPath::new(|g: &Garage| g.car.as_ref());
+    let kp_engine = OptionalKeyPath::new(|c: &Car| c.engine.as_ref());
+    let kp_hp = OptionalKeyPath::new(|e: &Engine| Some(&e.horsepower));
 
     // Compose: Garage -> Car -> Engine -> horsepower
-    let kp = kp_car.compose(kp_engine).compose(kp_hp);
+    let kp = kp_car.then(kp_engine).then(kp_hp);
 
-    let kp2 = KeyPaths::failable_readable(|g: &Garage| {
+    let kp2 = OptionalKeyPath::new(|g: &Garage| {
         g.car
             .as_ref()
             .and_then(|c| c.engine.as_ref())

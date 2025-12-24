@@ -1,4 +1,4 @@
-use key_paths_derive::Keypaths;
+use keypaths_proc::Keypaths;
 
 #[derive(Debug, Keypaths)]
 enum Status {
@@ -16,7 +16,7 @@ enum Status {
     Position(f64, f64),
     
     // Named field variant
-    User { name: String, age: u32 },
+    User { name: String, age: Option<u32> },
 }
 
 fn main() {
@@ -53,7 +53,7 @@ fn main() {
     // Test named field variant
     let user = Status::User { 
         name: "Alice".to_string(), 
-        age: 30 
+        age: Some(30) 
     };
     if let Some(user_status_name) = Status::user_name_r().get(&user) {
         println!("User status name : {:?}", user_status_name);
@@ -68,10 +68,10 @@ fn main() {
     }
     
     println!("\n=== Keypaths Types ===");
-    println!("loading() returns: KeyPaths<Status, Status> (readable)");
-    println!("success() returns: KeyPaths<Status, String> (failable readable)");
-    println!("error() returns: KeyPaths<Status, String> (failable readable)");
-    println!("data() returns: KeyPaths<Status, i32> (failable readable)");
-    println!("position() returns: KeyPaths<Status, Status> (failable readable)");
-    println!("user() returns: KeyPaths<Status, Status> (failable readable)");
+    println!("loading() returns: KeyPath<Status, Status, impl for<\'r> Fn(&\'r Status) -> &\'r Status> (readable)");
+    println!("success() returns: KeyPath<Status, String, impl for<\'r> Fn(&\'r Status) -> &\'r String> (failable readable)");
+    println!("error() returns: KeyPath<Status, String, impl for<\'r> Fn(&\'r Status) -> &\'r String> (failable readable)");
+    println!("data() returns: KeyPath<Status, i32, impl for<\'r> Fn(&\'r Status) -> &\'r i32> (failable readable)");
+    println!("position() returns: KeyPath<Status, Status, impl for<\'r> Fn(&\'r Status) -> &\'r Status> (failable readable)");
+    println!("user() returns: KeyPath<Status, Status, impl for<\'r> Fn(&\'r Status) -> &\'r Status> (failable readable)");
 }

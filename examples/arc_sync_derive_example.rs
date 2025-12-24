@@ -1,5 +1,5 @@
-use key_paths_derive::Keypaths;
-use key_paths_core::WithContainer;
+use keypaths_proc::Keypaths;
+use rust_keypaths::KeyPath;
 use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
@@ -35,13 +35,13 @@ fn main() {
 
     // Test Arc<RwLock<T>> field access
     let field1_path = SomeStruct::field1_r();
-    if let Some(field1_ref) = field1_path.get_ref(&&some_struct) {
+    if let Some(field1_ref) = field1_path.get(&some_struct) {
         println!("✅ Arc<RwLock<SomeOtherStruct>> field accessible: {:?}", field1_ref);
     }
 
     // Test Arc<Mutex<T>> field access
     let field2_path = SomeStruct::field2_r();
-    if let Some(field2_ref) = field2_path.get_ref(&&some_struct) {
+    if let Some(field2_ref) = field2_path.get(&some_struct) {
         println!("✅ Arc<Mutex<SomeOtherStruct>> field accessible: {:?}", field2_ref);
     }
 
@@ -53,7 +53,7 @@ fn main() {
     let count_path = SomeOtherStruct::count_r();
 
     // Access through Arc<RwLock<T>> - we need to get the field first, then use with_rwlock
-    if let Some(arc_rwlock_field) = field1_path.get_ref(&&some_struct) {
+    if let Some(arc_rwlock_field) = field1_path.get(&some_struct) {
         value_path.clone().with_rwlock(arc_rwlock_field, |value| {
             println!("✅ Value from Arc<RwLock<SomeOtherStruct>>: {}", value);
         });
@@ -63,11 +63,11 @@ fn main() {
     }
 
     // Access through Arc<Mutex<T>> - we need to get the field first, then use with_mutex
-    if let Some(arc_mutex_field) = field2_path.get_ref(&&some_struct) {
-        value_path.with_mutex(arc_mutex_field, |value| {
+    if let Some(arc_mutex_field) = field2_path.get(&some_struct) {
+        value_path.with_arc_mutex_direct(arc_mutex_field, |value| {
             println!("✅ Value from Arc<Mutex<SomeOtherStruct>>: {}", value);
         });
-        count_path.with_mutex(arc_mutex_field, |count| {
+        count_path.with_arc_mutex_direct(arc_mutex_field, |count| {
             println!("✅ Count from Arc<Mutex<SomeOtherStruct>>: {}", count);
         });
     }
@@ -112,7 +112,7 @@ fn main() {
                     name: "Alice Johnson".to_string(),
                     salary: 120000,
                     contact: Arc::new(Mutex::new(Contact {
-                        email: "alice@techcorp.com".to_string(),
+                        email: "akash@techcorp.com".to_string(),
                         phone: "+1-555-0123".to_string(),
                     })),
                 })),
@@ -135,7 +135,7 @@ fn main() {
 
     // Example 1: Simple composition - Company name
     let company_name_path = Company::name_r();
-    if let Some(name) = company_name_path.get_ref(&&company) {
+    if let Some(name) = company_name_path.get(&company) {
         println!("✅ Company name: {}", name);
     }
 
@@ -143,7 +143,7 @@ fn main() {
     // We need to access the Vec element directly since KeyPaths doesn't have get_r
     if let Some(first_dept) = company.departments.first() {
         let dept_name_path = Department::name_r();
-        if let Some(dept_name) = dept_name_path.get_ref(&&first_dept) {
+        if let Some(dept_name) = dept_name_path.get(&first_dept) {
             println!("✅ First department: {}", dept_name);
         }
     }
@@ -152,9 +152,9 @@ fn main() {
     // Get the Arc<RwLock<Employee>> first, then use with_rwlock
     if let Some(first_dept) = company.departments.first() {
         let manager_arc_path = Department::manager_r();
-        if let Some(manager_arc) = manager_arc_path.get_ref(&&first_dept) {
+        if let Some(manager_arc) = manager_arc_path.get(&first_dept) {
             let employee_name_path = Employee::name_r();
-            employee_name_path.with_rwlock(manager_arc, |name| {
+            employee_name_path.with_arc_rwlock_direct(manager_arc, |name| {
                 println!("✅ Engineering manager: {}", name);
             });
         }
@@ -163,15 +163,15 @@ fn main() {
     // Example 4: Even deeper composition - Contact email through Arc<Mutex>
     if let Some(first_dept) = company.departments.first() {
         let manager_arc_path = Department::manager_r();
-        if let Some(manager_arc) = manager_arc_path.get_ref(&&first_dept) {
+        if let Some(manager_arc) = manager_arc_path.get(&first_dept) {
             // Get the contact Arc<Mutex<Contact>> from the employee
             let contact_arc_path = Employee::contact_r();
-            let contact_arc = contact_arc_path.with_rwlock(manager_arc, |contact_arc| {
+            let contact_arc = contact_arc_path.with_arc_rwlock_direct(manager_arc, |contact_arc| {
                 contact_arc.clone()
             });
             if let Some(contact_arc) = contact_arc {
                 let email_path = Contact::email_r();
-                email_path.with_mutex(&*contact_arc, |email| {
+                email_path.with_arc_mutex_direct(&*contact_arc, |email| {
                     println!("✅ Engineering manager email: {}", email);
                 });
             }
@@ -183,42 +183,42 @@ fn main() {
     for dept in &company.departments {
         // Department name
         let dept_name_path = Department::name_r();
-        if let Some(dept_name) = dept_name_path.get_ref(&&dept) {
+        if let Some(dept_name) = dept_name_path.get(&dept) {
             print!("  {}: ", dept_name);
         }
 
         // Department budget
         let budget_path = Department::budget_r();
-        if let Some(budget) = budget_path.get_ref(&&dept) {
+        if let Some(budget) = budget_path.get(&dept) {
             print!("Budget ${} | ", budget);
         }
 
         // Manager name
         let manager_arc_path = Department::manager_r();
-        if let Some(manager_arc) = manager_arc_path.get_ref(&&dept) {
+        if let Some(manager_arc) = manager_arc_path.get(&dept) {
             let employee_name_path = Employee::name_r();
-            employee_name_path.with_rwlock(manager_arc, |name| {
+            employee_name_path.with_arc_rwlock_direct(manager_arc, |name| {
                 print!("Manager: {} | ", name);
             });
         }
 
         // Manager salary
-        if let Some(manager_arc) = manager_arc_path.get_ref(&&dept) {
+        if let Some(manager_arc) = manager_arc_path.get(&dept) {
             let salary_path = Employee::salary_r();
-            salary_path.with_rwlock(manager_arc, |salary| {
+            salary_path.with_arc_rwlock_direct(manager_arc, |salary| {
                 print!("Salary: ${} | ", salary);
             });
         }
 
         // Manager email
-        if let Some(manager_arc) = manager_arc_path.get_ref(&&dept) {
+        if let Some(manager_arc) = manager_arc_path.get(&dept) {
             let contact_arc_path = Employee::contact_r();
-            let contact_arc = contact_arc_path.with_rwlock(manager_arc, |contact_arc| {
+            let contact_arc = contact_arc_path.with_arc_rwlock_direct(manager_arc, |contact_arc| {
                 contact_arc.clone()
             });
             if let Some(contact_arc) = contact_arc {
                 let email_path = Contact::email_r();
-                email_path.with_mutex(&*contact_arc, |email| {
+                email_path.with_arc_mutex_direct(&*contact_arc, |email| {
                     println!("Email: {}", email);
                 });
             }

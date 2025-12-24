@@ -1,5 +1,5 @@
-use key_paths_derive::Keypaths;
-use key_paths_core::{KeyPaths, WithContainer};
+use keypaths_proc::Keypaths;
+use rust_keypaths::OptionalKeyPath;
 use std::sync::{Arc, RwLock};
 
 #[derive(Keypaths, Clone, Debug)]
@@ -102,7 +102,7 @@ fn main() {
                             position: "Senior Engineer".to_string(),
                             salary: 120_000,
                             contact: Contact {
-                                email: "alice@techcorp.com".to_string(),
+                                email: "akash@techcorp.com".to_string(),
                                 phone: Some("+1-555-0101".to_string()),
                                 address: Address {
                                     street: "456 Employee Ave".to_string(),
@@ -116,7 +116,7 @@ fn main() {
                                     }),
                                 },
                                 emergency_contact: Some(Box::new(Contact {
-                                    email: "emergency@alice.com".to_string(),
+                                    email: "emergency@akash.com".to_string(),
                                     phone: Some("+1-555-EMERGENCY".to_string()),
                                     address: Address {
                                         street: "789 Emergency St".to_string(),
@@ -260,7 +260,7 @@ fn main() {
 
     // 1. Simple Composition - Business Group Name (1 level deep)
     let group_name_path = BusinessGroup::name_r();
-    group_name_path.with_rwlock(&business_group, |name| {
+    group_name_path.with_arc_rwlock_direct(&business_group, |name| {
         println!("1️⃣  Simple Composition - Business Group Name");
         println!("-------------------------------------------");
         println!("✅ Business group name: {}", name);
@@ -273,19 +273,18 @@ fn main() {
         let org = &*guard;
         if let Some(first_org) = org.organizations.first() {
             let org_name_path = Organization::name_r();
-            if let Some(name) = org_name_path.get_ref(&first_org) {
-                println!("\n2️⃣  Two-Level Composition - First Organization Name");
-                println!("------------------------------------------------");
-                println!("✅ First organization name: {}", name);
-            }
+            let name = org_name_path.get(&first_org);
+            println!("\n2️⃣  Two-Level Composition - First Organization Name");
+            println!("------------------------------------------------");
+            println!("✅ First organization name: {}", name);
         }
     }
 
     // 3. Three-Level Composition - Company Name (3 levels deep)
     let company_name_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
-        .then(Company::name_r());
-    company_name_path.with_rwlock(&business_group, |name| {
+        .then(Organization::company_r().to_optional())
+        .then(Company::name_r().to_optional());
+    company_name_path.with_arc_rwlock_direct(&business_group, |name| {
         println!("\n3️⃣  Three-Level Composition - Company Name");
         println!("----------------------------------------");
         println!("✅ Company name: {}", name);
@@ -293,10 +292,10 @@ fn main() {
 
     // 4. Four-Level Composition - Headquarters City (4 levels deep)
     let hq_city_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
-        .then(Company::headquarters_r())
-        .then(Address::city_r());
-    hq_city_path.with_rwlock(&business_group, |city| {
+        .then(Organization::company_r().to_optional())
+        .then(Company::headquarters_r().to_optional())
+        .then(Address::city_r().to_optional());
+    hq_city_path.with_arc_rwlock_direct(&business_group, |city| {
         println!("\n4️⃣  Four-Level Composition - Headquarters City");
         println!("---------------------------------------------");
         println!("✅ Headquarters city: {}", city);
@@ -304,11 +303,11 @@ fn main() {
 
     // 5. Five-Level Composition - Headquarters Coordinates (5 levels deep, with Option)
     let hq_lat_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
-        .then(Company::headquarters_r())
+        .then(Organization::company_r().to_optional())
+        .then(Company::headquarters_r().to_optional())
         .then(Address::coordinates_fr())
-        .then(Location::latitude_r());
-    hq_lat_path.with_rwlock(&business_group, |latitude| {
+        .then(Location::latitude_r().to_optional());
+    hq_lat_path.with_arc_rwlock_direct(&business_group, |latitude| {
         println!("\n5️⃣  Five-Level Composition - Headquarters Coordinates");
         println!("--------------------------------------------------");
         println!("✅ Headquarters latitude: {}", latitude);
@@ -316,10 +315,10 @@ fn main() {
 
     // 6. Six-Level Composition - First Employee Name (6 levels deep)
     let first_employee_name_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
+        .then(Organization::company_r().to_optional())
         .then(Company::employees_fr_at(0))
-        .then(Employee::name_r());
-    first_employee_name_path.with_rwlock(&business_group, |name| {
+        .then(Employee::name_r().to_optional());
+    first_employee_name_path.with_arc_rwlock_direct(&business_group, |name| {
         println!("\n6️⃣  Six-Level Composition - First Employee Name");
         println!("---------------------------------------------");
         println!("✅ First employee name: {}", name);
@@ -327,11 +326,11 @@ fn main() {
 
     // 7. Seven-Level Composition - First Employee Contact Email (7 levels deep)
     let first_employee_email_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
+        .then(Organization::company_r().to_optional())
         .then(Company::employees_fr_at(0))
-        .then(Employee::contact_r())
-        .then(Contact::email_r());
-    first_employee_email_path.with_rwlock(&business_group, |email| {
+        .then(Employee::contact_r().to_optional())
+        .then(Contact::email_r().to_optional());
+    first_employee_email_path.with_arc_rwlock_direct(&business_group, |email| {
         println!("\n7️⃣  Seven-Level Composition - First Employee Contact Email");
         println!("-------------------------------------------------------");
         println!("✅ First employee email: {}", email);
@@ -339,12 +338,12 @@ fn main() {
 
     // 8. Eight-Level Composition - First Employee Address City (8 levels deep)
     let first_employee_city_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
+        .then(Organization::company_r().to_optional())
         .then(Company::employees_fr_at(0))
-        .then(Employee::contact_r())
-        .then(Contact::address_r())
-        .then(Address::city_r());
-    first_employee_city_path.with_rwlock(&business_group, |city| {
+        .then(Employee::contact_r().to_optional())
+        .then(Contact::address_r().to_optional())
+        .then(Address::city_r().to_optional());
+    first_employee_city_path.with_arc_rwlock_direct(&business_group, |city| {
         println!("\n8️⃣  Eight-Level Composition - First Employee Address City");
         println!("------------------------------------------------------");
         println!("✅ First employee city: {}", city);
@@ -352,13 +351,13 @@ fn main() {
 
     // 9. Nine-Level Composition - First Employee Address Coordinates (9 levels deep, with Option)
     let first_employee_lat_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
+        .then(Organization::company_r().to_optional())
         .then(Company::employees_fr_at(0))
-        .then(Employee::contact_r())
-        .then(Contact::address_r())
+        .then(Employee::contact_r().to_optional())
+        .then(Contact::address_r().to_optional())
         .then(Address::coordinates_fr())
-        .then(Location::latitude_r());
-    first_employee_lat_path.with_rwlock(&business_group, |latitude| {
+        .then(Location::latitude_r().to_optional());
+    first_employee_lat_path.with_arc_rwlock_direct(&business_group, |latitude| {
         println!("\n9️⃣  Nine-Level Composition - First Employee Address Coordinates");
         println!("-------------------------------------------------------------");
         println!("✅ First employee address latitude: {}", latitude);
@@ -367,11 +366,11 @@ fn main() {
     // 10. Ten-Level Composition - First Employee Emergency Contact Email (10 levels deep, with Option)
     // Note: This example is simplified due to nested container limitations in the current implementation
     let first_employee_emergency_email_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
+        .then(Organization::company_r().to_optional())
         .then(Company::employees_fr_at(0))
-        .then(Employee::contact_r())
-        .then(Contact::email_r());
-    first_employee_emergency_email_path.with_rwlock(&business_group, |email| {
+        .then(Employee::contact_r().to_optional())
+        .then(Contact::email_r().to_optional());
+    first_employee_emergency_email_path.with_arc_rwlock_direct(&business_group, |email| {
         println!("\n🔟 Ten-Level Composition - First Employee Contact Email (Simplified)");
         println!("-------------------------------------------------------------");
         println!("✅ First employee contact email: {}", email);
@@ -385,24 +384,39 @@ fn main() {
     println!("--------------------------------");
     
     let org_base = BusinessGroup::organizations_fr_at(0);
-    let company_base = org_base.clone().then(Organization::company_r());
-    let employees_base = company_base.then(Company::employees_r());
-    let first_employee_base = org_base.then(Organization::company_r()).then(Company::employees_fr_at(0));
+    // Note: We recreate paths instead of cloning since OptionalKeyPath doesn't implement Clone
+    let company_base = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional());
+    let employees_base = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_r().to_optional());
+    let first_employee_base = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_fr_at(0));
 
     // Use the same base paths for different fields
-    let employee_name_path = first_employee_base.clone().then(Employee::name_r());
-    let employee_position_path = first_employee_base.clone().then(Employee::position_r());
-    let employee_salary_path = first_employee_base.then(Employee::salary_r());
+    let employee_name_path = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_fr_at(0))
+        .then(Employee::name_r().to_optional());
+    let employee_position_path = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_fr_at(0))
+        .then(Employee::position_r().to_optional());
+    let employee_salary_path = BusinessGroup::organizations_fr_at(0)
+        .then(Organization::company_r().to_optional())
+        .then(Company::employees_fr_at(0))
+        .then(Employee::salary_r().to_optional());
 
-    employee_name_path.with_rwlock(&business_group, |name| {
+    employee_name_path.with_arc_rwlock_direct(&business_group, |name| {
         println!("✅ Employee name (reusable base): {}", name);
     });
 
-    employee_position_path.with_rwlock(&business_group, |position| {
+    employee_position_path.with_arc_rwlock_direct(&business_group, |position| {
         println!("✅ Employee position (reusable base): {}", position);
     });
 
-    employee_salary_path.with_rwlock(&business_group, |salary| {
+    employee_salary_path.with_arc_rwlock_direct(&business_group, |salary| {
         println!("✅ Employee salary (reusable base): ${}", salary);
     });
 
@@ -411,12 +425,12 @@ fn main() {
     println!("----------------------------------");
     
     let emergency_phone_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
+        .then(Organization::company_r().to_optional())
         .then(Company::employees_fr_at(0))
-        .then(Employee::contact_r())
+        .then(Employee::contact_r().to_optional())
         .then(Contact::phone_fr());
     
-    emergency_phone_path.with_rwlock(&business_group, |phone| {
+    emergency_phone_path.with_arc_rwlock_direct(&business_group, |phone| {
         println!("✅ Emergency contact phone: {:?}", phone);
     });
 
@@ -425,20 +439,20 @@ fn main() {
     println!("----------------------------------");
     
     let first_dept_name_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
+        .then(Organization::company_r().to_optional())
         .then(Company::departments_fr_at(0))
-        .then(Department::name_r());
+        .then(Department::name_r().to_optional());
     
     let first_dept_budget_path = BusinessGroup::organizations_fr_at(0)
-        .then(Organization::company_r())
+        .then(Organization::company_r().to_optional())
         .then(Company::departments_fr_at(0))
-        .then(Department::budget_r());
+        .then(Department::budget_r().to_optional());
 
-    first_dept_name_path.with_rwlock(&business_group, |name| {
+    first_dept_name_path.with_arc_rwlock_direct(&business_group, |name| {
         println!("✅ First department name: {}", name);
     });
 
-    first_dept_budget_path.with_rwlock(&business_group, |budget| {
+    first_dept_budget_path.with_arc_rwlock_direct(&business_group, |budget| {
         println!("✅ First department budget: ${}", budget);
     });
 
@@ -446,21 +460,22 @@ fn main() {
     println!("\n📝 Pattern 4: CEO Contact Information");
     println!("-----------------------------------");
     
-    let ceo_email_path = BusinessGroup::ceo_contact_r().then(Contact::email_r());
-    let ceo_phone_path = BusinessGroup::ceo_contact_r().then(Contact::phone_fr());
+    let ceo_email_path = BusinessGroup::ceo_contact_r().to_optional().then(Contact::email_r().to_optional());
+    let ceo_phone_path = BusinessGroup::ceo_contact_r().to_optional().then(Contact::phone_fr());
     let ceo_address_city_path = BusinessGroup::ceo_contact_r()
-        .then(Contact::address_r())
-        .then(Address::city_r());
+        .to_optional()
+        .then(Contact::address_r().to_optional())
+        .then(Address::city_r().to_optional());
 
-    ceo_email_path.with_rwlock(&business_group, |email| {
+    ceo_email_path.with_arc_rwlock_direct(&business_group, |email| {
         println!("✅ CEO email: {}", email);
     });
 
-    ceo_phone_path.with_rwlock(&business_group, |phone| {
+    ceo_phone_path.with_arc_rwlock_direct(&business_group, |phone| {
         println!("✅ CEO phone: {:?}", phone);
     });
 
-    ceo_address_city_path.with_rwlock(&business_group, |city| {
+    ceo_address_city_path.with_arc_rwlock_direct(&business_group, |city| {
         println!("✅ CEO address city: {}", city);
     });
 

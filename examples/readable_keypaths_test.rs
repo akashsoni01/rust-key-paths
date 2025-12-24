@@ -1,4 +1,4 @@
-use key_paths_derive::ReadableKeypaths;
+use keypaths_proc::ReadableKeypaths;
 use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -33,7 +33,7 @@ fn main() {
     let user = User {
         name: "Alice".to_string(),
         age: 30,
-        email: Some("alice@example.com".to_string()),
+        email: Some("akash@example.com".to_string()),
         tags: vec!["developer".to_string(), "rust".to_string()],
         preferences: {
             let mut map = HashMap::new();
