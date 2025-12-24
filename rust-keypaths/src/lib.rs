@@ -19,7 +19,7 @@ use std::fmt;
 /// ```rust
 /// // Functional style: compose first, then apply container at get()
 /// ContainerTest::mutex_data_r()
-///     .chain_arc_mutex(SomeStruct::data_r())
+///     .then_arc_mutex_at_kp(SomeStruct::data_r())
 ///     .get(&container, |value| println!("Value: {}", value));
 /// ```
 pub struct ArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
@@ -212,7 +212,7 @@ where
 /// ```rust
 /// // Functional style: compose first, then apply container at get()
 /// ContainerTest::rwlock_data_r()
-///     .chain_arc_rwlock(SomeStruct::data_r())
+///     .then_arc_rwlock_at_kp(SomeStruct::data_r())
 ///     .get(&container, |value| println!("Value: {}", value));
 /// ```
 pub struct ArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
@@ -1173,10 +1173,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_r()
-    ///     .chain_arc_mutex(SomeStruct::data_r())
+    ///     .then_arc_mutex_at_kp(SomeStruct::data_r())
     ///     .get(&container, |value| println!("Data: {}", value));
     /// ```
-    pub fn chain_arc_mutex<InnerValue, SubValue, G>(
+    pub fn then_arc_mutex_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> ArcMutexKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -1198,10 +1198,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_r()
-    ///     .chain_arc_mutex_optional(SomeStruct::optional_field_fr())
+    ///     .then_arc_mutex_optional_at_kp(SomeStruct::optional_field_fr())
     ///     .get(&container, |value| println!("Value: {}", value));
     /// ```
-    pub fn chain_arc_mutex_optional<InnerValue, SubValue, G>(
+    pub fn then_arc_mutex_optional_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
     ) -> ArcMutexOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -1223,10 +1223,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::rwlock_data_r()
-    ///     .chain_arc_rwlock(SomeStruct::data_r())
+    ///     .then_arc_rwlock_at_kp(SomeStruct::data_r())
     ///     .get(&container, |value| println!("Data: {}", value));
     /// ```
-    pub fn chain_arc_rwlock<InnerValue, SubValue, G>(
+    pub fn then_arc_rwlock_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> ArcRwLockKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -1248,10 +1248,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::rwlock_data_r()
-    ///     .chain_arc_rwlock_optional(SomeStruct::optional_field_fr())
+    ///     .then_arc_rwlock_optional_at_kp(SomeStruct::optional_field_fr())
     ///     .get(&container, |value| println!("Value: {}", value));
     /// ```
-    pub fn chain_arc_rwlock_optional<InnerValue, SubValue, G>(
+    pub fn then_arc_rwlock_optional_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
     ) -> ArcRwLockOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -1270,10 +1270,10 @@ where
     /// # Example
     /// ```rust
     /// ContainerTest::mutex_data_r()
-    ///     .chain_arc_mutex_writable(SomeStruct::data_w())
+    ///     .then_arc_mutex_writable_at_kp(SomeStruct::data_w())
     ///     .get_mut(&container, |value| *value = "new".to_string());
     /// ```
-    pub fn chain_arc_mutex_writable<InnerValue, SubValue, G>(
+    pub fn then_arc_mutex_writable_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> ArcMutexWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -1292,10 +1292,10 @@ where
     /// # Example
     /// ```rust
     /// ContainerTest::mutex_data_r()
-    ///     .chain_arc_mutex_writable_optional(SomeStruct::optional_field_fw())
+    ///     .then_arc_mutex_writable_optional_at_kp(SomeStruct::optional_field_fw())
     ///     .get_mut(&container, |value| *value = "new".to_string());
     /// ```
-    pub fn chain_arc_mutex_writable_optional<InnerValue, SubValue, G>(
+    pub fn then_arc_mutex_writable_optional_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
     ) -> ArcMutexWritableOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -1314,10 +1314,10 @@ where
     /// # Example
     /// ```rust
     /// ContainerTest::rwlock_data_r()
-    ///     .chain_arc_rwlock_writable(SomeStruct::data_w())
+    ///     .then_arc_rwlock_writable_at_kp(SomeStruct::data_w())
     ///     .get_mut(&container, |value| *value = "new".to_string());
     /// ```
-    pub fn chain_arc_rwlock_writable<InnerValue, SubValue, G>(
+    pub fn then_arc_rwlock_writable_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> ArcRwLockWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -1336,10 +1336,10 @@ where
     /// # Example
     /// ```rust
     /// ContainerTest::rwlock_data_r()
-    ///     .chain_arc_rwlock_writable_optional(SomeStruct::optional_field_fw())
+    ///     .then_arc_rwlock_writable_optional_at_kp(SomeStruct::optional_field_fw())
     ///     .get_mut(&container, |value| *value = "new".to_string());
     /// ```
-    pub fn chain_arc_rwlock_writable_optional<InnerValue, SubValue, G>(
+    pub fn then_arc_rwlock_writable_optional_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
     ) -> ArcRwLockWritableOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2037,7 +2037,7 @@ where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
 {
     /// Chain this keypath with an inner keypath through Arc<parking_lot::Mutex<T>> - functional style
-    pub fn chain_arc_parking_mutex<SubValue, G>(
+    pub fn then_arc_parking_mutex_at_kp<SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2051,7 +2051,7 @@ where
     }
     
     /// Chain this keypath with an optional inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn chain_arc_parking_mutex_optional<SubValue, G>(
+    pub fn then_arc_parking_mutex_optional_at_kp<SubValue, G>(
         self,
         inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2065,7 +2065,7 @@ where
     }
     
     /// Chain this keypath with a writable inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn chain_arc_parking_mutex_writable<SubValue, G>(
+    pub fn then_arc_parking_mutex_writable_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2079,7 +2079,7 @@ where
     }
     
     /// Chain this keypath with a writable optional inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn chain_arc_parking_mutex_writable_optional<SubValue, G>(
+    pub fn then_arc_parking_mutex_writable_optional_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2099,7 +2099,7 @@ where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
 {
     /// Chain this keypath with an inner keypath through Arc<parking_lot::RwLock<T>> - functional style
-    pub fn chain_arc_parking_rwlock<SubValue, G>(
+    pub fn then_arc_parking_rwlock_at_kp<SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2113,7 +2113,7 @@ where
     }
     
     /// Chain this keypath with an optional inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn chain_arc_parking_rwlock_optional<SubValue, G>(
+    pub fn then_arc_parking_rwlock_optional_at_kp<SubValue, G>(
         self,
         inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2127,7 +2127,7 @@ where
     }
     
     /// Chain this keypath with a writable inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn chain_arc_parking_rwlock_writable<SubValue, G>(
+    pub fn then_arc_parking_rwlock_writable_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2141,7 +2141,7 @@ where
     }
     
     /// Chain this keypath with a writable optional inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn chain_arc_parking_rwlock_writable_optional<SubValue, G>(
+    pub fn then_arc_parking_rwlock_writable_optional_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2212,10 +2212,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_fr()
-    ///     .chain_arc_mutex(SomeStruct::data_r())
+    ///     .then_arc_mutex_at_kp(SomeStruct::data_r())
     ///     .get(&container, |value| println!("Data: {}", value));
     /// ```
-    pub fn chain_arc_mutex<InnerValue, SubValue, G>(
+    pub fn then_arc_mutex_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcMutexKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2237,10 +2237,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_fr()
-    ///     .chain_arc_mutex_optional(SomeStruct::optional_field_fr())
+    ///     .then_arc_mutex_optional_at_kp(SomeStruct::optional_field_fr())
     ///     .get(&container, |value| println!("Value: {}", value));
     /// ```
-    pub fn chain_arc_mutex_optional<InnerValue, SubValue, G>(
+    pub fn then_arc_mutex_optional_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcMutexOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2262,10 +2262,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::rwlock_data_fr()
-    ///     .chain_arc_rwlock(SomeStruct::data_r())
+    ///     .then_arc_rwlock_at_kp(SomeStruct::data_r())
     ///     .get(&container, |value| println!("Data: {}", value));
     /// ```
-    pub fn chain_arc_rwlock<InnerValue, SubValue, G>(
+    pub fn then_arc_rwlock_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcRwLockKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2287,10 +2287,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::rwlock_data_fr()
-    ///     .chain_arc_rwlock_optional(SomeStruct::optional_field_fr())
+    ///     .then_arc_rwlock_optional_at_kp(SomeStruct::optional_field_fr())
     ///     .get(&container, |value| println!("Value: {}", value));
     /// ```
-    pub fn chain_arc_rwlock_optional<InnerValue, SubValue, G>(
+    pub fn then_arc_rwlock_optional_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcRwLockOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2312,10 +2312,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get_mut()
     /// ContainerTest::mutex_data_fr()
-    ///     .chain_arc_mutex_writable(SomeStruct::data_w())
+    ///     .then_arc_mutex_writable_at_kp(SomeStruct::data_w())
     ///     .get_mut(&container, |value| *value = "new".to_string());
     /// ```
-    pub fn chain_arc_mutex_writable<InnerValue, SubValue, G>(
+    pub fn then_arc_mutex_writable_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcMutexWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2337,10 +2337,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get_mut()
     /// ContainerTest::mutex_data_fr()
-    ///     .chain_arc_mutex_writable_optional(SomeStruct::optional_field_fw())
+    ///     .then_arc_mutex_writable_optional_at_kp(SomeStruct::optional_field_fw())
     ///     .get_mut(&container, |value| *value = "new".to_string());
     /// ```
-    pub fn chain_arc_mutex_writable_optional<InnerValue, SubValue, G>(
+    pub fn then_arc_mutex_writable_optional_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcMutexWritableOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2362,10 +2362,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get_mut()
     /// ContainerTest::rwlock_data_fr()
-    ///     .chain_arc_rwlock_writable(SomeStruct::data_w())
+    ///     .then_arc_rwlock_writable_at_kp(SomeStruct::data_w())
     ///     .get_mut(&container, |value| *value = "new".to_string());
     /// ```
-    pub fn chain_arc_rwlock_writable<InnerValue, SubValue, G>(
+    pub fn then_arc_rwlock_writable_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcRwLockWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2387,10 +2387,10 @@ where
     /// 
     /// // Functional style: compose first, apply container at get_mut()
     /// ContainerTest::rwlock_data_fr()
-    ///     .chain_arc_rwlock_writable_optional(SomeStruct::optional_field_fw())
+    ///     .then_arc_rwlock_writable_optional_at_kp(SomeStruct::optional_field_fw())
     ///     .get_mut(&container, |value| *value = "new".to_string());
     /// ```
-    pub fn chain_arc_rwlock_writable_optional<InnerValue, SubValue, G>(
+    pub fn then_arc_rwlock_writable_optional_at_kp<InnerValue, SubValue, G>(
         self,
         inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcRwLockWritableOptionalKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
@@ -2658,7 +2658,7 @@ where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::Mutex<InnerValue>>>,
 {
     /// Chain this optional keypath with an inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn chain_arc_parking_mutex<SubValue, G>(
+    pub fn then_arc_parking_mutex_at_kp<SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2672,7 +2672,7 @@ where
     }
     
     /// Chain this optional keypath with an optional inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn chain_arc_parking_mutex_optional<SubValue, G>(
+    pub fn then_arc_parking_mutex_optional_at_kp<SubValue, G>(
         self,
         inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2686,7 +2686,7 @@ where
     }
     
     /// Chain this optional keypath with a writable inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn chain_arc_parking_mutex_writable<SubValue, G>(
+    pub fn then_arc_parking_mutex_writable_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2700,7 +2700,7 @@ where
     }
     
     /// Chain this optional keypath with a writable optional inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn chain_arc_parking_mutex_writable_optional<SubValue, G>(
+    pub fn then_arc_parking_mutex_writable_optional_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2720,7 +2720,7 @@ where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::RwLock<InnerValue>>>,
 {
     /// Chain this optional keypath with an inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn chain_arc_parking_rwlock<SubValue, G>(
+    pub fn then_arc_parking_rwlock_at_kp<SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2734,7 +2734,7 @@ where
     }
     
     /// Chain this optional keypath with an optional inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn chain_arc_parking_rwlock_optional<SubValue, G>(
+    pub fn then_arc_parking_rwlock_optional_at_kp<SubValue, G>(
         self,
         inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2748,7 +2748,7 @@ where
     }
     
     /// Chain this optional keypath with a writable inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn chain_arc_parking_rwlock_writable<SubValue, G>(
+    pub fn then_arc_parking_rwlock_writable_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -2762,7 +2762,7 @@ where
     }
     
     /// Chain this optional keypath with a writable optional inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn chain_arc_parking_rwlock_writable_optional<SubValue, G>(
+    pub fn then_arc_parking_rwlock_writable_optional_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
