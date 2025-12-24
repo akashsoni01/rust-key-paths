@@ -7,8 +7,8 @@
 
 use keypaths_proc::{Keypaths, ReadableKeypaths, WritableKeypaths};
 use rust_keypaths::KeyPath;
-use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Weak;
+use std::sync::Arc;
 
 #[derive(Debug, Keypaths)]
 struct ContainerTest {
@@ -17,8 +17,14 @@ struct ContainerTest {
     result_int: Result<i32, String>,
     
     // Synchronization primitives
-    mutex_data: Arc<Mutex<SomeStruct>>,
-    rwlock_data: Arc<RwLock<SomeStruct>>,
+    /// Important - it is mandatory to use std::sync::Mutex over Mutex and use std::sync::Mutex; statement
+    /// as our parser for Keypaths written for parking_lot as default if you want to use std then use with full import syntax
+    /// 
+    mutex_data: Arc<std::sync::Mutex<SomeStruct>>,
+    /// Important - it is mandatory to use std::sync::RwLock over RwLock and use std::sync::RwLock; statement
+    /// as our parser for Keypaths written for parking_lot as default if you want to use std then use with full import syntax
+    ///
+    rwlock_data: Arc<std::sync::RwLock<SomeStruct>>,
     
     // Reference counting with weak references
     weak_ref: Weak<String>,
@@ -33,11 +39,11 @@ impl ContainerTest {
         Self {
             result: Ok("Success!".to_string()),
             result_int: Ok(42),
-            mutex_data: Arc::new(Mutex::new(SomeStruct {
+            mutex_data: Arc::new(std::sync::Mutex::new(SomeStruct {
                 data: "Hello".to_string(),
                 optional_field: Some("Optional value".to_string()),
             })),
-            rwlock_data: Arc::new(RwLock::new(SomeStruct {
+            rwlock_data: Arc::new(std::sync::RwLock::new(SomeStruct {
                 data: "RwLock Hello".to_string(),
                 optional_field: Some("RwLock Optional".to_string()),
             })),
@@ -69,7 +75,7 @@ fn main() {
     // ==========================================================
     
     // Example 1: Read through Arc<Mutex<T>> with then_arc_mutex_at_kp
-    ContainerTest::rwlock_data_fr_at(crate::SomeStruct::data_r()).get(&container, |value| {
+    ContainerTest::rwlock_data_fr_at(SomeStruct::data_r()).get(&container, |value| {
         println!("asdf = {}", value);
     });
     ContainerTest::mutex_data_r()

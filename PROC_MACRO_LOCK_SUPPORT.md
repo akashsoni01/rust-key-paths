@@ -1,148 +1,144 @@
-# Proc Macro Lock Support Improvements
+# Proc Macro Lock Support
 
-## Summary
+## ⚠️ IMPORTANT: Lock Type Defaults
 
-Extended the `keypaths-proc` derive macro to properly support keypaths for all types of locks, including both `std::sync` and `parking_lot` lock types. Added comprehensive helper methods for chaining through locks.
+**`Mutex` and `RwLock` default to `parking_lot` types!**
 
-## Generated Methods for Lock Fields
-
-For fields like `f1: Arc<Mutex<T>>` or `f1: Arc<RwLock<T>>`, the derive macro now generates:
-
-### Basic Keypaths
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `{field}_r()` | `KeyPath<Struct, Arc<Lock<T>>>` | Readable keypath to the lock field |
-| `{field}_w()` | `WritableKeyPath<Struct, Arc<Lock<T>>>` | Writable keypath to the lock field |
-| `{field}_o()` | `KeyPath<Struct, Arc<Lock<T>>>` | Owned access keypath |
-
-### Chain Methods for std::sync Locks
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `{field}_fr_at(inner_kp)` | `ArcMutex/RwLockKeyPathChain` | Chains with readable keypath through std::sync lock |
-| `{field}_fw_at(inner_kp)` | `ArcMutex/RwLockWritableKeyPathChain` | Chains with writable keypath through std::sync lock |
-
-### Chain Methods for parking_lot Locks (requires `parking_lot` feature)
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `{field}_parking_fr_at(inner_kp)` | `ArcParkingMutex/RwLockKeyPathChain` | Chains with readable keypath through parking_lot lock |
-| `{field}_parking_fw_at(inner_kp)` | `ArcParkingMutex/RwLockWritableKeyPathChain` | Chains with writable keypath through parking_lot lock |
-
-## Usage Pattern
-
-### Method 1: Direct Chain Methods (Recommended)
-
-Use the generated `{field}_parking_fr_at()` and `{field}_parking_fw_at()` methods for simplified chaining:
+- If you write `Arc<Mutex<T>>` or `Arc<RwLock<T>>`, it will be treated as **parking_lot**
+- To use **std::sync**, you MUST use the full path: `Arc<std::sync::Mutex<T>>` or `Arc<std::sync::RwLock<T>>`
 
 ```rust
-// Reading through the lock
-SomeStruct::f1_parking_fr_at(SomeOtherStruct::name_r())
-    .get(&instance, |name| {
-        println!("Name: {}", name);
-    });
+use parking_lot::RwLock;  // OK - will use parking_lot methods
+use std::sync::RwLock;    // Must use: std::sync::RwLock<T> in the field type
 
-// Writing through the lock  
-SomeStruct::f1_parking_fw_at(SomeOtherStruct::name_w())
-    .get_mut(&instance, |name| {
-        *name = String::from("new_name");
-    });
-```
-
-### Method 2: Manual Chaining with Library Methods
-
-Use the generated `{field}_r()` method and chain with library methods:
-
-```rust
-SomeStruct::f1_r()
-    .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
-    .get(&instance, |inner| {
-        // Access deeply nested value
-    });
-```
-
-## Example
-
-### Before (Manual Keypaths)
-
-```rust
-use rust_keypaths::keypath;
-
-let f1_kp = keypath!(|s: &SomeStruct| &s.f1);
-let f4_kp = keypath!(|s: &SomeOtherStruct| &s.f4);
-
-f1_kp.then_arc_parking_rwlock_at_kp(f4_kp)
-    .get(&instance, |inner| {
-        // Access deeply nested value
-    });
-```
-
-### After (Derive-Generated Keypaths)
-
-```rust
 #[derive(Keypaths)]
-#[All]  // Generate both readable and writable keypaths
-struct SomeStruct {
-    f1: Arc<RwLock<SomeOtherStruct>>,
+struct Example {
+    // These default to parking_lot:
+    data1: Arc<RwLock<Inner>>,           // parking_lot (default)
+    data2: Arc<Mutex<Inner>>,            // parking_lot (default)
+    
+    // These use std::sync:
+    data3: Arc<std::sync::RwLock<Inner>>,  // std::sync (explicit)
+    data4: Arc<std::sync::Mutex<Inner>>,   // std::sync (explicit)
+}
+```
+
+## Generated Methods
+
+### For parking_lot (Default)
+
+For fields like `f1: Arc<RwLock<T>>` (without `std::sync::` prefix):
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `{field}_r()` | `KeyPath<Struct, Arc<RwLock<T>>>` | Readable keypath to the lock field |
+| `{field}_w()` | `WritableKeyPath<Struct, Arc<RwLock<T>>>` | Writable keypath to the lock field |
+| `{field}_fr_at(inner_kp)` | Chain | Chains through parking_lot lock for reading |
+| `{field}_fw_at(inner_kp)` | Chain | Chains through parking_lot lock for writing |
+
+### For std::sync (Explicit)
+
+For fields like `f1: Arc<std::sync::RwLock<T>>`:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `{field}_r()` | `KeyPath<Struct, Arc<RwLock<T>>>` | Readable keypath to the lock field |
+| `{field}_w()` | `WritableKeyPath<Struct, Arc<RwLock<T>>>` | Writable keypath to the lock field |
+| `{field}_fr_at(inner_kp)` | Chain | Chains through std::sync lock for reading |
+| `{field}_fw_at(inner_kp)` | Chain | Chains through std::sync lock for writing |
+
+## Usage Examples
+
+### parking_lot (Default)
+
+```rust
+use std::sync::Arc;
+use parking_lot::RwLock;
+use keypaths_proc::Keypaths;
+
+#[derive(Keypaths)]
+#[All]
+struct Container {
+    data: Arc<RwLock<Inner>>,  // parking_lot (default)
 }
 
 #[derive(Keypaths)]
 #[All]
-struct SomeOtherStruct {
-    f4: Arc<RwLock<DeeplyNestedStruct>>,
+struct Inner {
+    value: String,
 }
 
-// Use generated methods
-SomeStruct::f1_r()
-    .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
-    .get(&instance, |inner| {
-        // Access deeply nested value
-    });
+fn main() {
+    let instance = Container {
+        data: Arc::new(RwLock::new(Inner { value: "hello".into() })),
+    };
+
+    // Use the generated _fr_at() method (parking_lot)
+    Container::data_fr_at(Inner::value_r())
+        .get(&instance, |value| {
+            println!("Value: {}", value);
+        });
+
+    // Or chain manually
+    Container::data_r()
+        .then_arc_parking_rwlock_at_kp(Inner::value_r())
+        .get(&instance, |value| {
+            println!("Value: {}", value);
+        });
+}
 ```
 
-## Benefits
+### std::sync (Explicit)
 
-1. **Type-safe**: The derive macro generates correctly-typed keypaths
-2. **Less boilerplate**: No need to manually write `keypath!` macros for lock fields
-3. **Works with both std and parking_lot**: The same pattern works for both lock implementations
-4. **Zero-copy**: All access is done through references, no cloning required
-5. **Composable**: Generated keypaths can be chained through multiple lock layers
+```rust
+use std::sync::{Arc, RwLock};
+use keypaths_proc::Keypaths;
+
+#[derive(Keypaths)]
+#[All]
+struct Container {
+    // MUST use full path for std::sync
+    data: Arc<std::sync::RwLock<Inner>>,
+}
+
+#[derive(Keypaths)]
+#[All]
+struct Inner {
+    value: String,
+}
+
+fn main() {
+    let instance = Container {
+        data: Arc::new(RwLock::new(Inner { value: "hello".into() })),
+    };
+
+    // Use the generated _fr_at() method (std::sync)
+    Container::data_fr_at(Inner::value_r())
+        .get(&instance, |value| {
+            println!("Value: {}", value);
+        });
+
+    // Or chain manually
+    Container::data_r()
+        .then_arc_rwlock_at_kp(Inner::value_r())
+        .get(&instance, |value| {
+            println!("Value: {}", value);
+        });
+}
+```
+
+## Why This Design?
+
+1. **parking_lot is faster** - No lock poisoning, better performance
+2. **Simpler common case** - Most users will use parking_lot
+3. **Explicit std::sync** - Forces awareness when using std::sync
+4. **Compile-time safety** - The macro detects `std::sync::` in the path and generates appropriate code
 
 ## Testing
 
-See `examples/parking_lot_nested_chain.rs` for a complete example demonstrating:
-- Using derive-generated keypaths for `Arc<parking_lot::RwLock<T>>` fields
-- Chaining through multiple lock layers
-- Reading and writing nested optional values
-- Zero-copy access (proven by panic-on-clone implementations)
-
-Run with:
+Run the parking_lot example:
 ```bash
 cargo run --example parking_lot_nested_chain --features parking_lot
 ```
 
-## Important Notes
-
-### Struct Attributes
-
-- Use `#[All]` to generate both readable and writable methods
-- Use `#[Writable]` to generate only writable methods (no `_r()` methods)
-- Use `#[Readable]` to generate only readable methods
-- Default (no attribute) generates readable methods
-
-### Clone Limitations
-
-The generated keypaths use `impl Fn` closures which don't implement `Clone`. Therefore:
-- Call the generator method (e.g., `SomeStruct::f1_r()`) each time you need the keypath
-- Don't try to store the keypath in a variable and `.clone()` it
-
-**✅ Good:**
-```rust
-SomeStruct::f1_r().then_arc_parking_rwlock_at_kp(...)
-SomeStruct::f1_r().then_arc_parking_rwlock_at_kp(...)  // Call again
-```
-
-**❌ Bad:**
-```rust
-let kp = SomeStruct::f1_r();
-kp.clone()  // Error: impl Fn doesn't implement Clone
-```
-
+This demonstrates chaining through multiple nested `Arc<parking_lot::RwLock<T>>` layers with zero-copy access.

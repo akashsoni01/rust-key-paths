@@ -77,31 +77,34 @@ mod example {
         println!("  f4.f2 = {:?}", instance.f1.read().f4.read().f2);
         println!("  f4.name = {:?}", instance.f1.read().f4.read().name);
 
-        println!("\n=== Generated Methods Available ===");
-        println!("For Arc<RwLock<T>> fields, the macro generates:");
-        println!("  • _r()  -> KeyPath<Struct, Arc<RwLock<T>>>  (readable)");
-        println!("  • _w()  -> WritableKeyPath<Struct, Arc<RwLock<T>>>  (writable)");
-        println!("  • _fr_at(inner_kp)  -> Chain for std::sync::RwLock");
-        println!("  • _fw_at(inner_kp)  -> Chain for std::sync::RwLock (writable)");
-        println!("  • _parking_fr_at(inner_kp)  -> Chain for parking_lot::RwLock");
-        println!("  • _parking_fw_at(inner_kp)  -> Chain for parking_lot::RwLock (writable)");
+        println!("\n=== Generated Methods for Arc<RwLock<T>> Fields ===");
+        println!("⚠️  IMPORTANT: RwLock and Mutex DEFAULT to parking_lot!");
+        println!("    Use `std::sync::RwLock` or `std::sync::Mutex` for std::sync types.\n");
+        println!("For Arc<RwLock<T>> fields (parking_lot default), the macro generates:");
+        println!("  • _r()      -> KeyPath<Struct, Arc<RwLock<T>>>  (readable)");
+        println!("  • _w()      -> WritableKeyPath<Struct, Arc<RwLock<T>>>  (writable)");
+        println!("  • _fr_at()  -> Chain through lock for reading (parking_lot)");
+        println!("  • _fw_at()  -> Chain through lock for writing (parking_lot)");
+        println!("\nFor Arc<std::sync::RwLock<T>> fields (explicit prefix), generates:");
+        println!("  • _fr_at()  -> Chain through lock for reading (std::sync)");
+        println!("  • _fw_at()  -> Chain through lock for writing (std::sync)");
 
         // ============================================================
-        // USING THE NEW _parking_fr_at() HELPER METHOD
+        // USING THE _fr_at() HELPER METHOD (parking_lot by default)
         // ============================================================
-        println!("\n--- Using _parking_fr_at() for reading ---");
+        println!("\n--- Using _fr_at() for reading (parking_lot) ---");
 
         // Create a keypath to the name field (non-optional)
         let name_kp = KeyPath::new(|s: &DeeplyNestedStruct| &s.name);
         
-        // Use the generated f1_parking_fr_at() to chain through the first lock,
-        // then read f4 and access its inner name field
-        SomeStruct::f1_parking_fr_at(SomeOtherStruct::f4_r())
+        // Use the generated f1_fr_at() to chain through the first lock
+        // (defaults to parking_lot since we used `RwLock` without `std::sync::` prefix)
+        SomeStruct::f1_fr_at(SomeOtherStruct::f4_r())
             .get(&instance, |f4_arc| {
                 // Now chain through the second lock to get the name
-                SomeOtherStruct::f4_parking_fr_at(name_kp.clone())
+                SomeOtherStruct::f4_fr_at(name_kp.clone())
                     .get(&instance.f1.read(), |name| {
-                        println!("✅ Read name via _parking_fr_at chain: {:?}", name);
+                        println!("✅ Read name via _fr_at chain (parking_lot): {:?}", name);
                     });
             });
 
