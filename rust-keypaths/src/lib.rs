@@ -5224,7 +5224,7 @@ where
     }
 
     #[cfg(feature = "tagged")]
-    fn with_tagged<Tag, Callback, R>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> R
+    fn with_tagged<Callback, R, Tag>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> R
     where
         Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
         Callback: FnOnce(&Value) -> R,
@@ -5352,12 +5352,15 @@ where
     }
 
     #[cfg(feature = "tagged")]
-    fn with_tagged<Tag, Callback, R>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> R
+    fn with_tagged<Callback, R, Tag>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> R
     where
         Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
         Callback: FnOnce(&Value) -> R,
     {
-        self.with_tagged(tagged, f)
+        use std::ops::Deref;
+        self.get(tagged.deref())
+            .map(|value| f(value))
+            .expect("OptionalKeyPath::with_tagged: Tagged should always contain a value that matches the keypath")
     }
 
     fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
@@ -5504,7 +5507,7 @@ where
     }
 
     #[cfg(feature = "tagged")]
-    fn with_tagged<Tag, Callback, R>(&self, _tagged: &Tagged<Root, Tag>, _f: Callback) -> R
+    fn with_tagged<Callback, R, Tag>(&self, _tagged: &Tagged<Root, Tag>, _f: Callback) -> R
     where
         Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
         Callback: FnOnce(&Value) -> R,
@@ -5678,7 +5681,7 @@ where
     }
 
     #[cfg(feature = "tagged")]
-    fn with_tagged<Tag, Callback, R>(&self, _tagged: &Tagged<Root, Tag>, _f: Callback) -> R
+    fn with_tagged<Callback, R, Tag>(&self, _tagged: &Tagged<Root, Tag>, _f: Callback) -> R
     where
         Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
         Callback: FnOnce(&Value) -> R,
