@@ -16,8 +16,8 @@ Inspired by **Swift's KeyPath ** system, this feature rich crate lets you work w
 
 ```toml
 [dependencies]
-rust-keypaths = "1.1.0"
-keypaths-proc = "1.1.0"
+rust-keypaths = "1.3.0"
+keypaths-proc = "1.3.0"
 ```
 ---
 
@@ -183,7 +183,7 @@ For faster synchronization with `parking_lot::Mutex` and `parking_lot::RwLock`:
 
 ```toml
 [dependencies]
-rust-keypaths = { version = "1.1.0", features = ["parking_lot"] }
+rust-keypaths = { version = "1.3.0", features = ["parking_lot"] }
 ```
 
 ```rust
