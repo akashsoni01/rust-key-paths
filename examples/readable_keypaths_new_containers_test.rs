@@ -10,7 +10,7 @@ use rust_keypaths::KeyPath;
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Weak;
 
-#[derive(Debug, ReadableKeypaths, WritableKeypaths)]
+#[derive(Debug, Keypaths)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
@@ -69,6 +69,9 @@ fn main() {
     // ==========================================================
     
     // Example 1: Read through Arc<Mutex<T>> with then_arc_mutex_at_kp
+    ContainerTest::rwlock_data_fr_at(crate::SomeStruct::data_r()).get(&container, |value| {
+        println!("asdf = {}", value);
+    });
     ContainerTest::mutex_data_r()
         .then_arc_mutex_at_kp(SomeStruct::data_r())
         .get(&container, |value| {

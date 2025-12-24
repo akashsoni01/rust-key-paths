@@ -1152,6 +1152,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             );
                         }
                         (WrapperKind::ArcMutex, Some(inner_ty)) => {
+                            // _r() - Returns KeyPath to the Arc<Mutex<T>> field
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1162,49 +1163,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            // Helper method for Arc<Mutex<T>>: acquire lock, get value via keypath, clone
-                            let arc_mutex_fr_at_fn = format_ident!("{}_arc_mutex_fr_at", field_ident);
-                            push_method(
-                                &mut tokens,
-                                method_scope,
-                                MethodKind::Readable,
-                                quote! {
-                                    pub fn #arc_mutex_fr_at_fn<Value, F>(kp: rust_keypaths::KeyPath<#inner_ty, Value, F>) -> impl Fn(&std::sync::Arc<std::sync::Mutex<#inner_ty>>) -> Option<Value>
-                                    where
-                                        Value: Clone,
-                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
-                                    {
-                                        move |arc_mutex: &std::sync::Arc<std::sync::Mutex<#inner_ty>>| {
-                                            let guard = arc_mutex.lock().ok()?;
-                                            Some(kp.get(&*guard).clone())
-                                        }
-                                    }
-                                },
-                            );
-                            // Helper method for Arc<Mutex<T>>: acquire lock, get mutable reference via keypath, set new value
-                            let arc_mutex_fw_at_fn = format_ident!("{}_arc_mutex_fw_at", field_ident);
+                            // _w() - Returns WritableKeyPath to the Arc<Mutex<T>> field
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #arc_mutex_fw_at_fn<Value, KPF>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, new_value: Value) -> impl FnOnce(&std::sync::Arc<std::sync::Mutex<#inner_ty>>) -> Option<()>
-                                    where
-                                        KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
-                                        Value: Clone + 'static,
-                                    {
-                                        move |arc_mutex: &std::sync::Arc<std::sync::Mutex<#inner_ty>>| {
-                                            let mut guard: std::sync::MutexGuard<#inner_ty> = arc_mutex.lock().ok()?;
-                                            let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
-                                            *mutable_pointer = new_value;
-                                            Some(())
-                                        }
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
+                                        rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
                             );
-                            // Note: Arc<Mutex<T>> doesn't support writable access (Arc is immutable)
-                            // Note: Arc<Mutex<T>> doesn't support direct access to inner type due to lifetime constraints
-                            // Only providing container-level access
+                            // _o() - Returns KeyPath for owned access
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1212,11 +1182,125 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            
+                            // _fr_at() - Chain through std::sync::Mutex with a readable keypath
+                            // Returns a chained keypath that can use .get() with callback
+                            let fr_at_fn = format_ident!("{}_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    /// Chains through Arc<std::sync::Mutex<T>> with a readable keypath.
+                                    /// Returns a chained keypath that can be used with `.get(root, |value| ...)`.
+                                    pub fn #fr_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcMutexKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_mutex_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // _fw_at() - Chain through std::sync::Mutex with a writable keypath
+                            let fw_at_fn = format_ident!("{}_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Chains through Arc<std::sync::Mutex<T>> with a writable keypath.
+                                    /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...)`.
+                                    pub fn #fw_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcMutexWritableKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_mutex_writable_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // _parking_fr_at() - Chain through parking_lot::Mutex with a readable keypath
+                            let parking_fr_at_fn = format_ident!("{}_parking_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    /// Chains through Arc<parking_lot::Mutex<T>> with a readable keypath.
+                                    /// Returns a chained keypath that can be used with `.get(root, |value| ...)`.
+                                    #[cfg(feature = "parking_lot")]
+                                    pub fn #parking_fr_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcParkingMutexKeyPathChain<
+                                        #name,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_parking_mutex_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // _parking_fw_at() - Chain through parking_lot::Mutex with a writable keypath
+                            let parking_fw_at_fn = format_ident!("{}_parking_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Chains through Arc<parking_lot::Mutex<T>> with a writable keypath.
+                                    /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...)`.
+                                    #[cfg(feature = "parking_lot")]
+                                    pub fn #parking_fw_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcParkingMutexWritableKeyPathChain<
+                                        #name,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_parking_mutex_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
                         }
                         (WrapperKind::ArcRwLock, Some(inner_ty)) => {
+                            // _r() - Returns KeyPath to the Arc<RwLock<T>> field
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1227,49 +1311,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            // Helper method for Arc<RwLock<T>>: acquire read lock, get value via keypath, clone
-                            let arc_rwlock_fr_at_fn = format_ident!("{}_arc_rwlock_fr_at", field_ident);
-                            push_method(
-                                &mut tokens,
-                                method_scope,
-                                MethodKind::Readable,
-                                quote! {
-                                    pub fn #arc_rwlock_fr_at_fn<Value, F>(kp: rust_keypaths::KeyPath<#inner_ty, Value, F>) -> impl Fn(&std::sync::Arc<std::sync::RwLock<#inner_ty>>) -> Option<Value>
-                                    where
-                                        Value: Clone,
-                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
-                                    {
-                                        move |arc_rwlock: &std::sync::Arc<std::sync::RwLock<#inner_ty>>| {
-                                            let guard = arc_rwlock.read().ok()?;
-                                            Some(kp.get(&*guard).clone())
-                                        }
-                                    }
-                                },
-                            );
-                            // Helper method for Arc<RwLock<T>>: acquire write lock, get mutable reference via keypath, set new value
-                            let arc_rwlock_fw_at_fn = format_ident!("{}_arc_rwlock_fw_at", field_ident);
+                            // _w() - Returns WritableKeyPath to the Arc<RwLock<T>> field
                             push_method(
                                 &mut tokens,
                                 method_scope,
                                 MethodKind::Writable,
                                 quote! {
-                                    pub fn #arc_rwlock_fw_at_fn<Value, KPF>(kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, KPF>, new_value: Value) -> impl FnOnce(&std::sync::Arc<std::sync::RwLock<#inner_ty>>) -> Option<()>
-                                    where
-                                        KPF: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
-                                        Value: Clone + 'static,
-                                    {
-                                        move |arc_rwlock: &std::sync::Arc<std::sync::RwLock<#inner_ty>>| {
-                                            let mut guard: std::sync::RwLockWriteGuard<#inner_ty> = arc_rwlock.write().ok()?;
-                                            let mutable_pointer: &mut Value = kp.get_mut(&mut *guard);
-                                            *mutable_pointer = new_value;
-                                            Some(())
-                                        }
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
+                                        rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
                                     }
                                 },
                             );
-                            // Note: Arc<RwLock<T>> doesn't support writable access (Arc is immutable)
-                            // Note: Arc<RwLock<T>> doesn't support direct access to inner type due to lifetime constraints
-                            // Only providing container-level access
+                            // _o() - Returns KeyPath for owned access
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -1277,6 +1330,119 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            
+                            // _fr_at() - Chain through std::sync::RwLock with a readable keypath
+                            // Returns a chained keypath that can use .get() with callback
+                            let fr_at_fn = format_ident!("{}_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    /// Chains through Arc<std::sync::RwLock<T>> with a readable keypath.
+                                    /// Returns a chained keypath that can be used with `.get(root, |value| ...)`.
+                                    pub fn #fr_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcRwLockKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_rwlock_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // _fw_at() - Chain through std::sync::RwLock with a writable keypath
+                            let fw_at_fn = format_ident!("{}_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Chains through Arc<std::sync::RwLock<T>> with a writable keypath.
+                                    /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...)`.
+                                    pub fn #fw_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcRwLockWritableKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_rwlock_writable_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // _parking_fr_at() - Chain through parking_lot::RwLock with a readable keypath
+                            let parking_fr_at_fn = format_ident!("{}_parking_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    /// Chains through Arc<parking_lot::RwLock<T>> with a readable keypath.
+                                    /// Returns a chained keypath that can be used with `.get(root, |value| ...)`.
+                                    #[cfg(feature = "parking_lot")]
+                                    pub fn #parking_fr_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcParkingRwLockKeyPathChain<
+                                        #name,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_parking_rwlock_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // _parking_fw_at() - Chain through parking_lot::RwLock with a writable keypath
+                            let parking_fw_at_fn = format_ident!("{}_parking_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Chains through Arc<parking_lot::RwLock<T>> with a writable keypath.
+                                    /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...)`.
+                                    #[cfg(feature = "parking_lot")]
+                                    pub fn #parking_fw_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcParkingRwLockWritableKeyPathChain<
+                                        #name,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_parking_rwlock_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -3628,10 +3794,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Heper function to check lif a type path includes parking_lot module
+fn is_parking_lot_type(path: &syn::Path) -> bool {
+    path.segments.iter().any(|seg| seg.ident == "parking_lot")
+}
+
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
     
     if let Type::Path(tp) = ty {
+        let is_parking_lot = is_parking_lot_type(&tp.path);
+        
         if let Some(seg) = tp.path.segments.last() {
             let ident_str = seg.ident.to_string();
             
@@ -3706,6 +3879,10 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             }
                             _ => {
                                 // Handle single-level containers
+                                // For Mutex and RwLock, check if it's parking_lot or std::sync
+                                // Note: We can't reliably distinguish parking_lot from std::sync at compile time
+                                // if they're imported with `use parking_lot::RwLock` without the full path.
+                                // The generated code will need to work with both types.
                                 return match ident_str.as_str() {
                                     "Option" => (WrapperKind::Option, Some(inner.clone())),
                                     "Box" => (WrapperKind::Box, Some(inner.clone())),

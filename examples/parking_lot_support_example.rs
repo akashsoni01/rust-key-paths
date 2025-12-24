@@ -1,5 +1,4 @@
 use keypaths_proc::Keypaths;
-use rust_keypaths::KeyPath;
 
 use std::sync::Arc;
 
