@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "1.17.0"
+version = "1.18.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -14,8 +14,8 @@ include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
 # Primary crates: rust-keypaths (static dispatch, faster) and keypaths-proc (proc macros)
-rust-keypaths = "1.4.0"
-keypaths-proc = "1.4.0"
+rust-keypaths = { path = "rust-keypaths", version = "1.4.0", features = ["tagged_core", "parking_lot"] }
+keypaths-proc = { path = "keypaths-proc", version = "1.4.0"}
 
 # Legacy crates: key-paths-core 1.6.0 for dynamic dispatch, multithreaded needs
 # Note: Use key-paths-core = "1.6.0" if you need dynamic dispatch or Send + Sync bounds
@@ -26,28 +26,18 @@ keypaths-proc = "1.4.0"
 [workspace]
 resolver = "3" # or "3"
 members = [
-    "rust-keypaths",
     "keypaths-proc",
-    # Legacy members (kept for backward compatibility)
-    "key-paths-core",
-    "key-paths-derive",
-    "key-paths-macros"
-, "keypaths-core"]
+    "rust-keypaths"
+]
 
 [patch.crates-io]
-# key-paths-core = { path = "key-paths-core" }
-# key-paths-derive = { path = "key-paths-derive" }
 rust-keypaths = { path = "rust-keypaths" }
 keypaths-proc = { path = "keypaths-proc" }
+
 [features]
 default = []
-# Features for rust-keypaths (static dispatch)
-parking_lot = ["rust-keypaths/parking_lot"]
-tagged = ["rust-keypaths/tagged"]
-nightly = ["rust-keypaths/nightly"]
-# Legacy features for key-paths-core (dynamic dispatch)
-# parking_lot_legacy = ["key-paths-core/parking_lot"]
-# tagged_core = ["key-paths-core/tagged_core"]
+#parking_lot = ["rust-keypaths/parking_lot"]
+#tagged_core = ["rust-keypaths/tagged_core"]
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
