@@ -16,8 +16,8 @@ Inspired by **Swift's KeyPath ** system, this feature rich crate lets you work w
 
 ```toml
 [dependencies]
-rust-keypaths = "1.3.0"
-keypaths-proc = "1.3.0"
+rust-keypaths = "1.4.0"
+keypaths-proc = "1.4.0"
 ```
 ---
 
@@ -119,89 +119,69 @@ fn main() {
 }
 ```
 
-### Functional Chains for Arc<Mutex<T>> and Arc<RwLock<T>>
 
-Compose keypaths through synchronization primitives with a functional, compose-first approach:
+### parking_lot Support (Default for `Mutex`/`RwLock`)
 
-```rust
-use std::sync::{Arc, Mutex, RwLock};
-use keypaths_proc::{Keypaths, WritableKeypaths};
-
-#[derive(Debug, Keypaths, WritableKeypaths)]
-struct Container {
-    mutex_data: Arc<Mutex<DataStruct>>,
-    rwlock_data: Arc<RwLock<DataStruct>>,
-}
-
-#[derive(Debug, Keypaths, WritableKeypaths)]
-struct DataStruct {
-    name: String,
-    optional_value: Option<String>,
-}
-
-fn main() {
-    let container = Container::new();
-    
-    // Read through Arc<Mutex<T>> - compose the chain, then apply
-    Container::mutex_data_r()
-        .then_arc_mutex_at_kp(DataStruct::name_r())
-        .get(&container, |value| {
-            println!("Name: {}", value);
-        });
-    
-    // Write through Arc<Mutex<T>>
-    Container::mutex_data_r()
-        .then_arc_mutex_writable_at_kp(DataStruct::name_w())
-        .get_mut(&container, |value| {
-            *value = "New name".to_string();
-        });
-    
-    // Read through Arc<RwLock<T>> (read lock)
-    Container::rwlock_data_r()
-        .then_arc_rwlock_at_kp(DataStruct::name_r())
-        .get(&container, |value| {
-            println!("Name: {}", value);
-        });
-    
-    // Write through Arc<RwLock<T>> (write lock)
-    Container::rwlock_data_r()
-        .then_arc_rwlock_writable_at_kp(DataStruct::name_w())
-        .get_mut(&container, |value| {
-            *value = "New name".to_string();
-        });
-}
-```
-
-**Running the example:**
-```bash
-cargo run --example readable_keypaths_new_containers_test
-```
-
-### parking_lot Support
-
-For faster synchronization with `parking_lot::Mutex` and `parking_lot::RwLock`:
+> ⚠️ **IMPORTANT**: When using the derive macro, `Mutex` and `RwLock` **default to `parking_lot`** unless you explicitly use `std::sync::Mutex` or `std::sync::RwLock`.
 
 ```toml
 [dependencies]
-rust-keypaths = { version = "1.3.0", features = ["parking_lot"] }
+rust-keypaths = { version = "1.4.0", features = ["parking_lot"] }
 ```
+
+#### Derive Macro Generated Methods for Locks
+
+The derive macro generates helper methods for `Arc<Mutex<T>>` and `Arc<RwLock<T>>` fields:
+
+| Field Type | Generated Methods | Description |
+|------------|-------------------|-------------|
+| `Arc<Mutex<T>>` (parking_lot default) | `_r()`, `_w()`, `_fr_at(kp)`, `_fw_at(kp)` | Chain through parking_lot::Mutex |
+| `Arc<RwLock<T>>` (parking_lot default) | `_r()`, `_w()`, `_fr_at(kp)`, `_fw_at(kp)` | Chain through parking_lot::RwLock |
+| `Arc<std::sync::Mutex<T>>` | `_r()`, `_w()`, `_fr_at(kp)`, `_fw_at(kp)` | Chain through std::sync::Mutex |
+| `Arc<std::sync::RwLock<T>>` | `_r()`, `_w()`, `_fr_at(kp)`, `_fw_at(kp)` | Chain through std::sync::RwLock |
 
 ```rust
 use std::sync::Arc;
-use parking_lot::{Mutex as ParkingMutex, RwLock as ParkingRwLock};
+use parking_lot::RwLock;
+use keypaths_proc::Keypaths;
 
-// Chain methods for parking_lot (feature-gated)
-Container::parking_mutex_data_r()
-    .then_arc_parking_mutex_at_kp(DataStruct::name_r())
-    .get(&container, |value| {
-        println!("Name: {}", value);
-    });
+#[derive(Keypaths)]
+#[Writable]
+struct Container {
+    // This uses parking_lot::RwLock (default)
+    data: Arc<RwLock<DataStruct>>,
+    
+    // This uses std::sync::RwLock (explicit)
+    std_data: Arc<std::sync::RwLock<DataStruct>>,
+}
 
-Container::parking_rwlock_data_r()
-    .then_arc_parking_rwlock_writable_at_kp(DataStruct::name_w())
-    .get_mut(&container, |value| {
-        *value = "New name".to_string();
-    });
+#[derive(Keypaths)]
+#[Writable]
+struct DataStruct {
+    name: String,
+}
+
+fn main() {
+    let container = Container { /* ... */ };
+    
+    // Using generated _fr_at() for parking_lot (default)
+    Container::data_fr_at(DataStruct::name_r())
+        .get(&container, |value| {
+            println!("Name: {}", value);
+        });
+    
+    // Using generated _fw_at() for parking_lot (default)
+    Container::data_fw_at(DataStruct::name_w())
+        .get_mut(&container, |value| {
+            *value = "New name".to_string();
+        });
+    
+    // Using generated _fr_at() for std::sync::RwLock (explicit)
+    Container::std_data_fr_at(DataStruct::name_r())
+        .get(&container, |value| {
+            println!("Name: {}", value);
+        });
+}
 ```
 
 **Key advantage:** parking_lot locks **never fail** (no poisoning), so chain methods don't return `Option` for the lock operation itself.
@@ -209,6 +189,7 @@ Container::parking_rwlock_data_r()
 **Running the example:**
 ```bash
 cargo run --example parking_lot_chains --features parking_lot
+cargo run --example parking_lot_nested_chain --features parking_lot
 ```
 
 ---
@@ -294,31 +275,6 @@ See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed 
 9. **✅ Deep composition**: Works seamlessly with 10+ levels of nesting without workarounds (tested and verified)
 10. **✅ Type-safe composition**: Full compile-time type checking with `.then()` method
 11. **✅ Active development**: Regularly maintained with comprehensive feature set and documentation
-
-### Example: Why rust-keypaths is Better for Nested Option Chains
-
-**pl-lens approach** (requires manual work):
-```rust
-// Manual composition - verbose and error-prone
-let result = struct_instance
-    .level1_field
-    .as_ref()
-    .and_then(|l2| l2.level2_field.as_ref())
-    .and_then(|l3| l3.level3_field.as_ref())
-    // ... continues for 10 levels
-```
-
-**rust-keypaths approach** (composable and type-safe):
-```rust
-// Clean composition - type-safe and reusable
-let keypath = Level1::level1_field_fr()
-    .then(Level2::level2_field_fr())
-    .then(Level3::level3_field_fr())
-    // ... continues for 10 levels
-    .then(Level10::level10_field_fr());
-    
-let result = keypath.get(&instance); // Reusable, type-safe, fast
-```
 
 ---
 

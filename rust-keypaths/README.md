@@ -133,6 +133,63 @@ if let Some(value) = kp.get(&container) {
     println!("Value: {}", value);
 }
 ```
+### Functional Chains for Arc<Mutex<T>> and Arc<RwLock<T>>
+
+Compose keypaths through synchronization primitives with a functional, compose-first approach:
+
+```rust
+use std::sync::{Arc, Mutex, RwLock};
+use keypaths_proc::{Keypaths, WritableKeypaths};
+
+#[derive(Debug, Keypaths, WritableKeypaths)]
+struct Container {
+    mutex_data: Arc<Mutex<DataStruct>>,
+    rwlock_data: Arc<RwLock<DataStruct>>,
+}
+
+#[derive(Debug, Keypaths, WritableKeypaths)]
+struct DataStruct {
+    name: String,
+    optional_value: Option<String>,
+}
+
+fn main() {
+    let container = Container::new();
+    
+    // Read through Arc<Mutex<T>> - compose the chain, then apply
+    Container::mutex_data_r()
+        .then_arc_mutex_at_kp(DataStruct::name_r())
+        .get(&container, |value| {
+            println!("Name: {}", value);
+        });
+    
+    // Write through Arc<Mutex<T>>
+    Container::mutex_data_r()
+        .then_arc_mutex_writable_at_kp(DataStruct::name_w())
+        .get_mut(&container, |value| {
+            *value = "New name".to_string();
+        });
+    
+    // Read through Arc<RwLock<T>> (read lock)
+    Container::rwlock_data_r()
+        .then_arc_rwlock_at_kp(DataStruct::name_r())
+        .get(&container, |value| {
+            println!("Name: {}", value);
+        });
+    
+    // Write through Arc<RwLock<T>> (write lock)
+    Container::rwlock_data_r()
+        .then_arc_rwlock_writable_at_kp(DataStruct::name_w())
+        .get_mut(&container, |value| {
+            *value = "New name".to_string();
+        });
+}
+```
+
+**Running the example:**
+```bash
+cargo run --example readable_keypaths_new_containers_test
+```
 
 ### Collection Access
 
