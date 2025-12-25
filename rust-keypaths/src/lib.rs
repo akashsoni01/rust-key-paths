@@ -3159,55 +3159,55 @@ where
         }
     }
 
-    #[cfg(feature = "parking_lot")]
-    /// Convert this keypath to an Arc<parking_lot::RwLock> chain keypath
-    /// Creates a chain with an identity inner keypath, ready for further chaining
-    /// Type inference automatically determines InnerValue from Value
-    /// 
-    /// # Example
-    /// ```rust,ignore
-    /// Container::rwlock_data_r()
-    ///     .to_arc_parking_rwlock_chain()
-    ///     .then(InnerStruct::field_r());
-    /// ```
-    pub fn to_arc_parking_rwlock_chain<InnerValue>(self) -> ArcParkingRwLockKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
-    where
-        Value: std::borrow::Borrow<Arc<parking_lot::RwLock<InnerValue>>>,
-        F: 'static + Clone,
-        InnerValue: 'static,
-    {
-        let identity = KeyPath::new(|inner: &InnerValue| inner);
-        let getter = self.getter.clone();
-        // Create a new keypath with the exact type needed, following the proc macro pattern
-        // KeyPath::new(|s: &Root| &s.field).then_arc_parking_rwlock_at_kp(inner_kp)
-        let lock_kp: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, _> = KeyPath::new(move |root: &Root| {
-            // Safe: Value is Arc<parking_lot::RwLock<InnerValue>> at call site, enforced by Borrow bound
-            unsafe {
-                std::mem::transmute::<&Value, &Arc<parking_lot::RwLock<InnerValue>>>(getter(root))
-            }
-        });
-        lock_kp.then_arc_parking_rwlock_at_kp(identity)
-    }
+    // #[cfg(feature = "parking_lot")]
+    // /// Convert this keypath to an Arc<parking_lot::RwLock> chain keypath
+    // /// Creates a chain with an identity inner keypath, ready for further chaining
+    // /// Type inference automatically determines InnerValue from Value
+    // /// 
+    // /// # Example
+    // /// ```rust,ignore
+    // /// Container::rwlock_data_r()
+    // ///     .to_arc_parking_rwlock_chain()
+    // ///     .then(InnerStruct::field_r());
+    // /// ```
+    // pub fn to_arc_parking_rwlock_chain<InnerValue>(self) -> ArcParkingRwLockKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    // where
+    //     Value: std::borrow::Borrow<Arc<parking_lot::RwLock<InnerValue>>>,
+    //     F: 'static + Clone,
+    //     InnerValue: 'static,
+    // {
+    //     let identity = KeyPath::new(|inner: &InnerValue| inner);
+    //     let getter = self.getter.clone();
+    //     // Create a new keypath with the exact type needed, following the proc macro pattern
+    //     // KeyPath::new(|s: &Root| &s.field).then_arc_parking_rwlock_at_kp(inner_kp)
+    //     let lock_kp: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, _> = KeyPath::new(move |root: &Root| {
+    //         // Safe: Value is Arc<parking_lot::RwLock<InnerValue>> at call site, enforced by Borrow bound
+    //         unsafe {
+    //             std::mem::transmute::<&Value, &Arc<parking_lot::RwLock<InnerValue>>>(getter(root))
+    //         }
+    //     });
+    //     lock_kp.then_arc_parking_rwlock_at_kp(identity)
+    // }
 
-    #[cfg(feature = "parking_lot")]
-    /// Convert this keypath to an Arc<parking_lot::Mutex> chain keypath
-    /// Creates a chain with an identity inner keypath, ready for further chaining
-    /// Type inference automatically determines InnerValue from Value
-    pub fn to_arc_parking_mutex_chain<InnerValue>(self) -> ArcParkingMutexKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
-    where
-        Value: std::borrow::Borrow<Arc<parking_lot::Mutex<InnerValue>>>,
-        F: 'static + Clone,
-        InnerValue: 'static,
-    {
-        let identity = KeyPath::new(|inner: &InnerValue| inner);
-        let getter = self.getter.clone();
-        let lock_kp: KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, _> = KeyPath::new(move |root: &Root| {
-            unsafe {
-                std::mem::transmute::<&Value, &Arc<parking_lot::Mutex<InnerValue>>>(getter(root))
-            }
-        });
-        lock_kp.then_arc_parking_mutex_at_kp(identity)
-    }
+    // #[cfg(feature = "parking_lot")]
+    // /// Convert this keypath to an Arc<parking_lot::Mutex> chain keypath
+    // /// Creates a chain with an identity inner keypath, ready for further chaining
+    // /// Type inference automatically determines InnerValue from Value
+    // pub fn to_arc_parking_mutex_chain<InnerValue>(self) -> ArcParkingMutexKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    // where
+    //     Value: std::borrow::Borrow<Arc<parking_lot::Mutex<InnerValue>>>,
+    //     F: 'static + Clone,
+    //     InnerValue: 'static,
+    // {
+    //     let identity = KeyPath::new(|inner: &InnerValue| inner);
+    //     let getter = self.getter.clone();
+    //     let lock_kp: KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, _> = KeyPath::new(move |root: &Root| {
+    //         unsafe {
+    //             std::mem::transmute::<&Value, &Arc<parking_lot::Mutex<InnerValue>>>(getter(root))
+    //         }
+    //     });
+    //     lock_kp.then_arc_parking_mutex_at_kp(identity)
+    // }
 
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
     // Box<T> -> T
@@ -4476,49 +4476,49 @@ where
         }
     }
 
-    #[cfg(feature = "parking_lot")]
-    /// Convert this optional keypath to an Arc<parking_lot::RwLock> chain keypath
-    /// Creates a chain with an identity inner keypath, ready for further chaining
-    /// Type inference automatically determines InnerValue from Value
-    pub fn to_arc_parking_rwlock_chain<InnerValue>(self) -> OptionalArcParkingRwLockKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::RwLock<InnerValue>>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
-    where
-        Value: std::borrow::Borrow<Arc<parking_lot::RwLock<InnerValue>>>,
-        F: 'static + Clone,
-        InnerValue: 'static,
-    {
-        let identity = KeyPath::new(|inner: &InnerValue| inner);
-        let getter = self.getter.clone();
-        let lock_kp: OptionalKeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, _> = OptionalKeyPath::new(move |root: &Root| {
-            getter(root).map(|v| {
-                unsafe {
-                    std::mem::transmute::<&Value, &Arc<parking_lot::RwLock<InnerValue>>>(v)
-                }
-            })
-        });
-        lock_kp.then_arc_parking_rwlock_at_kp(identity)
-    }
+    // #[cfg(feature = "parking_lot")]
+    // /// Convert this optional keypath to an Arc<parking_lot::RwLock> chain keypath
+    // /// Creates a chain with an identity inner keypath, ready for further chaining
+    // /// Type inference automatically determines InnerValue from Value
+    // pub fn to_arc_parking_rwlock_chain<InnerValue>(self) -> OptionalArcParkingRwLockKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::RwLock<InnerValue>>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    // where
+    //     Value: std::borrow::Borrow<Arc<parking_lot::RwLock<InnerValue>>>,
+    //     F: 'static + Clone,
+    //     InnerValue: 'static,
+    // {
+    //     let identity = KeyPath::new(|inner: &InnerValue| inner);
+    //     let getter = self.getter.clone();
+    //     let lock_kp: OptionalKeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, _> = OptionalKeyPath::new(move |root: &Root| {
+    //         getter(root).map(|v| {
+    //             unsafe {
+    //                 std::mem::transmute::<&Value, &Arc<parking_lot::RwLock<InnerValue>>>(v)
+    //             }
+    //         })
+    //     });
+    //     lock_kp.then_arc_parking_rwlock_at_kp(identity)
+    // }
 
-    #[cfg(feature = "parking_lot")]
-    /// Convert this optional keypath to an Arc<parking_lot::Mutex> chain keypath
-    /// Creates a chain with an identity inner keypath, ready for further chaining
-    /// Type inference automatically determines InnerValue from Value
-    pub fn to_arc_parking_mutex_chain<InnerValue>(self) -> OptionalArcParkingMutexKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::Mutex<InnerValue>>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
-    where
-        Value: std::borrow::Borrow<Arc<parking_lot::Mutex<InnerValue>>>,
-        F: 'static + Clone,
-        InnerValue: 'static,
-    {
-        let identity = KeyPath::new(|inner: &InnerValue| inner);
-        let getter = self.getter.clone();
-        let lock_kp: OptionalKeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, _> = OptionalKeyPath::new(move |root: &Root| {
-            getter(root).map(|v| {
-                unsafe {
-                    std::mem::transmute::<&Value, &Arc<parking_lot::Mutex<InnerValue>>>(v)
-                }
-            })
-        });
-        lock_kp.then_arc_parking_mutex_at_kp(identity)
-    }
+    // #[cfg(feature = "parking_lot")]
+    // /// Convert this optional keypath to an Arc<parking_lot::Mutex> chain keypath
+    // /// Creates a chain with an identity inner keypath, ready for further chaining
+    // /// Type inference automatically determines InnerValue from Value
+    // pub fn to_arc_parking_mutex_chain<InnerValue>(self) -> OptionalArcParkingMutexKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::Mutex<InnerValue>>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    // where
+    //     Value: std::borrow::Borrow<Arc<parking_lot::Mutex<InnerValue>>>,
+    //     F: 'static + Clone,
+    //     InnerValue: 'static,
+    // {
+    //     let identity = KeyPath::new(|inner: &InnerValue| inner);
+    //     let getter = self.getter.clone();
+    //     let lock_kp: OptionalKeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, _> = OptionalKeyPath::new(move |root: &Root| {
+    //         getter(root).map(|v| {
+    //             unsafe {
+    //                 std::mem::transmute::<&Value, &Arc<parking_lot::Mutex<InnerValue>>>(v)
+    //             }
+    //         })
+    //     });
+    //     lock_kp.then_arc_parking_mutex_at_kp(identity)
+    // }
     
     // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
     pub fn for_arc_root(self) -> OptionalKeyPath<Arc<Root>, Value, impl for<'r> Fn(&'r Arc<Root>) -> Option<&'r Value> + 'static>
