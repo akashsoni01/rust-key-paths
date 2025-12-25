@@ -9,6 +9,7 @@ use keypaths_proc::{Keypaths, ReadableKeypaths, WritableKeypaths};
 use rust_keypaths::KeyPath;
 use std::rc::Weak;
 use std::sync::Arc;
+use rust_keypaths::lock_keypaths::{to_arc_mutex_kp, to_arc_mutex_writable_kp};
 
 #[derive(Debug, Keypaths)]
 struct ContainerTest {
@@ -76,8 +77,7 @@ fn main() {
     
     // Example 1: Read through Arc<Mutex<T>> with then_arc_mutex_at_kp
     // let x = ContainerTest::rwlock_data_r().to;
-    let x = ContainerTest::rwlock_data_r();
-    let x = x.to_arc_parking_rwlock_kp();
+    let x = ContainerTest::rwlock_data_r().to_arc_rwlock_chain();
     ContainerTest::rwlock_data_fr_at(SomeStruct::data_r()).get(&container, |value| {
         println!("asdf = {}", value);
     });

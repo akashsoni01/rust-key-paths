@@ -3111,6 +3111,103 @@ where
         self
     }
 
+    /// Convert this keypath to an Arc<RwLock> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// 
+    /// # Example
+    /// ```rust,ignore
+    /// Container::rwlock_data_r()
+    ///     .to_arc_rwlock_chain()
+    ///     .then(InnerStruct::field_r());
+    /// ```
+    /// Convert this keypath to an Arc<RwLock> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// Type inference automatically determines InnerValue from Value
+    /// 
+    /// # Example
+    /// ```rust,ignore
+    /// Container::rwlock_data_r()
+    ///     .to_arc_rwlock_chain()
+    ///     .then(InnerStruct::field_r());
+    /// ```
+    pub fn to_arc_rwlock_chain<InnerValue>(self) -> ArcRwLockKeyPathChain<Root, Value, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    where
+        Value: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+        F: 'static,
+        InnerValue: 'static,
+    {
+        let identity = KeyPath::new(|inner: &InnerValue| inner);
+        ArcRwLockKeyPathChain {
+            outer_keypath: self,
+            inner_keypath: identity,
+        }
+    }
+
+    /// Convert this keypath to an Arc<Mutex> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// Type inference automatically determines InnerValue from Value
+    pub fn to_arc_mutex_chain<InnerValue>(self) -> ArcMutexKeyPathChain<Root, Value, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    where
+        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+        F: 'static,
+        InnerValue: 'static,
+    {
+        let identity = KeyPath::new(|inner: &InnerValue| inner);
+        ArcMutexKeyPathChain {
+            outer_keypath: self,
+            inner_keypath: identity,
+        }
+    }
+
+    #[cfg(feature = "parking_lot")]
+    /// Convert this keypath to an Arc<parking_lot::RwLock> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// Type inference automatically determines InnerValue from Value
+    /// 
+    /// # Example
+    /// ```rust,ignore
+    /// Container::rwlock_data_r()
+    ///     .to_arc_parking_rwlock_chain()
+    ///     .then(InnerStruct::field_r());
+    /// ```
+    pub fn to_arc_parking_rwlock_chain<InnerValue>(self) -> ArcParkingRwLockKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    where
+        Value: AsRef<Arc<parking_lot::RwLock<InnerValue>>>,
+        F: 'static + Clone,
+        InnerValue: 'static,
+    {
+        let identity = KeyPath::new(|inner: &InnerValue| inner);
+        let getter = self.getter.clone();
+        let outer = KeyPath::new(move |root: &Root| {
+            getter(root).as_ref()
+        });
+        ArcParkingRwLockKeyPathChain {
+            outer_keypath: outer,
+            inner_keypath: identity,
+        }
+    }
+
+    #[cfg(feature = "parking_lot")]
+    /// Convert this keypath to an Arc<parking_lot::Mutex> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// Type inference automatically determines InnerValue from Value
+    pub fn to_arc_parking_mutex_chain<InnerValue>(self) -> ArcParkingMutexKeyPathChain<Root, InnerValue, InnerValue, impl for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>> + 'static, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    where
+        Value: AsRef<Arc<parking_lot::Mutex<InnerValue>>>,
+        F: 'static + Clone,
+        InnerValue: 'static,
+    {
+        let identity = KeyPath::new(|inner: &InnerValue| inner);
+        let getter = self.getter.clone();
+        let outer = KeyPath::new(move |root: &Root| {
+            getter(root).as_ref()
+        });
+        ArcParkingMutexKeyPathChain {
+            outer_keypath: outer,
+            inner_keypath: identity,
+        }
+    }
+
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
     // Box<T> -> T
     pub fn for_box<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
@@ -4345,6 +4442,72 @@ where
     {
         self
     }
+
+    /// Convert this optional keypath to an Arc<RwLock> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// Type inference automatically determines InnerValue from Value
+    pub fn to_arc_rwlock_chain<InnerValue>(self) -> OptionalArcRwLockKeyPathChain<Root, Value, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    where
+        Value: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+        F: 'static,
+        InnerValue: 'static,
+    {
+        let identity = KeyPath::new(|inner: &InnerValue| inner);
+        OptionalArcRwLockKeyPathChain {
+            outer_keypath: self,
+            inner_keypath: identity,
+        }
+    }
+
+    /// Convert this optional keypath to an Arc<Mutex> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// Type inference automatically determines InnerValue from Value
+    pub fn to_arc_mutex_chain<InnerValue>(self) -> OptionalArcMutexKeyPathChain<Root, Value, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    where
+        Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+        F: 'static,
+        InnerValue: 'static,
+    {
+        let identity = KeyPath::new(|inner: &InnerValue| inner);
+        OptionalArcMutexKeyPathChain {
+            outer_keypath: self,
+            inner_keypath: identity,
+        }
+    }
+
+    #[cfg(feature = "parking_lot")]
+    /// Convert this optional keypath to an Arc<parking_lot::RwLock> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// Type inference automatically determines InnerValue from Value
+    pub fn to_arc_parking_rwlock_chain<InnerValue>(self) -> OptionalArcParkingRwLockKeyPathChain<Root, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    where
+        // Value must be exactly Arc<parking_lot::RwLock<InnerValue>> at call site
+        F: 'static,
+        InnerValue: 'static,
+    {
+        let identity = KeyPath::new(|inner: &InnerValue| inner);
+        OptionalArcParkingRwLockKeyPathChain {
+            outer_keypath: self,
+            inner_keypath: identity,
+        }
+    }
+
+    #[cfg(feature = "parking_lot")]
+    /// Convert this optional keypath to an Arc<parking_lot::Mutex> chain keypath
+    /// Creates a chain with an identity inner keypath, ready for further chaining
+    /// Type inference automatically determines InnerValue from Value
+    pub fn to_arc_parking_mutex_chain<InnerValue>(self) -> OptionalArcParkingMutexKeyPathChain<Root, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    where
+        // Value must be exactly Arc<parking_lot::Mutex<InnerValue>> at call site
+        F: 'static,
+        InnerValue: 'static,
+    {
+        let identity = KeyPath::new(|inner: &InnerValue| inner);
+        OptionalArcParkingMutexKeyPathChain {
+            outer_keypath: self,
+            inner_keypath: identity,
+        }
+    }
     
     // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
     pub fn for_arc_root(self) -> OptionalKeyPath<Arc<Root>, Value, impl for<'r> Fn(&'r Arc<Root>) -> Option<&'r Value> + 'static>
@@ -4918,6 +5081,7 @@ where
     {
         self
     }
+
 }
 
 // WritableOptionalKeyPath for failable mutable access
@@ -7631,140 +7795,3 @@ where
     }
 }
 
-// ========== LOCK KEYPATH CONVERSIONS MODULE ==========
-// This module provides functions to convert normal keypaths to lock keypath chains
-// Import with: `use rust_keypaths::lock_keypaths::*;`
-
-/// Module for converting normal keypaths to lock keypath chains
-/// 
-/// This module provides convenient functions to convert keypaths pointing to lock types
-/// into chain-ready keypaths that can be used with `.then()` methods.
-/// 
-/// # Example
-/// ```rust,ignore
-/// use rust_keypaths::lock_keypaths::*;
-/// 
-/// // Convert a keypath pointing to Arc<RwLock<T>> and chain through it
-/// let lock_kp = to_arc_rwlock_kp(SomeStruct::data_r());
-/// let chain = lock_kp.then_arc_rwlock_at_kp(InnerStruct::field_r());
-/// chain.get(&container, |value| println!("Value: {}", value));
-/// ```
-pub mod lock_keypaths {
-    use super::*;
-
-    /// Convert a keypath pointing to `Arc<RwLock<InnerValue>>` to a chain-ready keypath
-    /// Returns the same keypath, but this function serves as a marker for intent
-    /// and can be used with `.then_arc_rwlock_at_kp()` to chain through the lock
-    /// 
-    /// # Example
-    /// ```rust,ignore
-    /// use rust_keypaths::lock_keypaths::to_arc_rwlock_kp;
-    /// 
-    /// let lock_kp = to_arc_rwlock_kp(SomeStruct::f1_r());
-    /// let chain = lock_kp.then_arc_rwlock_at_kp(InnerStruct::field_r());
-    /// ```
-    pub fn to_arc_rwlock_kp<Root, InnerValue, F>(
-        keypath: KeyPath<Root, Arc<RwLock<InnerValue>>, F>,
-    ) -> KeyPath<Root, Arc<RwLock<InnerValue>>, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Arc<RwLock<InnerValue>>,
-    {
-        keypath
-    }
-
-    /// Convert a keypath pointing to `Arc<Mutex<InnerValue>>` to a chain-ready keypath
-    /// Returns the same keypath, but this function serves as a marker for intent
-    /// and can be used with `.then_arc_mutex_at_kp()` to chain through the lock
-    pub fn to_arc_mutex_kp<Root, InnerValue, F>(
-        keypath: KeyPath<Root, Arc<Mutex<InnerValue>>, F>,
-    ) -> KeyPath<Root, Arc<Mutex<InnerValue>>, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Arc<Mutex<InnerValue>>,
-    {
-        keypath
-    }
-
-    /// Convert a writable keypath pointing to `Arc<RwLock<InnerValue>>` to a chain-ready keypath
-    /// Returns the same keypath, but this function serves as a marker for intent
-    /// and can be used with `.then_arc_rwlock_writable_at_kp()` to chain through the lock
-    pub fn to_arc_rwlock_writable_kp<Root, InnerValue, F>(
-        keypath: KeyPath<Root, Arc<RwLock<InnerValue>>, F>,
-    ) -> KeyPath<Root, Arc<RwLock<InnerValue>>, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Arc<RwLock<InnerValue>>,
-    {
-        keypath
-    }
-
-    /// Convert a writable keypath pointing to `Arc<Mutex<InnerValue>>` to a chain-ready keypath
-    /// Returns the same keypath, but this function serves as a marker for intent
-    /// and can be used with `.then_arc_mutex_writable_at_kp()` to chain through the lock
-    pub fn to_arc_mutex_writable_kp<Root, InnerValue, F>(
-        keypath: KeyPath<Root, Arc<Mutex<InnerValue>>, F>,
-    ) -> KeyPath<Root, Arc<Mutex<InnerValue>>, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Arc<Mutex<InnerValue>>,
-    {
-        keypath
-    }
-
-    #[cfg(feature = "parking_lot")]
-    /// Convert a keypath pointing to `Arc<parking_lot::RwLock<InnerValue>>` to a chain-ready keypath
-    /// Returns the same keypath, but this function serves as a marker for intent
-    /// and can be used with `.then_arc_parking_rwlock_at_kp()` to chain through the lock
-    /// 
-    /// # Example
-    /// ```rust,ignore
-    /// use rust_keypaths::lock_keypaths::to_arc_parking_rwlock_kp;
-    /// 
-    /// let lock_kp = to_arc_parking_rwlock_kp(SomeStruct::f1_r());
-    /// let chain = lock_kp.then_arc_parking_rwlock_at_kp(InnerStruct::field_r());
-    /// ```
-    pub fn to_arc_parking_rwlock_kp<Root, InnerValue, F>(
-        keypath: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>,
-    ) -> KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
-    {
-        keypath
-    }
-
-    #[cfg(feature = "parking_lot")]
-    /// Convert a keypath pointing to `Arc<parking_lot::Mutex<InnerValue>>` to a chain-ready keypath
-    /// Returns the same keypath, but this function serves as a marker for intent
-    /// and can be used with `.then_arc_parking_mutex_at_kp()` to chain through the lock
-    pub fn to_arc_parking_mutex_kp<Root, InnerValue, F>(
-        keypath: KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>,
-    ) -> KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
-    {
-        keypath
-    }
-
-    #[cfg(feature = "parking_lot")]
-    /// Convert a writable keypath pointing to `Arc<parking_lot::RwLock<InnerValue>>` to a chain-ready keypath
-    /// Returns the same keypath, but this function serves as a marker for intent
-    /// and can be used with `.then_arc_parking_rwlock_writable_at_kp()` to chain through the lock
-    pub fn to_arc_parking_rwlock_writable_kp<Root, InnerValue, F>(
-        keypath: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>,
-    ) -> KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
-    {
-        keypath
-    }
-
-    #[cfg(feature = "parking_lot")]
-    /// Convert a writable keypath pointing to `Arc<parking_lot::Mutex<InnerValue>>` to a chain-ready keypath
-    /// Returns the same keypath, but this function serves as a marker for intent
-    /// and can be used with `.then_arc_parking_mutex_writable_at_kp()` to chain through the lock
-    pub fn to_arc_parking_mutex_writable_kp<Root, InnerValue, F>(
-        keypath: KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>,
-    ) -> KeyPath<Root, Arc<parking_lot::Mutex<InnerValue>>, F>
-    where
-        F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
-    {
-        keypath
-    }
-}
