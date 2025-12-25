@@ -1,0 +1,225 @@
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use keypaths_proc::Keypaths;
+use parking_lot::RwLock;
+use std::sync::Arc;
+
+// Struct definitions matching the user's example
+#[derive(Keypaths)]
+#[Writable]
+struct SomeStruct {
+    f1: Arc<RwLock<SomeOtherStruct>>,
+}
+
+#[derive(Keypaths)]
+#[Writable]
+struct SomeOtherStruct {
+    f3: Option<String>,
+    f4: DeeplyNestedStruct,
+}
+
+#[derive(Keypaths)]
+#[Writable]
+struct DeeplyNestedStruct {
+    f1: Option<String>,
+    f2: Option<i32>,
+}
+
+impl SomeStruct {
+    fn new() -> Self {
+        Self {
+            f1: Arc::new(RwLock::new(SomeOtherStruct {
+                f3: Some(String::from("value")),
+                f4: DeeplyNestedStruct {
+                    f1: Some(String::from("value")),
+                    f2: Some(12),
+                },
+            })),
+        }
+    }
+}
+
+// Benchmark: Write access through Arc<RwLock<...>> with deeply nested keypath
+fn bench_rwlock_write_deeply_nested_keypath(c: &mut Criterion) {
+    let mut group = c.benchmark_group("rwlock_write_deeply_nested");
+    
+    // Keypath approach: SomeStruct -> Arc<RwLock<SomeOtherStruct>> -> SomeOtherStruct -> DeeplyNestedStruct -> f1
+    group.bench_function("keypath", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let keypath = SomeStruct::f1_fw_at(SomeOtherStruct::f4_w().then(DeeplyNestedStruct::f1_w()));
+            keypath.get_mut(black_box(&instance), |value| {
+                *value = Some(String::from("new value"));
+            });
+            black_box(())
+        })
+    });
+    
+    // Traditional approach: Manual write guard and nested unwraps
+    group.bench_function("write_guard", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let mut guard = instance.f1.write();
+            if let Some(f4) = guard.f4.f1.as_mut() {
+                *f4 = String::from("new value");
+            }
+            black_box(())
+        })
+    });
+    
+    // Alternative traditional approach: More explicit nested unwraps
+    group.bench_function("write_guard_nested", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let mut guard = instance.f1.write();
+            if let Some(ref mut f4) = guard.f4.f1 {
+                *f4 = String::from("new value");
+            }
+            black_box(())
+        })
+    });
+    
+    group.finish();
+}
+
+// Benchmark: Write access to f2 (Option<i32>) in deeply nested structure
+fn bench_rwlock_write_deeply_nested_f2(c: &mut Criterion) {
+    let mut group = c.benchmark_group("rwlock_write_deeply_nested_f2");
+    
+    // Keypath approach: SomeStruct -> Arc<RwLock<SomeOtherStruct>> -> SomeOtherStruct -> DeeplyNestedStruct -> f2
+    group.bench_function("keypath", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let keypath = SomeStruct::f1_fw_at(SomeOtherStruct::f4_w().then(DeeplyNestedStruct::f2_w()));
+            keypath.get_mut(black_box(&instance), |value| {
+                *value = Some(42);
+            });
+            black_box(())
+        })
+    });
+    
+    // Traditional approach
+    group.bench_function("write_guard", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let mut guard = instance.f1.write();
+            if let Some(ref mut f2) = guard.f4.f2 {
+                *f2 = 42;
+            }
+            black_box(())
+        })
+    });
+    
+    group.finish();
+}
+
+// Benchmark: Write access to f3 (Option<String>) in SomeOtherStruct
+fn bench_rwlock_write_f3(c: &mut Criterion) {
+    let mut group = c.benchmark_group("rwlock_write_f3");
+    
+    // Keypath approach: SomeStruct -> Arc<RwLock<SomeOtherStruct>> -> f3
+    group.bench_function("keypath", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let keypath = SomeStruct::f1_fw_at(SomeOtherStruct::f3_w());
+            keypath.get_mut(black_box(&instance), |value| {
+                *value = Some(String::from("updated f3"));
+            });
+            black_box(())
+        })
+    });
+    
+    // Traditional approach
+    group.bench_function("write_guard", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let mut guard = instance.f1.write();
+            if let Some(ref mut f3) = guard.f3 {
+                *f3 = String::from("updated f3");
+            }
+            black_box(())
+        })
+    });
+    
+    group.finish();
+}
+
+// Benchmark: Multiple sequential writes using keypath vs write guard
+fn bench_rwlock_multiple_writes(c: &mut Criterion) {
+    let mut group = c.benchmark_group("rwlock_multiple_writes");
+    
+    // Keypath approach: Create keypaths in each iteration
+    group.bench_function("keypath", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let keypath_f3 = SomeStruct::f1_fw_at(SomeOtherStruct::f3_w());
+            keypath_f3.get_mut(black_box(&instance), |value| {
+                *value = Some(String::from("updated f3"));
+            });
+            let keypath_f1 = SomeStruct::f1_fw_at(SomeOtherStruct::f4_w().then(DeeplyNestedStruct::f1_w()));
+            keypath_f1.get_mut(black_box(&instance), |value| {
+                *value = Some(String::from("updated f1"));
+            });
+            let keypath_f2 = SomeStruct::f1_fw_at(SomeOtherStruct::f4_w().then(DeeplyNestedStruct::f2_w()));
+            keypath_f2.get_mut(black_box(&instance), |value| {
+                *value = Some(42);
+            });
+            black_box(())
+        })
+    });
+    
+    // Traditional approach: Single write guard for all operations
+    group.bench_function("write_guard_single", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            let mut guard = instance.f1.write();
+            if let Some(ref mut f3) = guard.f3 {
+                *f3 = String::from("updated f3");
+            }
+            if let Some(ref mut f1) = guard.f4.f1 {
+                *f1 = String::from("updated f1");
+            }
+            if let Some(ref mut f2) = guard.f4.f2 {
+                *f2 = 42;
+            }
+            black_box(())
+        })
+    });
+    
+    // Traditional approach: Multiple write guards (less efficient)
+    group.bench_function("write_guard_multiple", |b| {
+        let instance = SomeStruct::new();
+        b.iter(|| {
+            {
+                let mut guard = instance.f1.write();
+                if let Some(ref mut f3) = guard.f3 {
+                    *f3 = String::from("updated f3");
+                }
+            }
+            {
+                let mut guard = instance.f1.write();
+                if let Some(ref mut f1) = guard.f4.f1 {
+                    *f1 = String::from("updated f1");
+                }
+            }
+            {
+                let mut guard = instance.f1.write();
+                if let Some(ref mut f2) = guard.f4.f2 {
+                    *f2 = 42;
+                }
+            }
+            black_box(())
+        })
+    });
+    
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_rwlock_write_deeply_nested_keypath,
+    bench_rwlock_write_deeply_nested_f2,
+    bench_rwlock_write_f3,
+    bench_rwlock_multiple_writes
+);
+criterion_main!(benches);
+

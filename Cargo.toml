@@ -44,3 +44,11 @@ criterion = { version = "0.5", features = ["html_reports"] }
 [[bench]]
 name = "keypath_vs_unwrap"
 harness = false
+
+[[bench]]
+name = "rwlock_write_deeply_nested"
+harness = false
+
+[[bench]]
+name = "parking_lot_rwlock"
+harness = false

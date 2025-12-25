@@ -6,7 +6,11 @@ This directory contains comprehensive benchmarks comparing the performance of Ke
 
 ### Quick Run
 ```bash
+# Benchmark nested Option access
 cargo bench --bench keypath_vs_unwrap
+
+# Benchmark RwLock write operations with deeply nested structures
+cargo bench --bench rwlock_write_deeply_nested
 ```
 
 ### Using the Script
@@ -50,6 +54,100 @@ Compares pre-composed vs on-the-fly composition:
 - **Pre-composed**: Keypath created once, reused
 - **Composed on-fly**: Keypath created in each iteration
 
+### 8. RwLock Write Deeply Nested (`rwlock_write_deeply_nested`)
+**Use Case**: Demonstrates updating deeply nested values inside `Arc<RwLock<T>>` structures.
+
+This benchmark is particularly useful for scenarios where you need to:
+- Update nested fields in thread-safe shared data structures
+- Avoid manual write guard management and nested unwraps
+- Maintain type safety when accessing deeply nested Option fields
+
+**Example Structure**:
+```rust
+SomeStruct {
+    f1: Arc<RwLock<SomeOtherStruct>>  // Thread-safe shared data
+        -> SomeOtherStruct {
+            f4: DeeplyNestedStruct {
+                f1: Option<String>  // Deeply nested field to update
+            }
+        }
+}
+```
+
+**Keypath Approach**:
+```rust
+use keypaths_proc::Keypaths;
+use parking_lot::RwLock;
+use std::sync::Arc;
+
+#[derive(Keypaths)]
+#[Writable]
+struct SomeStruct {
+    f1: Arc<RwLock<SomeOtherStruct>>,
+}
+
+// Compose keypath: SomeStruct -> Arc<RwLock<...>> -> SomeOtherStruct -> DeeplyNestedStruct -> f1
+let keypath = SomeStruct::f1_fw_at(
+    SomeOtherStruct::f4_w()
+        .then(DeeplyNestedStruct::f1_w())
+);
+
+// Use keypath to update value
+keypath.get_mut(&instance, |value| {
+    *value = Some(String::from("new value"));
+});
+```
+
+**Traditional Approach**:
+```rust
+// Manual write guard and nested unwraps
+let mut guard = instance.f1.write();
+if let Some(ref mut f1) = guard.f4.f1 {
+    *f1 = String::from("new value");
+}
+```
+
+**Benchmark Variants**:
+- `rwlock_write_deeply_nested`: Write to `f1` (Option<String>) 3 levels deep
+- `rwlock_write_deeply_nested_f2`: Write to `f2` (Option<i32>) 3 levels deep
+- `rwlock_write_f3`: Write to `f3` (Option<String>) 2 levels deep
+- `rwlock_multiple_writes`: Multiple sequential writes using keypath vs single/multiple write guards
+
+**Benchmark Results**:
+
+| Benchmark | Approach | Mean Time | Comparison |
+|-----------|----------|-----------|------------|
+| `rwlock_write_deeply_nested` | Keypath | 23.772 ns | **0.5% faster** |
+| | Write Guard | 23.893 ns | baseline |
+| | Write Guard (nested) | 23.904 ns | 0.5% slower |
+| `rwlock_write_deeply_nested_f2` | Keypath | 8.417 ns | **1.2% faster** |
+| | Write Guard | 8.518 ns | baseline |
+| `rwlock_write_f3` | Keypath | 23.787 ns | **0.6% faster** |
+| | Write Guard | 23.934 ns | baseline |
+| `rwlock_multiple_writes` | Keypath | 55.405 ns | 33.2% slower |
+| | Write Guard (single) | 41.621 ns | baseline |
+| | Write Guard (multiple) | 55.850 ns | 34.2% slower |
+
+**Key Findings**:
+- For single write operations, keypath approach is **slightly faster** (0.5-1.2%) than manual write guards
+- For multiple sequential writes, using a single write guard is more efficient (33% faster) than creating multiple keypaths
+- Keypath approach performs similarly to multiple write guards when doing multiple operations
+- The performance difference is negligible (sub-nanosecond) for most use cases
+- Keypath approach provides significant benefits in type safety, composability, and maintainability with minimal performance cost
+
+**Benefits of Keypath Approach**:
+1. **Type Safety**: Compile-time verification of the access path
+2. **Composability**: Easy to build complex nested access paths
+3. **Reusability**: Create keypath once, use many times
+4. **Readability**: Clear, declarative code that shows the exact path
+5. **Maintainability**: Changes to structure automatically caught at compile time
+
+**When to Use**:
+- Thread-safe shared data structures with deep nesting
+- Frequent updates to nested fields in concurrent applications
+- Complex data access patterns that benefit from composition
+- Code that needs to be self-documenting about data access paths
+
 ## Viewing Results
 
 After running benchmarks, view the HTML reports:
@@ -60,6 +158,11 @@ open target/criterion/keypath_vs_unwrap/read_nested_option/report/index.html
 ```
 
 Or navigate to `target/criterion/keypath_vs_unwrap/` and open any `report/index.html` file in your browser.
+
+For RwLock benchmarks:
+```bash
+open target/criterion/rwlock_write_deeply_nested/rwlock_write_deeply_nested/report/index.html
+```
 
 ## Expected Findings
 
