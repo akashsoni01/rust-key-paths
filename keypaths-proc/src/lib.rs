@@ -1439,6 +1439,41 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
+                            
+                            // then() - Monadic chaining method for Arc<parking_lot::RwLock<T>> (supports .then().then().then())
+                            let then_fn = format_ident!("{}_then", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Monadic chaining method for Arc<parking_lot::RwLock<T>>.
+                                    /// Returns a chain type that supports further `.then()` calls for deep nesting.
+                                    /// 
+                                    /// # Example
+                                    /// ```rust,ignore
+                                    /// ContainerTest::rwlock_data_then(SomeStruct::f1_w())
+                                    ///     .then(SomeOtherStruct::f4_w())
+                                    ///     .then(DeeplyNestedStruct::f1_w())
+                                    ///     .get_mut(&container, |value| *value = Some("new".to_string()));
+                                    /// ```
+                                    pub fn #then_fn<Value, F>(
+                                        inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcParkingRwLockWritableKeyPathChain<
+                                        #name,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_parking_rwlock_writable_at_kp(inner_kp)
+                                    }
+                                },
+                            );
                         }
                         
                         // StdArcRwLock = Arc<std::sync::RwLock<T>> (requires explicit std::sync:: prefix)
@@ -1515,6 +1550,42 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     /// Chains through Arc<std::sync::RwLock<T>> with a writable keypath.
                                     /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...)`.
                                     pub fn #fw_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcRwLockWritableKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .then_arc_rwlock_writable_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // then() - Monadic chaining method for Arc<std::sync::RwLock<T>> (supports .then().then().then())
+                            let then_fn = format_ident!("{}_then", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Monadic chaining method for Arc<std::sync::RwLock<T>>.
+                                    /// Returns a chain type that supports further `.then()` calls for deep nesting.
+                                    /// 
+                                    /// # Example
+                                    /// ```rust,ignore
+                                    /// ContainerTest::rwlock_data_then(SomeStruct::f1_w())
+                                    ///     .then(SomeOtherStruct::f4_w())
+                                    ///     .then(DeeplyNestedStruct::f1_w())
+                                    ///     .get_mut(&container, |value| *value = Some("new".to_string()));
+                                    /// ```
+                                    pub fn #then_fn<Value, F>(
                                         inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
                                     ) -> rust_keypaths::ArcRwLockWritableKeyPathChain<
                                         #name,

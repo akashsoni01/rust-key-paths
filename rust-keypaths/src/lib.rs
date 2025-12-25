@@ -495,6 +495,80 @@ where
             callback(value_ref)
         })
     }
+
+    /// Monadic composition: chain with another writable keypath
+    /// This allows composing deeper keypaths through the same Arc<RwLock<T>> structure
+    /// 
+    /// # Example
+    /// ```rust,ignore
+    /// // Compose: Root -> Arc<RwLock<InnerValue>> -> InnerValue -> SubValue -> NextValue
+    /// let chain = root_keypath
+    ///     .then_arc_rwlock_writable_at_kp(inner_keypath)
+    ///     .then(next_keypath);
+    /// ```
+    pub fn then<NextValue, H>(
+        self,
+        next: WritableKeyPath<SubValue, NextValue, H>,
+    ) -> ArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    where
+        H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
+        G: 'static,
+        H: 'static,
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+    {
+        let first = self.inner_keypath;
+        let second = next;
+        
+        // Create a new composed writable keypath
+        let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
+            let sub = first.get_mut(inner);
+            second.get_mut(sub)
+        });
+        
+        ArcRwLockWritableKeyPathChain {
+            outer_keypath: self.outer_keypath,
+            inner_keypath: composed,
+        }
+    }
+
+    /// Monadic composition: chain with a writable optional keypath (for Option fields)
+    /// This allows composing through Option types within the same Arc<RwLock<T>> structure
+    /// 
+    /// # Example
+    /// ```rust,ignore
+    /// // Compose: Root -> Arc<RwLock<InnerValue>> -> InnerValue -> Option<SubValue> -> NextValue
+    /// let chain = root_keypath
+    ///     .then_arc_rwlock_writable_at_kp(inner_keypath)
+    ///     .then_optional(optional_keypath);
+    /// ```
+    pub fn then_optional<NextValue, H>(
+        self,
+        next: WritableOptionalKeyPath<SubValue, NextValue, H>,
+    ) -> ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    where
+        H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
+        G: 'static,
+        H: 'static,
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+    {
+        let first = self.inner_keypath;
+        let second = next;
+        
+        // Create a new composed writable optional keypath
+        let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
+            let sub = first.get_mut(inner);
+            second.get_mut(sub)
+        });
+        
+        ArcRwLockWritableOptionalKeyPathChain {
+            outer_keypath: self.outer_keypath,
+            inner_keypath: composed,
+        }
+    }
 }
 
 /// A composed writable optional keypath chain through Arc<RwLock<T>> - functional style
@@ -524,6 +598,63 @@ where
         arc_rwlock_ref.borrow().write().ok().and_then(|mut guard| {
             self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
         })
+    }
+
+    /// Monadic composition: chain with another writable keypath
+    /// This allows composing deeper keypaths through the same Arc<RwLock<T>> structure
+    pub fn then<NextValue, H>(
+        self,
+        next: WritableKeyPath<SubValue, NextValue, H>,
+    ) -> ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    where
+        H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
+        G: 'static,
+        H: 'static,
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+    {
+        let first_keypath = self.inner_keypath;
+        let second_keypath = next;
+        
+        // Create a new composed writable optional keypath
+        // first_keypath.get_mut returns Option<&mut SubValue>, second_keypath.get_mut returns &mut NextValue
+        let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
+            first_keypath.get_mut(inner).map(|sub| second_keypath.get_mut(sub))
+        });
+        
+        ArcRwLockWritableOptionalKeyPathChain {
+            outer_keypath: self.outer_keypath,
+            inner_keypath: composed,
+        }
+    }
+
+    /// Monadic composition: chain with another writable optional keypath (for Option fields)
+    /// This allows composing through Option types within the same Arc<RwLock<T>> structure
+    pub fn then_optional<NextValue, H>(
+        self,
+        next: WritableOptionalKeyPath<SubValue, NextValue, H>,
+    ) -> ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    where
+        H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
+        G: 'static,
+        H: 'static,
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+    {
+        let first = self.inner_keypath;
+        let second = next;
+        
+        // Create a new composed writable optional keypath
+        let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
+            first.get_mut(inner).and_then(|sub| second.get_mut(sub))
+        });
+        
+        ArcRwLockWritableOptionalKeyPathChain {
+            outer_keypath: self.outer_keypath,
+            inner_keypath: composed,
+        }
     }
 }
 
@@ -730,6 +861,65 @@ where
         let value_ref = self.inner_keypath.get_mut(&mut *guard);
         callback(value_ref)
     }
+
+    /// Monadic composition: chain with another writable keypath
+    /// This allows composing deeper keypaths through the same Arc<parking_lot::RwLock<T>> structure
+    pub fn then<NextValue, H>(
+        self,
+        next: WritableKeyPath<SubValue, NextValue, H>,
+    ) -> ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    where
+        H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
+        G: 'static,
+        H: 'static,
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+    {
+        let first = self.inner_keypath;
+        let second = next;
+        
+        // Create a new composed writable keypath
+        let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
+            let sub = first.get_mut(inner);
+            second.get_mut(sub)
+        });
+        
+        ArcParkingRwLockWritableKeyPathChain {
+            outer_keypath: self.outer_keypath,
+            inner_keypath: composed,
+        }
+    }
+
+    /// Monadic composition: chain with a writable optional keypath (for Option fields)
+    /// This allows composing through Option types within the same Arc<parking_lot::RwLock<T>> structure
+    pub fn then_optional<NextValue, H>(
+        self,
+        next: WritableOptionalKeyPath<SubValue, NextValue, H>,
+    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    where
+        H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
+        G: 'static,
+        H: 'static,
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+    {
+        let first_keypath = self.inner_keypath;
+        let second_keypath = next;
+        
+        // Create a new composed writable optional keypath
+        // first_keypath.get_mut returns &mut SubValue (not Option), second_keypath.get_mut returns Option<&mut NextValue>
+        let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
+            let sub = first_keypath.get_mut(inner);
+            second_keypath.get_mut(sub)
+        });
+        
+        ArcParkingRwLockWritableOptionalKeyPathChain {
+            outer_keypath: self.outer_keypath,
+            inner_keypath: composed,
+        }
+    }
 }
 
 /// A composed writable optional keypath chain through Arc<parking_lot::RwLock<T>> - functional style
@@ -757,6 +947,66 @@ where
         let arc_rwlock_ref = self.outer_keypath.get(container);
         let mut guard = arc_rwlock_ref.write();
         self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+    }
+
+    /// Monadic composition: chain with another writable keypath
+    /// This allows composing deeper keypaths through the same Arc<parking_lot::RwLock<T>> structure
+    pub fn then<NextValue, H>(
+        self,
+        next: WritableKeyPath<SubValue, NextValue, H>,
+    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    where
+        H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
+        G: 'static,
+        H: 'static,
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+    {
+        let first_keypath = self.inner_keypath;
+        let second_keypath = next;
+        
+        // Create a new composed writable optional keypath
+        // first_keypath.get_mut returns Option<&mut SubValue>, second_keypath.get_mut returns &mut NextValue
+        let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
+            match first_keypath.get_mut(inner) {
+                Some(sub) => Some(second_keypath.get_mut(sub)),
+                None => None,
+            }
+        });
+        
+        ArcParkingRwLockWritableOptionalKeyPathChain {
+            outer_keypath: self.outer_keypath,
+            inner_keypath: composed,
+        }
+    }
+
+    /// Monadic composition: chain with another writable optional keypath (for Option fields)
+    /// This allows composing through Option types within the same Arc<parking_lot::RwLock<T>> structure
+    pub fn then_optional<NextValue, H>(
+        self,
+        next: WritableOptionalKeyPath<SubValue, NextValue, H>,
+    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    where
+        H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
+        G: 'static,
+        H: 'static,
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+    {
+        let first = self.inner_keypath;
+        let second = next;
+        
+        // Create a new composed writable optional keypath
+        let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
+            first.get_mut(inner).and_then(|sub| second.get_mut(sub))
+        });
+        
+        ArcParkingRwLockWritableOptionalKeyPathChain {
+            outer_keypath: self.outer_keypath,
+            inner_keypath: composed,
+        }
     }
 }
 
@@ -1350,6 +1600,27 @@ where
             outer_keypath: self,
             inner_keypath,
         }
+    }
+
+    /// Monadic helper: shorthand for then_arc_rwlock_writable_at_kp when Value is Arc<RwLock<T>>
+    /// This allows chaining with .then().then().then() pattern for Arc<RwLock<T>> structures
+    /// 
+    /// # Example
+    /// ```rust,ignore
+    /// ContainerTest::rwlock_data_r()
+    ///     .then_rwlock(SomeStruct::data_w())
+    ///     .then(OtherStruct::field_w())
+    ///     .get_mut(&container, |value| *value = "new".to_string());
+    /// ```
+    pub fn then_rwlock<InnerValue, SubValue, G>(
+        self,
+        inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
+    ) -> ArcRwLockWritableKeyPathChain<Root, Value, InnerValue, SubValue, F, G>
+    where
+        Value: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+        G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
+    {
+        self.then_arc_rwlock_writable_at_kp(inner_keypath)
     }
 
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
