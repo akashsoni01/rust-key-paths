@@ -75,6 +75,9 @@ fn main() {
     // ==========================================================
     
     // Example 1: Read through Arc<Mutex<T>> with then_arc_mutex_at_kp
+    // let x = ContainerTest::rwlock_data_r().to;
+    let x = ContainerTest::rwlock_data_r();
+    let x = x.to_arc_parking_rwlock_kp();
     ContainerTest::rwlock_data_fr_at(SomeStruct::data_r()).get(&container, |value| {
         println!("asdf = {}", value);
     });

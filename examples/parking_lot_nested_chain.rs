@@ -107,7 +107,7 @@ mod example {
                         println!("✅ Read name via _fr_at chain (parking_lot): {:?}", name);
                     });
             });
-
+        
         // Alternative: Direct chaining through both locks
         // Using the identity keypath pattern for nested access
         let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
