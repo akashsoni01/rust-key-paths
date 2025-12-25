@@ -117,12 +117,12 @@ if let Some(ref mut f1) = guard.f4.f1 {
 
 | Benchmark | Approach | Mean Time | Comparison |
 |-----------|----------|-----------|------------|
-| `rwlock_write_deeply_nested` | Keypath | 23.772 ns | **0.5% faster** |
+| `rwlock_write_deeply_nested` String | Keypath | 23.772 ns | **0.5% faster** |
 | | Write Guard | 23.893 ns | baseline |
 | | Write Guard (nested) | 23.904 ns | 0.5% slower |
-| `rwlock_write_deeply_nested_f2` | Keypath | 8.417 ns | **1.2% faster** |
+| `rwlock_write_deeply_nested_f2` i64 | Keypath | 8.417 ns | **1.2% faster** |
 | | Write Guard | 8.518 ns | baseline |
-| `rwlock_write_f3` | Keypath | 23.787 ns | **0.6% faster** |
+| `rwlock_write_f3` String | Keypath | 23.787 ns | **0.6% faster** |
 | | Write Guard | 23.934 ns | baseline |
 | `rwlock_multiple_writes` | Keypath | 55.405 ns | 33.2% slower |
 | | Write Guard (single) | 41.621 ns | baseline |
