@@ -83,137 +83,109 @@ mod example {
         println!("For Arc<RwLock<T>> fields (parking_lot default), the macro generates:");
         println!("  • _r()      -> KeyPath<Struct, Arc<RwLock<T>>>  (readable)");
         println!("  • _w()      -> WritableKeyPath<Struct, Arc<RwLock<T>>>  (writable)");
-        println!("  • _fr_at()  -> Chain through lock for reading (parking_lot)");
-        println!("  • _fw_at()  -> Chain through lock for writing (parking_lot)");
-        println!("\nFor Arc<std::sync::RwLock<T>> fields (explicit prefix), generates:");
-        println!("  • _fr_at()  -> Chain through lock for reading (std::sync)");
-        println!("  • _fw_at()  -> Chain through lock for writing (std::sync)");
+        println!("  • _fr()     -> LockedKeyPath (supports .then() and .then_optional())");
+        println!("  • _fw()     -> LockedWritableKeyPath (supports .then() and .then_optional())");
+        println!("  • _fr_at()  -> Chain through lock for reading (deprecated, use _fr().then())");
+        println!("  • _fw_at()  -> Chain through lock for writing (deprecated, use _fw().then())");
 
         // ============================================================
-        // USING THE _fr_at() HELPER METHOD (parking_lot by default)
+        // USING THE NEW _fr() METHOD WITH MONADIC CHAINING
         // ============================================================
-        println!("\n--- Using _fr_at() for reading (parking_lot) ---");
+        println!("\n--- Using _fr().then() for monadic chaining (parking_lot) ---");
 
-        // Create a keypath to the name field (non-optional)
-        let name_kp = KeyPath::new(|s: &DeeplyNestedStruct| &s.name);
-        
-        // Use the generated f1_fr_at() to chain through the first lock
-        // (defaults to parking_lot since we used `RwLock` without `std::sync::` prefix)
-        SomeStruct::f1_fr_at(SomeOtherStruct::f4_r())
-            .get(&instance, |f4_arc| {
-                // Now chain through the second lock to get the name
-                SomeOtherStruct::f4_fr_at(name_kp.clone())
-                    .get(&instance.f1.read(), |name| {
-                        println!("✅ Read name via _fr_at chain (parking_lot): {:?}", name);
-                    });
-            });
-
-        // Alternative: Direct chaining through both locks
-        // Using the identity keypath pattern for nested access
-        let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
-        
-        SomeStruct::f1_r()
-            .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
-            .get(&instance, |f4_arc| {
-                identity_kp.clone()
-                    .then_arc_parking_rwlock_at_kp(name_kp.clone())
-                    .get(f4_arc, |name| {
-                        println!("✅ Read name via nested chain: {:?}", name);
-                    });
-            });
-
-        // ============================================================
-        // READING OPTIONAL FIELDS
-        // ============================================================
-        println!("\n--- Reading optional fields through locks ---");
-
-        // Create keypaths for optional inner fields
-        let f3_read_kp = OptionalKeyPath::new(|s: &SomeOtherStruct| s.f3.as_ref());
-
-        // Chain through first lock to read f3 (Option<String>)
-        SomeStruct::f1_r()
-            .then_arc_parking_rwlock_optional_at_kp(f3_read_kp.clone())
+        // Simple chain: Read through one lock level (f3 is optional, so use then_optional)
+        SomeStruct::f1_fr()
+            .then_optional(SomeOtherStruct::f3_fr())
             .get(&instance, |value| {
-                println!("✅ Read f3 via chain: {:?}", value);
+                println!("✅ Read f3 via _fr().then_optional(): {:?}", value);
+            });
+
+        // Deep chain: Read through multiple lock levels using .then().then()
+        // First chain through f1 to get SomeOtherStruct, then through f4 to get DeeplyNestedStruct
+        SomeStruct::f1_fr()
+            .then(SomeOtherStruct::f4_fr())
+            .then(DeeplyNestedStruct::name_r())
+            .get(&instance, |name| {
+                println!("✅ Read name via _fr().then().then(): {:?}", name);
+            });
+
+        // Chain with optional fields using .then_optional()
+        SomeStruct::f1_fr()
+            .then(SomeOtherStruct::f4_fr())
+            .then_optional(DeeplyNestedStruct::f1_fr())
+            .get(&instance, |value| {
+                println!("✅ Read f4.f1 (optional) via _fr().then().then_optional(): {:?}", value);
+            });
+
+        // ============================================================
+        // READING OPTIONAL FIELDS WITH then_optional()
+        // ============================================================
+        println!("\n--- Reading optional fields through locks with then_optional() ---");
+
+        // Chain through first lock to read f3 (Option<String>) using then_optional()
+        SomeStruct::f1_fr()
+            .then_optional(SomeOtherStruct::f3_fr())
+            .get(&instance, |value| {
+                println!("✅ Read f3 via _fr().then_optional(): {:?}", value);
             });
 
         // Read through two lock layers to get optional fields
-        SomeStruct::f1_r()
-            .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
-            .get(&instance, |f4_arc| {
-                let deep_f1_kp = OptionalKeyPath::new(|s: &DeeplyNestedStruct| s.f1.as_ref());
-                let deep_f2_kp = OptionalKeyPath::new(|s: &DeeplyNestedStruct| s.f2.as_ref());
+        SomeStruct::f1_fr()
+            .then(SomeOtherStruct::f4_fr())
+            .then_optional(DeeplyNestedStruct::f1_fr())
+            .get(&instance, |value| {
+                println!("✅ Read f4.f1 via _fr().then().then_optional(): {:?}", value);
+            });
 
-                identity_kp.clone()
-                    .then_arc_parking_rwlock_optional_at_kp(deep_f1_kp)
-                    .get(f4_arc, |value| {
-                        println!("✅ Read f4.f1 via nested chain: {:?}", value);
-                    });
-
-                identity_kp.clone()
-                    .then_arc_parking_rwlock_optional_at_kp(deep_f2_kp)
-                    .get(f4_arc, |value| {
-                        println!("✅ Read f4.f2 via nested chain: {:?}", value);
-                    });
+        SomeStruct::f1_fr()
+            .then(SomeOtherStruct::f4_fr())
+            .then_optional(DeeplyNestedStruct::f2_fr())
+            .get(&instance, |value| {
+                println!("✅ Read f4.f2 via _fr().then().then_optional(): {:?}", value);
             });
 
         // ============================================================
-        // USING THE NEW _parking_fw_at() HELPER METHOD FOR WRITING
+        // USING THE NEW _fw() METHOD WITH MONADIC CHAINING FOR WRITING
         // ============================================================
-        println!("\n--- Using _parking_fw_at() for writing ---");
+        println!("\n--- Using _fw().then() for monadic chaining (writing) ---");
 
-        // Create a writable keypath to the name field (non-optional)
-        let name_w_kp = WritableKeyPath::new(|s: &mut DeeplyNestedStruct| &mut s.name);
-
-        // Use the generated method to write through both locks
-        SomeStruct::f1_r()
-            .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
-            .get(&instance, |f4_arc| {
-                let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
-                identity_kp
-                    .then_arc_parking_rwlock_writable_at_kp(name_w_kp.clone())
-                    .get_mut(f4_arc, |name| {
-                        *name = String::from("updated_name");
-                        println!("✅ Wrote name via _parking_fw_at chain");
-                    });
+        // Deep chain: Write through multiple lock levels using .then().then()
+        SomeStruct::f1_fw()
+            .then(SomeOtherStruct::f4_fr())
+            .then(DeeplyNestedStruct::name_w())
+            .get_mut(&instance, |name| {
+                *name = String::from("updated_name");
+                println!("✅ Wrote name via _fw().then().then()");
             });
 
         // ============================================================
-        // WRITING OPTIONAL FIELDS
+        // WRITING OPTIONAL FIELDS WITH then_optional()
         // ============================================================
-        println!("\n--- Writing optional fields through locks ---");
+        println!("\n--- Writing optional fields through locks with then_optional() ---");
 
-        // Write to f3 through first lock
-        let f3_write_kp = WritableOptionalKeyPath::new(|s: &mut SomeOtherStruct| s.f3.as_mut());
-        SomeStruct::f1_r()
-            .then_arc_parking_rwlock_writable_optional_at_kp(f3_write_kp)
+        // Write to f3 through first lock using then_optional()
+        SomeStruct::f1_fw()
+            .then_optional(SomeOtherStruct::f3_fw())
             .get_mut(&instance, |value| {
-                *value = String::from("updated_middle_value");
-                println!("✅ Wrote to f3 via chain");
+                *value = Some(String::from("updated_middle_value"));
+                println!("✅ Wrote to f3 via _fw().then_optional()");
             });
 
         // Write to deeply nested values through both lock layers
-        SomeStruct::f1_r()
-            .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
-            .get(&instance, |f4_arc| {
-                let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
-                
-                let deep_f1_w_kp = WritableOptionalKeyPath::new(|s: &mut DeeplyNestedStruct| s.f1.as_mut());
-                let deep_f2_w_kp = WritableOptionalKeyPath::new(|s: &mut DeeplyNestedStruct| s.f2.as_mut());
+        SomeStruct::f1_fw()
+            .then(SomeOtherStruct::f4_fr())
+            .then_optional(DeeplyNestedStruct::f1_fw())
+            .get_mut(&instance, |value| {
+                *value = Some(String::from("updated_deep_string"));
+                println!("✅ Wrote to f4.f1 via _fw().then().then_optional()");
+            });
 
-                identity_kp.clone()
-                    .then_arc_parking_rwlock_writable_optional_at_kp(deep_f1_w_kp)
-                    .get_mut(f4_arc, |value| {
-                        *value = String::from("updated_deep_string");
-                        println!("✅ Wrote to f4.f1 via nested chain");
-                    });
-
-                identity_kp
-                    .then_arc_parking_rwlock_writable_optional_at_kp(deep_f2_w_kp)
-                    .get_mut(f4_arc, |value| {
-                        *value = 100;
-                        println!("✅ Wrote to f4.f2 via nested chain");
-                    });
+        SomeStruct::f1_fw()
+            .then(SomeOtherStruct::f4_fr())
+            .then_optional(DeeplyNestedStruct::f2_fw())
+            .get_mut(&instance, |value| {
+                *value = Some(100);
+                println!("✅ Wrote to f4.f2 via _fw().then().then_optional()");
             });
 
         // ============================================================
@@ -227,10 +199,11 @@ mod example {
 
         println!("\n=== Key Takeaways ===");
         println!("✅ No cloning occurred - all access was zero-copy!");
-        println!("✅ Used derive-generated keypaths: SomeStruct::f1_r(), SomeOtherStruct::f4_r()");
-        println!("✅ Used _parking_fr_at() and _parking_fw_at() for simplified chaining");
+        println!("✅ Used derive-generated locked keypaths: SomeStruct::f1_fr(), SomeStruct::f1_fw()");
+        println!("✅ Used monadic chaining: .then() and .then_optional() for clean syntax");
         println!("✅ Chained through multiple Arc<RwLock<T>> layers safely");
         println!("✅ Works with parking_lot for better performance (no lock poisoning)");
+        println!("✅ Example: SomeStruct::f1_fr().then(SomeOtherStruct::f4_r()).then(DeeplyNestedStruct::name_r())");
     }
 }
 

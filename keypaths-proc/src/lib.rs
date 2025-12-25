@@ -1382,7 +1382,57 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                             
-                            // _fr_at() - Chain through parking_lot::RwLock with a readable keypath (DEFAULT)
+                            // _fr() - Returns a locked readable keypath chain that supports .then() and .then_optional()
+                            let fr_fn = format_ident!("{}_fr", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    /// Returns a locked readable keypath chain for Arc<parking_lot::RwLock<T>>.
+                                    /// Supports chaining with `.then()` and `.then_optional()` methods.
+                                    /// 
+                                    /// # Example
+                                    /// ```rust,ignore
+                                    /// SomeStruct::f1_fr()
+                                    ///     .then(SomeOtherStruct::f4_r())
+                                    ///     .then(DeeplyNestedStruct::name_r())
+                                    ///     .get(&container, |name| println!("{}", name));
+                                    /// ```
+                                    pub fn #fr_fn() -> rust_keypaths::ArcParkingRwLockLockedKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::ArcParkingRwLockLockedKeyPath::new(
+                                            rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                        )
+                                    }
+                                },
+                            );
+                            
+                            // _fw() - Returns a locked writable keypath chain that supports .then() and .then_optional()
+                            let fw_fn = format_ident!("{}_fw", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Returns a locked writable keypath chain for Arc<parking_lot::RwLock<T>>.
+                                    /// Supports chaining with `.then()` and `.then_optional()` methods.
+                                    /// 
+                                    /// # Example
+                                    /// ```rust,ignore
+                                    /// SomeStruct::f1_fw()
+                                    ///     .then(SomeOtherStruct::f4_w())
+                                    ///     .then_optional(DeeplyNestedStruct::f1_fw())
+                                    ///     .get_mut(&container, |value| *value = Some("new".to_string()));
+                                    /// ```
+                                    pub fn #fw_fn() -> rust_keypaths::ArcParkingRwLockLockedWritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::ArcParkingRwLockLockedWritableKeyPath::new(
+                                            rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                        )
+                                    }
+                                },
+                            );
+                            
+                            // Keep _fr_at() and _fw_at() for backward compatibility
                             let fr_at_fn = format_ident!("{}_fr_at", field_ident);
                             push_method(
                                 &mut tokens,
@@ -1393,6 +1443,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     /// Returns a chained keypath that can be used with `.get(root, |value| ...)`.
                                     /// 
                                     /// Note: RwLock defaults to parking_lot. Use `std::sync::RwLock` for std::sync.
+                                    /// 
+                                    /// # Deprecated
+                                    /// Consider using `_fr().then()` instead for better chaining support.
                                     pub fn #fr_at_fn<Value, F>(
                                         inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
                                     ) -> rust_keypaths::ArcParkingRwLockKeyPathChain<
@@ -1422,6 +1475,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...)`.
                                     /// 
                                     /// Note: RwLock defaults to parking_lot. Use `std::sync::RwLock` for std::sync.
+                                    /// 
+                                    /// # Deprecated
+                                    /// Consider using `_fw().then()` instead for better chaining support.
                                     pub fn #fw_at_fn<Value, F>(
                                         inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
                                     ) -> rust_keypaths::ArcParkingRwLockWritableKeyPathChain<
