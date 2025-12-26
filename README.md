@@ -33,6 +33,7 @@ keypaths-proc = "1.5.0"
 - ✅ **Functional chains for `Arc<Mutex<T>>` and `Arc<RwLock<T>>`** - Compose-first, apply-later pattern
 - ✅ **parking_lot support** - Feature-gated support for faster synchronization primitives
 - ✅ **Tokio support** - Async keypath chains through `Arc<tokio::sync::Mutex<T>>` and `Arc<tokio::sync::RwLock<T>>`
+- ✅ **Compile-time type safety** - Invalid keypath compositions fail at compile time, preventing runtime errors
 
 ---
 
@@ -121,6 +122,58 @@ fn main() {
 }
 ```
 
+### Type Safety: Compile-Time Error Prevention
+
+Keypaths provide **compile-time type safety** - if you try to compose keypaths that don't share the same root type, the compiler will catch the error before your code runs.
+
+**The Rule:** When chaining keypaths with `.then()`, the `Value` type of the first keypath must match the `Root` type of the second keypath.
+
+```rust
+use keypaths_proc::Keypaths;
+
+#[derive(Keypaths)]
+#[All]
+struct Person {
+    name: String,
+    address: Address,
+}
+
+#[derive(Keypaths)]
+#[All]
+struct Address {
+    city: String,
+}
+
+#[derive(Keypaths)]
+#[All]
+struct Product {
+    name: String,
+}
+
+fn main() {
+    // ✅ CORRECT: Person -> Address -> city (all part of same hierarchy)
+    let city_kp = Person::address_r()
+        .then(Address::city_r());
+    
+    // ❌ COMPILE ERROR: Person::name_r() returns KeyPath<Person, String>
+    //                   Product::name_r() expects Product as root, not String!
+    // let invalid = Person::name_r()
+    //     .then(Product::name_r());  // Error: expected `String`, found `Product`
+}
+```
+
+**What happens:**
+- ✅ **Valid compositions** compile successfully
+- ❌ **Invalid compositions** fail at compile time with clear error messages
+- 🛡️ **No runtime errors** - type mismatches are caught before execution
+- 📝 **Clear error messages** - Rust compiler shows exactly what types are expected vs. found
+
+This ensures that keypath chains are always type-safe and prevents bugs that would only be discovered at runtime.
+
+**Running the example:**
+```bash
+cargo run --example type_safety_demo
+```
 
 ### parking_lot Support (Default for `Mutex`/`RwLock`)
 
