@@ -9,7 +9,7 @@ use keypaths_proc::Keypaths;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
-#[derive(Keypaths, Debug, Clone)]
+#[derive(Keypaths, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct AppState {
     user_data: Arc<tokio::sync::Mutex<UserData>>,
@@ -18,7 +18,13 @@ struct AppState {
     optional_mutex_cache: Option<Arc<tokio::sync::Mutex<Cache>>>,
 }
 
-#[derive(Keypaths, Debug, Clone)]
+impl Clone for AppState {
+    fn clone(&self) -> Self {
+        panic!("AppState::clone() should never be called")
+    }
+}
+
+#[derive(Keypaths, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct UserData {
     name: String,
@@ -26,14 +32,26 @@ struct UserData {
     settings: UserSettings,
 }
 
-#[derive(Keypaths, Debug, Clone)]
+impl Clone for UserData {
+    fn clone(&self) -> Self {
+        panic!("UserData::clone() should never be called")
+    }
+}
+
+#[derive(Keypaths, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct UserSettings {
     theme: String,
     notifications: bool,
 }
 
-#[derive(Keypaths, Debug, Clone)]
+impl Clone for UserSettings {
+    fn clone(&self) -> Self {
+        panic!("UserSettings::clone() should never be called")
+    }
+}
+
+#[derive(Keypaths, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct Config {
     api_key: String,
@@ -41,18 +59,36 @@ struct Config {
     features: FeatureFlags,
 }
 
-#[derive(Keypaths, Debug, Clone)]
+impl Clone for Config {
+    fn clone(&self) -> Self {
+        panic!("Config::clone() should never be called")
+    }
+}
+
+#[derive(Keypaths, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct FeatureFlags {
     enable_logging: bool,
     enable_metrics: bool,
 }
 
-#[derive(Keypaths, Debug, Clone)]
+impl Clone for FeatureFlags {
+    fn clone(&self) -> Self {
+        panic!("FeatureFlags::clone() should never be called")
+    }
+}
+
+#[derive(Keypaths, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct Cache {
     entries: Vec<String>,
     size: usize,
+}
+
+impl Clone for Cache {
+    fn clone(&self) -> Self {
+        panic!("Cache::clone() should never be called")
+    }
 }
 
 #[tokio::main]
