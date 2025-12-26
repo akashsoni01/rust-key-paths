@@ -13,11 +13,12 @@ Inspired by **Swift's KeyPath ** system, this feature rich crate lets you work w
 - ✅ **Better inlining** - Compiler can optimize more aggressively
 - ✅ **Functional chains for `Arc<Mutex<T>>`/`Arc<RwLock<T>>`** - Compose keypaths through sync primitives
 - ✅ **parking_lot support** - Optional feature for faster locks
+- ✅ **Tokio support** - Async keypath chains through `Arc<tokio::sync::Mutex<T>>` and `Arc<tokio::sync::RwLock<T>>`
 
 ```toml
 [dependencies]
-rust-keypaths = "1.4.0"
-keypaths-proc = "1.4.0"
+rust-keypaths = "1.5.0"
+keypaths-proc = "1.5.0"
 ```
 ---
 
@@ -31,6 +32,7 @@ keypaths-proc = "1.4.0"
 - ✅ **Proc-macros**: `#[derive(Keypaths)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
 - ✅ **Functional chains for `Arc<Mutex<T>>` and `Arc<RwLock<T>>`** - Compose-first, apply-later pattern
 - ✅ **parking_lot support** - Feature-gated support for faster synchronization primitives
+- ✅ **Tokio support** - Async keypath chains through `Arc<tokio::sync::Mutex<T>>` and `Arc<tokio::sync::RwLock<T>>`
 
 ---
 
@@ -126,7 +128,8 @@ fn main() {
 
 ```toml
 [dependencies]
-rust-keypaths = { version = "1.4.0", features = ["parking_lot"] }
+rust-keypaths = { version = "1.5.0", features = ["parking_lot"] }
+keypaths-proc = "1.5.0"
 ```
 
 #### Derive Macro Generated Methods for Locks
@@ -190,6 +193,118 @@ fn main() {
 ```bash
 cargo run --example parking_lot_chains --features parking_lot
 cargo run --example parking_lot_nested_chain --features parking_lot
+```
+
+---
+
+### Tokio Support (Async Locks)
+
+> ⚠️ **IMPORTANT**: Tokio support requires the `tokio` feature and uses `tokio::sync::Mutex` and `tokio::sync::RwLock`. All operations are **async** and must be awaited.
+
+```toml
+[dependencies]
+rust-keypaths = { version = "1.5.0", features = ["tokio"] }
+keypaths-proc = "1.5.0"
+tokio = { version = "1.38.0", features = ["sync", "rt", "rt-multi-thread", "macros"] }
+```
+
+#### Derive Macro Generated Methods for Tokio Locks
+
+The derive macro generates helper methods for `Arc<tokio::sync::Mutex<T>>` and `Arc<tokio::sync::RwLock<T>>` fields:
+
+| Field Type | Generated Methods | Description |
+|------------|-------------------|-------------|
+| `Arc<tokio::sync::Mutex<T>>` | `_r()`, `_w()`, `_fr_at(kp)`, `_fw_at(kp)` | Chain through tokio::sync::Mutex (async) |
+| `Arc<tokio::sync::RwLock<T>>` | `_r()`, `_w()`, `_fr_at(kp)`, `_fw_at(kp)` | Chain through tokio::sync::RwLock (async, read/write locks) |
+
+```rust
+use std::sync::Arc;
+use tokio::sync::{Mutex, RwLock};
+use keypaths_proc::Keypaths;
+
+#[derive(Keypaths)]
+#[All]  // Generate all methods (readable, writable, owned)
+struct AppState {
+    user_data: Arc<tokio::sync::Mutex<UserData>>,
+    config: Arc<tokio::sync::RwLock<Config>>,
+    optional_cache: Option<Arc<tokio::sync::RwLock<Cache>>>,
+}
+
+#[derive(Keypaths)]
+#[All]
+struct UserData {
+    name: String,
+    email: String,
+}
+
+#[derive(Keypaths)]
+#[All]
+struct Config {
+    api_key: String,
+    timeout: u64,
+}
+
+#[derive(Keypaths)]
+#[All]
+struct Cache {
+    entries: Vec<String>,
+    size: usize,
+}
+
+#[tokio::main]
+async fn main() {
+    let state = AppState { /* ... */ };
+    
+    // Reading through Arc<tokio::sync::Mutex<T>> (async)
+    AppState::user_data_fr_at(UserData::name_r())
+        .get(&state, |name| {
+            println!("User name: {}", name);
+        })
+        .await;
+    
+    // Writing through Arc<tokio::sync::Mutex<T>> (async)
+    AppState::user_data_fw_at(UserData::name_w())
+        .get_mut(&state, |name| {
+            *name = "Bob".to_string();
+        })
+        .await;
+    
+    // Reading through Arc<tokio::sync::RwLock<T>> (async, read lock)
+    AppState::config_fr_at(Config::api_key_r())
+        .get(&state, |api_key| {
+            println!("API key: {}", api_key);
+        })
+        .await;
+    
+    // Writing through Arc<tokio::sync::RwLock<T>> (async, write lock)
+    AppState::config_fw_at(Config::timeout_w())
+        .get_mut(&state, |timeout| {
+            *timeout = 60;
+        })
+        .await;
+    
+    // Reading through optional Arc<tokio::sync::RwLock<T>> (async)
+    if let Some(()) = AppState::optional_cache_fr()
+        .then_arc_tokio_rwlock_at_kp(Cache::size_r())
+        .get(&state, |size| {
+            println!("Cache size: {}", size);
+        })
+        .await
+    {
+        println!("Successfully read cache size");
+    }
+}
+```
+
+**Key features:**
+- ✅ **Async operations**: All lock operations are async and must be awaited
+- ✅ **Read/write locks**: `RwLock` supports concurrent reads with `_fr_at()` and exclusive writes with `_fw_at()`
+- ✅ **Optional chaining**: Works seamlessly with `Option<Arc<tokio::sync::Mutex<T>>>` and `Option<Arc<tokio::sync::RwLock<T>>>`
+- ✅ **Nested composition**: Chain through multiple levels of Tokio locks and nested structures
+
+**Running the example:**
+```bash
+cargo run --example tokio_containers --features tokio
 ```
 
 ---
@@ -288,6 +403,7 @@ See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed 
 - [x] Helper derive macros (`ReadableKeypaths`, `WritableKeypaths`)
 - [x] Functional chains for `Arc<Mutex<T>>` and `Arc<RwLock<T>>`
 - [x] `parking_lot` support for faster synchronization primitives
+- [x] **Tokio support** for async keypath chains through `Arc<tokio::sync::Mutex<T>>` and `Arc<tokio::sync::RwLock<T>>`
 - [ ] Derive macros for complex multi-field enum variants
 ---
 
