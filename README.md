@@ -401,6 +401,35 @@ KeyPaths are optimized for performance with minimal overhead. Below are benchmar
 
 See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed performance analysis.
 
+### Benchmarking RwLock Operations
+
+The library includes comprehensive benchmarks for both `parking_lot::RwLock` and `tokio::sync::RwLock` operations:
+
+**parking_lot::RwLock benchmarks:**
+```bash
+cargo bench --bench rwlock_write_deeply_nested --features parking_lot
+```
+
+**Tokio RwLock benchmarks (read and write):**
+```bash
+cargo bench --bench rwlock_write_deeply_nested --features parking_lot,tokio
+```
+
+The benchmarks compare:
+- ✅ **Keypath approach**: Using `_fr_at()` and `_fw_at()` methods for readable and writable access
+- ⚙️ **Traditional approach**: Manual read/write guards with nested field access
+
+Benchmarks include:
+- Deeply nested read/write operations through `Arc<RwLock<T>>`
+- Optional field access (`Option<T>`)
+- Multiple sequential operations
+- Both synchronous (`parking_lot`) and asynchronous (`tokio`) primitives
+
+**Key findings:**
+- Keypaths provide type-safe, composable access with minimal performance overhead
+- Async operations (Tokio) maintain similar performance characteristics
+- The functional composition style (`_fr_at()` / `_fw_at()`) is as efficient as manual guard management
+
 ---
 
 ## 🔄 Comparison with Other Lens Libraries
