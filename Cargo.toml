@@ -13,7 +13,7 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-rust-keypaths = { path = "rust-keypaths", version = "1.4.1", features = ["tagged", "parking_lot"] }
+rust-keypaths = { path = "rust-keypaths", version = "1.4.1", features = ["tagged", "parking_lot", "tokio"] }
 keypaths-proc = { path = "keypaths-proc", version = "1.4.1"}
 
 [workspace]
