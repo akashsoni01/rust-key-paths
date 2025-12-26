@@ -2,6 +2,7 @@
 //!
 //! This example shows how to use keypaths with Tokio's async synchronization primitives.
 //! Tokio locks are async, so all operations must be awaited.
+/// cargo run --example tokio_containers 2>&1
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath};
 use keypaths_proc::Keypaths;
@@ -14,6 +15,7 @@ struct AppState {
     user_data: Arc<tokio::sync::Mutex<UserData>>,
     config: Arc<tokio::sync::RwLock<Config>>,
     optional_cache: Option<Arc<tokio::sync::RwLock<Cache>>>,
+    optional_mutex_cache: Option<Arc<tokio::sync::Mutex<Cache>>>,
 }
 
 #[derive(Keypaths, Debug, Clone)]
@@ -78,6 +80,10 @@ async fn main() {
         optional_cache: Some(Arc::new(tokio::sync::RwLock::new(Cache {
             entries: vec!["entry1".to_string(), "entry2".to_string()],
             size: 2,
+        }))),
+        optional_mutex_cache: Some(Arc::new(tokio::sync::Mutex::new(Cache {
+            entries: vec!["mutex_entry1".to_string(), "mutex_entry2".to_string(), "mutex_entry3".to_string()],
+            size: 3,
         }))),
     };
 
@@ -211,6 +217,52 @@ async fn main() {
             println!("   Verified enable_metrics is now: {}", enable_metrics);
         })
         .await;
+
+    // Example 12: Reading through optional Arc<tokio::sync::Mutex<T>> using proc macro
+    println!("\n12. Reading through optional Arc<tokio::sync::Mutex<T>> using proc macro:");
+    if let Some(()) = AppState::optional_mutex_cache_fr()
+        .then_arc_tokio_mutex_at_kp(Cache::size_r())
+        .get(&state, |size| {
+            println!("   Mutex cache size: {}", size);
+        })
+        .await
+    {
+        println!("   Successfully read mutex cache size");
+    } else {
+        println!("   Mutex cache is None");
+    }
+
+    // Example 13: Writing through optional Arc<tokio::sync::Mutex<T>> using proc macro
+    println!("\n13. Writing through optional Arc<tokio::sync::Mutex<T>> using proc macro:");
+    if let Some(()) = AppState::optional_mutex_cache_fr()
+        .then_arc_tokio_mutex_writable_at_kp(Cache::size_w())
+        .get_mut(&state, |size| {
+            *size = 200;
+            println!("   Updated mutex cache size to: {}", size);
+        })
+        .await
+    {
+        println!("   Successfully updated mutex cache size");
+    } else {
+        println!("   Mutex cache is None");
+    }
+
+    // Example 14: Reading nested fields through optional Arc<tokio::sync::Mutex<T>>
+    println!("\n14. Reading nested fields through optional Arc<tokio::sync::Mutex<T>>:");
+    if let Some(()) = AppState::optional_mutex_cache_fr()
+        .then_arc_tokio_mutex_at_kp(Cache::entries_r())
+        .get(&state, |entries| {
+            println!("   Mutex cache entries count: {}", entries.len());
+            if let Some(first) = entries.first() {
+                println!("   First entry: {}", first);
+            }
+        })
+        .await
+    {
+        println!("   Successfully read mutex cache entries");
+    } else {
+        println!("   Mutex cache is None");
+    }
 
     println!("\n=== Example Complete ===");
 }
