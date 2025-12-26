@@ -31,6 +31,7 @@ keypaths-proc = { path = "keypaths-proc" }
 default = []
 parking_lot = ["parking_lot/default"]
 tagged_core = ["tagged-core/default"]
+tokio = ["rust-keypaths/tokio"]
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -2,6 +2,10 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use keypaths_proc::Keypaths;
 use parking_lot::RwLock;
 use std::sync::Arc;
+#[cfg(feature = "tokio")]
+use tokio::sync::RwLock as TokioRwLock;
+#[cfg(feature = "tokio")]
+use tokio::runtime::Runtime;
 
 // Struct definitions matching the user's example
 #[derive(Keypaths)]
@@ -214,12 +218,242 @@ fn bench_rwlock_multiple_writes(c: &mut Criterion) {
     group.finish();
 }
 
+// ========== TOKIO RWLock BENCHMARKS ==========
+
+#[cfg(feature = "tokio")]
+#[derive(Keypaths)]
+#[All]  // Generate all methods (readable, writable, owned)
+struct TokioSomeStruct {
+    f1: Arc<tokio::sync::RwLock<TokioSomeOtherStruct>>,
+}
+
+#[cfg(feature = "tokio")]
+#[derive(Keypaths)]
+#[All]  // Generate all methods (readable, writable, owned)
+struct TokioSomeOtherStruct {
+    f3: Option<String>,
+    f4: TokioDeeplyNestedStruct,
+}
+
+#[cfg(feature = "tokio")]
+#[derive(Keypaths)]
+#[All]  // Generate all methods (readable, writable, owned)
+struct TokioDeeplyNestedStruct {
+    f1: Option<String>,
+    f2: Option<i32>,
+}
+
+#[cfg(feature = "tokio")]
+impl TokioSomeStruct {
+    fn new() -> Self {
+        Self {
+            f1: Arc::new(tokio::sync::RwLock::new(TokioSomeOtherStruct {
+                f3: Some(String::from("value")),
+                f4: TokioDeeplyNestedStruct {
+                    f1: Some(String::from("value")),
+                    f2: Some(12),
+                },
+            })),
+        }
+    }
+}
+
+// Benchmark: Read access through Arc<tokio::sync::RwLock<...>> with deeply nested keypath
+#[cfg(feature = "tokio")]
+fn bench_tokio_rwlock_read_deeply_nested_keypath(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("tokio_rwlock_read_deeply_nested");
+    
+    // Keypath approach: TokioSomeStruct -> Arc<TokioRwLock<TokioSomeOtherStruct>> -> TokioSomeOtherStruct -> TokioDeeplyNestedStruct -> f1
+    group.bench_function("keypath", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let keypath = TokioSomeStruct::f1_fr_at(TokioSomeOtherStruct::f4_r().then(TokioDeeplyNestedStruct::f1_r()));
+                keypath.get(black_box(&instance), |value| {
+                    black_box(value);
+                }).await;
+            })
+        })
+    });
+    
+    // Traditional approach: Manual read guard and nested access
+    group.bench_function("read_guard", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let guard = instance.f1.read().await;
+                let _value = black_box(&guard.f4.f1);
+            })
+        })
+    });
+    
+    group.finish();
+}
+
+// Benchmark: Write access through Arc<tokio::sync::RwLock<...>> with deeply nested keypath
+#[cfg(feature = "tokio")]
+fn bench_tokio_rwlock_write_deeply_nested_keypath(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("tokio_rwlock_write_deeply_nested");
+    
+    // Keypath approach: TokioSomeStruct -> Arc<TokioRwLock<TokioSomeOtherStruct>> -> TokioSomeOtherStruct -> TokioDeeplyNestedStruct -> f1
+    group.bench_function("keypath", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let keypath = TokioSomeStruct::f1_fw_at(TokioSomeOtherStruct::f4_w().then(TokioDeeplyNestedStruct::f1_w()));
+                keypath.get_mut(black_box(&instance), |value| {
+                    *value = Some(String::from("new value"));
+                }).await;
+            })
+        })
+    });
+    
+    // Traditional approach: Manual write guard and nested unwraps
+    group.bench_function("write_guard", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let mut guard = instance.f1.write().await;
+                if let Some(f4) = guard.f4.f1.as_mut() {
+                    *f4 = String::from("new value");
+                }
+                black_box(())
+            })
+        })
+    });
+    
+    group.finish();
+}
+
+// Benchmark: Write access to f2 (Option<i32>) in deeply nested structure with Tokio
+#[cfg(feature = "tokio")]
+fn bench_tokio_rwlock_write_deeply_nested_f2(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("tokio_rwlock_write_deeply_nested_f2");
+    
+    // Keypath approach
+    group.bench_function("keypath", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let keypath = TokioSomeStruct::f1_fw_at(TokioSomeOtherStruct::f4_w().then(TokioDeeplyNestedStruct::f2_w()));
+                keypath.get_mut(black_box(&instance), |value| {
+                    *value = Some(42);
+                }).await;
+            })
+        })
+    });
+    
+    // Traditional approach
+    group.bench_function("write_guard", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let mut guard = instance.f1.write().await;
+                if let Some(ref mut f2) = guard.f4.f2 {
+                    *f2 = 42;
+                }
+                black_box(())
+            })
+        })
+    });
+    
+    group.finish();
+}
+
+// Benchmark: Read access to f3 (Option<String>) in SomeOtherStruct with Tokio
+#[cfg(feature = "tokio")]
+fn bench_tokio_rwlock_read_f3(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("tokio_rwlock_read_f3");
+    
+    // Keypath approach
+    group.bench_function("keypath", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let keypath = TokioSomeStruct::f1_fr_at(TokioSomeOtherStruct::f3_r());
+                keypath.get(black_box(&instance), |value| {
+                    black_box(value);
+                }).await;
+            })
+        })
+    });
+    
+    // Traditional approach
+    group.bench_function("read_guard", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let guard = instance.f1.read().await;
+                let _value = black_box(&guard.f3);
+            })
+        })
+    });
+    
+    group.finish();
+}
+
+// Benchmark: Write access to f3 (Option<String>) in SomeOtherStruct with Tokio
+#[cfg(feature = "tokio")]
+fn bench_tokio_rwlock_write_f3(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("tokio_rwlock_write_f3");
+    
+    // Keypath approach
+    group.bench_function("keypath", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let keypath = TokioSomeStruct::f1_fw_at(TokioSomeOtherStruct::f3_w());
+                keypath.get_mut(black_box(&instance), |value| {
+                    *value = Some(String::from("updated f3"));
+                }).await;
+            })
+        })
+    });
+    
+    // Traditional approach
+    group.bench_function("write_guard", |b| {
+        let instance = TokioSomeStruct::new();
+        b.iter(|| {
+            rt.block_on(async {
+                let mut guard = instance.f1.write().await;
+                if let Some(ref mut f3) = guard.f3 {
+                    *f3 = String::from("updated f3");
+                }
+                black_box(())
+            })
+        })
+    });
+    
+    group.finish();
+}
+
+#[cfg(not(feature = "tokio"))]
 criterion_group!(
     benches,
     bench_rwlock_write_deeply_nested_keypath,
     bench_rwlock_write_deeply_nested_f2,
     bench_rwlock_write_f3,
-    bench_rwlock_multiple_writes
+    bench_rwlock_multiple_writes,
 );
+
+#[cfg(feature = "tokio")]
+criterion_group!(
+    benches,
+    bench_rwlock_write_deeply_nested_keypath,
+    bench_rwlock_write_deeply_nested_f2,
+    bench_rwlock_write_f3,
+    bench_rwlock_multiple_writes,
+    bench_tokio_rwlock_read_deeply_nested_keypath,
+    bench_tokio_rwlock_write_deeply_nested_keypath,
+    bench_tokio_rwlock_write_deeply_nested_f2,
+    bench_tokio_rwlock_read_f3,
+    bench_tokio_rwlock_write_f3,
+);
+
 criterion_main!(benches);
 

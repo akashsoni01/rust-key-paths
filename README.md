@@ -401,6 +401,56 @@ KeyPaths are optimized for performance with minimal overhead. Below are benchmar
 
 See [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md) for detailed performance analysis.
 
+### Benchmarking RwLock Operations
+
+The library includes comprehensive benchmarks for both `parking_lot::RwLock` and `tokio::sync::RwLock` operations:
+
+**parking_lot::RwLock benchmarks:**
+```bash
+cargo bench --bench rwlock_write_deeply_nested --features parking_lot
+```
+
+**Tokio RwLock benchmarks (read and write):**
+```bash
+cargo bench --bench rwlock_write_deeply_nested --features parking_lot,tokio
+```
+
+The benchmarks compare:
+- ✅ **Keypath approach**: Using `_fr_at()` and `_fw_at()` methods for readable and writable access
+- ⚙️ **Traditional approach**: Manual read/write guards with nested field access
+
+Benchmarks include:
+- Deeply nested read/write operations through `Arc<RwLock<T>>`
+- Optional field access (`Option<T>`)
+- Multiple sequential operations
+- Both synchronous (`parking_lot`) and asynchronous (`tokio`) primitives
+
+**Benchmark Results:**
+
+| Operation | Keypath | Manual Guard | Overhead | Notes |
+|-----------|---------|--------------|----------|-------|
+| **parking_lot::RwLock - Deep Write** | 24.5 ns | 23.9 ns | 2.5% slower | Deeply nested write through `Arc<RwLock<T>>` |
+| **parking_lot::RwLock - Simple Write** | 8.5 ns | 8.6 ns | **1.2% faster** ⚡ | Simple field write (`Option<i32>`) |
+| **parking_lot::RwLock - Field Write** | 23.8 ns | 23.9 ns | **0.4% faster** ⚡ | Field write (`Option<String>`) |
+| **parking_lot::RwLock - Multiple Writes** | 55.8 ns | 41.8 ns | 33.5% slower | Multiple sequential writes (single guard faster) |
+| **tokio::sync::RwLock - Deep Read** | 104.8 ns | 104.6 ns | 0.2% slower | Deeply nested async read |
+| **tokio::sync::RwLock - Deep Write** | 124.8 ns | 124.1 ns | 0.6% slower | Deeply nested async write |
+| **tokio::sync::RwLock - Simple Write** | 103.8 ns | 105.0 ns | **1.2% faster** ⚡ | Simple async field write |
+| **tokio::sync::RwLock - Field Read** | 103.3 ns | 103.2 ns | 0.1% slower | Simple async field read |
+| **tokio::sync::RwLock - Field Write** | 125.7 ns | 124.6 ns | 0.9% slower | Simple async field write |
+
+**Key findings:**
+- ✅ **parking_lot::RwLock**: Keypaths show **essentially identical performance** (0-2.5% overhead) for single operations
+- ✅ **tokio::sync::RwLock**: Keypaths show **essentially identical performance** (0-1% overhead) for async operations
+- ⚡ **Simple operations**: Keypaths can be **faster** than manual guards in some cases (1-2% improvement)
+- ⚠️ **Multiple writes**: Manual single guard is faster (33% overhead) - use single guard for multiple operations
+- 🎯 **Type safety**: Minimal performance cost for significant type safety and composability benefits
+
+**Detailed Analysis:**
+- For detailed performance analysis, see [`benches/BENCHMARK_SUMMARY.md`](benches/BENCHMARK_SUMMARY.md)
+- For performance optimization details, see [`benches/PERFORMANCE_ANALYSIS.md`](benches/PERFORMANCE_ANALYSIS.md)
+- For complete benchmark results, see [`benches/BENCHMARK_RESULTS.md`](benches/BENCHMARK_RESULTS.md)
+
 ---
 
 ## 🔄 Comparison with Other Lens Libraries

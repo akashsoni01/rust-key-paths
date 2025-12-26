@@ -115,25 +115,54 @@ if let Some(ref mut f1) = guard.f4.f1 {
 
 **Benchmark Results**:
 
+### parking_lot::RwLock Benchmarks
+
 | Benchmark | Approach | Mean Time | Comparison |
 |-----------|----------|-----------|------------|
-| `rwlock_write_deeply_nested` String | Keypath | 23.772 ns | **0.5% faster** |
-| | Write Guard | 23.893 ns | baseline |
-| | Write Guard (nested) | 23.904 ns | 0.5% slower |
-| `rwlock_write_deeply_nested_f2` i64 | Keypath | 8.417 ns | **1.2% faster** |
-| | Write Guard | 8.518 ns | baseline |
-| `rwlock_write_f3` String | Keypath | 23.787 ns | **0.6% faster** |
-| | Write Guard | 23.934 ns | baseline |
-| `rwlock_multiple_writes` | Keypath | 55.405 ns | 33.2% slower |
-| | Write Guard (single) | 41.621 ns | baseline |
-| | Write Guard (multiple) | 55.850 ns | 34.2% slower |
+| `rwlock_write_deeply_nested` (String, 3 levels) | Keypath | 24.5 ns | 2.5% slower |
+| | Write Guard | 23.9 ns | baseline |
+| | Write Guard (nested) | 23.8 ns | **0.4% faster** |
+| `rwlock_write_deeply_nested_f2` (i32, 3 levels) | Keypath | 8.5 ns | **1.2% faster** ⚡ |
+| | Write Guard | 8.6 ns | baseline |
+| `rwlock_write_f3` (String, 2 levels) | Keypath | 23.8 ns | **0.4% faster** ⚡ |
+| | Write Guard | 23.9 ns | baseline |
+| `rwlock_multiple_writes` (sequential) | Keypath | 55.8 ns | 33.5% slower |
+| | Write Guard (single) | 41.8 ns | baseline |
+| | Write Guard (multiple) | 56.2 ns | 34.4% slower |
+
+### tokio::sync::RwLock Benchmarks
+
+| Benchmark | Approach | Mean Time | Comparison |
+|-----------|----------|-----------|------------|
+| `tokio_rwlock_read_deeply_nested` (String, 3 levels) | Keypath | 104.8 ns | 0.2% slower |
+| | Read Guard | 104.6 ns | baseline |
+| `tokio_rwlock_write_deeply_nested` (String, 3 levels) | Keypath | 124.8 ns | 0.6% slower |
+| | Write Guard | 124.1 ns | baseline |
+| `tokio_rwlock_write_deeply_nested_f2` (i32, 3 levels) | Keypath | 103.8 ns | **1.2% faster** ⚡ |
+| | Write Guard | 105.0 ns | baseline |
+| `tokio_rwlock_read_f3` (String, 2 levels) | Keypath | 103.3 ns | 0.1% slower |
+| | Read Guard | 103.2 ns | baseline |
+| `tokio_rwlock_write_f3` (String, 2 levels) | Keypath | 125.7 ns | 0.9% slower |
+| | Write Guard | 124.6 ns | baseline |
 
 **Key Findings**:
-- For single write operations, keypath approach is **slightly faster** (0.5-1.2%) than manual write guards
-- For multiple sequential writes, using a single write guard is more efficient (33% faster) than creating multiple keypaths
-- Keypath approach performs similarly to multiple write guards when doing multiple operations
-- The performance difference is negligible (sub-nanosecond) for most use cases
-- Keypath approach provides significant benefits in type safety, composability, and maintainability with minimal performance cost
+
+**parking_lot::RwLock:**
+- ✅ For single write operations, keypath approach is **essentially identical** (0-2.5% overhead) to manual write guards
+- ✅ Simple field writes can be **1.2% faster** with keypaths
+- ⚠️ For multiple sequential writes, using a single write guard is more efficient (33% faster) than creating multiple keypaths
+- ✅ Keypath approach performs similarly to multiple write guards when doing multiple operations
+
+**tokio::sync::RwLock:**
+- ✅ For async read operations, keypath approach shows **essentially identical performance** (0-0.2% overhead)
+- ✅ For async write operations, keypath approach shows **essentially identical performance** (0-1% overhead)
+- ✅ Simple async field operations can be **1.2% faster** with keypaths
+- ✅ Async operations maintain similar performance characteristics to synchronous operations
+
+**Overall:**
+- ✅ The performance difference is negligible (sub-nanosecond) for most use cases
+- ✅ Keypath approach provides significant benefits in type safety, composability, and maintainability with minimal performance cost
+- ✅ Both synchronous (`parking_lot`) and asynchronous (`tokio`) primitives show excellent performance with keypaths
 
 **Benefits of Keypath Approach**:
 1. **Type Safety**: Compile-time verification of the access path
