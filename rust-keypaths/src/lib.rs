@@ -2711,7 +2711,7 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        let arc_mutex_ref = self.outer_keypath.get(container);
+        let arc_mutex_ref = self.outer_keypath.get(container).borrow();
         let guard = arc_mutex_ref.lock().await;
         let value = self.inner_keypath.get(&*guard);
         callback(value);
@@ -2795,7 +2795,7 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        let arc_mutex_ref = self.outer_keypath.get(container);
+        let arc_mutex_ref = self.outer_keypath.get(container).borrow();
         let guard = arc_mutex_ref.lock().await;
         self.inner_keypath.get(&*guard).map(|value| callback(value))
     }
@@ -2876,7 +2876,7 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        let arc_mutex_ref = self.outer_keypath.get(container);
+        let arc_mutex_ref = self.outer_keypath.get(container).borrow();
         let mut guard = arc_mutex_ref.lock().await;
         let value_ref = self.inner_keypath.get_mut(&mut *guard);
         callback(value_ref)
@@ -2960,7 +2960,7 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        let arc_mutex_ref = self.outer_keypath.get(container);
+        let arc_mutex_ref = self.outer_keypath.get(container).borrow();
         let mut guard = arc_mutex_ref.lock().await;
         self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
     }
@@ -3042,7 +3042,7 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        let arc_rwlock_ref = self.outer_keypath.get(container);
+        let arc_rwlock_ref = self.outer_keypath.get(container).borrow();
         let guard = arc_rwlock_ref.read().await;
         let value = self.inner_keypath.get(&*guard);
         callback(value);
@@ -3127,7 +3127,7 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        let arc_rwlock_ref = self.outer_keypath.get(container);
+        let arc_rwlock_ref = self.outer_keypath.get(container).borrow();
         let guard = arc_rwlock_ref.read().await;
         self.inner_keypath.get(&*guard).map(|value| callback(value))
     }
@@ -3209,7 +3209,7 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        let arc_rwlock_ref = self.outer_keypath.get(container);
+        let arc_rwlock_ref = self.outer_keypath.get(container).borrow();
         let mut guard = arc_rwlock_ref.write().await;
         let value_ref = self.inner_keypath.get_mut(&mut *guard);
         callback(value_ref)
@@ -3294,7 +3294,7 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        let arc_rwlock_ref = self.outer_keypath.get(container);
+        let arc_rwlock_ref = self.outer_keypath.get(container).borrow();
         let mut guard = arc_rwlock_ref.write().await;
         self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
     }

@@ -1449,7 +1449,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         
                         // ========== TOKIO (requires tokio feature) ==========
                         // TokioArcMutex = Arc<tokio::sync::Mutex<T>>
-                        #[cfg(feature = "tokio")]
                         (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
                             // _r() - Returns KeyPath to the Arc<tokio::sync::Mutex<T>> field
                             push_method(
@@ -1543,7 +1542,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         
                         // TokioArcRwLock = Arc<tokio::sync::RwLock<T>>
-                        #[cfg(feature = "tokio")]
                         (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
                             // _r() - Returns KeyPath to the Arc<tokio::sync::RwLock<T>> field
                             push_method(
