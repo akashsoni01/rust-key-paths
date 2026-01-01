@@ -1319,7 +1319,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_mutex_at_kp(inner_kp)
+                                            .chain_arc_mutex_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1347,7 +1347,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_mutex_writable_at_kp(inner_kp)
+                                            .chain_arc_mutex_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1507,7 +1507,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_tokio_mutex_at_kp(inner_kp)
+                                            .chain_arc_tokio_mutex_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1535,7 +1535,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_tokio_mutex_writable_at_kp(inner_kp)
+                                            .chain_arc_tokio_mutex_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1600,7 +1600,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_tokio_rwlock_at_kp(inner_kp)
+                                            .chain_arc_tokio_rwlock_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1628,7 +1628,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_tokio_rwlock_writable_at_kp(inner_kp)
+                                            .chain_arc_tokio_rwlock_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1693,7 +1693,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_rwlock_at_kp(inner_kp)
+                                            .chain_arc_rwlock_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1721,7 +1721,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_rwlock_writable_at_kp(inner_kp)
+                                            .chain_arc_rwlock_writable_at_kp(inner_kp)
                                     }
                                 },
                             );

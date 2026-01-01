@@ -27,7 +27,7 @@ fn main() {
     // Convert a normal keypath to a lock keypath using the method
     Container::rwlock_data_r()
         .to_arc_rwlock_kp()
-        .then_arc_rwlock_at_kp(SomeStruct::data_r())
+        .chain_arc_rwlock_at_kp(SomeStruct::data_r())
         .get(&container, |value| {
             println!("✅ Read value via to_arc_rwlock_kp(): {}", value);
         });
@@ -35,7 +35,7 @@ fn main() {
     // Direct usage (without conversion method) - still works
     println!("\n=== Direct usage (without conversion) ===");
     Container::rwlock_data_r()
-        .then_arc_rwlock_at_kp(SomeStruct::data_r())
+        .chain_arc_rwlock_at_kp(SomeStruct::data_r())
         .get(&container, |value| {
             println!("✅ Read value directly: {}", value);
         });

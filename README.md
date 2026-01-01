@@ -338,7 +338,7 @@ async fn main() {
     
     // Reading through optional Arc<tokio::sync::RwLock<T>> (async)
     if let Some(()) = AppState::optional_cache_fr()
-        .then_arc_tokio_rwlock_at_kp(Cache::size_r())
+        .chain_arc_tokio_rwlock_at_kp(Cache::size_r())
         .get(&state, |size| {
             println!("Cache size: {}", size);
         })

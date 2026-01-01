@@ -192,7 +192,7 @@ async fn main() {
     // Example 7: Reading through optional Arc<tokio::sync::RwLock<T>> using proc macro
     println!("\n7. Reading through optional Arc<tokio::sync::RwLock<T>> using proc macro:");
     if let Some(()) = AppState::optional_cache_fr()
-        .then_arc_tokio_rwlock_at_kp(Cache::size_r())
+        .chain_arc_tokio_rwlock_at_kp(Cache::size_r())
         .get(&state, |size| {
             println!("   Cache size: {}", size);
         })
@@ -206,7 +206,7 @@ async fn main() {
     // Example 8: Writing through optional Arc<tokio::sync::RwLock<T>> using proc macro
     println!("\n8. Writing through optional Arc<tokio::sync::RwLock<T>> using proc macro:");
     if let Some(()) = AppState::optional_cache_fr()
-        .then_arc_tokio_rwlock_writable_at_kp(Cache::size_w())
+        .chain_arc_tokio_rwlock_writable_at_kp(Cache::size_w())
         .get_mut(&state, |size| {
             *size = 100;
             println!("   Updated cache size to: {}", size);
@@ -257,7 +257,7 @@ async fn main() {
     // Example 12: Reading through optional Arc<tokio::sync::Mutex<T>> using proc macro
     println!("\n12. Reading through optional Arc<tokio::sync::Mutex<T>> using proc macro:");
     if let Some(()) = AppState::optional_mutex_cache_fr()
-        .then_arc_tokio_mutex_at_kp(Cache::size_r())
+        .chain_arc_tokio_mutex_at_kp(Cache::size_r())
         .get(&state, |size| {
             println!("   Mutex cache size: {}", size);
         })
@@ -271,7 +271,7 @@ async fn main() {
     // Example 13: Writing through optional Arc<tokio::sync::Mutex<T>> using proc macro
     println!("\n13. Writing through optional Arc<tokio::sync::Mutex<T>> using proc macro:");
     if let Some(()) = AppState::optional_mutex_cache_fr()
-        .then_arc_tokio_mutex_writable_at_kp(Cache::size_w())
+        .chain_arc_tokio_mutex_writable_at_kp(Cache::size_w())
         .get_mut(&state, |size| {
             *size = 200;
             println!("   Updated mutex cache size to: {}", size);
@@ -286,7 +286,7 @@ async fn main() {
     // Example 14: Reading nested fields through optional Arc<tokio::sync::Mutex<T>>
     println!("\n14. Reading nested fields through optional Arc<tokio::sync::Mutex<T>>:");
     if let Some(()) = AppState::optional_mutex_cache_fr()
-        .then_arc_tokio_mutex_at_kp(Cache::entries_r())
+        .chain_arc_tokio_mutex_at_kp(Cache::entries_r())
         .get(&state, |entries| {
             println!("   Mutex cache entries count: {}", entries.len());
             if let Some(first) = entries.first() {

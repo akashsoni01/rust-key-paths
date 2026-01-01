@@ -158,28 +158,28 @@ fn main() {
     
     // Read through Arc<Mutex<T>> - compose the chain, then apply
     Container::mutex_data_r()
-        .then_arc_mutex_at_kp(DataStruct::name_r())
+        .chain_arc_mutex_at_kp(DataStruct::name_r())
         .get(&container, |value| {
             println!("Name: {}", value);
         });
     
     // Write through Arc<Mutex<T>>
     Container::mutex_data_r()
-        .then_arc_mutex_writable_at_kp(DataStruct::name_w())
+        .chain_arc_mutex_writable_at_kp(DataStruct::name_w())
         .get_mut(&container, |value| {
             *value = "New name".to_string();
         });
     
     // Read through Arc<RwLock<T>> (read lock)
     Container::rwlock_data_r()
-        .then_arc_rwlock_at_kp(DataStruct::name_r())
+        .chain_arc_rwlock_at_kp(DataStruct::name_r())
         .get(&container, |value| {
             println!("Name: {}", value);
         });
     
     // Write through Arc<RwLock<T>> (write lock)
     Container::rwlock_data_r()
-        .then_arc_rwlock_writable_at_kp(DataStruct::name_w())
+        .chain_arc_rwlock_writable_at_kp(DataStruct::name_w())
         .get_mut(&container, |value| {
             *value = "New name".to_string();
         });
