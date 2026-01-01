@@ -17,8 +17,8 @@ Inspired by **Swift's KeyPath ** system, this feature rich crate lets you work w
 
 ```toml
 [dependencies]
-rust-keypaths = "1.6.0"
-keypaths-proc = "1.6.0"
+rust-keypaths = "1.7.0"
+keypaths-proc = "1.7.0"
 ```
 ---
 
@@ -181,8 +181,8 @@ cargo run --example type_safety_demo
 
 ```toml
 [dependencies]
-rust-keypaths = { version = "1.6.0", features = ["parking_lot"] }
-keypaths-proc = "1.6.0"
+rust-keypaths = { version = "1.7.0", features = ["parking_lot"] }
+keypaths-proc = "1.7.0"
 ```
 
 #### Derive Macro Generated Methods for Locks
@@ -256,8 +256,8 @@ cargo run --example parking_lot_nested_chain --features parking_lot
 
 ```toml
 [dependencies]
-rust-keypaths = { version = "1.6.0", features = ["tokio"] }
-keypaths-proc = "1.6.0"
+rust-keypaths = { version = "1.7.0", features = ["tokio"] }
+keypaths-proc = "1.7.0"
 tokio = { version = "1.38.0", features = ["sync", "rt", "rt-multi-thread", "macros"] }
 ```
 

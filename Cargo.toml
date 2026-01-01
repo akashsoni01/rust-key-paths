@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "1.20.0"
+version = "1.21.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -13,8 +13,8 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-rust-keypaths = { path = "rust-keypaths", version = "1.6.0", features = ["tagged", "parking_lot", "tokio"] }
-keypaths-proc = { path = "keypaths-proc", version = "1.6.0"}
+rust-keypaths = { path = "rust-keypaths", version = "1.7.0", features = ["tagged", "parking_lot", "tokio"] }
+keypaths-proc = { path = "keypaths-proc", version = "1.7.0"}
 
 [workspace]
 resolver = "3" # or "3"
