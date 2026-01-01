@@ -113,10 +113,10 @@ mod example {
         let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
         
         SomeStruct::f1_r()
-            .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
+            .chain_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
             .get(&instance, |f4_arc| {
                 identity_kp.clone()
-                    .then_arc_parking_rwlock_at_kp(name_kp.clone())
+                    .chain_arc_parking_rwlock_at_kp(name_kp.clone())
                     .get(f4_arc, |name| {
                         println!("✅ Read name via nested chain: {:?}", name);
                     });
@@ -139,7 +139,7 @@ mod example {
 
         // Read through two lock layers to get optional fields
         SomeStruct::f1_r()
-            .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
+            .chain_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
             .get(&instance, |f4_arc| {
                 let deep_f1_kp = OptionalKeyPath::new(|s: &DeeplyNestedStruct| s.f1.as_ref());
                 let deep_f2_kp = OptionalKeyPath::new(|s: &DeeplyNestedStruct| s.f2.as_ref());
@@ -167,11 +167,11 @@ mod example {
 
         // Use the generated method to write through both locks
         SomeStruct::f1_r()
-            .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
+            .chain_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
             .get(&instance, |f4_arc| {
                 let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
                 identity_kp
-                    .then_arc_parking_rwlock_writable_at_kp(name_w_kp.clone())
+                    .chain_arc_parking_rwlock_writable_at_kp(name_w_kp.clone())
                     .get_mut(f4_arc, |name| {
                         *name = String::from("updated_name");
                         println!("✅ Wrote name via _parking_fw_at chain");
@@ -194,7 +194,7 @@ mod example {
 
         // Write to deeply nested values through both lock layers
         SomeStruct::f1_r()
-            .then_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
+            .chain_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
             .get(&instance, |f4_arc| {
                 let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
                 

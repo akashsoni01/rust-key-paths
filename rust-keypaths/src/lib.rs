@@ -4587,7 +4587,7 @@ where
     /// ```rust,ignore
     /// Container::rwlock_data_r()
     ///     .to_arc_parking_rwlock_kp()
-    ///     .then_arc_parking_rwlock_at_kp(InnerStruct::field_r());
+    ///     .chain_arc_parking_rwlock_at_kp(InnerStruct::field_r());
     /// ```
     pub fn to_arc_parking_rwlock_kp<InnerValue>(self) -> Self
     where
@@ -4674,14 +4674,14 @@ where
     //     let identity = KeyPath::new(|inner: &InnerValue| inner);
     //     let getter = self.getter.clone();
     //     // Create a new keypath with the exact type needed, following the proc macro pattern
-    //     // KeyPath::new(|s: &Root| &s.field).then_arc_parking_rwlock_at_kp(inner_kp)
+    //     // KeyPath::new(|s: &Root| &s.field).chain_arc_parking_rwlock_at_kp(inner_kp)
     //     let lock_kp: KeyPath<Root, Arc<parking_lot::RwLock<InnerValue>>, _> = KeyPath::new(move |root: &Root| {
     //         // Safe: Value is Arc<parking_lot::RwLock<InnerValue>> at call site, enforced by Borrow bound
     //         unsafe {
     //             std::mem::transmute::<&Value, &Arc<parking_lot::RwLock<InnerValue>>>(getter(root))
     //         }
     //     });
-    //     lock_kp.then_arc_parking_rwlock_at_kp(identity)
+    //     lock_kp.chain_arc_parking_rwlock_at_kp(identity)
     // }
 
     // #[cfg(feature = "parking_lot")]
@@ -4701,7 +4701,7 @@ where
     //             std::mem::transmute::<&Value, &Arc<parking_lot::Mutex<InnerValue>>>(getter(root))
     //         }
     //     });
-    //     lock_kp.then_arc_parking_mutex_at_kp(identity)
+    //     lock_kp.chain_arc_parking_mutex_at_kp(identity)
     // }
 
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
@@ -5389,7 +5389,7 @@ where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
 {
     /// Chain this keypath with an inner keypath through Arc<parking_lot::Mutex<T>> - functional style
-    pub fn then_arc_parking_mutex_at_kp<SubValue, G>(
+    pub fn chain_arc_parking_mutex_at_kp<SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -5417,7 +5417,7 @@ where
     }
     
     /// Chain this keypath with a writable inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn then_arc_parking_mutex_writable_at_kp<SubValue, G>(
+    pub fn chain_arc_parking_mutex_writable_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -5451,7 +5451,7 @@ where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
 {
     /// Chain this keypath with an inner keypath through Arc<parking_lot::RwLock<T>> - functional style
-    pub fn then_arc_parking_rwlock_at_kp<SubValue, G>(
+    pub fn chain_arc_parking_rwlock_at_kp<SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -5479,7 +5479,7 @@ where
     }
     
     /// Chain this keypath with a writable inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn then_arc_parking_rwlock_writable_at_kp<SubValue, G>(
+    pub fn chain_arc_parking_rwlock_writable_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -6118,7 +6118,7 @@ where
     //             }
     //         })
     //     });
-    //     lock_kp.then_arc_parking_rwlock_at_kp(identity)
+    //     lock_kp.chain_arc_parking_rwlock_at_kp(identity)
     // }
 
     // #[cfg(feature = "parking_lot")]
@@ -6140,7 +6140,7 @@ where
     //             }
     //         })
     //     });
-    //     lock_kp.then_arc_parking_mutex_at_kp(identity)
+    //     lock_kp.chain_arc_parking_mutex_at_kp(identity)
     // }
     
     // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
@@ -6255,7 +6255,7 @@ where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::Mutex<InnerValue>>>,
 {
     /// Chain this optional keypath with an inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn then_arc_parking_mutex_at_kp<SubValue, G>(
+    pub fn chain_arc_parking_mutex_at_kp<SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -6283,7 +6283,7 @@ where
     }
     
     /// Chain this optional keypath with a writable inner keypath through Arc<parking_lot::Mutex<T>>
-    pub fn then_arc_parking_mutex_writable_at_kp<SubValue, G>(
+    pub fn chain_arc_parking_mutex_writable_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -6317,7 +6317,7 @@ where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::RwLock<InnerValue>>>,
 {
     /// Chain this optional keypath with an inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn then_arc_parking_rwlock_at_kp<SubValue, G>(
+    pub fn chain_arc_parking_rwlock_at_kp<SubValue, G>(
         self,
         inner_keypath: KeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
@@ -6345,7 +6345,7 @@ where
     }
     
     /// Chain this optional keypath with a writable inner keypath through Arc<parking_lot::RwLock<T>>
-    pub fn then_arc_parking_rwlock_writable_at_kp<SubValue, G>(
+    pub fn chain_arc_parking_rwlock_writable_at_kp<SubValue, G>(
         self,
         inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
     ) -> OptionalArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>

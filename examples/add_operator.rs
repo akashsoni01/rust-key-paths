@@ -341,3 +341,7 @@
 //     println!("On stable Rust, use the then() methods which provide the same functionality.");
 // }
 // 
+
+fn main() {
+    
+}
