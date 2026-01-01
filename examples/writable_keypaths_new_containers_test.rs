@@ -1,8 +1,9 @@
-use keypaths_proc::WritableKeypaths;
+use keypaths_proc::{Keypaths};
+use rust_keypaths::KeyPath;
 use std::sync::{Mutex, RwLock};
 use std::rc::Weak;
 
-#[derive(Debug, WritableKeypaths)]
+#[derive(Debug, Keypaths)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
@@ -34,17 +35,17 @@ fn main() {
     };
 
     // Test Result<T, E> with WritableKeypaths
-    if let Some(result_ref) = ContainerTest::result_w().get(&mut container) {
+    if let Some(result_ref) = ContainerTest::result_fr().get(&mut container) {
         println!("✅ Result reference: {:?}", result_ref);
     }
     
     // Test Mutex<T> with WritableKeypaths
-    if let Some(mutex_ref) = ContainerTest::mutex_data_w().get(&mut container) {
+    if let Some(mutex_ref) = ContainerTest::mutex_data_r().to_optional().get(&mut container) {
         println!("✅ Mutex reference: {:?}", mutex_ref);
     }
     
     // Test RwLock<T> with WritableKeypaths
-    if let Some(rwlock_ref) = ContainerTest::rwlock_data_w().get(&mut container) {
+    if let Some(rwlock_ref) = ContainerTest::rwlock_data_rwlock_fr_at(KeyPath::leaf()).get(&container) {
         println!("✅ RwLock reference: {:?}", rwlock_ref);
     }
     

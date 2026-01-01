@@ -4215,12 +4215,20 @@ where
     }
     
     // Using fn pointer - works for identity
-    pub fn identity() -> KeyPath<Root, Root, fn(&Root) -> &Root> {
-        KeyPath {
-            getter: (|x: &Root| x) as fn(&Root) -> &Root,
-            _phantom: PhantomData,
-        }
-    }
+    // pub fn identity() -> KeyPath<Root, Root, fn(&Root) -> &Root> {
+    //     KeyPath {
+    //         getter: (|x: &Root| x) as fn(&Root) -> &Root,
+    //         _phantom: PhantomData,
+    //     }
+    // }
+
+    // pub fn leaf() -> KeyPath<Value, Value, fn(&Value) -> &Value> {
+    //     KeyPath {
+    //         getter: (|x: &Value| x) as fn(&Value) -> &Value,
+    //         _phantom: PhantomData,
+    //     }
+    // }
+
 
     /// Chain this keypath with an inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get() time
