@@ -158,21 +158,21 @@ fn main() {
     // Test Box dereferencing
     println!("\n=== Box Dereferencing ===");
     let bio_path = User::profile_r();
-    if let Some(profile) = bio_path.get(&user) {
+    if let Some(profile) = bio_path.to_optional().get(&user) {
         println!("Profile bio: {}", profile.bio);
     }
 
     // Test Rc dereferencing
     println!("\n=== Rc Dereferencing ===");
     let avatar_path = User::avatar_r();
-    if let Some(avatar) = avatar_path.get(&user) {
+    if let Some(avatar) = avatar_path.to_optional().get(&user) {
         println!("Avatar: {}", avatar);
     }
 
     // Test Arc dereferencing
     println!("\n=== Arc Dereferencing ===");
     let metadata_path = User::metadata_r();
-    if let Some(metadata) = metadata_path.get(&user) {
+    if let Some(metadata) = metadata_path.to_optional().get(&user) {
         println!("Metadata keys: {:?}", metadata.keys().collect::<Vec<_>>());
     }
 
