@@ -5,11 +5,10 @@ Inspired by **Swift's KeyPath ** system, this feature rich crate lets you work w
 
 ---
 
-## 🚀 New: Static Dispatch Implementation
 ### `rust-keypaths` + `keypaths-proc` (Recommended)
-- ✅ **Static dispatch** - Faster performance, better compiler optimizations
+- ✅ Faster performance, better compiler optimizations
 - ✅ **Write operations can be faster than manual unwrapping** at deeper nesting levels
-- ✅ **Zero runtime overhead** - No dynamic dispatch costs
+- ✅ **Zero runtime overhead**
 - ✅ **Better inlining** - Compiler can optimize more aggressively
 - ✅ **Functional chains for `Arc<Mutex<T>>`/`Arc<RwLock<T>>`** - Compose keypaths through sync primitives
 - ✅ **parking_lot support** - Optional feature for faster locks
@@ -455,7 +454,7 @@ Benchmarks include:
 
 ## 🔄 Comparison with Other Lens Libraries
 | Feature | rust-keypaths | keypath | pl-lens | lens-rs |
-|---------|---------------|---------|---------|---------|
+|---------|--------------|---------|---------|---------|
 | **Struct Field Access** | ✅ Readable/Writable | ✅ Readable/Writable | ✅ Readable/Writable | ✅ Partial |
 | **Option<T> Chains** | ✅ Built-in (`_fr`/`_fw`) | ❌ Manual composition | ❌ Manual composition | ❌ Manual |
 | **Enum Case Paths** | ✅ Built-in (CasePaths) | ❌ Not supported | ❌ Not supported | ❌ Limited |
@@ -473,7 +472,7 @@ Benchmarks include:
 | **Writable Keypaths** | ✅ `WritableKeyPath` | ✅ Supported | ✅ `Lens` | ⚠️ Partial |
 | **Failable Readable** | ✅ `OptionalKeyPath` | ❌ Manual | ❌ Manual | ❌ Manual |
 | **Failable Writable** | ✅ `WritableOptionalKeyPath` | ❌ Manual | ❌ Manual | ❌ Manual |
-| **Zero-cost Abstractions** | ✅ Static dispatch | ⚠️ Unknown | ⚠️ Depends | ⚠️ Depends |
+| **Zero-cost Abstractions** | ✅ | ⚠️ Unknown | ⚠️ Depends | ⚠️ Depends |
 | **Swift KeyPath-like API** | ✅ Inspired by Swift | ⚠️ Partial | ❌ No | ❌ No |
 | **Container Methods** | ✅ `with_mutex`, `with_rwlock`, `with_arc`, etc. | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **Iteration Helpers** | ✅ `iter()`, `iter_mut()` | ❌ Not supported | ❌ Not supported | ❌ Not supported |
@@ -487,7 +486,7 @@ Benchmarks include:
 3. **✅ Container types**: Built-in support for `Result`, `Mutex`, `RwLock`, `Arc`, `Rc`, `Box`, and all standard collections (comprehensive container support unmatched by alternatives)
 4. **✅ Functional chains for sync primitives**: Compose keypaths through `Arc<Mutex<T>>` and `Arc<RwLock<T>>` with a clean, functional API
 5. **✅ parking_lot support**: Feature-gated support for faster `parking_lot::Mutex` and `parking_lot::RwLock`
-6. **✅ Zero-cost abstractions**: Static dispatch with minimal overhead (1.46x for reads, near-zero for writes) - benchmarked and optimized
+6. **✅ Zero-cost abstractions**: Minimal overhead (1.46x for reads, near-zero for writes) - benchmarked and optimized
 7. **✅ Comprehensive derive macros**: Automatic generation for structs (named and tuple), enums, and all container types
 8. **✅ Swift-inspired API**: Familiar API for developers coming from Swift's KeyPath system with `.then()` composition
 9. **✅ Deep composition**: Works seamlessly with 10+ levels of nesting without workarounds (tested and verified)
