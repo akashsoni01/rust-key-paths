@@ -1,3 +1,6 @@
+// pub use key_paths_core::*;
+pub use rust_keypaths::*;
+
 use rust_keypaths::{
     KeyPath as RustKeyPath,
     OptionalKeyPath as RustOptionalKeyPath,
