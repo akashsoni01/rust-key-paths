@@ -7,8 +7,8 @@
 //! 2. Read and write through a single Arc<tokio::sync::RwLock<T>>
 //! 3. Chain keypaths through the lock to access inner fields (async)
 
-#[cfg(not(feature = "tokio"))]
-compile_error!("This example requires the 'tokio' feature. Run with: cargo run --example tokio_simple --features tokio");
+// #[cfg(not(feature = "tokio"))]
+// compile_error!("This example requires the 'tokio' feature. Run with: cargo run --example tokio_simple --features tokio");
 
 #[cfg(feature = "tokio")]
 mod example {

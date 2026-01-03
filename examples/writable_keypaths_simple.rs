@@ -31,12 +31,12 @@ fn main() {
     println!("Scores: {:?}", person.scores);
 
     // Basic writable keypaths
-    if let Some(name_ref) = Person::name_w().get_mut(&mut person) {
+    if let Some(name_ref) = Person::name_fw().get_mut(&mut person) {
         *name_ref = "John Smith".to_string();
         println!("\nUpdated name to: {}", name_ref);
     }
 
-    if let Some(age_ref) = Person::age_w().get_mut(&mut person) {
+    if let Some(age_ref) = Person::age_fw().get_mut(&mut person) {
         *age_ref = 26;
         println!("Updated age to: {}", age_ref);
     }
