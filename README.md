@@ -1,7 +1,7 @@
 # 🔑 KeyPaths in Rust
 
 Key paths provide a **safe, composable way to access and modify nested data** in Rust.
-Inspired by **Swift's KeyPath ** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
+Inspired by **KeyPath and Functional Lenses** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
 
 ---
 
@@ -497,6 +497,7 @@ Benchmarks include:
 
 ## 🛠 Roadmap
 
+- [x] Inspired by Lenses: [Compositional Data Access And Manipulation](https://www.youtube.com/watch?v=dxGaKn4REaY&list=LL&index=7)
 - [x] Compose across structs, options and enum cases
 - [x] Derive macros for automatic keypath generation (`Keypaths`, `Keypaths`, `Casepaths`)
 - [x] Optional chaining with failable keypaths

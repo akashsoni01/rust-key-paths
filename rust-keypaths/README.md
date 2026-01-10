@@ -4,8 +4,7 @@
 
 ## 🚀 Why This Library?
 
-This is a **faster alternative** to the `rust-key-paths` library. Unlike dynamic dispatch approaches, this library uses **static dispatch** with generic closures, resulting in:
-
+This is a **faster alternative** to the `rust-key-paths` library :
 - ✅ **Better Performance**: Write operations can be **faster than manual unwrapping** at deeper nesting levels
 - ✅ **Zero Runtime Overhead**: Eliminates dynamic dispatch costs
 - ✅ **Compiler Optimizations**: Better inlining and optimization opportunities
