@@ -1,6 +1,8 @@
 # 🔑 Rust KeyPaths Library
 
-**A faster alternative to `key-paths-core`** - A lightweight, zero-cost abstraction library for safe, composable access to nested data structures in Rust. Inspired by Swift's KeyPath system, this library provides type-safe keypaths for struct fields and enum variants for superior performance.
+**A faster alternative to `key-paths-core`** - A lightweight, zero-cost abstraction library for safe, composable access to nested data structures in Rust. Inspired by Functional lenses and Swift's KeyPath system, this library provides type-safe keypaths for struct fields and enum variants for superior performance. 
+
+
 
 ## 🚀 Why This Library?
 
