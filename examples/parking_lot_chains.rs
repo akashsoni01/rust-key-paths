@@ -117,9 +117,9 @@ mod parking_lot_example {
         
         // Example 1: Read through Arc<parking_lot::Mutex<T>>
         Container::parking_mutex_data_r()
-            .then_arc_parking_mutex_at_kp(DataStruct::name_r())
+            .chain_arc_parking_mutex_at_kp(DataStruct::name_r())
             .get(&container, |value| {
-                println!("✅ then_arc_parking_mutex_at_kp (read): name = {}", value);
+                println!("✅ chain_arc_parking_mutex_at_kp (read): name = {}", value);
             });
         
         // Example 2: Read optional field through Arc<parking_lot::Mutex<T>>
@@ -132,15 +132,15 @@ mod parking_lot_example {
         // Example 3: Write through Arc<parking_lot::Mutex<T>>
         let write_container = Container::new();
         Container::parking_mutex_data_r()
-            .then_arc_parking_mutex_writable_at_kp(DataStruct::name_w())
+            .chain_arc_parking_mutex_writable_at_kp(DataStruct::name_w())
             .get_mut(&write_container, |value| {
-                *value = "Modified via then_arc_parking_mutex_writable_at_kp".to_string();
-                println!("✅ then_arc_parking_mutex_writable_at_kp (write): Modified name");
+                *value = "Modified via chain_arc_parking_mutex_writable_at_kp".to_string();
+                println!("✅ chain_arc_parking_mutex_writable_at_kp (write): Modified name");
             });
         
         // Verify the write
         Container::parking_mutex_data_r()
-            .then_arc_parking_mutex_at_kp(DataStruct::name_r())
+            .chain_arc_parking_mutex_at_kp(DataStruct::name_r())
             .get(&write_container, |value| {
                 println!("   Verified: name = {}", value);
             });
@@ -165,9 +165,9 @@ mod parking_lot_example {
         
         // Example 5: Read through Arc<parking_lot::RwLock<T>>
         Container::parking_rwlock_data_r()
-            .then_arc_parking_rwlock_at_kp(DataStruct::name_r())
+            .chain_arc_parking_rwlock_at_kp(DataStruct::name_r())
             .get(&container, |value| {
-                println!("✅ then_arc_parking_rwlock_at_kp (read): name = {}", value);
+                println!("✅ chain_arc_parking_rwlock_at_kp (read): name = {}", value);
             });
         
         // Example 6: Read optional field through Arc<parking_lot::RwLock<T>>
@@ -180,15 +180,15 @@ mod parking_lot_example {
         // Example 7: Write through Arc<parking_lot::RwLock<T>>
         let rwlock_write_container = Container::new();
         Container::parking_rwlock_data_r()
-            .then_arc_parking_rwlock_writable_at_kp(DataStruct::name_w())
+            .chain_arc_parking_rwlock_writable_at_kp(DataStruct::name_w())
             .get_mut(&rwlock_write_container, |value| {
-                *value = "Modified via then_arc_parking_rwlock_writable_at_kp".to_string();
-                println!("✅ then_arc_parking_rwlock_writable_at_kp (write): Modified name");
+                *value = "Modified via chain_arc_parking_rwlock_writable_at_kp".to_string();
+                println!("✅ chain_arc_parking_rwlock_writable_at_kp (write): Modified name");
             });
         
         // Verify the write
         Container::parking_rwlock_data_r()
-            .then_arc_parking_rwlock_at_kp(DataStruct::name_r())
+            .chain_arc_parking_rwlock_at_kp(DataStruct::name_r())
             .get(&rwlock_write_container, |value| {
                 println!("   Verified: name = {}", value);
             });
@@ -217,9 +217,9 @@ mod parking_lot_example {
         
         // Example 9: Read through Option<Arc<parking_lot::Mutex<T>>>
         Container::optional_mutex_fr()
-            .then_arc_parking_mutex_at_kp(DataStruct::name_r())
+            .chain_arc_parking_mutex_at_kp(DataStruct::name_r())
             .get(&container, |value| {
-                println!("✅ optional -> then_arc_parking_mutex_at_kp (read): name = {}", value);
+                println!("✅ optional -> chain_arc_parking_mutex_at_kp (read): name = {}", value);
             });
         
         // Example 10: Read optional field through Option<Arc<parking_lot::Mutex<T>>>
@@ -232,15 +232,15 @@ mod parking_lot_example {
         // Example 11: Write through Option<Arc<parking_lot::Mutex<T>>>
         let opt_write_container = Container::new();
         Container::optional_mutex_fr()
-            .then_arc_parking_mutex_writable_at_kp(DataStruct::name_w())
+            .chain_arc_parking_mutex_writable_at_kp(DataStruct::name_w())
             .get_mut(&opt_write_container, |value| {
                 *value = "Modified via optional parking_mutex chain".to_string();
-                println!("✅ optional -> then_arc_parking_mutex_writable_at_kp (write): Modified name");
+                println!("✅ optional -> chain_arc_parking_mutex_writable_at_kp (write): Modified name");
             });
         
         // Verify the write
         Container::optional_mutex_fr()
-            .then_arc_parking_mutex_at_kp(DataStruct::name_r())
+            .chain_arc_parking_mutex_at_kp(DataStruct::name_r())
             .get(&opt_write_container, |value| {
                 println!("   Verified: name = {}", value);
             });
@@ -264,9 +264,9 @@ mod parking_lot_example {
         
         // Example 13: Read through Option<Arc<parking_lot::RwLock<T>>>
         Container::optional_rwlock_fr()
-            .then_arc_parking_rwlock_at_kp(DataStruct::name_r())
+            .chain_arc_parking_rwlock_at_kp(DataStruct::name_r())
             .get(&container, |value| {
-                println!("✅ optional -> then_arc_parking_rwlock_at_kp (read): name = {}", value);
+                println!("✅ optional -> chain_arc_parking_rwlock_at_kp (read): name = {}", value);
             });
         
         // Example 14: Read optional field through Option<Arc<parking_lot::RwLock<T>>>
@@ -279,15 +279,15 @@ mod parking_lot_example {
         // Example 15: Write through Option<Arc<parking_lot::RwLock<T>>>
         let opt_rwlock_write_container = Container::new();
         Container::optional_rwlock_fr()
-            .then_arc_parking_rwlock_writable_at_kp(DataStruct::name_w())
+            .chain_arc_parking_rwlock_writable_at_kp(DataStruct::name_w())
             .get_mut(&opt_rwlock_write_container, |value| {
                 *value = "Modified via optional parking_rwlock chain".to_string();
-                println!("✅ optional -> then_arc_parking_rwlock_writable_at_kp (write): Modified name");
+                println!("✅ optional -> chain_arc_parking_rwlock_writable_at_kp (write): Modified name");
             });
         
         // Verify the write
         Container::optional_rwlock_fr()
-            .then_arc_parking_rwlock_at_kp(DataStruct::name_r())
+            .chain_arc_parking_rwlock_at_kp(DataStruct::name_r())
             .get(&opt_rwlock_write_container, |value| {
                 println!("   Verified: name = {}", value);
             });
@@ -315,25 +315,25 @@ mod parking_lot_example {
         // Example 17: Read through enum case -> Arc<parking_lot::RwLock<T>>
         Container::state_fr()
             .then(AppState::active_case_r())
-            .then_arc_parking_rwlock_at_kp(Session::user_name_r())
+            .chain_arc_parking_rwlock_at_kp(Session::user_name_r())
             .get(&container, |value| {
-                println!("✅ enum -> then_arc_parking_rwlock_at_kp (read): user_name = {}", value);
+                println!("✅ enum -> chain_arc_parking_rwlock_at_kp (read): user_name = {}", value);
             });
         
         // Example 18: Write through enum case -> Arc<parking_lot::RwLock<T>>
         let enum_container = Container::new();
         Container::state_fr()
             .then(AppState::active_case_r())
-            .then_arc_parking_rwlock_writable_at_kp(Session::user_name_w())
+            .chain_arc_parking_rwlock_writable_at_kp(Session::user_name_w())
             .get_mut(&enum_container, |value| {
                 *value = "Bob (Updated via enum chain)".to_string();
-                println!("✅ enum -> then_arc_parking_rwlock_writable_at_kp (write): Modified user_name");
+                println!("✅ enum -> chain_arc_parking_rwlock_writable_at_kp (write): Modified user_name");
             });
         
         // Verify the write
         Container::state_fr()
             .then(AppState::active_case_r())
-            .then_arc_parking_rwlock_at_kp(Session::user_name_r())
+            .chain_arc_parking_rwlock_at_kp(Session::user_name_r())
             .get(&enum_container, |value| {
                 println!("   Verified: user_name = {}", value);
             });
@@ -342,7 +342,7 @@ mod parking_lot_example {
         let idle_container = Container::new_idle();
         let result = Container::state_fr()
             .then(AppState::active_case_r())
-            .then_arc_parking_rwlock_at_kp(Session::user_name_r())
+            .chain_arc_parking_rwlock_at_kp(Session::user_name_r())
             .get(&idle_container, |_| ());
         
         if result.is_none() {

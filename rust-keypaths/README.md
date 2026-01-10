@@ -1,13 +1,12 @@
 # 🔑 Rust KeyPaths Library
 
-**A static dispatch, faster alternative to `rust-key-paths`** - A lightweight, zero-cost abstraction library for safe, composable access to nested data structures in Rust. Inspired by Swift's KeyPath system, this library provides type-safe keypaths for struct fields and enum variants using **static dispatch** for superior performance.
+**A faster alternative to `key-paths-core`** - A lightweight, zero-cost abstraction library for safe, composable access to nested data structures in Rust. Inspired by Swift's KeyPath system, this library provides type-safe keypaths for struct fields and enum variants for superior performance.
 
 ## 🚀 Why This Library?
 
-This is a **static dispatch, faster alternative** to the `rust-key-paths` library. Unlike dynamic dispatch approaches, this library uses **static dispatch** with generic closures, resulting in:
-
+This is a **faster alternative** to the `rust-key-paths` library :
 - ✅ **Better Performance**: Write operations can be **faster than manual unwrapping** at deeper nesting levels
-- ✅ **Zero Runtime Overhead**: Static dispatch eliminates dynamic dispatch costs
+- ✅ **Zero Runtime Overhead**: Eliminates dynamic dispatch costs
 - ✅ **Compiler Optimizations**: Better inlining and optimization opportunities
 - ✅ **Type Safety**: Full compile-time type checking with zero runtime cost
 
@@ -158,28 +157,28 @@ fn main() {
     
     // Read through Arc<Mutex<T>> - compose the chain, then apply
     Container::mutex_data_r()
-        .then_arc_mutex_at_kp(DataStruct::name_r())
+        .chain_arc_mutex_at_kp(DataStruct::name_r())
         .get(&container, |value| {
             println!("Name: {}", value);
         });
     
     // Write through Arc<Mutex<T>>
     Container::mutex_data_r()
-        .then_arc_mutex_writable_at_kp(DataStruct::name_w())
+        .chain_arc_mutex_writable_at_kp(DataStruct::name_w())
         .get_mut(&container, |value| {
             *value = "New name".to_string();
         });
     
     // Read through Arc<RwLock<T>> (read lock)
     Container::rwlock_data_r()
-        .then_arc_rwlock_at_kp(DataStruct::name_r())
+        .chain_arc_rwlock_at_kp(DataStruct::name_r())
         .get(&container, |value| {
             println!("Name: {}", value);
         });
     
     // Write through Arc<RwLock<T>> (write lock)
     Container::rwlock_data_r()
-        .then_arc_rwlock_writable_at_kp(DataStruct::name_w())
+        .chain_arc_rwlock_writable_at_kp(DataStruct::name_w())
         .get_mut(&container, |value| {
             *value = "New name".to_string();
         });
@@ -534,27 +533,10 @@ All benchmarks compare keypath access vs manual unwrapping on deeply nested stru
    - Negligible compared to access overhead
    - Can be created once and reused
 
-4. **Reuse vs On-the-Fly**: Minimal difference (~1.6%)
-   - Creating keypaths is very cheap
-   - Reuse provides only marginal benefit
-   - On-the-fly creation is perfectly acceptable
-
-### Why Static Dispatch is Faster
-
-This library uses **static dispatch** instead of dynamic dispatch, which means:
-
-1. **No Virtual Function Calls**: Direct function calls instead of trait object indirection
-2. **Better Inlining**: Compiler can inline keypath operations more aggressively
-3. **Optimized Closure Composition**: Static closures can be optimized better than dynamic ones
-4. **Zero Runtime Type Information**: No need to store or check type information at runtime
-
-**Result**: Write operations can actually be **faster than manual unwrapping** at deeper nesting levels, while read operations have minimal overhead (~2-3x) with sub-nanosecond absolute times.
-
 ### Memory Efficiency
 
 - ✅ **No data cloning**: Keypaths never clone underlying data
 - ✅ **Zero allocations**: Keypath operations don't allocate
-- ✅ **Efficient cloning**: Cloning a keypath only clones the closure, not the data
 - ✅ **Proper cleanup**: Memory is properly released when values are dropped
 
 ## 🧪 Testing
@@ -608,12 +590,6 @@ All container unwrapping methods (`for_box()`, `for_arc()`, `for_rc()`) automati
 - Keypaths only hold references, never owned data
 - All operations are safe and checked at compile time
 - No risk of dangling references
-
-### Clone Behavior
-
-- Cloning a keypath clones the closure, not the data
-- Multiple keypath clones can safely access the same data
-- No performance penalty for cloning keypaths
 
 ## 📄 License
 

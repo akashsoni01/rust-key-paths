@@ -81,7 +81,7 @@ fn main() {
 
     // Or chain manually
     Container::data_r()
-        .then_arc_parking_rwlock_at_kp(Inner::value_r())
+        .chain_arc_parking_rwlock_at_kp(Inner::value_r())
         .get(&instance, |value| {
             println!("Value: {}", value);
         });
@@ -120,7 +120,7 @@ fn main() {
 
     // Or chain manually
     Container::data_r()
-        .then_arc_rwlock_at_kp(Inner::value_r())
+        .chain_arc_rwlock_at_kp(Inner::value_r())
         .get(&instance, |value| {
             println!("Value: {}", value);
         });

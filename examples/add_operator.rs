@@ -145,7 +145,7 @@
 // #[cfg(not(feature = "nightly"))]
 // fn example_keypath_to_optional() {
 //     println!("2. KeyPath >> OptionalKeyPath (requires nightly feature)");
-//     println!("   Use keypath1.then_optional(opt_keypath2) instead on stable Rust\n");
+//     println!("   Use keypath1.chain_optional(opt_keypath2) instead on stable Rust\n");
 // }
 // 
 // #[cfg(feature = "nightly")]
@@ -255,7 +255,7 @@
 // #[cfg(not(feature = "nightly"))]
 // fn example_writable_to_optional() {
 //     println!("5. WritableKeyPath >> WritableOptionalKeyPath (requires nightly feature)");
-//     println!("   Use writable_keypath1.then_optional(writable_opt_keypath2) instead on stable Rust\n");
+//     println!("   Use writable_keypath1.chain_optional(writable_opt_keypath2) instead on stable Rust\n");
 // }
 // 
 // #[cfg(feature = "nightly")]
@@ -341,3 +341,7 @@
 //     println!("On stable Rust, use the then() methods which provide the same functionality.");
 // }
 // 
+
+fn main() {
+    
+}

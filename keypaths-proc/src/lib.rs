@@ -25,6 +25,9 @@ enum WrapperKind {
     // Synchronization primitives (parking_lot - default when no prefix)
     Mutex,
     RwLock,
+    // Synchronization primitives (tokio::sync - requires tokio feature)
+    TokioMutex,
+    TokioRwLock,
     // Reference counting with weak references
     Weak,
     // String types (currently unused)
@@ -48,6 +51,9 @@ enum WrapperKind {
     // Arc with synchronization primitives (parking_lot - default when no prefix)
     ArcMutex,
     ArcRwLock,
+    // Arc with synchronization primitives (tokio::sync - requires tokio feature)
+    TokioArcMutex,
+    TokioArcRwLock,
     // Tagged types
     Tagged,
 }
@@ -1218,7 +1224,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_parking_mutex_at_kp(inner_kp)
+                                            .chain_arc_parking_mutex_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1247,7 +1253,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_parking_mutex_writable_at_kp(inner_kp)
+                                            .chain_arc_parking_mutex_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1313,7 +1319,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_mutex_at_kp(inner_kp)
+                                            .chain_arc_mutex_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1341,7 +1347,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_mutex_writable_at_kp(inner_kp)
+                                            .chain_arc_mutex_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1406,7 +1412,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_parking_rwlock_at_kp(inner_kp)
+                                            .chain_arc_parking_rwlock_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1435,7 +1441,194 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_parking_rwlock_writable_at_kp(inner_kp)
+                                            .chain_arc_parking_rwlock_writable_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                        }
+                        
+                        // ========== TOKIO (requires tokio feature) ==========
+                        // TokioArcMutex = Arc<tokio::sync::Mutex<T>>
+                        (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
+                            // _r() - Returns KeyPath to the Arc<tokio::sync::Mutex<T>> field
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            // _w() - Returns WritableKeyPath to the Arc<tokio::sync::Mutex<T>> field
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
+                                        rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
+                                    }
+                                },
+                            );
+                            // _o() - Returns KeyPath for owned access
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            
+                            // _fr_at() - Chain through tokio::sync::Mutex with a readable keypath (async)
+                            let fr_at_fn = format_ident!("{}_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    /// Chains through Arc<tokio::sync::Mutex<T>> with a readable keypath (async).
+                                    /// Returns a chained keypath that can be used with `.get(root, |value| ...).await`.
+                                    pub fn #fr_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcTokioMutexKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .chain_arc_tokio_mutex_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // _fw_at() - Chain through tokio::sync::Mutex with a writable keypath (async)
+                            let fw_at_fn = format_ident!("{}_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Chains through Arc<tokio::sync::Mutex<T>> with a writable keypath (async).
+                                    /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...).await`.
+                                    pub fn #fw_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcTokioMutexWritableKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .chain_arc_tokio_mutex_writable_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                        }
+                        
+                        // TokioArcRwLock = Arc<tokio::sync::RwLock<T>>
+                        (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
+                            // _r() - Returns KeyPath to the Arc<tokio::sync::RwLock<T>> field
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            // _w() - Returns WritableKeyPath
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
+                                        rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
+                                    }
+                                },
+                            );
+                            // _o() - Returns KeyPath for owned access
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Owned,
+                                quote! {
+                                    pub fn #o_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                    }
+                                },
+                            );
+                            
+                            // _fr_at() - Chain through tokio::sync::RwLock with a readable keypath (async, read lock)
+                            let fr_at_fn = format_ident!("{}_fr_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    /// Chains through Arc<tokio::sync::RwLock<T>> with a readable keypath (async, read lock).
+                                    /// Returns a chained keypath that can be used with `.get(root, |value| ...).await`.
+                                    pub fn #fr_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcTokioRwLockKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .chain_arc_tokio_rwlock_at_kp(inner_kp)
+                                    }
+                                },
+                            );
+                            
+                            // _fw_at() - Chain through tokio::sync::RwLock with a writable keypath (async, write lock)
+                            let fw_at_fn = format_ident!("{}_fw_at", field_ident);
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    /// Chains through Arc<tokio::sync::RwLock<T>> with a writable keypath (async, write lock).
+                                    /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...).await`.
+                                    pub fn #fw_at_fn<Value, F>(
+                                        inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
+                                    ) -> rust_keypaths::ArcTokioRwLockWritableKeyPathChain<
+                                        #name,
+                                        #ty,
+                                        #inner_ty,
+                                        Value,
+                                        impl for<'r> Fn(&'r #name) -> &'r #ty,
+                                        F
+                                    >
+                                    where
+                                        F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
+                                    {
+                                        rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                            .chain_arc_tokio_rwlock_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1500,7 +1693,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r #inner_ty) -> &'r Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_rwlock_at_kp(inner_kp)
+                                            .chain_arc_rwlock_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -1528,7 +1721,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         F: for<'r> Fn(&'r mut #inner_ty) -> &'r mut Value,
                                     {
                                         rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
-                                            .then_arc_rwlock_writable_at_kp(inner_kp)
+                                            .chain_arc_rwlock_writable_at_kp(inner_kp)
                                     }
                                 },
                             );
@@ -3887,12 +4080,21 @@ fn is_std_sync_type(path: &syn::Path) -> bool {
     segments.len() >= 2 && segments.contains(&"std".to_string()) && segments.contains(&"sync".to_string())
 }
 
+/// Helper function to check if a type path includes tokio::sync module
+fn is_tokio_sync_type(path: &syn::Path) -> bool {
+    // Check for paths like tokio::sync::Mutex, tokio::sync::RwLock
+    let segments: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
+    segments.len() >= 2 && segments.contains(&"tokio".to_string()) && segments.contains(&"sync".to_string())
+}
+
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
     
     if let Type::Path(tp) = ty {
         // Check if this is explicitly a std::sync type
         let is_std_sync = is_std_sync_type(&tp.path);
+        // Check if this is explicitly a tokio::sync type
+        let is_tokio_sync = is_tokio_sync_type(&tp.path);
         
         if let Some(seg) = tp.path.segments.last() {
             let ident_str = seg.ident.to_string();
@@ -3974,6 +4176,13 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             ("Arc", WrapperKind::RwLock) => {
                                 return (WrapperKind::ArcRwLock, inner_inner);
                             }
+                            // tokio::sync variants (when inner is TokioMutex/TokioRwLock)
+                            ("Arc", WrapperKind::TokioMutex) => {
+                                return (WrapperKind::TokioArcMutex, inner_inner);
+                            }
+                            ("Arc", WrapperKind::TokioRwLock) => {
+                                return (WrapperKind::TokioArcRwLock, inner_inner);
+                            }
                             _ => {
                                 // Handle single-level containers
                                 // For Mutex and RwLock:
@@ -3994,7 +4203,10 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     // For std::sync::Mutex and std::sync::RwLock, use Std variants
                                     "Mutex" if is_std_sync => (WrapperKind::StdMutex, Some(inner.clone())),
                                     "RwLock" if is_std_sync => (WrapperKind::StdRwLock, Some(inner.clone())),
-                                    // Default: parking_lot (no std::sync prefix)
+                                    // For tokio::sync::Mutex and tokio::sync::RwLock, use Tokio variants
+                                    "Mutex" if is_tokio_sync => (WrapperKind::TokioMutex, Some(inner.clone())),
+                                    "RwLock" if is_tokio_sync => (WrapperKind::TokioRwLock, Some(inner.clone())),
+                                    // Default: parking_lot (no std::sync or tokio::sync prefix)
                                     "Mutex" => (WrapperKind::Mutex, Some(inner.clone())),
                                     "RwLock" => (WrapperKind::RwLock, Some(inner.clone())),
                                     "Weak" => (WrapperKind::Weak, Some(inner.clone())),

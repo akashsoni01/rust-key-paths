@@ -30,7 +30,7 @@ This guide helps you migrate from the dynamic dispatch `key-paths-core` (v1.6.0)
 ### Before (key-paths-core)
 ```toml
 [dependencies]
-key-paths-core = "1.6.0"
+key-paths-core = "1.7.0"
 key-paths-derive = "1.1.0"
 ```
 
@@ -262,7 +262,7 @@ let email_kp = User::email_fr();  // Returns OptionalKeyPath<User, String, ...>
 ### Step 1: Update Dependencies
 ```toml
 # Remove
-key-paths-core = "1.6.0"
+key-paths-core = "1.7.0"
 key-paths-derive = "1.1.0"
 
 # Add
