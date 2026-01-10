@@ -6802,7 +6802,7 @@ where
     /// ```rust
     /// let path = SomeComplexStruct::scsf_fw()
     ///     .then(SomeOtherStruct::sosf_fw())
-    ///     .then(SomeEnum::b_case_fw());
+    ///     .then(SomeEnum::b_fw());
     /// 
     /// match path.trace_chain(&mut instance) {
     ///     Ok(()) => println!("Chain succeeded"),

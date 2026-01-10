@@ -100,7 +100,7 @@ fn main() {
     let keypath = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_fw())
+        .then(SomeEnum::b_fw())
         .then(DarkStruct::dsf_fw());
     
     // Alternatively, use the >> operator (requires nightly feature):
@@ -108,7 +108,7 @@ fn main() {
     // let keypath = SomeComplexStruct::scsf_fw()
     //     >> SomeOtherStruct::sosf_fw()
     //     >> OneMoreStruct::omse_fw()
-    //     >> SomeEnum::b_case_fw()
+    //     >> SomeEnum::b_fw()
     //     >> DarkStruct::dsf_fw();
     
     let mut instance = SomeComplexStruct::new();

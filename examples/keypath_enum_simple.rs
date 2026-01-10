@@ -24,18 +24,18 @@ fn main() {
     
     // Test unit variant
     let loading = Status::Loading;
-    if let Some(status) = Status::loading_case_r().get(&loading) {
+    if let Some(status) = Status::loading_r().get(&loading) {
         println!("Status: {:?}", status);
     }
     
     // Test single-field tuple variants
     let success = Status::Success("Operation completed".to_string());
-    if let Some(message) = Status::success_case_r().get(&success) {
+    if let Some(message) = Status::success_r().get(&success) {
         println!("Success message: {}", message);
     }
     
     let error = Status::Error("Something went wrong".to_string());
-    if let Some(error_msg) = Status::error_case_r().get(&error) {
+    if let Some(error_msg) = Status::error_r().get(&error) {
         println!("Error message: {}", error_msg);
     }
     
@@ -61,7 +61,7 @@ fn main() {
     
     // Test non-matching variants
     let loading_status = Status::Loading;
-    if let Some(message) = Status::success_case_r().get(&loading_status) {
+    if let Some(message) = Status::success_r().get(&loading_status) {
         println!("This should not print: {}", message);
     } else {
         println!("✓ Correctly returned None for non-matching variant");

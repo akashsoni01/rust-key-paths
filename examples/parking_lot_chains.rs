@@ -314,7 +314,7 @@ mod parking_lot_example {
         
         // Example 17: Read through enum case -> Arc<parking_lot::RwLock<T>>
         Container::state_fr()
-            .then(AppState::active_case_r())
+            .then(AppState::active_r())
             .chain_arc_parking_rwlock_at_kp(Session::user_name_r())
             .get(&container, |value| {
                 println!("✅ enum -> chain_arc_parking_rwlock_at_kp (read): user_name = {}", value);
@@ -323,7 +323,7 @@ mod parking_lot_example {
         // Example 18: Write through enum case -> Arc<parking_lot::RwLock<T>>
         let enum_container = Container::new();
         Container::state_fr()
-            .then(AppState::active_case_r())
+            .then(AppState::active_r())
             .chain_arc_parking_rwlock_writable_at_kp(Session::user_name_w())
             .get_mut(&enum_container, |value| {
                 *value = "Bob (Updated via enum chain)".to_string();
@@ -332,7 +332,7 @@ mod parking_lot_example {
         
         // Verify the write
         Container::state_fr()
-            .then(AppState::active_case_r())
+            .then(AppState::active_r())
             .chain_arc_parking_rwlock_at_kp(Session::user_name_r())
             .get(&enum_container, |value| {
                 println!("   Verified: user_name = {}", value);
@@ -341,7 +341,7 @@ mod parking_lot_example {
         // Example 19: Non-matching enum variant returns None
         let idle_container = Container::new_idle();
         let result = Container::state_fr()
-            .then(AppState::active_case_r())
+            .then(AppState::active_r())
             .chain_arc_parking_rwlock_at_kp(Session::user_name_r())
             .get(&idle_container, |_| ());
         

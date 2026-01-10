@@ -25,7 +25,7 @@ Benchmark results show that **write operations have higher overhead (13.1x-28.1x
 - **Reuse advantage**: **65.7x faster** when keypaths are reused - this is the primary benefit
 - **Optimizations applied**: Phase 1 (direct match) + Rc migration = significant performance gains
 
-**Note on Deep Nested Benchmark**: The corrected `bench_deep_nested_with_enum` uses `_fr` (FailableReadable) with `_case_r` (ReadableEnum) for proper composition, showing 24.5x overhead due to enum case path matching and Box adapter complexity.
+**Note on Deep Nested Benchmark**: The corrected `bench_deep_nested_with_enum` uses `_fr` (FailableReadable) with `_r` (ReadableEnum) for proper composition, showing 24.5x overhead due to enum case path matching and Box adapter complexity.
 
 ## Root Cause Analysis
 

@@ -56,7 +56,7 @@ fn main() {
     let op = SomeComplexStruct::scsf_fr()
         .then(SomeOtherStruct::sosf_fr())
         .then(OneMoreStruct::omse_fr())
-        .then(SomeEnum::b_case_r())
+        .then(SomeEnum::b_r())
         .then(DarkStruct::dsf_fr());
     let mut instance = SomeComplexStruct::new();
     if let Some(omsf) = op.get(&instance) {

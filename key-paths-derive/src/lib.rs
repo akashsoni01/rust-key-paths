@@ -2829,12 +2829,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
-                let r_fn = format_ident!("{}_case_r", snake);
-                let w_fn = format_ident!("{}_case_w", snake);
-                let _fr_fn = format_ident!("{}_case_fr", snake);
-                let _fw_fn = format_ident!("{}_case_fw", snake);
-                let fr_at_fn = format_ident!("{}_case_fr_at", snake);
-                let fw_at_fn = format_ident!("{}_case_fw_at", snake);
+                let r_fn = format_ident!("{}_r", snake);
+                let w_fn = format_ident!("{}_w", snake);
+                let _fr_fn = format_ident!("{}_fr", snake);
+                let _fw_fn = format_ident!("{}_fw", snake);
+                let fr_at_fn = format_ident!("{}_fr_at", snake);
+                let fw_at_fn = format_ident!("{}_fw_at", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
@@ -4825,8 +4825,8 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
-                let r_fn = format_ident!("{}_case_r", snake);
-                let w_fn = format_ident!("{}_case_w", snake);
+                let r_fn = format_ident!("{}_r", snake);
+                let w_fn = format_ident!("{}_w", snake);
 
                 match &variant.fields {
                     Fields::Unit => {

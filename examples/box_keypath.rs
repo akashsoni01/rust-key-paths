@@ -54,7 +54,7 @@ fn main() {
     
     // Note: These fields are NOT Option types, so we use _w() methods, not _fw()
     // For Box<T>, we manually create a keypath that unwraps the Box
-    // For enum variants, we use _case_fw() which returns WritableOptionalKeyPath
+    // For enum variants, we use _fw() which returns WritableOptionalKeyPath
     
     // Build a long chain step by step, showing Display/Debug at each stage
     println!("--- Step 1: Start with Box field ---");
@@ -73,7 +73,7 @@ fn main() {
     println!("  Debug: {:?}\n", step3);
     
     println!("--- Step 4: Chain to SomeEnum::B variant ---");
-    let step4 = step3.then(SomeEnum::b_case_fw());
+    let step4 = step3.then(SomeEnum::b_fw());
     println!("  Display: {}", step4);
     println!("  Debug: {:?}\n", step4);
     
@@ -156,7 +156,7 @@ fn main() {
     let check_step4 = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_fw());
+        .then(SomeEnum::b_fw());
     println!("    KeyPath Display: {}", check_step4);
     println!("    KeyPath Debug: {:?}", check_step4);
     println!("    KeyPath Debug (detailed):");
@@ -171,7 +171,7 @@ fn main() {
     let check_final = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_fw())
+        .then(SomeEnum::b_fw())
         .then(DarkStruct::dsf_fw());
     println!("    KeyPath Display: {}", check_final);
     println!("    KeyPath Debug: {:?}", check_final);
@@ -188,7 +188,7 @@ fn main() {
     let alt_path = SomeComplexStruct::scsf_fw()
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::a_case_fw());
+        .then(SomeEnum::a_fw());
     println!("  Alternative path Display: {}", alt_path);
     println!("  Alternative path Debug: {:?}", alt_path);
     match alt_path.get_mut(&mut instance3) {

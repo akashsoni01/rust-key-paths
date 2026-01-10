@@ -83,7 +83,7 @@ fn main() {
     // Read non-optional field through the chain
     println!("Reading user_name (non-optional field):");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_case_r())
+        .then(AppMode::active_r())
         .chain_arc_rwlock_at_kp(Session::user_name_r());  // Use _r() for non-optional
     kp.get(&app_state, |value| {
         println!("  ✓ user_name = {:?}", value);
@@ -92,7 +92,7 @@ fn main() {
     // Read optional field through the chain
     println!("\nReading user_email (optional field):");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_case_r())
+        .then(AppMode::active_r())
         .chain_arc_rwlock_optional_at_kp(Session::user_email_fr());  // Use _fr() for optional
     kp.get(&app_state, |value| {
         println!("  ✓ user_email = {:?}", value);
@@ -104,7 +104,7 @@ fn main() {
     // Write to non-optional field through the full chain
     println!("\nWriting to user_name (using chain_arc_rwlock_writable_at_kp):");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_case_r())
+        .then(AppMode::active_r())
         .chain_arc_rwlock_writable_at_kp(Session::user_name_w());  // Use _w() for non-optional writable
     kp.get_mut(&app_state, |value| {
         *value = "Alice (Updated via chain!)".to_string();
@@ -114,7 +114,7 @@ fn main() {
     // Write to optional field through the full chain
     println!("\nWriting to user_email (using chain_arc_rwlock_writable_optional_at_kp):");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_case_r())
+        .then(AppMode::active_r())
         .chain_arc_rwlock_writable_optional_at_kp(Session::user_email_fw());  // Use _fw() for optional writable
     kp.get_mut(&app_state, |value| {
         *value = "updated@example.com".to_string();
@@ -124,14 +124,14 @@ fn main() {
     // Verify the writes
     println!("\nVerifying writes:");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_case_r())
+        .then(AppMode::active_r())
         .chain_arc_rwlock_at_kp(Session::user_name_r());
     kp.get(&app_state, |value| {
         println!("  ✓ user_name = {:?}", value);
     });
     
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_case_r())
+        .then(AppMode::active_r())
         .chain_arc_rwlock_optional_at_kp(Session::user_email_fr());
     kp.get(&app_state, |value| {
         println!("  ✓ user_email = {:?}", value);
@@ -141,7 +141,7 @@ fn main() {
     println!("\nTesting with Idle state (non-matching variant):");
     let idle_state = AppState::new_idle();
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_case_r())
+        .then(AppMode::active_r())
         .chain_arc_rwlock_at_kp(Session::user_name_r());
     let result = kp.get(&idle_state, |_| ());
     if result.is_none() {

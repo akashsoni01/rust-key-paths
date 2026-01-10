@@ -208,11 +208,11 @@ fn bench_deep_nested_with_enum(c: &mut Criterion) {
     // Level 3: Level3Struct::level3_enum_field (Option)
     // Level 4: Level3Enum::B (enum case)
     // Level 5: Level3EnumStruct::level3_enum_struct_field (Option<String>)
-    // Use _fr (FailableReadable) with _case_r (ReadableEnum) for read operations
+    // Use _fr (FailableReadable) with _r (ReadableEnum) for read operations
     let keypath = Level1Struct::level1_field_fr()
         .then(Level2Struct::level2_field_fr())
         .then(Level3Struct::level3_enum_field_fr())
-        .then(Level3Enum::b_case_r()).for_box()
+        .then(Level3Enum::b_r()).for_box()
         .then(Level3EnumStruct::level3_enum_struct_field_fr());
     
     group.bench_function("keypath", |b| {
@@ -249,7 +249,7 @@ fn bench_write_deep_nested_with_enum(c: &mut Criterion) {
     let keypath = Level1Struct::level1_field_fw()
         .then(Level2Struct::level2_field_fw())
         .then(Level3Struct::level3_enum_field_fw())
-        .then(Level3Enum::b_case_w()).for_box()
+        .then(Level3Enum::b_w()).for_box()
         .then(Level3EnumStruct::level3_enum_struct_field_fw());
     
     group.bench_function("keypath", |b| {
@@ -292,7 +292,7 @@ fn bench_keypath_creation(c: &mut Criterion) {
             let keypath = Level1Struct::level1_field_fw()
                 .then(Level2Struct::level2_field_fw())
                 .then(Level3Struct::level3_enum_field_fw())
-                .then(Level3Enum::b_case_w())
+                .then(Level3Enum::b_w())
                 .then(Level3EnumStruct::level3_enum_struct_field_fw().for_box_root());
             black_box(keypath)
         })

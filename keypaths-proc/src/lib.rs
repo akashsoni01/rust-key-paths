@@ -3535,12 +3535,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
-                let r_fn = format_ident!("{}_case_r", snake);
-                let w_fn = format_ident!("{}_case_w", snake);
-                let _fr_fn = format_ident!("{}_case_fr", snake);
-                let _fw_fn = format_ident!("{}_case_fw", snake);
-                let fr_at_fn = format_ident!("{}_case_fr_at", snake);
-                let fw_at_fn = format_ident!("{}_case_fw_at", snake);
+                let r_fn = format_ident!("{}_r", snake);
+                let w_fn = format_ident!("{}_w", snake);
+                let _fr_fn = format_ident!("{}_fr", snake);
+                let _fw_fn = format_ident!("{}_fw", snake);
+                let fr_at_fn = format_ident!("{}_fr_at", snake);
+                let fw_at_fn = format_ident!("{}_fw_at", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
@@ -5780,21 +5780,21 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
 ///
 /// For each variant `VariantName` with a single field of type `T`:
 ///
-/// - `variant_name_case_r()` - Returns an `OptionalKeyPath<Enum, T>` for reading
-/// - `variant_name_case_w()` - Returns a `WritableOptionalKeyPath<Enum, T>` for writing
-/// - `variant_name_case_fr()` - Alias for `variant_name_case_r()`
-/// - `variant_name_case_fw()` - Alias for `variant_name_case_w()`
-/// - `variant_name_case_embed(value)` - Returns `Enum` by embedding a value into the variant
-/// - `variant_name_case_enum()` - Returns an `EnumKeyPath<Enum, T>` with both extraction and embedding
+/// - `variant_name_r()` - Returns an `OptionalKeyPath<Enum, T>` for reading
+/// - `variant_name_w()` - Returns a `WritableOptionalKeyPath<Enum, T>` for writing
+/// - `variant_name_fr()` - Alias for `variant_name_r()`
+/// - `variant_name_fw()` - Alias for `variant_name_w()`
+/// - `variant_name_embed(value)` - Returns `Enum` by embedding a value into the variant
+/// - `variant_name_enum()` - Returns an `EnumKeyPath<Enum, T>` with both extraction and embedding
 ///
 /// For unit variants (no fields):
 ///
-/// - `variant_name_case_fr()` - Returns an `OptionalKeyPath<Enum, ()>` that checks if variant matches
+/// - `variant_name_fr()` - Returns an `OptionalKeyPath<Enum, ()>` that checks if variant matches
 ///
 /// For multi-field tuple variants:
 ///
-/// - `variant_name_case_fr()` - Returns an `OptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
-/// - `variant_name_case_fw()` - Returns a `WritableOptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
+/// - `variant_name_fr()` - Returns an `OptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
+/// - `variant_name_fw()` - Returns a `WritableOptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
 ///
 /// # Attributes
 ///
@@ -5827,16 +5827,16 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
 /// let mut status = Status::Active("online".to_string());
 ///
 /// // Extract value from variant
-/// let active_path = Status::active_case_r();
+/// let active_path = Status::active_r();
 /// if let Some(value) = active_path.get(&status) {
 ///     println!("Status is: {}", value);
 /// }
 ///
 /// // Embed value into variant
-/// let new_status = Status::active_case_embed("offline".to_string());
+/// let new_status = Status::active_embed("offline".to_string());
 ///
 /// // Use EnumKeyPath for both extraction and embedding
-/// let active_enum = Status::active_case_enum();
+/// let active_enum = Status::active_enum();
 /// let extracted = active_enum.extract(&status);  // Option<&String>
 /// let embedded = active_enum.embed("new".to_string());  // Status::Active("new")
 /// ```
@@ -5866,10 +5866,10 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                     Err(_) => default_scope.clone(),
                 };
                 
-                let r_fn = format_ident!("{}_case_r", snake);
-                let w_fn = format_ident!("{}_case_w", snake);
-                let fr_fn = format_ident!("{}_case_fr", snake);
-                let fw_fn = format_ident!("{}_case_fw", snake);
+                let r_fn = format_ident!("{}_r", snake);
+                let w_fn = format_ident!("{}_w", snake);
+                let fr_fn = format_ident!("{}_fr", snake);
+                let fw_fn = format_ident!("{}_fw", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
@@ -5889,8 +5889,8 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                         // Single-field variant - extract the inner value
                         // Generate EnumKeyPath for single-field variants to support embedding
                         if variant_scope.includes_read() {
-                            let embed_fn = format_ident!("{}_case_embed", snake);
-                            let enum_kp_fn = format_ident!("{}_case_enum", snake);
+                            let embed_fn = format_ident!("{}_embed", snake);
+                            let enum_kp_fn = format_ident!("{}_enum", snake);
                             tokens.extend(quote! {
                                 pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })

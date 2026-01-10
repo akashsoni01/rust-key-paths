@@ -109,7 +109,7 @@ fn main() {
     let op = SomeComplexStruct::scsf_fw_at("1".to_string())
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_w())
+        .then(SomeEnum::b_w())
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
     if let Some(omsf) = op.get_mut(&mut instance) {
@@ -120,7 +120,7 @@ fn main() {
     let op = SomeComplexStruct::scsf_fw_at("0".to_string())
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_w())
+        .then(SomeEnum::b_w())
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
     if let Some(omsf) = op.get_mut(&mut instance) {
