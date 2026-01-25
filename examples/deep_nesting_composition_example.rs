@@ -1,10 +1,10 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use rust_keypaths::OptionalKeyPath;
 use std::sync::Arc;
 use parking_lot::RwLock;
 
 // Deeply nested data structures for demonstration
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Address {
     street: String,
     city: String,
@@ -12,27 +12,27 @@ struct Address {
     coordinates: Option<Coordinates>,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Coordinates {
     latitude: f64,
     longitude: f64,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Contact {
     email: String,
     phone: Option<String>,
     address: Address,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Department {
     name: String,
     budget: u64,
     manager_id: Option<u32>, // Use ID instead of direct reference to avoid recursion
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Employee {
     id: u32,
     name: String,
@@ -41,7 +41,7 @@ struct Employee {
     salary: u64,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Company {
     name: String,
     headquarters: Address,
@@ -49,7 +49,7 @@ struct Company {
     departments: Vec<Department>,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Organization {
     company: Company,
     subsidiaries: Vec<Company>,
@@ -76,7 +76,7 @@ fn main() {
             employees: vec![
                 Employee {
                     id: 1,
-                    name: "Alice Johnson".to_string(),
+                    name: "Akash Johnson".to_string(),
                     contact: Contact {
                         email: "akash@techcorp.com".to_string(),
                         phone: Some("+1-555-0101".to_string()),

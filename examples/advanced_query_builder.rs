@@ -9,13 +9,13 @@
 // cargo run --example advanced_query_builder
 
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 use std::collections::HashMap;
 
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use rust_keypaths::KeyPath;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct Product {
     id: u32,
     name: String,

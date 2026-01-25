@@ -1,8 +1,8 @@
 use std::{rc::Rc, sync::Arc};
 
-use keypaths_proc::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Kp};
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct SomeComplexStruct {
     scsf: Rc<SomeOtherStruct>,
@@ -25,7 +25,7 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypaths, Clone)]
+#[derive(Debug, Kp, Clone)]
 #[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
@@ -38,14 +38,14 @@ enum SomeEnum {
     B(DarkStruct),
 }
 
-#[derive(Debug, Keypaths, Clone)]
+#[derive(Debug, Kp, Clone)]
 #[All]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
-#[derive(Debug, Keypaths, Clone)]
+#[derive(Debug, Kp, Clone)]
 #[All]
 struct DarkStruct {
     dsf: String,

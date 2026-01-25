@@ -3,9 +3,9 @@
 // cargo run --example simple_ref_support_example
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Person {
     name: String,
@@ -17,7 +17,7 @@ fn main() {
     println!("=== Simple Reference Support Example ===\n");
 
     let person1 = Person {
-        name: "Alice Johnson".to_string(),
+        name: "Akash Johnson".to_string(),
         age: 30,
         email: "akash@example.com".to_string(),
     };

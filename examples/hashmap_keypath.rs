@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Kp};
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct SomeComplexStruct {
     scsf: HashMap<String, SomeOtherStruct>,
@@ -79,7 +79,7 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
@@ -92,14 +92,14 @@ enum SomeEnum {
     B(DarkStruct),
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct DarkStruct {
     dsf: String,

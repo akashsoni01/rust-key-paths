@@ -1,8 +1,8 @@
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use std::sync::{Arc};
 
 // // Level 1: Inner struct with simple fields
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct UserData {
 //     name: String,
@@ -11,7 +11,7 @@
 // }
 
 // // Level 2: Struct containing Mutex and RwLock
-// #[derive(Debug, Keypaths)]
+// #[derive(Debug, Kp)]
 // #[All]
 // struct UserProfile {
 //     data: std::sync::Mutex<UserData>,
@@ -20,7 +20,7 @@
 // }
 
 // // Level 3: Container struct
-// #[derive(Debug, Keypaths)]
+// #[derive(Debug, Kp)]
 // #[All]
 // struct UserAccount {
 //     profile: Option<UserProfile>,
@@ -28,14 +28,14 @@
 // }
 
 // // Level 4: Top-level struct
-// #[derive(Debug, Keypaths)]
+// #[derive(Debug, Kp)]
 // #[All]
 // struct ApplicationState {
 //     user: Option<UserAccount>,
 //     system_config: Arc<std::sync::RwLock<SystemConfig>>,
 // }
 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct SystemConfig {
 //     theme: String,
@@ -52,7 +52,7 @@
 //         user: Some(UserAccount {
 //             profile: Some(UserProfile {
 //                 data: std::sync::Mutex::new(UserData {
-//                     name: "Alice".to_string(),
+//                     name: "Akash".to_string(),
 //                     age: 30,
 //                     email: "alice@example.com".to_string(),
 //                 }),
@@ -248,10 +248,10 @@
 //     {
 //         // Update multiple fields in separate lock acquisitions
 //         let name_kp = UserData::name_w();
-//         let update_name = UserProfile::data_mutex_fw_at(name_kp, "Alice Updated".to_string());
+//         let update_name = UserProfile::data_mutex_fw_at(name_kp, "Akash Updated".to_string());
         
 //         if update_name(&user_profile.data).is_some() {
-//             println!("   Updated name to: Alice Updated");
+//             println!("   Updated name to: Akash Updated");
 //             // Then update age in a separate operation
 //             let age_kp = UserData::age_w();
 //             let update_age = UserProfile::data_mutex_fw_at(age_kp, 31u32);
@@ -393,7 +393,7 @@
         
 //         // Update user data
 //         let name_kp = UserData::name_w();
-//         let update_name = UserProfile::data_mutex_fw_at(name_kp, "Alice Smith".to_string());
+//         let update_name = UserProfile::data_mutex_fw_at(name_kp, "Akash Smith".to_string());
 //         update_name(&user_profile.data);
         
 //         let age_kp = UserData::age_w();

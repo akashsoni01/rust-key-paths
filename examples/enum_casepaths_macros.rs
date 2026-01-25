@@ -1,6 +1,6 @@
-use keypaths_proc::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Kp};
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct User {
     id: u32,
     name: String,

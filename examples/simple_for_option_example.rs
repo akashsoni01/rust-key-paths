@@ -15,7 +15,7 @@ fn main() {
 
     // Create test data
     let user = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: Some("akash@example.com".to_string()),
     };
@@ -49,7 +49,7 @@ fn main() {
     
     // Modify name in Option<User>
     if let Some(name) = name_option_path_w.get_mut(&mut option_user_mut) {
-        *name = "Alice Updated".to_string();
+        *name = "Akash Updated".to_string();
         println!("  Updated name in Option: {}", name);
     }
 

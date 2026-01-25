@@ -1,6 +1,6 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 struct Person {
     name: String,
     age: u32,

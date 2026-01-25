@@ -31,7 +31,6 @@ This is a **faster alternative** to the `rust-key-paths` library :
 - ✅ **Container support** - Built-in support for `Box<T>`, `Arc<T>`, `Rc<T>`, `Option<T>`
 - ✅ **Writable keypaths** - Full support for mutable access to nested data
 - ✅ **Enum variant extraction** - Extract values from enum variants safely
-- ✅ **Cloneable** - Keypaths can be cloned without cloning underlying data
 - ✅ **Memory efficient** - No unnecessary allocations or cloning
 
 ## 📦 Installation
@@ -62,7 +61,7 @@ struct User {
 }
 
 let user = User {
-    name: "Alice".to_string(),
+    name: "Akash".to_string(),
     email: Some("akash@example.com".to_string()),
 };
 
@@ -140,15 +139,15 @@ Compose keypaths through synchronization primitives with a functional, compose-f
 
 ```rust
 use std::sync::{Arc, Mutex, RwLock};
-use keypaths_proc::{Keypaths, WritableKeypaths};
+use keypaths_proc::{Kp, WritableKeypaths};
 
-#[derive(Debug, Keypaths, WritableKeypaths)]
+#[derive(Debug, Kp, WritableKeypaths)]
 struct Container {
     mutex_data: Arc<Mutex<DataStruct>>,
     rwlock_data: Arc<RwLock<DataStruct>>,
 }
 
-#[derive(Debug, Keypaths, WritableKeypaths)]
+#[derive(Debug, Kp, WritableKeypaths)]
 struct DataStruct {
     name: String,
     optional_value: Option<String>,
@@ -463,20 +462,6 @@ let chained_kp = OptionalKeyPath::new(|r: &Root| r.level1.as_ref())
     .then(OptionalKeyPath::new(|l4: &Level4| l4.level5.as_ref()))
     .for_box(); // Automatically unwraps Box<String> to &String
 ```
-
-### Reusing Keypaths
-
-Keypaths are `Clone`, so you can reuse them efficiently:
-
-```rust
-let kp = OptionalKeyPath::new(|s: &Struct| s.field.as_ref());
-let kp_clone = kp.clone(); // Clones the keypath, not the data!
-
-// Use both
-let value1 = kp.get(&instance1);
-let value2 = kp_clone.get(&instance2);
-```
-
 ## 📊 Performance Benchmarks
 
 ### Benchmark Setup

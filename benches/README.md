@@ -76,11 +76,11 @@ SomeStruct {
 
 **Keypath Approach**:
 ```rust
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct SomeStruct {
     f1: Arc<RwLock<SomeOtherStruct>>,

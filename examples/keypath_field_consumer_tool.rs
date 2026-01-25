@@ -3,7 +3,7 @@
 // // cargo run --example keypath_field_consumer_tool
 
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use std::any::Any;
 // use std::collections::{HashMap, HashSet};
 
@@ -225,7 +225,7 @@
 // }
 
 // // Example structs with Keypaths derive
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // struct User {
 //     id: u32,
 //     name: String,
@@ -233,7 +233,7 @@
 //     is_active: bool,
 // }
 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // struct Product {
 //     id: u32,
 //     name: String,
@@ -242,7 +242,7 @@
 //     in_stock: bool,
 // }
 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // struct Order {
 //     id: u32,
 //     user_id: u32,
@@ -259,7 +259,7 @@
 //     println!("--- Example 1: User Field Consumption ---");
 //     let user = User {
 //         id: 1,
-//         name: "Alice Johnson".to_string(),
+//         name: "Akash Johnson".to_string(),
 //         email: Some("akash@example.com".to_string()),
 //         is_active: true,
 //     };
@@ -369,7 +369,7 @@
 //     println!("\n--- Example 5: Field Consumption Demonstration ---");
 //     let test_user = User {
 //         id: 1,
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         email: Some("akash@example.com".to_string()),
 //         is_active: true,
 //     };

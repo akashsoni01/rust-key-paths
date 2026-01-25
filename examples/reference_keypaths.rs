@@ -7,10 +7,10 @@
 // // cargo run --example reference_keypaths
 // 
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use std::collections::HashMap;
 // 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // struct Product {
 //     id: u32,
 //     name: String,
@@ -19,7 +19,7 @@
 //     in_stock: bool,
 // }
 // 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // struct User {
 //     id: u32,
 //     name: String,
@@ -199,7 +199,7 @@
 //     let users = vec![
 //         User {
 //             id: 1,
-//             name: "Alice".to_string(),
+//             name: "Akash".to_string(),
 //             email: "akash@example.com".to_string(),
 //             is_active: true,
 //         },

@@ -8306,7 +8306,7 @@ struct UserMetadata {
 
 fn some_fn() {
         let akash = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         metadata: Some(Box::new(UserMetadata {
             created_at: "2024-01-01".to_string(),
         })),
@@ -8517,7 +8517,7 @@ fn some_fn() {
     #[test]
     fn test_keypath_macro() {
         let user = TestUser {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
             metadata: None,
             address: None,
@@ -8525,7 +8525,7 @@ fn some_fn() {
         
         // Simple field access using closure
         let name_kp = keypath!(|u: &TestUser| &u.name);
-        assert_eq!(name_kp.get(&user), "Alice");
+        assert_eq!(name_kp.get(&user), "Akash");
         
         // Nested field access
         let user_with_address = TestUser {
@@ -8567,7 +8567,7 @@ fn some_fn() {
     #[test]
     fn test_opt_keypath_macro() {
         let user = TestUser {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
             metadata: Some("admin".to_string()),
             address: None,
@@ -8626,7 +8626,7 @@ fn some_fn() {
     #[test]
     fn test_writable_keypath_macro() {
         let mut user = TestUser {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
             metadata: None,
             address: None,
@@ -8680,7 +8680,7 @@ fn some_fn() {
     #[test]
     fn test_writable_opt_keypath_macro() {
         let mut user = TestUser {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
             metadata: Some("user".to_string()),
             address: None,

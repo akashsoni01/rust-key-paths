@@ -127,7 +127,7 @@ fn main() {
     
     // Test named field variant
     let user_msg = Message::User { 
-        name: "Alice".to_string(), 
+        name: "Akash".to_string(), 
         age: 30 
     };
     if let Some(user) = Message::user().get(&user_msg) {

@@ -1,12 +1,12 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
 
-// #[derive(Keypaths)]
+// #[derive(Kp)]
 struct SomeStruct{
     f1: String
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 enum SomeEnum {
     active, 
     passive(String)

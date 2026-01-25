@@ -5,12 +5,12 @@
 //!
 //! Run with: cargo run --example readable_keypaths_new_containers_test
 
-use keypaths_proc::{Keypaths, ReadableKeypaths, WritableKeypaths};
+use keypaths_proc::{Kp, ReadableKp, WritableKeypaths};
 use rust_keypaths::KeyPath;
 use std::rc::Weak;
 use std::sync::Arc;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
@@ -48,13 +48,13 @@ impl ContainerTest {
                 optional_field: Some("RwLock Optional".to_string()),
             })),
             weak_ref: Weak::new(),
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
         }
     }
 }
 
-#[derive(Debug, Keypaths, WritableKeypaths)]
+#[derive(Debug, Kp, WritableKeypaths)]
 struct SomeStruct {
     data: String,
     optional_field: Option<String>,

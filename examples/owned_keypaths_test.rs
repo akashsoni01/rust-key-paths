@@ -23,7 +23,7 @@
 //     println!("=== Owned KeyPaths Test Suite ===\n");
 
 //     let person = Person {
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         age: 30,
 //     };
 
@@ -36,7 +36,7 @@
 //     println!("Test 1: Basic owned keypath");
 //     let name_kp = KeyPaths::owned(|p: Person| p.name);
 //     let extracted_name = name_kp.get_owned(person.clone());
-//     assert_eq!(extracted_name, "Alice");
+//     assert_eq!(extracted_name, "Akash");
 //     println!("  ✓ Name extraction: {}", extracted_name);
 
 //     // Test 2: Failable owned keypath

@@ -1,8 +1,8 @@
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use std::sync::{Arc, RwLock};
 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // #[All]
 // struct User {
 //     name: String,
@@ -10,7 +10,7 @@
 //     email: Option<String>,
 // }
 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // #[All]
 // struct Profile {
 //     user: User,
@@ -18,7 +18,7 @@
 //     settings: Settings,
 // }
 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // struct Settings {
 //     theme: String,
 //     notifications: bool,
@@ -30,7 +30,7 @@
 
 //     // Create Arc<RwLock> containers
 //     let arc_rwlock_user = Arc::new(RwLock::new(User {
-//         name: "Alice Johnson".to_string(),
+//         name: "Akash Johnson".to_string(),
 //         age: 30,
 //         email: Some("akash@example.com".to_string()),
 //     }));

@@ -1,5 +1,5 @@
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, PartialKeyPath, AnyKeyPath};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use std::any::Any;
 // 
 // /// Example demonstrating full Swift KeyPath compatibility
@@ -10,7 +10,7 @@
 // /// - PartialKeyPath<Root> (type-erased Value)
 // /// - AnyKeyPath (fully type-erased)
 // 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct Person {
 //     name: String,
@@ -19,7 +19,7 @@
 //     is_active: bool,
 // }
 // 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct Company {
 //     name: String,
@@ -33,7 +33,7 @@
 //     // Example 1: KeyPath<Root, Value> (Read-only access)
 //     println!("--- 1. KeyPath<Root, Value> (Read-only access) ---");
 //     let person = Person {
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         age: 30,
 //         email: Some("akash@example.com".to_string()),
 //         is_active: true,
@@ -69,7 +69,7 @@
 //     // Use keypaths for read-write access
 //     let name_ref = name_writable.get_mut(&mut person_mut);
 //     {
-//         *name_ref = "Alice Updated".to_string();
+//         *name_ref = "Akash Updated".to_string();
 //         println!("Updated name: {}", name_ref);
 //     }
 // 
@@ -96,7 +96,7 @@
 //     // Use reference writable keypaths
 //     let name_ref = name_ref_writable.get_mut(&mut person_ref);
 //     {
-//         *name_ref = "Alice Reference".to_string();
+//         *name_ref = "Akash Reference".to_string();
 //         println!("Reference updated name: {}", name_ref);
 //     }
 // 

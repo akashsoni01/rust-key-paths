@@ -18,9 +18,9 @@ The derive macro generates helper methods for `Arc<Mutex<T>>` and `Arc<RwLock<T>
 ```rust
 use std::sync::Arc;
 use parking_lot::RwLock;
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct Container {
     // This uses parking_lot::RwLock (default)
@@ -30,7 +30,7 @@ struct Container {
     std_data: Arc<std::sync::RwLock<DataStruct>>,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct DataStruct {
     name: String,

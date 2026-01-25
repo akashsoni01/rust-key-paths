@@ -1,6 +1,6 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 struct MinimalTest {
     box_option_field: Box<Option<String>>,
 }

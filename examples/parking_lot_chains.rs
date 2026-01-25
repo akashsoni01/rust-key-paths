@@ -4,7 +4,7 @@
 
 #[cfg(feature = "parking_lot")]
 mod parking_lot_example {
-    use keypaths_proc::{Keypaths, WritableKeypaths, Casepaths};
+    use keypaths_proc::{Kp, WritableKp, Casepaths};
     use rust_keypaths::{KeyPath, OptionalKeyPath, keypath, opt_keypath};
     use std::sync::Arc;
     use parking_lot::{Mutex as ParkingMutex, RwLock as ParkingRwLock};
@@ -29,7 +29,7 @@ mod parking_lot_example {
         Active(Arc<ParkingRwLock<Session>>),
     }
 
-    #[derive(Debug, Keypaths, WritableKeypaths)]
+    #[derive(Debug, Kp, WritableKeypaths)]
     struct Session {
         user_name: String,
         logged_in: bool,
@@ -59,7 +59,7 @@ mod parking_lot_example {
                     count: 2,
                 }))),
                 state: AppState::Active(Arc::new(ParkingRwLock::new(Session {
-                    user_name: "Alice".to_string(),
+                    user_name: "Akash".to_string(),
                     logged_in: true,
                 }))),
             }
@@ -95,7 +95,7 @@ mod parking_lot_example {
         }
     }
 
-    #[derive(Debug, Keypaths, WritableKeypaths)]
+    #[derive(Debug, Kp, WritableKeypaths)]
     struct DataStruct {
         name: String,
         optional_value: Option<String>,

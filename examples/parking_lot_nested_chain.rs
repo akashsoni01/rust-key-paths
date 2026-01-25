@@ -14,11 +14,11 @@ compile_error!("This example requires the 'parking_lot' feature. Run with: cargo
 #[cfg(feature = "parking_lot")]
 mod example {
     use std::sync::Arc;
-    use keypaths_proc::Keypaths;
+    use keypaths_proc::Kp;
     use parking_lot::RwLock;
     use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
-    #[derive(Keypaths)]
+    #[derive(Kp)]
     #[All]  // Generate both readable and writable keypaths
     pub struct SomeStruct {
         pub f1: Arc<RwLock<SomeOtherStruct>>,
@@ -36,14 +36,14 @@ mod example {
         }
     }
 
-    #[derive(Keypaths)]
+    #[derive(Kp)]
     #[All]  // Generate both readable and writable keypaths
     pub struct SomeOtherStruct {
         pub f3: Option<String>,
         pub f4: Arc<RwLock<DeeplyNestedStruct>>,
     }
 
-    #[derive(Keypaths)]
+    #[derive(Kp)]
     #[All]  // Generate both readable and writable keypaths
     pub struct DeeplyNestedStruct {
         pub f1: Option<String>,

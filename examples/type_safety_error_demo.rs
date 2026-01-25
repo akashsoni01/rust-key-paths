@@ -5,16 +5,16 @@
 //! 
 //! To see the errors, uncomment the marked sections below.
 
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]
 struct Person {
     name: String,
     age: u32,
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]
 struct Product {
     name: String,

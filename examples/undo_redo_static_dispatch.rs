@@ -120,9 +120,9 @@
 //
 // ============================================================================
 
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Document {
     title: String,
@@ -130,7 +130,7 @@ struct Document {
     metadata: DocumentMetadata,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct DocumentMetadata {
     author: String,
@@ -457,7 +457,7 @@ fn main() {
         title: "My Document".to_string(),
         content: "Hello, World!".to_string(),
         metadata: DocumentMetadata {
-            author: "Alice".to_string(),
+            author: "Akash".to_string(),
             tags: vec!["draft".to_string()],
             revision: 1,
         },
@@ -624,7 +624,7 @@ fn main() {
     println!("\n=== Verification ===");
     println!("Title matches original: {}", doc.title == "My Document");
     println!("Content matches original: {}", doc.content == "Hello, World!");
-    println!("Author matches original: {}", doc.metadata.author == "Alice");
+    println!("Author matches original: {}", doc.metadata.author == "Akash");
     println!("Revision matches original: {}", doc.metadata.revision == 1);
     println!(
         "Tags match original: {}",

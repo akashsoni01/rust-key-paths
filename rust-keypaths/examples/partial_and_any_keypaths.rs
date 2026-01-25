@@ -58,7 +58,7 @@ fn main() {
         employees: vec![
             Employee {
                 id: 1,
-                name: "Alice".to_string(),
+                name: "Akash".to_string(),
                 department: Some(Department {
                     name: "Engineering".to_string(),
                     budget: 1000000.0,
@@ -82,7 +82,7 @@ fn main() {
                 salary: 120000.0,
                 manager: Some(Arc::new(Employee {
                     id: 1,
-                    name: "Alice".to_string(),
+                    name: "Akash".to_string(),
                     department: None,
                     salary: 150000.0,
                     manager: None,

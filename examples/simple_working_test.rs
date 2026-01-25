@@ -1,6 +1,6 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 struct SimpleTest {
     // Basic types that should work
     string_field: String,

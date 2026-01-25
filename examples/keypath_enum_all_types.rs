@@ -1,8 +1,8 @@
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use rust_key_paths::{KP, PKP, AKP, AMKP, ARKP, OAMKP, OARKP};
 // use rust_keypaths::OptionalKeyPath;
 //
-// #[derive(Keypaths)]
+// #[derive(Kp)]
 // #[All]
 // struct User {
 //     name: String,
@@ -180,7 +180,7 @@
 //     // Example 5: Using with actual data
 //     println!("\n5. Using keypaths with actual data:");
 //     let user = User {
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         age: 30,
 //         metadata: Some("Developer".to_string()),
 //     };

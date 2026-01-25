@@ -15,7 +15,7 @@ fn main() {
 
     // Create some test data
     let user = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: Some("akash@example.com".to_string()),
     };

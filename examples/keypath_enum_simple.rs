@@ -1,6 +1,6 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 enum Status {
     // Unit variant
     Loading,
@@ -52,7 +52,7 @@ fn main() {
     
     // Test named field variant
     let user = Status::User { 
-        name: "Alice".to_string(), 
+        name: "Akash".to_string(), 
         age: Some(30) 
     };
     if let Some(user_status_name) = Status::user_name_r().get(&user) {

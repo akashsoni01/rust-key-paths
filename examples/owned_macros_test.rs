@@ -1,7 +1,7 @@
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 
-// #[derive(Keypaths, Debug, Clone)]
+// #[derive(Kp, Debug, Clone)]
 // #[All]
 // struct Person {
 //     name: String,
@@ -20,7 +20,7 @@
 //     println!("=== Owned KeyPaths with Macros Test ===");
     
 //     let person = Person {
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         age: 30,
 //         address: Some(Address {
 //             street: "123 Main St".to_string(),

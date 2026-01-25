@@ -31,7 +31,7 @@
 //
 // fn main() {
 //     let mut user = User {
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         age: 30,
 //         email: Some("akash@example.com".to_string()),
 //         tags: vec!["developer".to_string(), "rust".to_string()],
@@ -97,7 +97,7 @@
 //     let name_path = User::name_w();
 //     let name_ref = name_path.get_mut(&mut user);
 //     {
-//         *name_ref = "Alice Updated".to_string();
+//         *name_ref = "Akash Updated".to_string();
 //         println!("Updated name to: {}", name_ref);
 //     }
 //

@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use parking_lot::RwLock;
 use std::sync::Arc;
 #[cfg(feature = "tokio")]
@@ -8,20 +8,20 @@ use tokio::sync::RwLock as TokioRwLock;
 use tokio::runtime::Runtime;
 
 // Struct definitions matching the user's example
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct SomeStruct {
     f1: Arc<RwLock<SomeOtherStruct>>,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct SomeOtherStruct {
     f3: Option<String>,
     f4: DeeplyNestedStruct,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct DeeplyNestedStruct {
     f1: Option<String>,
@@ -221,14 +221,14 @@ fn bench_rwlock_multiple_writes(c: &mut Criterion) {
 // ========== TOKIO RWLock BENCHMARKS ==========
 
 #[cfg(feature = "tokio")]
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct TokioSomeStruct {
     f1: Arc<tokio::sync::RwLock<TokioSomeOtherStruct>>,
 }
 
 #[cfg(feature = "tokio")]
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct TokioSomeOtherStruct {
     f3: Option<String>,
@@ -236,7 +236,7 @@ struct TokioSomeOtherStruct {
 }
 
 #[cfg(feature = "tokio")]
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct TokioDeeplyNestedStruct {
     f1: Option<String>,

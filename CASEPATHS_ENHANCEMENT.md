@@ -110,7 +110,7 @@ let path = MyEnum::variant_fw();  // Returns WritableOptionalKeyPath
 ## Example: Deep Nesting with Box
 
 ```rust
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct Outer {
     inner: Option<MyEnum>,
@@ -122,7 +122,7 @@ enum MyEnum {
     B(Box<InnerStruct>),
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct InnerStruct {
     field: Option<String>,

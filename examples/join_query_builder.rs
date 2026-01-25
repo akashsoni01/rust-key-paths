@@ -8,11 +8,11 @@
 // cargo run --example join_query_builder
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use std::collections::HashMap;
 
 // Database schema: Users, Orders, Products
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct User {
     id: u32,
     name: String,
@@ -20,7 +20,7 @@ struct User {
     city: String,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct Order {
     id: u32,
     user_id: u32,
@@ -29,7 +29,7 @@ struct Order {
     total: f64,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct Product {
     id: u32,
     name: String,
@@ -188,7 +188,7 @@ fn create_sample_data() -> (Vec<User>, Vec<Order>, Vec<Product>) {
     let users = vec![
         User {
             id: 1,
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             email: "akash@example.com".to_string(),
             city: "New York".to_string(),
         },

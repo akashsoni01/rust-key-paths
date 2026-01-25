@@ -20,7 +20,7 @@ fn main() {
     println!("=====================================");
     
     // Create a person with an address
-    let mut person = Person::new("Alice".to_string(), 30, Some("123 Main St".to_string()));
+    let mut person = Person::new("Akash".to_string(), 30, Some("123 Main St".to_string()));
     
     // Create a FailableCombined keypath for the address field
     // This keypath can handle all three access patterns: readable, writable, and owned

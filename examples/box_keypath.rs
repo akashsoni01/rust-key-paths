@@ -1,6 +1,6 @@
-use keypaths_proc::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Kp};
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct SomeComplexStruct {
     scsf: Box<SomeOtherStruct>,
@@ -21,7 +21,7 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
@@ -34,14 +34,14 @@ enum SomeEnum {
     B(DarkStruct),
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct DarkStruct {
     dsf: String,

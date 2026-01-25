@@ -31,7 +31,7 @@ struct TupleStruct(String, Option<i32>, Vec<f64>);
 
 fn main() {
     let user = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: Some("akash@example.com".to_string()),
         tags: vec!["developer".to_string(), "rust".to_string()],

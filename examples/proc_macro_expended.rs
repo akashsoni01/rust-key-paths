@@ -1,5 +1,5 @@
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
 #[derive(Debug)]
 struct SomeComplexStruct {
@@ -39,13 +39,13 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct OneMoreStruct {
     omsf: String,

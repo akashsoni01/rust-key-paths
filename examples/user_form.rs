@@ -7,9 +7,9 @@
 // // cargo run --example user_form
 
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct UserProfile {
 //     name: String,
@@ -17,7 +17,7 @@
 //     settings: UserSettings,
 // }
 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct UserSettings {
 //     notifications_enabled: bool,

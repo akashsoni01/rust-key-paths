@@ -1,7 +1,7 @@
 #[cfg(feature = "tagged")]
 use tagged_core::Tagged;
 #[cfg(feature = "tagged")]
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 #[cfg(feature = "tagged")]
 
 #[cfg(feature = "tagged")]
@@ -16,7 +16,7 @@ struct UserIdTag;
 struct TimestampTag;
 
 #[cfg(feature = "tagged")]
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct SomeStruct {
     id: Tagged<Uuid, UserIdTag>,
     time_id: Tagged<DateTime<Utc>, TimestampTag>,

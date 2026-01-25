@@ -1,9 +1,9 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 struct ComprehensiveTest {
     // ✅ Basic types - all working
     string_field: String,

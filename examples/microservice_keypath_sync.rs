@@ -1,4 +1,4 @@
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use rust_key_paths::{KP, PKP};
 // use std::sync::{Arc, RwLock};
 // use std::collections::HashMap;
@@ -6,7 +6,7 @@
 // use std::time::Duration;
 // 
 // /// Shared application state that needs to be synchronized across microservices
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // #[All]
 // struct AppState {
 //     version: String,
@@ -16,7 +16,7 @@
 //     metrics: Metrics,
 // }
 // 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // #[All]
 // struct Config {
 //     max_users: u32,
@@ -24,7 +24,7 @@
 //     feature_flags: HashMap<String, bool>,
 // }
 // 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // #[All]
 // struct Metrics {
 //     requests_per_second: f64,

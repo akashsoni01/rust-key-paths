@@ -1,6 +1,6 @@
 use key_paths_derive::Keypaths;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 enum TestEnum {
     // Labeled enum variant
     User { name: String, age: u32 },
@@ -8,7 +8,7 @@ enum TestEnum {
 
 fn main() {
     let user = TestEnum::User { 
-        name: "Alice".to_string(), 
+        name: "Akash".to_string(), 
         age: 30 
     };
     

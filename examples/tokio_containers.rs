@@ -5,11 +5,11 @@
 /// cargo run --example tokio_containers 2>&1
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct AppState {
     user_data: Arc<tokio::sync::Mutex<UserData>>,
@@ -24,7 +24,7 @@ impl Clone for AppState {
     }
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct UserData {
     name: String,
@@ -38,7 +38,7 @@ impl Clone for UserData {
     }
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct UserSettings {
     theme: String,
@@ -51,7 +51,7 @@ impl Clone for UserSettings {
     }
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct Config {
     api_key: String,
@@ -65,7 +65,7 @@ impl Clone for Config {
     }
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct FeatureFlags {
     enable_logging: bool,
@@ -78,7 +78,7 @@ impl Clone for FeatureFlags {
     }
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct Cache {
     entries: Vec<String>,
@@ -98,7 +98,7 @@ async fn main() {
     // Create initial state
     let state = AppState {
         user_data: Arc::new(tokio::sync::Mutex::new(UserData {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             email: "alice@example.com".to_string(),
             settings: UserSettings {
                 theme: "dark".to_string(),

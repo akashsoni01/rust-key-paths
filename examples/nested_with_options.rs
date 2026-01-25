@@ -1,13 +1,13 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct SomeStruct {
     value: Option<String>,
 }
 
 // Example struct demonstrating all nested container combinations
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct NestedContainerExample {
     // Option<Box<T>>
@@ -198,7 +198,7 @@ fn main() {
     println!("=== Composition Example ===");
     
     // Compose Option<Box<T>> with another struct field
-    #[derive(Debug, Keypaths)]
+    #[derive(Debug, Kp)]
     struct Outer {
         inner: Option<Box<NestedContainerExample>>,
     }

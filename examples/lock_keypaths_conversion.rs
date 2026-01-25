@@ -1,14 +1,14 @@
 use rust_keypaths::KeyPath;
 use std::sync::{Arc, RwLock};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct SomeStruct {
     data: String,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Container {
     rwlock_data: Arc<std::sync::RwLock<SomeStruct>>,

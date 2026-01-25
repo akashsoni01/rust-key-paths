@@ -1,9 +1,9 @@
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use std::sync::Arc;
 use parking_lot::{RwLock, Mutex};
 
-#[derive(Keypaths, Clone)]
+#[derive(Kp, Clone)]
 #[All]
 struct User {
     name: String,
@@ -11,7 +11,7 @@ struct User {
     email: Option<String>,
 }
 
-#[derive(Keypaths, Clone)]
+#[derive(Kp, Clone)]
 #[All]
 struct Profile {
     user: User,
@@ -24,7 +24,7 @@ fn main() {
     
     // Create data wrapped in parking_lot synchronization primitives
     let user = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: Some("akash@example.com".to_string()),
     };
@@ -55,7 +55,7 @@ fn main() {
     {
         let mut guard = parking_mutex_user.lock();
         let name = name_keypath_w.get_mut(&mut *guard);
-        *name = "Alice Updated".to_string();
+        *name = "Akash Updated".to_string();
         println!("✅ Updated name in parking_lot::Mutex: {}", name);
     }
     

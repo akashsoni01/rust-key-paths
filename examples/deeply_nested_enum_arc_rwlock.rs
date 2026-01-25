@@ -2,13 +2,13 @@
 //! 
 //! Run with: cargo run --example deeply_nested_enum_arc_rwlock
 
-use keypaths_proc::{Casepaths, Keypaths, WritableKeypaths};
+use keypaths_proc::{Casepaths, Kp, WritableKeypaths};
 use std::sync::{Arc, RwLock};
 
 // ========== DATA STRUCTURES ==========
 
 /// Top-level application state
-#[derive(Debug, Keypaths, WritableKeypaths)]
+#[derive(Debug, Kp, WritableKeypaths)]
 struct AppState {
     current_mode: AppMode,
 }
@@ -26,7 +26,7 @@ enum AppMode {
 }
 
 /// A user session that can be accessed from multiple threads
-#[derive(Debug, Keypaths, WritableKeypaths)]
+#[derive(Debug, Kp, WritableKeypaths)]
 struct Session {
     user_name: String,
     user_email: Option<String>,
@@ -44,7 +44,7 @@ enum Theme {
 }
 
 /// Custom theme configuration
-#[derive(Debug, Clone, Keypaths, WritableKeypaths)]
+#[derive(Debug, Clone, Kp, WritableKeypaths)]
 struct CustomTheme {
     primary_color: String,
     font_size: u32,
@@ -56,7 +56,7 @@ impl AppState {
     fn new_active() -> Self {
         Self {
             current_mode: AppMode::Active(Arc::new(RwLock::new(Session {
-                user_name: "Alice".to_string(),
+                user_name: "Akash".to_string(),
                 user_email: Some("alice@example.com".to_string()),
                 theme: Theme::Custom(CustomTheme {
                     primary_color: "#3498db".to_string(),
@@ -107,7 +107,7 @@ fn main() {
         .then(AppMode::active_r())
         .chain_arc_rwlock_writable_at_kp(Session::user_name_w());  // Use _w() for non-optional writable
     kp.get_mut(&app_state, |value| {
-        *value = "Alice (Updated via chain!)".to_string();
+        *value = "Akash (Updated via chain!)".to_string();
         println!("  ✓ Updated user_name");
     });
     

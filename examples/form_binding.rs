@@ -8,9 +8,9 @@
 // cargo run --example form_binding
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct UserProfile {
     name: String,
@@ -19,7 +19,7 @@ struct UserProfile {
     settings: UserSettings,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct UserSettings {
     notifications_enabled: bool,
@@ -314,7 +314,7 @@ fn main() {
 
     // Create initial user profile
     let mut profile = UserProfile {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         email: "akash@example.com".to_string(),
         age: 28,
         settings: UserSettings {
@@ -347,7 +347,7 @@ fn main() {
     println!("\n=== Updating Fields ===");
 
     // Update name
-    match form.update_string(&mut profile, "name", "Alice Johnson".to_string()) {
+    match form.update_string(&mut profile, "name", "Akash Johnson".to_string()) {
         Ok(_) => println!("✓ Updated name successfully"),
         Err(e) => println!("✗ Failed to update name: {}", e),
     }

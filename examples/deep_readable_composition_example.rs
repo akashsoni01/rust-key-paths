@@ -1,15 +1,15 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use rust_keypaths::OptionalKeyPath;
 use std::sync::{Arc, RwLock};
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Location {
     latitude: f64,
     longitude: f64,
     altitude: Option<f64>,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Address {
     street: String,
     city: String,
@@ -18,7 +18,7 @@ struct Address {
     coordinates: Option<Location>,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Contact {
     email: String,
     phone: Option<String>,
@@ -26,7 +26,7 @@ struct Contact {
     emergency_contact: Option<Box<Contact>>,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Department {
     name: String,
     budget: u64,
@@ -34,7 +34,7 @@ struct Department {
     location: Address,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Employee {
     id: u32,
     name: String,
@@ -45,7 +45,7 @@ struct Employee {
     supervisor_id: Option<u32>,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Company {
     name: String,
     founded_year: u32,
@@ -55,7 +55,7 @@ struct Company {
     global_contact: Contact,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct Organization {
     name: String,
     company: Company,
@@ -63,7 +63,7 @@ struct Organization {
     main_contact: Contact,
 }
 
-#[derive(Keypaths, Clone, Debug)]
+#[derive(Kp, Clone, Debug)]
 struct BusinessGroup {
     name: String,
     organizations: Vec<Organization>,
@@ -98,7 +98,7 @@ fn main() {
                     employees: vec![
                         Employee {
                             id: 1,
-                            name: "Alice Johnson".to_string(),
+                            name: "Akash Johnson".to_string(),
                             position: "Senior Engineer".to_string(),
                             salary: 120_000,
                             contact: Contact {

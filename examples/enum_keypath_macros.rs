@@ -1,7 +1,7 @@
 use rust_keypaths::EnumKeyPath;
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct User {
     id: u32,
     name: String,

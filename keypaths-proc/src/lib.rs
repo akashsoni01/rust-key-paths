@@ -181,9 +181,9 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 /// # Examples
 ///
 /// ```rust,ignore
-/// use keypaths_proc::Keypaths;
+/// use keypaths_proc::Kp;
 ///
-/// #[derive(Keypaths)]
+/// #[derive(Kp)]
 /// #[All]  // Generate all methods
 /// struct User {
 ///     name: String,
@@ -197,7 +197,7 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 /// let tags_path = User::tags_r();  // KeyPath<User, Vec<String>>
 ///
 /// let user = User {
-///     name: "Alice".to_string(),
+///     name: "Akash".to_string(),
 ///     age: Some(30),
 ///     tags: vec!["admin".to_string()],
 /// };
@@ -210,7 +210,7 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 /// # Field-level Control
 ///
 /// ```rust,ignore
-/// #[derive(Keypaths)]
+/// #[derive(Kp)]
 /// struct Config {
 ///     #[Readable]  // Only readable methods for this field
 ///     api_key: String,
@@ -222,7 +222,7 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 ///     settings: Option<Settings>,
 /// }
 /// ```
-#[proc_macro_derive(Keypaths, attributes(Readable, Writable, Owned, All))]
+#[proc_macro_derive(Kp, attributes(Readable, Writable, Owned, All))]
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -4242,7 +4242,7 @@ fn to_snake_case(name: &str) -> String {
 /// Derives only writable keypath methods for struct fields.
 ///
 /// This macro is a convenience wrapper that generates only writable keypaths,
-/// equivalent to using `#[derive(Keypaths)]` with `#[Writable]` on the struct.
+/// equivalent to using `#[derive(Kp)]` with `#[Writable]` on the struct.
 ///
 /// # Generated Methods
 ///
@@ -5328,7 +5328,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
 /// Derives only readable keypath methods for struct fields.
 ///
 /// This macro is a convenience wrapper that generates only readable keypaths,
-/// equivalent to using `#[derive(Keypaths)]` with `#[Readable]` on the struct.
+/// equivalent to using `#[derive(Kp)]` with `#[Readable]` on the struct.
 ///
 /// # Generated Methods
 ///
@@ -5352,7 +5352,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
 ///
 /// // Usage:
 /// let user = User {
-///     name: "Alice".to_string(),
+///     name: "Akash".to_string(),
 ///     email: Some("alice@example.com".to_string()),
 ///     tags: vec!["admin".to_string()],
 /// };
@@ -6027,7 +6027,7 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
 /// ];
 ///
 /// let user = User {
-///     name: "Alice".to_string(),
+///     name: "Akash".to_string(),
 ///     age: 30,
 ///     email: Some("alice@example.com".to_string()),
 /// };
@@ -6201,7 +6201,7 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
 /// ];
 ///
 /// let user = User {
-///     name: "Alice".to_string(),
+///     name: "Akash".to_string(),
 ///     age: 30,
 /// };
 ///

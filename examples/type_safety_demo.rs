@@ -3,9 +3,9 @@
 //! This example shows what happens when you try to compose keypaths
 //! that don't share the same root type - it fails at compile time!
 
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]
 struct Person {
     name: String,
@@ -13,21 +13,21 @@ struct Person {
     address: Address,
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]
 struct Address {
     street: String,
     city: String,
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]
 struct Company {
     name: String,
     employees: Vec<Person>,
 }
 
-#[derive(Keypaths, Debug)]
+#[derive(Kp, Debug)]
 #[All]
 struct Product {
     name: String,
@@ -36,7 +36,7 @@ struct Product {
 
 fn main() {
     let person = Person {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         address: Address {
             street: "123 Main St".to_string(),

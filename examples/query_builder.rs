@@ -7,9 +7,9 @@
 // cargo run --example query_builder
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Product {
     name: String,
@@ -17,7 +17,7 @@ struct Product {
     details: ProductDetails,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct ProductDetails {
     category: String,

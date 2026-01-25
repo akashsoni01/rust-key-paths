@@ -1,16 +1,16 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use keypaths_proc::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Kp};
 use std::sync::Arc;
 use parking_lot::RwLock;
 // Structs renamed for better readability - Level1 is root, Level2, Level3, etc. indicate nesting depth
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Level1Struct {
     level1_field: Option<Level2Struct>,
     level1_field2: Arc<RwLock<Level2Struct>>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Level2Struct {
     level2_field: Option<Level3Struct>,
@@ -23,7 +23,7 @@ enum Level3Enum {
     B(Box<Level3EnumStruct>),
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Level3Struct {
     level3_field: Option<String>,
@@ -31,20 +31,20 @@ struct Level3Struct {
     level3_deep_field: Option<Level4Struct>, // For 5-level deep nesting without enum
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Level3EnumStruct {
     level3_enum_struct_field: Option<String>,
 }
 
 // Additional structs for 5-level deep nesting without enum
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Level4Struct {
     level4_field: Option<Level5Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Level5Struct {
     level5_field: Option<String>,
@@ -376,61 +376,61 @@ fn bench_composition_overhead(c: &mut Criterion) {
 }
 
 // 10-level deep struct definitions
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel1Struct {
     level1_field: Option<TenLevel2Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel2Struct {
     level2_field: Option<TenLevel3Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel3Struct {
     level3_field: Option<TenLevel4Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel4Struct {
     level4_field: Option<TenLevel5Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel5Struct {
     level5_field: Option<TenLevel6Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel6Struct {
     level6_field: Option<TenLevel7Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel7Struct {
     level7_field: Option<TenLevel8Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel8Struct {
     level8_field: Option<TenLevel9Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel9Struct {
     level9_field: Option<TenLevel10Struct>,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct TenLevel10Struct {
     level10_field: Option<String>,

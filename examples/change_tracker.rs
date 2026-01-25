@@ -7,10 +7,10 @@
 // cargo run --example change_tracker
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
+#[derive(Debug, Clone, Serialize, Deserialize, Kp)]
 #[All]
 struct AppState {
     user: User,
@@ -18,7 +18,7 @@ struct AppState {
     cache: Cache,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
+#[derive(Debug, Clone, Serialize, Deserialize, Kp)]
 #[All]
 struct User {
     id: u64,
@@ -26,14 +26,14 @@ struct User {
     online: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
+#[derive(Debug, Clone, Serialize, Deserialize, Kp)]
 #[All]
 struct Settings {
     theme: String,
     language: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Keypaths)]
+#[derive(Debug, Clone, Serialize, Deserialize, Kp)]
 #[Writable]
 struct Cache {
     last_sync: u64,
@@ -133,7 +133,7 @@ fn main() {
     let mut local_state = AppState {
         user: User {
             id: 1,
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             online: true,
         },
         settings: Settings {
@@ -150,7 +150,7 @@ fn main() {
     let remote_state = AppState {
         user: User {
             id: 1,
-            name: "Alice Cooper".to_string(), // Name changed
+            name: "Akash Cooper".to_string(), // Name changed
             online: true,
         },
         settings: Settings {
@@ -239,7 +239,7 @@ fn main() {
         .then(User::name_w().to_optional())
         .get_mut(&mut local_state)
     {
-        *name = "Alice C. Johnson".to_string();
+        *name = "Akash C. Johnson".to_string();
     }
 
     if let Some(language) = AppState::settings_w()

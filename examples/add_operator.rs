@@ -86,7 +86,7 @@
 //     println!("1. KeyPath >> KeyPath");
 //     
 //     let user = User {
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         age: 30,
 //         address: Address {
 //             street: "123 Main St".to_string(),

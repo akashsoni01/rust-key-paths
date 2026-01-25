@@ -1,15 +1,15 @@
 use std::sync::Arc;
 use parking_lot::RwLock;
-use keypaths_proc::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Kp};
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
     scfs2: Arc<RwLock<SomeOtherStruct>>
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct SomeOtherStruct {
     sosf: Option<OneMoreStruct>,
@@ -22,14 +22,14 @@ enum SomeEnum {
     B(Box<DarkStruct>),
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct OneMoreStruct {
     omsf: Option<String>,
     omse: Option<SomeEnum>,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct DarkStruct {
     dsf: Option<String>,

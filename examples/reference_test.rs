@@ -14,7 +14,7 @@ fn main() {
 
     let people = vec![
         Person {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
         },
         Person {
@@ -76,9 +76,9 @@ fn main() {
     let person_mut_ref = &mut people_mut[0];
     let name = name_path_w.get_mut(person_mut_ref);
     println!("  Original name: {}", name);
-    *name = "Alice Smith".to_string();
+    *name = "Akash Smith".to_string();
     println!("  Modified name: {}", name);
-    assert_eq!(name, "Alice Smith");
+    assert_eq!(name, "Akash Smith");
     println!("✓ Test 5 passed\n");
 
     // Test 6: get_ref with failable keypaths
@@ -92,7 +92,7 @@ fn main() {
     
     let employees = vec![
         Employee {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             manager: Some("Bob".to_string()),
         },
         Employee {

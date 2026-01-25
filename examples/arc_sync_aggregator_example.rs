@@ -1,16 +1,16 @@
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use rust_keypaths::KeyPath;
 
 // use std::sync::{Arc, Mutex, RwLock};
 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // struct User {
 //     name: String,
 //     age: u32,
 //     email: Option<String>,
 // }
 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // struct Profile {
 //     user: User,
 //     bio: String,
@@ -22,7 +22,7 @@
 
 //     // Create test data wrapped in Arc<Mutex<T>> and Arc<RwLock<T>>
 //     let arc_mutex_user = Arc::new(Mutex::new(User {
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         age: 30,
 //         email: Some("akash@example.com".to_string()),
 //     }));

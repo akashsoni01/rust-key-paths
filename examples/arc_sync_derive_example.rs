@@ -1,14 +1,14 @@
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // use rust_keypaths::KeyPath;
 // use std::sync::{Arc};
 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // struct SomeOtherStruct {
 //     value: String,
 //     count: u32,
 // }
 
-// #[derive(Keypaths, Clone, Debug)]
+// #[derive(Kp, Clone, Debug)]
 // struct SomeStruct {
 //     field1: Arc<std::sync::RwLock<SomeOtherStruct>>,
 //     field2: Arc<std::sync::Mutex<SomeOtherStruct>>,
@@ -76,27 +76,27 @@
 //     println!("--------------------------------");
 
 //     // Create a more complex nested structure for composition
-//     #[derive(Keypaths, Clone, Debug)]
+//     #[derive(Kp, Clone, Debug)]
 //     struct Company {
 //         name: String,
 //         departments: Vec<Department>,
 //     }
 
-//     #[derive(Keypaths, Clone, Debug)]
+//     #[derive(Kp, Clone, Debug)]
 //     struct Department {
 //         name: String,
 //         manager: Arc<RwLock<Employee>>,
 //         budget: u64,
 //     }
 
-//     #[derive(Keypaths, Clone, Debug)]
+//     #[derive(Kp, Clone, Debug)]
 //     struct Employee {
 //         name: String,
 //         salary: u32,
 //         contact: Arc<Mutex<Contact>>,
 //     }
 
-//     #[derive(Keypaths, Clone, Debug)]
+//     #[derive(Kp, Clone, Debug)]
 //     struct Contact {
 //         email: String,
 //         phone: String,
@@ -109,7 +109,7 @@
 //             Department {
 //                 name: "Engineering".to_string(),
 //                 manager: Arc::new(RwLock::new(Employee {
-//                     name: "Alice Johnson".to_string(),
+//                     name: "Akash Johnson".to_string(),
 //                     salary: 120000,
 //                     contact: Arc::new(Mutex::new(Contact {
 //                         email: "akash@techcorp.com".to_string(),

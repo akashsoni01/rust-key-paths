@@ -3,9 +3,9 @@
 // // cargo run --example reference_support_example
 // 
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 // 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct Person {
 //     name: String,
@@ -14,7 +14,7 @@
 //     active: bool,
 // }
 // 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // struct Company {
 //     name: String,
 //     employees: Vec<Person>,
@@ -27,7 +27,7 @@
 //     // Create sample data
 //     let people = vec![
 //         Person {
-//             name: "Alice Johnson".to_string(),
+//             name: "Akash Johnson".to_string(),
 //             age: 30,
 //             email: "akash@example.com".to_string(),
 //             active: true,
@@ -127,7 +127,7 @@
 //     // Example 9: Working with failable keypaths
 //     println!("\n--- Example 9: Failable KeyPath with References ---");
 //     // Create a person with optional field
-//     #[derive(Debug, Clone, Keypaths)]
+//     #[derive(Debug, Clone, Kp)]
 //     struct PersonWithOptional {
 //         name: String,
 //         age: u32,
@@ -136,7 +136,7 @@
 // 
 //     let people_with_nicknames = vec![
 //         PersonWithOptional {
-//             name: "Alice".to_string(),
+//             name: "Akash".to_string(),
 //             age: 30,
 //             nickname: Some("Ally".to_string()),
 //         },
@@ -163,7 +163,7 @@
 //     println!("\n--- Example 10: Mutable Reference Support ---");
 //     let mut mutable_people = vec![
 //         Person {
-//             name: "Alice".to_string(),
+//             name: "Akash".to_string(),
 //             age: 30,
 //             email: "akash@example.com".to_string(),
 //             active: true,

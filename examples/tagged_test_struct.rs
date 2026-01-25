@@ -1,7 +1,7 @@
 #[cfg(feature = "tagged_core")]
 use tagged_core::Tagged;
 #[cfg(feature = "tagged_core")]
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 #[cfg(feature = "tagged_core")]
 
 #[cfg(feature = "tagged_core")]
@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 #[cfg(feature = "tagged_core")]
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct SomeStruct {
     id: Tagged<Uuid, ()>,
     time_id: Tagged<DateTime<Utc>, ()>,

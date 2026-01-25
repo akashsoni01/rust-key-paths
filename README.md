@@ -28,7 +28,7 @@ keypaths-proc = "1.7.0"
 - ✅ **Enum CasePaths** (readable and writable prisms)
 - ✅ **Composition** across structs, options and enum cases
 - ✅ **Iteration helpers** over collections via keypaths
-- ✅ **Proc-macros**: `#[derive(Keypaths)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
+- ✅ **Proc-macros**: `#[derive(Kp)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
 - ✅ **Functional chains for `Arc<Mutex<T>>` and `Arc<RwLock<T>>`** - Compose-first, apply-later pattern
 - ✅ **parking_lot support** - Feature-gated support for faster synchronization primitives
 - ✅ **Tokio support** - Async keypath chains through `Arc<tokio::sync::Mutex<T>>` and `Arc<tokio::sync::RwLock<T>>`
@@ -43,9 +43,9 @@ keypaths-proc = "1.7.0"
 This example demonstrates keypath composition through deeply nested structures with `Box<T>` and enum variants:
 
 ```rust
-use keypaths_proc::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Kp};
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct SomeComplexStruct {
     scsf: Box<SomeOtherStruct>,
@@ -66,7 +66,7 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
@@ -79,14 +79,14 @@ enum SomeEnum {
     B(DarkStruct),
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[Writable]
 struct DarkStruct {
     dsf: String,
@@ -128,22 +128,22 @@ Keypaths provide **compile-time type safety** - if you try to compose keypaths t
 **The Rule:** When chaining keypaths with `.then()`, the `Value` type of the first keypath must match the `Root` type of the second keypath.
 
 ```rust
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Person {
     name: String,
     address: Address,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Address {
     city: String,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Product {
     name: String,
@@ -180,8 +180,8 @@ cargo run --example type_safety_demo
 
 ```toml
 [dependencies]
-rust-keypaths = { version = "1.7.0", features = ["parking_lot"] }
-keypaths-proc = "1.7.0"
+rust-keypaths = { version = "1.9.0", features = ["parking_lot"] }
+keypaths-proc = "1.9.0"
 ```
 
 #### Derive Macro Generated Methods for Locks
@@ -198,9 +198,9 @@ The derive macro generates helper methods for `Arc<Mutex<T>>` and `Arc<RwLock<T>
 ```rust
 use std::sync::Arc;
 use parking_lot::RwLock;
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct Container {
     // This uses parking_lot::RwLock (default)
@@ -210,7 +210,7 @@ struct Container {
     std_data: Arc<std::sync::RwLock<DataStruct>>,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct DataStruct {
     name: String,
@@ -272,9 +272,9 @@ The derive macro generates helper methods for `Arc<tokio::sync::Mutex<T>>` and `
 ```rust
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]  // Generate all methods (readable, writable, owned)
 struct AppState {
     user_data: Arc<tokio::sync::Mutex<UserData>>,
@@ -282,21 +282,21 @@ struct AppState {
     optional_cache: Option<Arc<tokio::sync::RwLock<Cache>>>,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct UserData {
     name: String,
     email: String,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Config {
     api_key: String,
     timeout: u64,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Cache {
     entries: Vec<String>,
@@ -464,7 +464,7 @@ Benchmarks include:
 | **Mutex/RwLock** | ✅ Built-in (`with_mutex`, etc.) | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **Arc/Box/Rc** | ✅ Built-in support | ⚠️ Unknown | ⚠️ Limited | ⚠️ Limited |
 | **Collections** | ✅ Vec, HashMap, HashSet, etc. | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Derive Macros** | ✅ `#[derive(Keypaths)]`, `#[derive(Casepaths)]` | ✅ `#[derive(Keypath)]` | ✅ `#[derive(Lenses)]` | ⚠️ Limited |
+| **Derive Macros** | ✅ `#[derive(Kp)]`, `#[derive(Casepaths)]` | ✅ `#[derive(Keypath)]` | ✅ `#[derive(Lenses)]` | ⚠️ Limited |
 | **Deep Nesting** | ✅ Works seamlessly | ⚠️ May require workarounds | ❌ Requires workarounds | ❌ Complex |
 | **Type Safety** | ✅ Full compile-time checks | ✅ Good | ✅ Good | ⚠️ Moderate |
 | **Performance** | ✅ Optimized (1.46x overhead reads, near-zero writes) | ⚠️ Unknown | ⚠️ Unknown | ⚠️ Unknown |

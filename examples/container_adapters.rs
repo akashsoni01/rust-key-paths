@@ -8,11 +8,11 @@
 // cargo run --example container_adapters
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Product {
     id: u32,
@@ -22,7 +22,7 @@ struct Product {
     in_stock: bool,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct User {
     id: u32,
@@ -98,7 +98,7 @@ fn main() {
     let users_box: Vec<Box<User>> = vec![
         Box::new(User {
             id: 1,
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             email: "akash@example.com".to_string(),
             age: 30,
         }),
@@ -190,7 +190,7 @@ fn main() {
     if let Some(user) = users_box_mut.get_mut(0) {
         let name = name_path_box_w.get_mut(user);
         println!("  Original name: {}", name);
-        *name = "Alice Smith".to_string();
+        *name = "Akash Smith".to_string();
         println!("  Modified name: {}", name);
         
         let age = age_path_box_w.get_mut(user);

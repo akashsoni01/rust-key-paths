@@ -13,9 +13,9 @@
 #[cfg(feature = "tokio")]
 mod example {
     use std::sync::Arc;
-    use keypaths_proc::Keypaths;
+    use keypaths_proc::Kp;
 
-    #[derive(Keypaths)]
+    #[derive(Kp)]
     #[All]  // Generate all methods (readable, writable, owned)
     pub struct AppState {
         pub user_data: Arc<tokio::sync::RwLock<UserData>>,
@@ -27,7 +27,7 @@ mod example {
         }
     }
 
-    #[derive(Keypaths)]
+    #[derive(Kp)]
     #[All]  // Generate all methods (readable, writable, owned)
     pub struct UserData {
         pub name: String,
@@ -46,7 +46,7 @@ mod example {
 
         let state = AppState {
             user_data: Arc::new(tokio::sync::RwLock::new(UserData {
-                name: String::from("Alice"),
+                name: String::from("Akash"),
                 age: 30,
                 email: Some(String::from("alice@example.com")),
             })),

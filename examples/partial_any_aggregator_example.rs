@@ -1,10 +1,10 @@
 use rust_keypaths::{PartialKeyPath, AnyKeyPath};
-use keypaths_proc::{Keypaths, PartialKeypaths, AnyKeypaths};
+use keypaths_proc::{Kp, PartialKp, AnyKeypaths};
 use std::sync::{Arc, Mutex, RwLock};
 use std::rc::Rc;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Keypaths, PartialKeypaths, AnyKeypaths)]
+#[derive(Debug, Clone, Kp, PartialKp, AnyKeypaths)]
 struct Person {
     name: String,
     age: u32,
@@ -12,7 +12,7 @@ struct Person {
     metadata: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Keypaths, PartialKeypaths, AnyKeypaths)]
+#[derive(Debug, Clone, Kp, PartialKp, AnyKeypaths)]
 struct Company {
     name: String,
     employees: Vec<Person>,
@@ -24,7 +24,7 @@ fn main() {
 
     // Create sample data
     let person = Person {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: Some("akash@example.com".to_string()),
         metadata: [("department".to_string(), "engineering".to_string())].into(),

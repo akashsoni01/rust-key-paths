@@ -1,7 +1,7 @@
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Clone, Debug, Keypaths)]
+#[derive(Clone, Debug, Kp)]
 #[Readable]
 struct Account {
     // Inherits the struct-level #[Readable] scope; only readable methods are emitted.

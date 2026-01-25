@@ -1,11 +1,11 @@
-use keypaths_proc::{Keypaths, PartialKeypaths, AnyKeypaths};
+use keypaths_proc::{Kp, PartialKp, AnyKeypaths};
 use rust_keypaths::{PartialKeyPath, AnyKeyPath, PartialOptionalKeyPath, PartialWritableKeyPath, PartialWritableOptionalKeyPath};
 use std::any::Any;
 // cd /rust-key-paths && cargo run --example derive_macros_new_features_example 2>&1 | tail -20
 /// Example demonstrating the new derive macros for PartialKeyPath and AnyKeyPath
 /// This example shows how to use the new #[derive(PartialKeypaths)] and #[derive(AnyKeypaths)] macros
 
-#[derive(Debug, Clone, Keypaths, PartialKeypaths, AnyKeypaths)]
+#[derive(Debug, Clone, Kp, PartialKp, AnyKeypaths)]
 struct User {
     id: u32,
     name: String,
@@ -15,7 +15,7 @@ struct User {
     metadata: std::collections::HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Keypaths, PartialKeypaths, AnyKeypaths)]
+#[derive(Debug, Clone, Kp, PartialKp, AnyKeypaths)]
 struct Product {
     id: u64,
     title: String,
@@ -29,7 +29,7 @@ fn main() {
 
     let user = User {
         id: 1,
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         email: Some("akash@example.com".to_string()),
         is_active: true,
         tags: vec!["premium".to_string(), "verified".to_string()],

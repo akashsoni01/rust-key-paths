@@ -3,7 +3,7 @@ use rust_keypaths::KeyPath;
 use std::sync::{Mutex, RwLock};
 use std::rc::Weak;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
@@ -30,7 +30,7 @@ fn main() {
         mutex_data: Mutex::new("Mutex content".to_string()),
         rwlock_data: RwLock::new(100),
         weak_ref: Weak::new(),
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
     };
 
