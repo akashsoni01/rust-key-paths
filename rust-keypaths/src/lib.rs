@@ -2,7 +2,8 @@
 // NOTE: This will only work with nightly Rust toolchain
 // #![cfg_attr(feature = "nightly", feature(impl_trait_in_assoc_type))]
 
-use std::sync::{Arc, Mutex, RwLock};
+use std::ops::DerefMut;
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::marker::PhantomData;
 use std::any::{Any, TypeId};
 use std::rc::Rc;
@@ -4163,9 +4164,7 @@ macro_rules! writable_opt_keypath {
         $crate::WritableOptionalKeyPath::new($closure)
     };
 }
-
 // ========== BASE KEYPATH TYPES ==========
-
 // Base KeyPath
 #[derive(Clone)]
 pub struct KeyPath<Root, Value, F>
@@ -8118,6 +8117,165 @@ where
     pub fn to(self) -> PartialWritableOptionalKeyPath<Root> {
         self.to_partial()
     }
+}
+
+// pub trait KPTrait<R, V>: {
+//     fn getter(r: &R) -> Option<&V>;
+//     fn setter(r: &mut R) -> Option< &mut V>;
+// }
+// pub trait KPGTrait<R, V> {
+//     fn getter(r: &R) -> Option<&V>;
+// }
+
+// pub trait KPSTrait<R, V> {
+//         fn setter(r: &mut R) -> Option< &mut V>;
+// }
+
+pub fn test<R, V, F>(x: R) 
+where  F: Fn(&R) -> Option<&V> 
+{}
+
+type Getter<R, V> = for<'r> fn(&'r R) -> Option<&'r V>;
+type Setter<R, V> = for<'r> fn(&'r mut R) -> Option<&'r mut V>;
+// type LockGetter<R, V> = for<'r> fn(&'r R) -> Option<Arc<&'r V>>;
+// type LockSetter<R, V> = for<'r> fn(&'r mut R) -> Option<Arc<&'r mut V>>;
+
+pub type Kp<R, V> = KpType<
+R,
+V, 
+Getter<R, V>, 
+Setter<R, V>,
+//  LockGetter<R, V>, 
+//  LockSetter<R, V>
+ >;
+pub struct KpType<R, V, G, S, 
+// LG, SG
+>
+where 
+G:for<'r> Fn(&'r R) -> Option<&'r V>,
+S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>,
+// LG:for<'r> Fn(&'r R) -> Option<Arc<&'r V>>, 
+// SG:for<'r> Fn(&'r mut R) -> Option<Arc<&'r mut V>>,  
+{
+    g: G,
+    s: S,
+    // lg: LG,
+    // sg: SG,
+    _p: PhantomData<(R, V)>
+}
+
+
+
+// impl<R, V> KPTrait<R, V> for Kp<R, V> {
+//     fn getter(r: &R) -> Option<&V> {
+
+//     }
+
+//     fn setter(r: &mut R) -> Option< &mut V> {
+//         todo!()
+//     }
+// }
+
+struct TestKP {
+    a: String,
+    b: String,
+    c: Arc<String>,
+    d: Mutex<String>,
+    e: Mutex<TestKP2>
+}
+
+struct TestKP2 {
+    a: String
+}
+
+impl TestKP2 {
+    fn a() -> Kp<TestKP2, String>{
+        Kp{
+            g: |r: &TestKP2| {Some(&r.a)},
+            s: |r: &mut TestKP2| {Some(&mut r.a)},
+            // lg: |r: &TestKP| { Some(Arc::new(&r.a))},
+            // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
+            _p: PhantomData
+        }
+    }
+
+    fn a_lock<F>(f: F) 
+        where 
+            F: Fn(&TestKP2) {
+       let x =  Kp{
+            g: |r: &Mutex<TestKP2>| {
+                r.lock().as_deref().map(|x| { f(x)})
+            },
+            s: |r: &mut Mutex<TestKP2>| { None },
+            // lg: |r: &TestKP| { Some(Arc::new(&r.a))},
+            // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
+            _p: PhantomData
+        };
+
+    }
+}
+
+impl TestKP {
+    fn a() ->  Kp<TestKP, String> {
+        Kp{
+            g: |r: &TestKP| {Some(&r.a)},
+            s: |r: &mut TestKP| {Some(&mut r.a)},
+            // lg: |r: &TestKP| { Some(Arc::new(&r.a))},
+            // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
+            _p: PhantomData
+        }
+    }
+
+    fn b() ->  Kp<TestKP, String> {
+        Kp{
+            g: |r: &TestKP| {Some(&r.b)},
+            s: |r: &mut TestKP| {Some(&mut r.b)},
+            // lg: |r: &TestKP| { Some(Arc::new(&r.b))},
+            // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.b))},
+            _p: PhantomData
+        }
+    }
+
+fn c() ->  Kp<TestKP, String> {
+    Kp{
+        g: |r: &TestKP| {Some(r.c.as_ref())},
+        s: |r: &mut TestKP| {None},
+        // lg: |r: &TestKP| { Some(Arc::new(&r.c))},
+        // sg: |r: &mut TestKP| { None },
+        _p: PhantomData
+    }
+}
+
+// Alternative cleaner solution using type aliases
+// type Getter<R, V> = for<'r> fn(&'r R) -> Option<&'r V>;
+// type Setter<R, V> = for<'r> fn(&'r mut R) -> Option<&'r mut V>;
+
+fn d() -> Kp<TestKP, Mutex<String>> {
+    Kp {
+        g:|r: &TestKP| { Some(&r.d) },
+        s:|r: &mut TestKP| { Some(&mut r.d) },
+        // lg: |r: &TestKP| { let x = r.d.lock().as_deref().ok().map(Arc::new);
+        // return x.clone()
+        // },
+        // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
+        _p: PhantomData
+    }
+}
+
+fn e() -> Kp<TestKP, Mutex<TestKP2>> {
+    Kp {
+        g:|r: &TestKP| { Some(&r.e) },
+        s:|r: &mut TestKP| { Some(&mut r.e) },
+        // lg: |r: &TestKP| { let x = r.d.lock().as_deref().ok().map(Arc::new);
+        // return x.clone()
+        // },
+        // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
+        _p: PhantomData
+    }
+}
+
+
+
 }
 
 // ========== SHR OPERATOR IMPLEMENTATIONS (>> operator) ==========
