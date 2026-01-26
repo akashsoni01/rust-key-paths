@@ -50,6 +50,81 @@ impl<Root, MutexValue, InnerValue, SubValue> LKp<Root, MutexValue, InnerValue, S
             });
             })
         }
+
+        // pub fn then<NextValue>(
+        //     self,
+        //     next: Kp<SubValue, NextValue>,
+        // ) -> LKp<Root, MutexValue, InnerValue, NextValue>
+        // where
+        //     InnerValue: 'static,
+        //     SubValue: 'static,
+        //     NextValue: 'static,
+        // {
+        //     let first = self.i;
+        //     let second = next;
+
+        //     let kp: Kp<InnerValue, NextValue> = Kp{
+        //             g: move |inner: & InnerValue| {
+        //                 let sub: Option<&SubValue> = first.get(inner);
+        //                 if let Some(s) = sub {
+        //                     second.get(s)
+        //                 } else {
+        //                     None
+        //                 }
+        //             },
+        //             s: move |inner: &mut InnerValue| {
+        //                 let sub: Option<&mut SubValue> = first.get_mut(inner);
+        //                 if let Some(s) = sub {
+        //                     second.get_mut(s)
+        //                 } else {
+        //                     None
+        //                 }
+        //             },
+        //             _p: PhantomData
+        //         };
+            
+        //     let composed = LKp{
+        //         i: KpType{
+        //             g: move |inner: & InnerValue| {
+        //                 let sub: Option<&SubValue> = first.get(inner);
+        //                 if let Some(s) = sub {
+        //                     second.get_mut(sub)
+        //                 } else {
+        //                     None
+        //                 }
+        //             },
+        //             s: move |inner: &mut InnerValue| {
+        //                 let sub: Option<&mut SubValue> = first.get(inner);
+        //                 if let Some(s) = sub {
+        //                     second.get_mut(sub)
+        //                 } else {
+        //                     None
+        //                 }
+        //             },
+        //         },
+        //         o: KpType{
+        //             g: move |inner: & InnerValue| {
+        //                 let sub: Option<&SubValue> = first.get(inner);
+        //                 if let Some(s) = sub {
+        //                     second.get_mut(sub)
+        //                 } else {
+        //                     None
+        //                 }
+        //             },
+        //             s: move |inner: &mut InnerValue| {
+        //                 let sub: Option<&mut SubValue> = first.get(inner);
+        //                 if let Some(s) = sub {
+        //                     second.get_mut(sub)
+        //                 } else {
+        //                     None
+        //                 }
+        //             },
+        //         }
+        //     };
+            
+        //     LKp { o: self.o, i: composed }
+        // }
+
 }
 
 /// A composed keypath chain through Arc<Mutex<T>> - functional style
