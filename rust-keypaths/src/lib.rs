@@ -8198,21 +8198,6 @@ impl TestKP2 {
             _p: PhantomData
         }
     }
-
-    fn a_lock<F>(f: F) 
-        where 
-            F: Fn(&TestKP2) {
-       let x =  Kp{
-            g: |r: &Mutex<TestKP2>| {
-                r.lock().as_deref().map(|x| { f(x)})
-            },
-            s: |r: &mut Mutex<TestKP2>| { None },
-            // lg: |r: &TestKP| { Some(Arc::new(&r.a))},
-            // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
-            _p: PhantomData
-        };
-
-    }
 }
 
 impl TestKP {
