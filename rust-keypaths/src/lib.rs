@@ -2,7 +2,7 @@
 // NOTE: This will only work with nightly Rust toolchain
 // #![cfg_attr(feature = "nightly", feature(impl_trait_in_assoc_type))]
 
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::marker::PhantomData;
 use std::any::{Any, TypeId};
@@ -12,6 +12,45 @@ use std::cell::RefCell;
 use std::fmt;
 
 // ========== FUNCTIONAL KEYPATH CHAIN (Compose first, apply container at get) ==========
+
+#[derive(Debug, Clone, Copy)]
+pub struct LKp<Root, MutexValue, InnerValue, SubValue>
+{
+    o: Kp<Root, MutexValue>,
+    i: Kp<InnerValue, SubValue>
+}
+
+impl<Root, MutexValue, InnerValue, SubValue> LKp<Root, MutexValue, InnerValue, SubValue> 
+    where
+    // MutexValue: DerefMut<Target = InnerValue> + Deref<Target = InnerValue>,
+    MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+{
+
+    // fn then() -> LKp<> { ... } 
+    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&SubValue),
+    {
+        let arc_mutex_ref: Option<&MutexValue> = self.o.get(container);
+        arc_mutex_ref.map(|u| {
+            u.borrow().lock().ok().map(|guard| {
+            let value = self.i.get(&*guard);
+            value.map(callback);
+        });
+        })
+    }
+    pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> Option<()>
+    where
+        Callback: FnOnce(&mut SubValue), {
+            let arc_mutex_ref: Option<&MutexValue> = self.o.get(container);
+            arc_mutex_ref.map(|u| {
+                u.borrow().lock().ok().map(|mut guard| {
+                let value_ref = self.i.get_mut(&mut *guard);
+                value_ref.map(callback);
+            });
+            })
+        }
+}
 
 /// A composed keypath chain through Arc<Mutex<T>> - functional style
 /// Build the chain first, then apply container at get() time
@@ -8148,6 +8187,8 @@ Setter<R, V>,
 //  LockGetter<R, V>, 
 //  LockSetter<R, V>
  >;
+
+ #[derive(Debug, Clone, Copy)]
 pub struct KpType<R, V, G, S, 
 // LG, SG
 >
@@ -8166,15 +8207,22 @@ S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>,
 
 
 
-// impl<R, V> KPTrait<R, V> for Kp<R, V> {
-//     fn getter(r: &R) -> Option<&V> {
-
-//     }
-
-//     fn setter(r: &mut R) -> Option< &mut V> {
-//         todo!()
-//     }
-// }
+impl<R, V, G, S, 
+// LG, SG
+> KpType<R, V, G, S, 
+// LG, SG
+>
+where 
+G:for<'r> Fn(&'r R) -> Option<&'r V>,
+S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
+    pub fn get(self, r: &R) -> Option<&V> {
+        (self.g)(r)
+    }
+    
+    pub fn get_mut(self, r: &mut R) -> Option< &mut V> {
+        (self.s)(r)
+    }
+}
 
 struct TestKP {
     a: String,
