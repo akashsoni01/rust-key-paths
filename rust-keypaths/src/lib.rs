@@ -13,7 +13,7 @@ use std::fmt;
 
 // ========== FUNCTIONAL KEYPATH CHAIN (Compose first, apply container at get) ==========
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct LKp<Root, MutexValue, InnerValue, SubValue>
 {
     o: Kp<Root, MutexValue>,
@@ -30,32 +30,7 @@ impl<Root, MutexValue, InnerValue, SubValue> LKp<Root, MutexValue, InnerValue, S
         Self { o: outer, i: inner }
     }
 
-    // fn then() -> LKp<> { ... } 
-    pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
-    where
-        Callback: FnOnce(&SubValue),
-    {
-        let arc_mutex_ref: Option<&MutexValue> = self.o.get(container);
-        arc_mutex_ref.map(|u| {
-            u.borrow().lock().ok().map(|guard| {
-            let value = self.i.get(&*guard);
-            value.map(callback);
-        });
-        })
-    }
-    pub fn get_mut<Callback, R>(self, container: &Root, callback: Callback) -> Option<()>
-    where
-        Callback: FnOnce(&mut SubValue), {
-            let arc_mutex_ref: Option<&MutexValue> = self.o.get(container);
-            arc_mutex_ref.map(|u| {
-                u.borrow().lock().ok().map(|mut guard| {
-                let value_ref = self.i.get_mut(&mut *guard);
-                value_ref.map(callback);
-            });
-            })
-        }
-
-    // /// Chain with another readable keypath through another level
+    /// Chain with another readable keypath through another level
     // pub fn then<NextValue>(
     //     self,
     //     next: Kp<SubValue, NextValue>,
@@ -67,110 +42,31 @@ impl<Root, MutexValue, InnerValue, SubValue> LKp<Root, MutexValue, InnerValue, S
     // {
     //     let first = self.i;
     //     let second = next;
-    //     let first2 = self.i;
-    //     let second2 = next;
+    //     // let first2 = self.i;
+    //     // let second2 = next;
 
+    //     // let composed_get = |inner: &InnerValue| -> Option<&NextValue> {
+    //     //     first.get(inner).and_then(|s| second.get(s))
+    //     // };
         
-    //     let composed: Kp<InnerValue, NextValue> = KpType::new(
-    //          move |inner: &InnerValue| {
-    //             let sub: Option<&SubValue> = first.get(inner);
-    //             if let Some(s) = sub {
-    //                 second.get(s)
-    //             } else {
-    //                 None
-    //             }
-    //         },
-    //          move |inner: &mut InnerValue| {
-    //                 let sub: Option<&mut SubValue> = first2.get_mut(inner);
-    //                 if let Some(s) = sub {
-    //                     let next_value: Option<&mut NextValue> = second2.get_mut(s);
-    //                     next_value
-    //                 } else {
-    //                     None
-    //                 }
-    //         }
-    //     );
+    //     // let composed_set = |inner: &mut InnerValue| -> Option<&mut NextValue> {
+    //     //     first.get_mut(inner).and_then(|s| second.get_mut(s))
+    //     // };
         
-    //     LKp {
-    //         o: self.o,
-    //         i: composed,
-    //     }
+    //     let composed = KpType::new(move |inner: &InnerValue| -> Option<&NextValue> {
+    //         first.get(inner).and_then(|s| second.get(s))
+    //     }, |inner: &mut InnerValue| -> Option<&mut NextValue> {
+    //         // first.get_mut(inner).and_then(|s| second.get_mut(s))
+    //         None
+    //     });
+        
+    //     // LKp {
+    //     //     o: self.o,
+    //     //     i: composed,
+    //     // }
+
+    //     todo!()
     // }
-
-        // pub fn then<NextValue>(
-        //     self,
-        //     next: Kp<SubValue, NextValue>,
-        // ) -> LKp<Root, MutexValue, InnerValue, NextValue>
-        // where
-        //     InnerValue: 'static,
-        //     SubValue: 'static,
-        //     NextValue: 'static,
-        // {
-        //     let first = self.i;
-        //     let second = next;
-
-        //     let kp: Kp<InnerValue, NextValue> = Kp{
-        //             g: move |inner: & InnerValue| {
-        //                 let sub: Option<&SubValue> = first.get(inner);
-        //                 if let Some(s) = sub {
-        //                     second.get(s)
-        //                 } else {
-        //                     None
-        //                 }
-        //             },
-        //             s: move |inner: &mut InnerValue| {
-        //                 let sub: Option<&mut SubValue> = first.get_mut(inner);
-        //                 if let Some(s) = sub {
-        //                     second.get_mut(s)
-        //                 } else {
-        //                     None
-        //                 }
-        //             },
-        //             _p: PhantomData
-        //         };
-            
-        //     let composed = LKp{
-        //         i: KpType{
-        //             g: move |inner: & InnerValue| {
-        //                 let sub: Option<&SubValue> = first.get(inner);
-        //                 if let Some(s) = sub {
-        //                     second.get_mut(sub)
-        //                 } else {
-        //                     None
-        //                 }
-        //             },
-        //             s: move |inner: &mut InnerValue| {
-        //                 let sub: Option<&mut SubValue> = first.get(inner);
-        //                 if let Some(s) = sub {
-        //                     second.get_mut(sub)
-        //                 } else {
-        //                     None
-        //                 }
-        //             },
-        //         },
-        //         o: KpType{
-        //             g: move |inner: & InnerValue| {
-        //                 let sub: Option<&SubValue> = first.get(inner);
-        //                 if let Some(s) = sub {
-        //                     second.get_mut(sub)
-        //                 } else {
-        //                     None
-        //                 }
-        //             },
-        //             s: move |inner: &mut InnerValue| {
-        //                 let sub: Option<&mut SubValue> = first.get(inner);
-        //                 if let Some(s) = sub {
-        //                     second.get_mut(sub)
-        //                 } else {
-        //                     None
-        //                 }
-        //             },
-        //         }
-        //     };
-            
-        //     LKp { o: self.o, i: composed }
-        // }
-
 }
 
 /// A composed keypath chain through Arc<Mutex<T>> - functional style
@@ -8309,7 +8205,7 @@ Setter<R, V>,
 //  LockSetter<R, V>
  >;
 
- #[derive(Debug, Clone, Copy)]
+ #[derive(Debug)]
 pub struct KpType<R, V, G, S, 
 // LG, SG
 >
@@ -8325,8 +8221,6 @@ S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>,
     // sg: SG,
     _p: PhantomData<(R, V)>
 }
-
-
 
 impl<R, V, G, S, 
 // LG, SG
@@ -8347,6 +8241,27 @@ S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
     pub fn get_mut(self, r: &mut R) -> Option< &mut V> {
         (self.s)(r)
     }
+
+    // pub fn then<SubValue>(
+    //     self,
+    //     next: Kp<V, SubValue>,
+    // ) -> Kp<R, SubValue>
+    // {
+    //     // let first: G = self.g;
+    //     // let second = next.g;
+    //     // let first2 = self.s;
+    //     // let second2 = next.s;
+        
+    //     KpType::new(move |root: & R| {
+    //         self.g(root).and_then(|value| next.g(value))
+    //     },
+    //     move |root: &mut R| {
+    //         // first2(root).and_then(|value| second2(value))
+    //         None
+    //     }
+    // )
+    // }
+
 }
 
 struct TestKP {
