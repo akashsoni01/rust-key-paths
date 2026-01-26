@@ -26,6 +26,10 @@ impl<Root, MutexValue, InnerValue, SubValue> LKp<Root, MutexValue, InnerValue, S
     MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
 {
 
+    pub fn new(outer: Kp<Root, MutexValue>, inner: Kp<InnerValue, SubValue>) -> Self {
+        Self { o: outer, i: inner }
+    }
+
     // fn then() -> LKp<> { ... } 
     pub fn get<Callback>(self, container: &Root, callback: Callback) -> Option<()>
     where
@@ -50,6 +54,48 @@ impl<Root, MutexValue, InnerValue, SubValue> LKp<Root, MutexValue, InnerValue, S
             });
             })
         }
+
+    // /// Chain with another readable keypath through another level
+    // pub fn then<NextValue>(
+    //     self,
+    //     next: Kp<SubValue, NextValue>,
+    // ) -> LKp<Root, MutexValue, InnerValue, NextValue>
+    // where
+    //     InnerValue: 'static,
+    //     SubValue: 'static,
+    //     NextValue: 'static,
+    // {
+    //     let first = self.i;
+    //     let second = next;
+    //     let first2 = self.i;
+    //     let second2 = next;
+
+        
+    //     let composed: Kp<InnerValue, NextValue> = KpType::new(
+    //          move |inner: &InnerValue| {
+    //             let sub: Option<&SubValue> = first.get(inner);
+    //             if let Some(s) = sub {
+    //                 second.get(s)
+    //             } else {
+    //                 None
+    //             }
+    //         },
+    //          move |inner: &mut InnerValue| {
+    //                 let sub: Option<&mut SubValue> = first2.get_mut(inner);
+    //                 if let Some(s) = sub {
+    //                     let next_value: Option<&mut NextValue> = second2.get_mut(s);
+    //                     next_value
+    //                 } else {
+    //                     None
+    //                 }
+    //         }
+    //     );
+        
+    //     LKp {
+    //         o: self.o,
+    //         i: composed,
+    //     }
+    // }
 
         // pub fn then<NextValue>(
         //     self,
@@ -8290,6 +8336,10 @@ impl<R, V, G, S,
 where 
 G:for<'r> Fn(&'r R) -> Option<&'r V>,
 S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
+    pub fn new(get: G, set: S) -> Self {
+        Self { g: get, s: set, _p: PhantomData }
+    }
+
     pub fn get(self, r: &R) -> Option<&V> {
         (self.g)(r)
     }
