@@ -2,12 +2,12 @@
 // NOTE: This will only work with nightly Rust toolchain
 // #![cfg_attr(feature = "nightly", feature(impl_trait_in_assoc_type))]
 
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex, MutexGuard, RwLock};
-use std::marker::PhantomData;
 use std::any::{Any, TypeId};
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 // use std::ops::Shr;
 use std::fmt;
 
@@ -54,60 +54,168 @@ where
         NextValue: 'static,
         G2: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         S2: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
-    {        
+    {
         LKp {
             o: self.o,
             i: self.i.then(next),
         }
     }
 
+    // pub fn and_then<MutexValue2, InnerValue2, NextValue, G2, S2>(
+    //     self,
+    //     next: LKp<SubValue, MutexValue2, InnerValue2, NextValue, G2, S2>,
+    // ) -> LKp<
+    //     Root,
+    //     MutexValue,
+    //     InnerValue,
+    //     NextValue,
+    //     impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue>,
+    //     impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue>,
+    // >
+    // where
+    //     InnerValue: 'static,
+    //     SubValue: 'static,
+    //     MutexValue2: std::borrow::Borrow<Arc<Mutex<InnerValue2>>> + 'static,
+    //     InnerValue2: 'static,
+    //     NextValue: 'static,
+    //     G2: for<'r> Fn(&'r InnerValue2) -> Option<&'r NextValue> + 'static,
+    //     S2: for<'r> Fn(&'r mut InnerValue2) -> Option<&'r mut NextValue> + 'static,
+    // {
+    //     let outer_get = self.i.g;
+    //     let outer_set = self.i.s;
+    //     let middle_get = next.o.g;
+    //     let middle_set = next.o.s;
+    //     let inner_get = next.i.g;
+    //     let inner_set = next.i.s;
+
+    //     let composed = KpType::new(
+    //         move |inner: &InnerValue| -> Option<&NextValue> {
+    //             let sub_value = outer_get(inner)?;
+    //             let mutex_value = middle_get(sub_value)?;
+    //             let arc_mutex = mutex_value.borrow();
+    //             let guard = arc_mutex.lock().ok()?;
+    //             inner_get(&*guard.a)
+    //         },
+    //         move |inner: &mut InnerValue| -> Option<&mut NextValue> {
+    //             let sub_value = outer_set(inner)?;
+    //             let mutex_value = middle_set(sub_value)?;
+    //             let arc_mutex = mutex_value.borrow();
+    //             let mut guard = arc_mutex.lock().ok()?;
+    //             inner_set(&mut *guard)
+    //         },
+    //     );
+
+    //     LKp {
+    //         o: self.o,
+    //         i: composed,
+    //     }
+    // }
+
+    // pub fn and_then<MutexValue2, InnerValue2, NextValue, G2, S2, G3, S3>(
+    //     self,
+    //     next: LKp<SubValue, MutexValue2, InnerValue2, NextValue, G2, S2>,
+    // ) -> LKp<
+    //     Root,
+    //     MutexValue,
+    //     InnerValue,
+    //     NextValue,
+    //     impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue>,
+    //     impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue>,
+    // >
+    // where
+    //     InnerValue: 'static,
+    //     SubValue: 'static,
+    //     MutexValue2: std::borrow::Borrow<Arc<Mutex<InnerValue2>>> + 'static,
+    //     InnerValue2: 'static,
+    //     NextValue: 'static,
+    //     G2: for<'r> Fn(&'r InnerValue2) -> Option<&'r NextValue> + 'static,
+    //     S2: for<'r> Fn(&'r mut InnerValue2) -> Option<&'r mut NextValue> + 'static,
+    //     G3: for<'r> Fn(&'r SubValue) -> Option<&'r MutexValue2> + 'static,
+    //     S3: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut MutexValue2> + 'static,
+    // {
+    //     // Compose the inner keypaths
+    //     // self.i: InnerValue -> SubValue
+    //     // next.o: SubValue -> MutexValue2 (which is Arc<Mutex<InnerValue2>>)
+    //     // next.i: InnerValue2 -> NextValue
+
+    //     let outer_get = self.i.g;
+    //     let outer_set = self.i.s;
+    //     let middle_get = next.o.g;
+    //     let middle_set = next.o.s;
+    //     let inner_get = next.i.g;
+    //     let inner_set = next.i.s;
+
+    //     let composed = KpType::new(
+    //         move |inner: &InnerValue| -> Option<&NextValue> {
+    //             // First navigate through self.i to get SubValue
+    //             let sub_value = outer_get(inner)?;
+    //             // Then navigate through next.o to get the Arc<Mutex<InnerValue2>>
+    //             let mutex_value = middle_get(sub_value)?;
+    //             // Lock the mutex to get InnerValue2
+    //             let arc_mutex = mutex_value.borrow();
+    //             let guard = arc_mutex.lock().ok()?;
+    //             // Finally navigate through next.i to get NextValue
+    //             inner_get(&*guard)
+    //         },
+    //         move |inner: &mut InnerValue| -> Option<&mut NextValue> {
+    //             // First navigate through self.i to get SubValue
+    //             let sub_value = outer_set(inner)?;
+    //             // Then navigate through next.o to get the Arc<Mutex<InnerValue2>>
+    //             let mutex_value = middle_set(sub_value)?;
+    //             // Lock the mutex to get InnerValue2
+    //             let arc_mutex = mutex_value.borrow();
+    //             let mut guard = arc_mutex.lock().ok()?;
+    //             // Finally navigate through next.i to get NextValue
+    //             inner_set(&mut *guard)
+    //         },
+    //     );
+
+    //     LKp {
+    //         o: self.o,
+    //         i: composed,
+    //     }
+    // }
     /// Consider using the fn only when value is of type Rc or Arc else it will clone.
-    pub fn get_cloned(&self, root: &Root) -> Option<SubValue> 
+    pub fn get_cloned(&self, root: &Root) -> Option<SubValue>
     where
         SubValue: Clone,
     {
-        self.o.get(root)
-            .and_then(|mutex_value| {
-                let arc_mutex = mutex_value.borrow();
-                let guard = arc_mutex.lock().ok()?;
-                let sub_value = self.i.get(&*guard)?;
-                Some(sub_value.clone())
-            })
+        self.o.get(root).and_then(|mutex_value| {
+            let arc_mutex = mutex_value.borrow();
+            let guard = arc_mutex.lock().ok()?;
+            let sub_value = self.i.get(&*guard)?;
+            Some(sub_value.clone())
+        })
     }
 
     pub fn get_mut<F, R>(&self, root: &mut Root, f: F) -> Option<R>
     where
         F: FnOnce(&mut SubValue) -> R,
     {
-        self.o.get_mut(root)
-            .and_then(|mutex_value| {
-                let arc_mutex = mutex_value.borrow();
-                let mut guard = arc_mutex.lock().ok()?;
-                let sub_value = self.i.get_mut(&mut *guard)?;
-                Some(f(sub_value))
-            })
+        self.o.get_mut(root).and_then(|mutex_value| {
+            let arc_mutex = mutex_value.borrow();
+            let mut guard = arc_mutex.lock().ok()?;
+            let sub_value = self.i.get_mut(&mut *guard)?;
+            Some(f(sub_value))
+        })
     }
 
     pub fn get<F, R>(&self, root: &Root, f: F) -> Option<R>
     where
         F: FnOnce(&SubValue) -> R,
     {
-        self.o.get(root)
-            .and_then(|mutex_value| {
-                let arc_mutex = mutex_value.borrow();
-                let mut guard = arc_mutex.lock().ok()?;
-                let sub_value = self.i.get(&mut *guard)?;
-                Some(f(sub_value))
-            })
+        self.o.get(root).and_then(|mutex_value| {
+            let arc_mutex = mutex_value.borrow();
+            let mut guard = arc_mutex.lock().ok()?;
+            let sub_value = self.i.get(&mut *guard)?;
+            Some(f(sub_value))
+        })
     }
-
-
-
 }
 
 /// A composed keypath chain through Arc<Mutex<T>> - functional style
 /// Build the chain first, then apply container at get() time
-/// 
+///
 /// # Example
 /// ```rust
 /// // Functional style: compose first, then apply container at get()
@@ -124,7 +232,8 @@ where
     inner_keypath: KeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    ArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r MutexValue,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
@@ -147,7 +256,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcMutexKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> ArcMutexKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -158,12 +274,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcMutexKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -174,7 +290,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -185,12 +308,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -211,7 +334,8 @@ where
     inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    ArcMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r MutexValue,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
@@ -234,7 +358,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcMutexWritableKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> ArcMutexWritableKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -245,12 +376,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcMutexWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -261,7 +392,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -272,12 +410,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -295,7 +433,8 @@ where
     inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    ArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r MutexValue,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -309,7 +448,9 @@ where
     {
         let arc_mutex_ref = self.outer_keypath.get(container);
         arc_mutex_ref.borrow().lock().ok().and_then(|mut guard| {
-            self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+            self.inner_keypath
+                .get_mut(&mut *guard)
+                .map(|value_ref| callback(value_ref))
         })
     }
 
@@ -317,7 +458,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -328,11 +476,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         ArcMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -343,7 +491,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -354,11 +509,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         ArcMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -376,7 +531,8 @@ where
     inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    ArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r MutexValue,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
@@ -389,16 +545,25 @@ where
         Callback: FnOnce(&SubValue) -> (),
     {
         let arc_mutex_ref = self.outer_keypath.get(container);
-        arc_mutex_ref.borrow().lock().ok().and_then(|guard| {
-            self.inner_keypath.get(&*guard).map(|value| callback(value))
-        })
+        arc_mutex_ref
+            .borrow()
+            .lock()
+            .ok()
+            .and_then(|guard| self.inner_keypath.get(&*guard).map(|value| callback(value)))
     }
 
     /// Chain with another readable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -409,11 +574,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         ArcMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -424,7 +589,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -435,11 +607,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         ArcMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -457,7 +629,8 @@ where
     inner_keypath: KeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    OptionalArcMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
@@ -481,7 +654,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcMutexKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> OptionalArcMutexKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -492,12 +672,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcMutexKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -508,7 +688,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -519,12 +706,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -542,7 +729,8 @@ where
     inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    OptionalArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
@@ -555,9 +743,11 @@ where
         Callback: FnOnce(&SubValue) -> (),
     {
         self.outer_keypath.get(container).and_then(|arc_mutex_ref| {
-            arc_mutex_ref.borrow().lock().ok().and_then(|guard| {
-                self.inner_keypath.get(&*guard).map(|value| callback(value))
-            })
+            arc_mutex_ref
+                .borrow()
+                .lock()
+                .ok()
+                .and_then(|guard| self.inner_keypath.get(&*guard).map(|value| callback(value)))
         })
     }
 
@@ -565,7 +755,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -576,11 +773,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         OptionalArcMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -591,7 +788,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -602,11 +806,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         OptionalArcMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -618,7 +822,7 @@ where
 
 /// A composed keypath chain through Arc<RwLock<T>> - functional style
 /// Build the chain first, then apply container at get() time
-/// 
+///
 /// # Example
 /// ```rust
 /// // Functional style: compose first, then apply container at get()
@@ -635,7 +839,8 @@ where
     inner_keypath: KeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    ArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
@@ -659,7 +864,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> ArcRwLockKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -670,12 +882,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcRwLockKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -686,7 +898,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -697,12 +916,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -720,7 +939,8 @@ where
     inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    ArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
@@ -733,9 +953,11 @@ where
         Callback: FnOnce(&SubValue) -> (),
     {
         let arc_rwlock_ref = self.outer_keypath.get(container);
-        arc_rwlock_ref.borrow().read().ok().and_then(|guard| {
-            self.inner_keypath.get(&*guard).map(|value| callback(value))
-        })
+        arc_rwlock_ref
+            .borrow()
+            .read()
+            .ok()
+            .and_then(|guard| self.inner_keypath.get(&*guard).map(|value| callback(value)))
     }
 }
 
@@ -749,7 +971,8 @@ where
     inner_keypath: KeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    OptionalArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
@@ -761,19 +984,28 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
-            arc_rwlock_ref.borrow().read().ok().map(|guard| {
-                let value = self.inner_keypath.get(&*guard);
-                callback(value)
+        self.outer_keypath
+            .get(container)
+            .and_then(|arc_rwlock_ref| {
+                arc_rwlock_ref.borrow().read().ok().map(|guard| {
+                    let value = self.inner_keypath.get(&*guard);
+                    callback(value)
+                })
             })
-        })
     }
 
     /// Chain with another readable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcRwLockKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> OptionalArcRwLockKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -784,12 +1016,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcRwLockKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -800,7 +1032,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -811,12 +1050,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -834,7 +1073,8 @@ where
     inner_keypath: OptionalKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    OptionalArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
@@ -846,18 +1086,29 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
-            arc_rwlock_ref.borrow().read().ok().and_then(|guard| {
-                self.inner_keypath.get(&*guard).map(|value| callback(value))
+        self.outer_keypath
+            .get(container)
+            .and_then(|arc_rwlock_ref| {
+                arc_rwlock_ref
+                    .borrow()
+                    .read()
+                    .ok()
+                    .and_then(|guard| self.inner_keypath.get(&*guard).map(|value| callback(value)))
             })
-        })
     }
 
     /// Chain with another readable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -868,11 +1119,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         OptionalArcRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -883,7 +1134,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -894,11 +1152,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         OptionalArcRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -919,7 +1177,8 @@ where
     inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    OptionalArcMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
@@ -943,7 +1202,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcMutexWritableKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> OptionalArcMutexWritableKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -954,12 +1220,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcMutexWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -970,7 +1236,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -981,12 +1254,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -996,8 +1269,14 @@ where
 
 /// A composed writable optional keypath chain from optional keypath through Arc<Mutex<T>> - functional style
 /// Build the chain first, then apply container at get_mut() time
-pub struct OptionalArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
-where
+pub struct OptionalArcMutexWritableOptionalKeyPathChain<
+    Root,
+    MutexValue,
+    InnerValue,
+    SubValue,
+    F,
+    G,
+> where
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
 {
@@ -1005,7 +1284,8 @@ where
     inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    OptionalArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -1019,7 +1299,9 @@ where
     {
         self.outer_keypath.get(container).and_then(|arc_mutex_ref| {
             arc_mutex_ref.borrow().lock().ok().and_then(|mut guard| {
-                self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+                self.inner_keypath
+                    .get_mut(&mut *guard)
+                    .map(|value_ref| callback(value_ref))
             })
         })
     }
@@ -1028,7 +1310,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -1039,11 +1328,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1054,7 +1343,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -1065,11 +1361,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1090,7 +1386,8 @@ where
     inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    OptionalArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
@@ -1102,19 +1399,28 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
-            arc_rwlock_ref.borrow().write().ok().map(|mut guard| {
-                let value_ref = self.inner_keypath.get_mut(&mut *guard);
-                callback(value_ref)
+        self.outer_keypath
+            .get(container)
+            .and_then(|arc_rwlock_ref| {
+                arc_rwlock_ref.borrow().write().ok().map(|mut guard| {
+                    let value_ref = self.inner_keypath.get_mut(&mut *guard);
+                    callback(value_ref)
+                })
             })
-        })
     }
 
     /// Chain with another writable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> OptionalArcRwLockWritableKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -1125,12 +1431,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcRwLockWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1141,7 +1447,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -1152,12 +1465,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1167,8 +1480,14 @@ where
 
 /// A composed writable optional keypath chain from optional keypath through Arc<RwLock<T>> - functional style
 /// Build the chain first, then apply container at get_mut() time (uses write lock)
-pub struct OptionalArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
-where
+pub struct OptionalArcRwLockWritableOptionalKeyPathChain<
+    Root,
+    RwLockValue,
+    InnerValue,
+    SubValue,
+    F,
+    G,
+> where
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
 {
@@ -1176,7 +1495,8 @@ where
     inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    OptionalArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -1188,18 +1508,29 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
-            arc_rwlock_ref.borrow().write().ok().and_then(|mut guard| {
-                self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+        self.outer_keypath
+            .get(container)
+            .and_then(|arc_rwlock_ref| {
+                arc_rwlock_ref.borrow().write().ok().and_then(|mut guard| {
+                    self.inner_keypath
+                        .get_mut(&mut *guard)
+                        .map(|value_ref| callback(value_ref))
+                })
             })
-        })
     }
 
     /// Chain with another writable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -1210,11 +1541,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1225,7 +1556,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -1236,11 +1574,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1261,7 +1599,8 @@ where
     inner_keypath: WritableKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    ArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
@@ -1282,7 +1621,7 @@ where
 
     /// Monadic composition: chain with another writable keypath
     /// This allows composing deeper keypaths through the same Arc<RwLock<T>> structure
-    /// 
+    ///
     /// # Example
     /// ```rust,ignore
     /// // Compose: Root -> Arc<RwLock<InnerValue>> -> InnerValue -> SubValue -> NextValue
@@ -1293,7 +1632,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> ArcRwLockWritableKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -1304,13 +1650,13 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         // Create a new composed writable keypath
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcRwLockWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1319,7 +1665,7 @@ where
 
     /// Monadic composition: chain with a writable optional keypath (for Option fields)
     /// This allows composing through Option types within the same Arc<RwLock<T>> structure
-    /// 
+    ///
     /// # Example
     /// ```rust,ignore
     /// // Compose: Root -> Arc<RwLock<InnerValue>> -> InnerValue -> Option<SubValue> -> NextValue
@@ -1330,7 +1676,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -1341,13 +1694,13 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         // Create a new composed writable optional keypath
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1366,7 +1719,8 @@ where
     inner_keypath: WritableOptionalKeyPath<InnerValue, SubValue, G>,
 }
 
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -1380,7 +1734,9 @@ where
     {
         let arc_rwlock_ref = self.outer_keypath.get(container);
         arc_rwlock_ref.borrow().write().ok().and_then(|mut guard| {
-            self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+            self.inner_keypath
+                .get_mut(&mut *guard)
+                .map(|value_ref| callback(value_ref))
         })
     }
 
@@ -1389,7 +1745,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -1400,7 +1763,7 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         // Create a new composed writable optional keypath
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             if let Some(sub) = first.get_mut(inner) {
@@ -1409,7 +1772,7 @@ where
                 None
             }
         });
-        
+
         ArcRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1421,7 +1784,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -1432,12 +1802,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         // Create a new composed writable optional keypath
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         ArcRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1482,7 +1852,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingMutexKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> ArcParkingMutexKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -1493,12 +1869,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcParkingMutexKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1509,7 +1885,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcParkingMutexOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -1520,12 +1902,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcParkingMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1545,7 +1927,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
@@ -1564,7 +1947,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcParkingMutexOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -1575,11 +1964,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         ArcParkingMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1590,7 +1979,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingMutexOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcParkingMutexOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -1601,11 +1996,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         ArcParkingMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1625,7 +2020,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> ArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    ArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
@@ -1645,7 +2041,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingMutexWritableKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> ArcParkingMutexWritableKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -1656,12 +2058,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcParkingMutexWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1672,7 +2074,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcParkingMutexWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -1683,12 +2091,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcParkingMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1708,7 +2116,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::Mutex<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -1720,14 +2129,22 @@ where
     {
         let arc_mutex_ref = self.outer_keypath.get(container);
         let mut guard = arc_mutex_ref.lock();
-        self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+        self.inner_keypath
+            .get_mut(&mut *guard)
+            .map(|value_ref| callback(value_ref))
     }
 
     /// Chain with another writable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcParkingMutexWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -1738,11 +2155,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         ArcParkingMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1753,7 +2170,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcParkingMutexWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -1764,11 +2187,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         ArcParkingMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1788,7 +2211,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> ArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    ArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
@@ -1808,7 +2232,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingRwLockKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> ArcParkingRwLockKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -1819,12 +2249,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcParkingRwLockKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1835,7 +2265,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcParkingRwLockOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -1846,12 +2282,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcParkingRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1871,7 +2307,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
@@ -1890,7 +2327,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcParkingRwLockOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -1901,11 +2344,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         ArcParkingRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1916,7 +2359,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcParkingRwLockOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -1927,11 +2376,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         ArcParkingRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -1951,7 +2400,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
@@ -1972,7 +2422,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingRwLockWritableKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> ArcParkingRwLockWritableKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -1983,13 +2439,13 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         // Create a new composed writable keypath
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcParkingRwLockWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2001,7 +2457,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -2012,14 +2474,14 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         // Create a new composed writable optional keypath
         // first.get_mut returns &mut SubValue (not Option), second.get_mut returns Option<&mut NextValue>
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcParkingRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2039,7 +2501,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> &'r Arc<parking_lot::RwLock<InnerValue>>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -2051,7 +2514,9 @@ where
     {
         let arc_rwlock_ref = self.outer_keypath.get(container);
         let mut guard = arc_rwlock_ref.write();
-        self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+        self.inner_keypath
+            .get_mut(&mut *guard)
+            .map(|value_ref| callback(value_ref))
     }
 
     /// Monadic composition: chain with another writable keypath
@@ -2059,7 +2524,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -2070,13 +2541,15 @@ where
     {
         let first_keypath = self.inner_keypath;
         let second_keypath = next;
-        
+
         // Create a new composed writable optional keypath
         // first_keypath.get_mut returns Option<&mut SubValue>, second_keypath.get_mut returns &mut NextValue
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
-            first_keypath.get_mut(inner).map(|sub| second_keypath.get_mut(sub))
+            first_keypath
+                .get_mut(inner)
+                .map(|sub| second_keypath.get_mut(sub))
         });
-        
+
         ArcParkingRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2088,7 +2561,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcParkingRwLockWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -2099,12 +2578,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         // Create a new composed writable optional keypath
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         ArcParkingRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2126,7 +2605,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> OptionalArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    OptionalArcParkingMutexKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::Mutex<InnerValue>>>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
@@ -2147,7 +2627,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingMutexKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> OptionalArcParkingMutexKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -2158,12 +2644,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcParkingMutexKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2174,7 +2660,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingMutexOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcParkingMutexOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -2185,12 +2677,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcParkingMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2210,7 +2702,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> OptionalArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    OptionalArcParkingMutexOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::Mutex<InnerValue>>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
@@ -2230,7 +2723,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingMutexOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcParkingMutexOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -2241,11 +2740,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         OptionalArcParkingMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2256,7 +2755,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingMutexOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcParkingMutexOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -2267,11 +2772,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         OptionalArcParkingMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2291,7 +2796,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> OptionalArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    OptionalArcParkingMutexWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::Mutex<InnerValue>>>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
@@ -2312,7 +2818,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingMutexWritableKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> OptionalArcParkingMutexWritableKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -2323,12 +2835,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcParkingMutexWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2339,7 +2851,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcParkingMutexWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -2350,12 +2868,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcParkingMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2375,7 +2893,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> OptionalArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    OptionalArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::Mutex<InnerValue>>>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -2387,7 +2906,9 @@ where
     {
         self.outer_keypath.get(container).and_then(|arc_mutex_ref| {
             let mut guard = arc_mutex_ref.lock();
-            self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+            self.inner_keypath
+                .get_mut(&mut *guard)
+                .map(|value_ref| callback(value_ref))
         })
     }
 
@@ -2395,7 +2916,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcParkingMutexWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -2406,11 +2933,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcParkingMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2421,7 +2948,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingMutexWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcParkingMutexWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -2432,11 +2965,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcParkingMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2458,7 +2991,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> OptionalArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    OptionalArcParkingRwLockKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::RwLock<InnerValue>>>,
     G: for<'r> Fn(&'r InnerValue) -> &'r SubValue,
@@ -2479,7 +3013,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingRwLockKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> OptionalArcParkingRwLockKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -2490,12 +3030,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcParkingRwLockKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2506,7 +3046,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcParkingRwLockOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -2517,12 +3063,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcParkingRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2542,7 +3088,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> OptionalArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    OptionalArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::RwLock<InnerValue>>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
@@ -2552,17 +3099,25 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
-            let guard = arc_rwlock_ref.read();
-            self.inner_keypath.get(&*guard).map(|value| callback(value))
-        })
+        self.outer_keypath
+            .get(container)
+            .and_then(|arc_rwlock_ref| {
+                let guard = arc_rwlock_ref.read();
+                self.inner_keypath.get(&*guard).map(|value| callback(value))
+            })
     }
 
     /// Chain with another readable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcParkingRwLockOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -2573,11 +3128,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         OptionalArcParkingRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2588,7 +3143,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingRwLockOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcParkingRwLockOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -2599,11 +3160,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         OptionalArcParkingRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2623,7 +3184,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> OptionalArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    OptionalArcParkingRwLockWritableKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::RwLock<InnerValue>>>,
     G: for<'r> Fn(&'r mut InnerValue) -> &'r mut SubValue,
@@ -2644,7 +3206,13 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingRwLockWritableKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> OptionalArcParkingRwLockWritableKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -2655,12 +3223,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcParkingRwLockWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2671,7 +3239,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcParkingRwLockWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -2682,12 +3256,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcParkingRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2707,7 +3281,8 @@ where
 }
 
 #[cfg(feature = "parking_lot")]
-impl<Root, InnerValue, SubValue, F, G> OptionalArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
+impl<Root, InnerValue, SubValue, F, G>
+    OptionalArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, SubValue, F, G>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Arc<parking_lot::RwLock<InnerValue>>>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -2717,17 +3292,27 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        self.outer_keypath.get(container).and_then(|arc_rwlock_ref| {
-            let mut guard = arc_rwlock_ref.write();
-            self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
-        })
+        self.outer_keypath
+            .get(container)
+            .and_then(|arc_rwlock_ref| {
+                let mut guard = arc_rwlock_ref.write();
+                self.inner_keypath
+                    .get_mut(&mut *guard)
+                    .map(|value_ref| callback(value_ref))
+            })
     }
 
     /// Chain with another writable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcParkingRwLockWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -2738,11 +3323,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcParkingRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2753,7 +3338,13 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcParkingRwLockWritableOptionalKeyPathChain<Root, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcParkingRwLockWritableOptionalKeyPathChain<
+        Root,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -2764,11 +3355,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcParkingRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2793,7 +3384,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcTokioMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    ArcTokioMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> &'r MutexValue,
@@ -2814,7 +3406,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioMutexKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> ArcTokioMutexKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -2825,12 +3424,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcTokioMutexKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2841,7 +3440,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcTokioMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -2852,12 +3458,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcTokioMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2877,7 +3483,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    ArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> &'r MutexValue,
@@ -2897,7 +3504,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcTokioMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -2908,11 +3522,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         ArcTokioMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2923,7 +3537,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcTokioMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -2934,11 +3555,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         ArcTokioMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -2958,7 +3579,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcTokioMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    ArcTokioMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> &'r MutexValue,
@@ -2979,7 +3601,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioMutexWritableKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> ArcTokioMutexWritableKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -2990,12 +3619,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcTokioMutexWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3006,7 +3635,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcTokioMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -3017,12 +3653,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcTokioMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3042,7 +3678,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> ArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    ArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> &'r MutexValue,
@@ -3055,14 +3692,23 @@ where
     {
         let arc_mutex_ref = self.outer_keypath.get(container).borrow();
         let mut guard = arc_mutex_ref.lock().await;
-        self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+        self.inner_keypath
+            .get_mut(&mut *guard)
+            .map(|value_ref| callback(value_ref))
     }
 
     /// Chain with another writable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcTokioMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -3073,11 +3719,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         ArcTokioMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3088,7 +3734,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcTokioMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -3099,11 +3752,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         ArcTokioMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3124,7 +3777,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcTokioRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    ArcTokioRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
@@ -3145,7 +3799,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioRwLockKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> ArcTokioRwLockKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -3156,12 +3817,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcTokioRwLockKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3172,7 +3833,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcTokioRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -3183,12 +3851,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         ArcTokioRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3209,7 +3877,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    ArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
@@ -3229,7 +3898,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcTokioRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -3240,11 +3916,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         ArcTokioRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3255,7 +3931,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> ArcTokioRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -3266,11 +3949,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         ArcTokioRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3291,7 +3974,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcTokioRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    ArcTokioRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
@@ -3312,7 +3996,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> ArcTokioRwLockWritableKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -3323,12 +4014,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcTokioRwLockWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3339,7 +4030,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcTokioRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -3350,12 +4048,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         ArcTokioRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3376,7 +4074,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> ArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    ArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> &'r RwLockValue,
@@ -3389,14 +4088,23 @@ where
     {
         let arc_rwlock_ref = self.outer_keypath.get(container).borrow();
         let mut guard = arc_rwlock_ref.write().await;
-        self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+        self.inner_keypath
+            .get_mut(&mut *guard)
+            .map(|value_ref| callback(value_ref))
     }
 
     /// Chain with another writable keypath through another level
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcTokioRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -3407,11 +4115,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         ArcTokioRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3422,7 +4130,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> ArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> ArcTokioRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -3433,11 +4148,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         ArcTokioRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3460,7 +4175,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcTokioMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    OptionalArcTokioMutexKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
@@ -3471,7 +4187,8 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        if let Some(arc_mutex_ref) = self.outer_keypath.get(container) { let arc_mutex_ref = arc_mutex_ref.borrow();
+        if let Some(arc_mutex_ref) = self.outer_keypath.get(container) {
+            let arc_mutex_ref = arc_mutex_ref.borrow();
             let guard = arc_mutex_ref.lock().await;
             let value = self.inner_keypath.get(&*guard);
             callback(value);
@@ -3485,7 +4202,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioMutexKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> OptionalArcTokioMutexKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -3496,12 +4220,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcTokioMutexKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3512,7 +4236,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcTokioMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -3523,12 +4254,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcTokioMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3549,7 +4280,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    OptionalArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
@@ -3560,7 +4292,8 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        if let Some(arc_mutex_ref) = self.outer_keypath.get(container) { let arc_mutex_ref = arc_mutex_ref.borrow();
+        if let Some(arc_mutex_ref) = self.outer_keypath.get(container) {
+            let arc_mutex_ref = arc_mutex_ref.borrow();
             let guard = arc_mutex_ref.lock().await;
             self.inner_keypath.get(&*guard).map(|value| callback(value))
         } else {
@@ -3572,7 +4305,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcTokioMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -3583,11 +4323,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         OptionalArcTokioMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3598,7 +4338,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioMutexOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcTokioMutexOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -3609,11 +4356,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         OptionalArcTokioMutexOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3634,7 +4381,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcTokioMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    OptionalArcTokioMutexWritableKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
@@ -3645,7 +4393,8 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        if let Some(arc_mutex_ref) = self.outer_keypath.get(container) { let arc_mutex_ref = arc_mutex_ref.borrow();
+        if let Some(arc_mutex_ref) = self.outer_keypath.get(container) {
+            let arc_mutex_ref = arc_mutex_ref.borrow();
             let mut guard = arc_mutex_ref.lock().await;
             let value_ref = self.inner_keypath.get_mut(&mut *guard);
             Some(callback(value_ref))
@@ -3658,7 +4407,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioMutexWritableKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> OptionalArcTokioMutexWritableKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -3669,12 +4425,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcTokioMutexWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3685,7 +4441,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcTokioMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -3696,12 +4459,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcTokioMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3711,8 +4474,14 @@ where
 
 /// A composed writable optional async keypath chain from optional keypath through Arc<tokio::sync::Mutex<T>>
 #[cfg(feature = "tokio")]
-pub struct OptionalArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
-where
+pub struct OptionalArcTokioMutexWritableOptionalKeyPathChain<
+    Root,
+    MutexValue,
+    InnerValue,
+    SubValue,
+    F,
+    G,
+> where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -3722,7 +4491,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, MutexValue, InnerValue, SubValue, F, G> OptionalArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
+impl<Root, MutexValue, InnerValue, SubValue, F, G>
+    OptionalArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, SubValue, F, G>
 where
     MutexValue: std::borrow::Borrow<Arc<TokioMutex<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r MutexValue>,
@@ -3733,9 +4503,12 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        if let Some(arc_mutex_ref) = self.outer_keypath.get(container) { let arc_mutex_ref = arc_mutex_ref.borrow();
+        if let Some(arc_mutex_ref) = self.outer_keypath.get(container) {
+            let arc_mutex_ref = arc_mutex_ref.borrow();
             let mut guard = arc_mutex_ref.lock().await;
-            self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+            self.inner_keypath
+                .get_mut(&mut *guard)
+                .map(|value_ref| callback(value_ref))
         } else {
             None
         }
@@ -3745,7 +4518,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcTokioMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -3756,11 +4536,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcTokioMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3771,7 +4551,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioMutexWritableOptionalKeyPathChain<Root, MutexValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcTokioMutexWritableOptionalKeyPathChain<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -3782,11 +4569,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcTokioMutexWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3809,7 +4596,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcTokioRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    OptionalArcTokioRwLockKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
@@ -3820,7 +4608,8 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        if let Some(arc_rwlock_ref) = self.outer_keypath.get(container) { let arc_rwlock_ref = arc_rwlock_ref.borrow();
+        if let Some(arc_rwlock_ref) = self.outer_keypath.get(container) {
+            let arc_rwlock_ref = arc_rwlock_ref.borrow();
             let guard = arc_rwlock_ref.read().await;
             let value = self.inner_keypath.get(&*guard);
             callback(value);
@@ -3834,7 +4623,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioRwLockKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static>
+    ) -> OptionalArcTokioRwLockKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -3845,12 +4641,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = KeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcTokioRwLockKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3861,7 +4657,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcTokioRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -3872,12 +4675,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             let sub = first.get(inner);
             second.get(sub)
         });
-        
+
         OptionalArcTokioRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3898,7 +4701,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    OptionalArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
@@ -3909,7 +4713,8 @@ where
     where
         Callback: FnOnce(&SubValue) -> (),
     {
-        if let Some(arc_rwlock_ref) = self.outer_keypath.get(container) { let arc_rwlock_ref = arc_rwlock_ref.borrow();
+        if let Some(arc_rwlock_ref) = self.outer_keypath.get(container) {
+            let arc_rwlock_ref = arc_rwlock_ref.borrow();
             let guard = arc_rwlock_ref.read().await;
             self.inner_keypath.get(&*guard).map(|value| callback(value))
         } else {
@@ -3921,7 +4726,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: KeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcTokioRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> &'r NextValue,
         G: 'static,
@@ -3932,11 +4744,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).map(|sub| second.get(sub))
         });
-        
+
         OptionalArcTokioRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3947,7 +4759,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: OptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioRwLockOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static>
+    ) -> OptionalArcTokioRwLockOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
         G: 'static,
@@ -3958,11 +4777,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = OptionalKeyPath::new(move |inner: &InnerValue| {
             first.get(inner).and_then(|sub| second.get(sub))
         });
-        
+
         OptionalArcTokioRwLockOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -3983,7 +4802,8 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcTokioRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    OptionalArcTokioRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
 where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
@@ -3994,7 +4814,8 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        if let Some(arc_rwlock_ref) = self.outer_keypath.get(container) { let arc_rwlock_ref = arc_rwlock_ref.borrow();
+        if let Some(arc_rwlock_ref) = self.outer_keypath.get(container) {
+            let arc_rwlock_ref = arc_rwlock_ref.borrow();
             let mut guard = arc_rwlock_ref.write().await;
             let value_ref = self.inner_keypath.get_mut(&mut *guard);
             Some(callback(value_ref))
@@ -4007,7 +4828,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioRwLockWritableKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static>
+    ) -> OptionalArcTokioRwLockWritableKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> &'r mut NextValue + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -4018,12 +4846,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcTokioRwLockWritableKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -4034,7 +4862,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcTokioRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -4045,12 +4880,12 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             let sub = first.get_mut(inner);
             second.get_mut(sub)
         });
-        
+
         OptionalArcTokioRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -4060,8 +4895,14 @@ where
 
 /// A composed writable optional async keypath chain from optional keypath through Arc<tokio::sync::RwLock<T>>
 #[cfg(feature = "tokio")]
-pub struct OptionalArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
-where
+pub struct OptionalArcTokioRwLockWritableOptionalKeyPathChain<
+    Root,
+    RwLockValue,
+    InnerValue,
+    SubValue,
+    F,
+    G,
+> where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
     G: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
@@ -4071,7 +4912,15 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<Root, RwLockValue, InnerValue, SubValue, F, G> OptionalArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, SubValue, F, G>
+impl<Root, RwLockValue, InnerValue, SubValue, F, G>
+    OptionalArcTokioRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        SubValue,
+        F,
+        G,
+    >
 where
     RwLockValue: std::borrow::Borrow<Arc<TokioRwLock<InnerValue>>>,
     F: for<'r> Fn(&'r Root) -> Option<&'r RwLockValue>,
@@ -4082,9 +4931,12 @@ where
     where
         Callback: FnOnce(&mut SubValue) -> R,
     {
-        if let Some(arc_rwlock_ref) = self.outer_keypath.get(container) { let arc_rwlock_ref = arc_rwlock_ref.borrow();
+        if let Some(arc_rwlock_ref) = self.outer_keypath.get(container) {
+            let arc_rwlock_ref = arc_rwlock_ref.borrow();
             let mut guard = arc_rwlock_ref.write().await;
-            self.inner_keypath.get_mut(&mut *guard).map(|value_ref| callback(value_ref))
+            self.inner_keypath
+                .get_mut(&mut *guard)
+                .map(|value_ref| callback(value_ref))
         } else {
             None
         }
@@ -4094,7 +4946,14 @@ where
     pub fn then<NextValue, H>(
         self,
         next: WritableKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcTokioRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> &'r mut NextValue,
         G: 'static,
@@ -4105,11 +4964,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).map(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcTokioRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -4120,7 +4979,14 @@ where
     pub fn chain_optional<NextValue, H>(
         self,
         next: WritableOptionalKeyPath<SubValue, NextValue, H>,
-    ) -> OptionalArcTokioRwLockWritableOptionalKeyPathChain<Root, RwLockValue, InnerValue, NextValue, F, impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static>
+    ) -> OptionalArcTokioRwLockWritableOptionalKeyPathChain<
+        Root,
+        RwLockValue,
+        InnerValue,
+        NextValue,
+        F,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue> + 'static,
+    >
     where
         H: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
         G: 'static,
@@ -4131,11 +4997,11 @@ where
     {
         let first = self.inner_keypath;
         let second = next;
-        
+
         let composed = WritableOptionalKeyPath::new(move |inner: &mut InnerValue| {
             first.get_mut(inner).and_then(|sub| second.get_mut(sub))
         });
-        
+
         OptionalArcTokioRwLockWritableOptionalKeyPathChain {
             outer_keypath: self.outer_keypath,
             inner_keypath: composed,
@@ -4146,25 +5012,24 @@ where
 #[cfg(feature = "tagged")]
 use tagged_core::Tagged;
 
-
 // ========== HELPER MACROS FOR KEYPATH CREATION ==========
 
 /// Macro to create a `KeyPath` (readable, non-optional)
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use rust_keypaths::keypath;
-/// 
+///
 /// struct User { name: String, address: Address }
 /// struct Address { street: String }
-/// 
+///
 /// // Using a closure with type annotation
 /// let kp = keypath!(|u: &User| &u.name);
-/// 
+///
 /// // Nested field access
 /// let kp = keypath!(|u: &User| &u.address.street);
-/// 
+///
 /// // Or with automatic type inference
 /// let kp = keypath!(|u| &u.name);
 /// ```
@@ -4177,21 +5042,21 @@ macro_rules! keypath {
 }
 
 /// Macro to create an `OptionalKeyPath` (readable, optional)
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use rust_keypaths::opt_keypath;
-/// 
+///
 /// struct User { metadata: Option<String>, address: Option<Address> }
 /// struct Address { street: String }
-/// 
+///
 /// // Using a closure with type annotation
 /// let kp = opt_keypath!(|u: &User| u.metadata.as_ref());
-/// 
+///
 /// // Nested field access through Option
 /// let kp = opt_keypath!(|u: &User| u.address.as_ref().map(|a| &a.street));
-/// 
+///
 /// // Or with automatic type inference
 /// let kp = opt_keypath!(|u| u.metadata.as_ref());
 /// ```
@@ -4204,21 +5069,21 @@ macro_rules! opt_keypath {
 }
 
 /// Macro to create a `WritableKeyPath` (writable, non-optional)
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use rust_keypaths::writable_keypath;
-/// 
+///
 /// struct User { name: String, address: Address }
 /// struct Address { street: String }
-/// 
+///
 /// // Using a closure with type annotation
 /// let kp = writable_keypath!(|u: &mut User| &mut u.name);
-/// 
+///
 /// // Nested field access
 /// let kp = writable_keypath!(|u: &mut User| &mut u.address.street);
-/// 
+///
 /// // Or with automatic type inference
 /// let kp = writable_keypath!(|u| &mut u.name);
 /// ```
@@ -4231,21 +5096,21 @@ macro_rules! writable_keypath {
 }
 
 /// Macro to create a `WritableOptionalKeyPath` (writable, optional)
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use rust_keypaths::writable_opt_keypath;
-/// 
+///
 /// struct User { metadata: Option<String>, address: Option<Address> }
 /// struct Address { street: String }
-/// 
+///
 /// // Using a closure with type annotation
 /// let kp = writable_opt_keypath!(|u: &mut User| u.metadata.as_mut());
-/// 
+///
 /// // Nested field access through Option
 /// let kp = writable_opt_keypath!(|u: &mut User| u.address.as_mut().map(|a| &mut a.street));
-/// 
+///
 /// // Or with automatic type inference
 /// let kp = writable_opt_keypath!(|u| u.metadata.as_mut());
 /// ```
@@ -4300,11 +5165,11 @@ where
             _phantom: PhantomData,
         }
     }
-    
+
     pub fn get<'r>(&self, root: &'r Root) -> &'r Value {
         (self.getter)(root)
     }
-    
+
     // Using fn pointer - works for identity
     // pub fn identity() -> KeyPath<Root, Root, fn(&Root) -> &Root> {
     //     KeyPath {
@@ -4320,14 +5185,13 @@ where
     //     }
     // }
 
-
     /// Chain this keypath with an inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get() time
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { mutex_data: Arc::new(Mutex::new(SomeStruct { data: "test".to_string() })) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_r()
     ///     .chain_arc_mutex_at_kp(SomeStruct::data_r())
@@ -4345,14 +5209,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with an optional inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get() time
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { mutex_data: Arc::new(Mutex::new(SomeStruct { optional_field: Some("test".to_string()) })) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_r()
     ///     .chain_arc_mutex_optional_at_kp(SomeStruct::optional_field_fr())
@@ -4370,14 +5234,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with an inner keypath through Arc<RwLock<T>> - functional style
     /// Compose first, then apply container at get() time (uses read lock)
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { rwlock_data: Arc::new(RwLock::new(SomeStruct { data: "test".to_string() })) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::rwlock_data_r()
     ///     .chain_arc_rwlock_at_kp(SomeStruct::data_r())
@@ -4395,14 +5259,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with an optional inner keypath through Arc<RwLock<T>> - functional style
     /// Compose first, then apply container at get() time (uses read lock)
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { rwlock_data: Arc::new(RwLock::new(SomeStruct { optional_field: Some("test".to_string()) })) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::rwlock_data_r()
     ///     .chain_arc_rwlock_optional_at_kp(SomeStruct::optional_field_fr())
@@ -4420,10 +5284,10 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with a writable inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get_mut() time
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// ContainerTest::mutex_data_r()
@@ -4442,10 +5306,10 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with a writable optional inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get_mut() time
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// ContainerTest::mutex_data_r()
@@ -4464,10 +5328,10 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with a writable inner keypath through Arc<RwLock<T>> - functional style
     /// Compose first, then apply container at get_mut() time (uses write lock)
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// ContainerTest::rwlock_data_r()
@@ -4486,10 +5350,10 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with a writable optional inner keypath through Arc<RwLock<T>> - functional style
     /// Compose first, then apply container at get_mut() time (uses write lock)
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// ContainerTest::rwlock_data_r()
@@ -4639,7 +5503,7 @@ where
 
     /// Monadic helper: shorthand for chain_arc_rwlock_writable_at_kp when Value is Arc<RwLock<T>>
     /// This allows chaining with .then().then().then() pattern for Arc<RwLock<T>> structures
-    /// 
+    ///
     /// # Example
     /// ```rust,ignore
     /// ContainerTest::rwlock_data_r()
@@ -4663,7 +5527,7 @@ where
 
     /// Convert this keypath to an Arc<RwLock> chain-ready keypath
     /// Returns self, but serves as a marker for intent and enables chaining
-    /// 
+    ///
     /// # Example
     /// ```rust,ignore
     /// Container::rwlock_data_r()
@@ -4689,7 +5553,7 @@ where
     #[cfg(feature = "parking_lot")]
     /// Convert this keypath to an Arc<parking_lot::RwLock> chain-ready keypath
     /// Returns self, but serves as a marker for intent and enables chaining
-    /// 
+    ///
     /// # Example
     /// ```rust,ignore
     /// Container::rwlock_data_r()
@@ -4715,7 +5579,7 @@ where
 
     /// Convert this keypath to an Arc<RwLock> chain keypath
     /// Creates a chain with an identity inner keypath, ready for further chaining
-    /// 
+    ///
     /// # Example
     /// ```rust,ignore
     /// Container::rwlock_data_r()
@@ -4725,14 +5589,23 @@ where
     /// Convert this keypath to an Arc<RwLock> chain keypath
     /// Creates a chain with an identity inner keypath, ready for further chaining
     /// Type inference automatically determines InnerValue from Value
-    /// 
+    ///
     /// # Example
     /// ```rust,ignore
     /// Container::rwlock_data_r()
     ///     .to_arc_rwlock_chain()
     ///     .then(InnerStruct::field_r());
     /// ```
-    pub fn to_arc_rwlock_chain<InnerValue>(self) -> ArcRwLockKeyPathChain<Root, Value, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    pub fn to_arc_rwlock_chain<InnerValue>(
+        self,
+    ) -> ArcRwLockKeyPathChain<
+        Root,
+        Value,
+        InnerValue,
+        InnerValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static,
+    >
     where
         Value: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
         F: 'static,
@@ -4748,7 +5621,16 @@ where
     /// Convert this keypath to an Arc<Mutex> chain keypath
     /// Creates a chain with an identity inner keypath, ready for further chaining
     /// Type inference automatically determines InnerValue from Value
-    pub fn to_arc_mutex_chain<InnerValue>(self) -> ArcMutexKeyPathChain<Root, Value, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    pub fn to_arc_mutex_chain<InnerValue>(
+        self,
+    ) -> ArcMutexKeyPathChain<
+        Root,
+        Value,
+        InnerValue,
+        InnerValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static,
+    >
     where
         Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
         F: 'static,
@@ -4765,7 +5647,7 @@ where
     // /// Convert this keypath to an Arc<parking_lot::RwLock> chain keypath
     // /// Creates a chain with an identity inner keypath, ready for further chaining
     // /// Type inference automatically determines InnerValue from Value
-    // /// 
+    // ///
     // /// # Example
     // /// ```rust,ignore
     // /// Container::rwlock_data_r()
@@ -4813,58 +5695,64 @@ where
 
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
     // Box<T> -> T
-    pub fn for_box<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
+    pub fn for_box<Target>(
+        self,
+    ) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
     where
         Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         KeyPath {
-            getter: move |root: &Root| {
-                getter(root).deref()
-            },
+            getter: move |root: &Root| getter(root).deref(),
             _phantom: PhantomData,
         }
     }
-    
+
     // Arc<T> -> T
-    pub fn for_arc<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
+    pub fn for_arc<Target>(
+        self,
+    ) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
     where
         Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         KeyPath {
-            getter: move |root: &Root| {
-                getter(root).deref()
-            },
+            getter: move |root: &Root| getter(root).deref(),
             _phantom: PhantomData,
         }
     }
-    
+
     // Rc<T> -> T
-    pub fn for_rc<Target>(self) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
+    pub fn for_rc<Target>(
+        self,
+    ) -> KeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> &'r Target + 'static>
     where
         Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         KeyPath {
-            getter: move |root: &Root| {
-                getter(root).deref()
-            },
+            getter: move |root: &Root| getter(root).deref(),
             _phantom: PhantomData,
         }
     }
-    
+
     // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
-    pub fn for_arc_root(self) -> OptionalKeyPath<Arc<Root>, Value, impl for<'r> Fn(&'r Arc<Root>) -> Option<&'r Value> + 'static>
+    pub fn for_arc_root(
+        self,
+    ) -> OptionalKeyPath<
+        Arc<Root>,
+        Value,
+        impl for<'r> Fn(&'r Arc<Root>) -> Option<&'r Value> + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -4872,17 +5760,21 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |arc: &Arc<Root>| {
-                Some(getter(arc.as_ref()))
-            },
+            getter: move |arc: &Arc<Root>| Some(getter(arc.as_ref())),
             _phantom: PhantomData,
         }
     }
-    
+
     // Overload: Adapt root type to Box<Root> when Value is Sized (not a container)
-    pub fn for_box_root(self) -> OptionalKeyPath<Box<Root>, Value, impl for<'r> Fn(&'r Box<Root>) -> Option<&'r Value> + 'static>
+    pub fn for_box_root(
+        self,
+    ) -> OptionalKeyPath<
+        Box<Root>,
+        Value,
+        impl for<'r> Fn(&'r Box<Root>) -> Option<&'r Value> + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -4890,17 +5782,21 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |boxed: &Box<Root>| {
-                Some(getter(boxed.as_ref()))
-            },
+            getter: move |boxed: &Box<Root>| Some(getter(boxed.as_ref())),
             _phantom: PhantomData,
         }
     }
-    
+
     // Overload: Adapt root type to Rc<Root> when Value is Sized (not a container)
-    pub fn for_rc_root(self) -> OptionalKeyPath<Rc<Root>, Value, impl for<'r> Fn(&'r Rc<Root>) -> Option<&'r Value> + 'static>
+    pub fn for_rc_root(
+        self,
+    ) -> OptionalKeyPath<
+        Rc<Root>,
+        Value,
+        impl for<'r> Fn(&'r Rc<Root>) -> Option<&'r Value> + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -4908,18 +5804,22 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |rc: &Rc<Root>| {
-                Some(getter(rc.as_ref()))
-            },
+            getter: move |rc: &Rc<Root>| Some(getter(rc.as_ref())),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Result<Root, E> instead of Root
     /// This unwraps the Result and applies the keypath to the Ok value
-    pub fn for_result<E>(self) -> OptionalKeyPath<Result<Root, E>, Value, impl for<'r> Fn(&'r Result<Root, E>) -> Option<&'r Value> + 'static>
+    pub fn for_result<E>(
+        self,
+    ) -> OptionalKeyPath<
+        Result<Root, E>,
+        Value,
+        impl for<'r> Fn(&'r Result<Root, E>) -> Option<&'r Value> + 'static,
+    >
     where
         F: 'static,
         Root: 'static,
@@ -4927,25 +5827,25 @@ where
         E: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |result: &Result<Root, E>| {
-                result.as_ref().ok().map(|root| getter(root))
-            },
+            getter: move |result: &Result<Root, E>| result.as_ref().ok().map(|root| getter(root)),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Convert a KeyPath to OptionalKeyPath for chaining
     /// This allows non-optional keypaths to be chained with then()
-    pub fn to_optional(self) -> OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>
+    pub fn to_optional(
+        self,
+    ) -> OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>
     where
         F: 'static,
     {
         let getter = self.getter;
         OptionalKeyPath::new(move |root: &Root| Some(getter(root)))
     }
-    
+
     /// Execute a closure with a reference to the value inside an Option
     pub fn with_option<Callback, R>(&self, option: &Option<Root>, f: Callback) -> Option<R>
     where
@@ -4957,7 +5857,7 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a reference to the value inside a Result
     pub fn with_result<Callback, R, E>(&self, result: &Result<Root, E>, f: Callback) -> Option<R>
     where
@@ -4969,7 +5869,7 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a reference to the value inside a Box
     pub fn with_box<Callback, R>(&self, boxed: &Box<Root>, f: Callback) -> R
     where
@@ -4979,7 +5879,7 @@ where
         let value = self.get(boxed);
         f(value)
     }
-    
+
     /// Execute a closure with a reference to the value inside an Arc
     pub fn with_arc<Callback, R>(&self, arc: &Arc<Root>, f: Callback) -> R
     where
@@ -4989,7 +5889,7 @@ where
         let value = self.get(arc);
         f(value)
     }
-    
+
     /// Execute a closure with a reference to the value inside an Rc
     pub fn with_rc<Callback, R>(&self, rc: &Rc<Root>, f: Callback) -> R
     where
@@ -4999,7 +5899,7 @@ where
         let value = self.get(rc);
         f(value)
     }
-    
+
     /// Execute a closure with a reference to the value inside a RefCell
     pub fn with_refcell<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
     where
@@ -5011,7 +5911,7 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a reference to the value inside a Mutex
     pub fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
     where
@@ -5023,7 +5923,7 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a reference to the value inside an RwLock
     pub fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
     where
@@ -5035,9 +5935,13 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
-    pub fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    pub fn with_arc_rwlock<Callback, R>(
+        &self,
+        arc_rwlock: &Arc<RwLock<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         F: Clone,
         Callback: FnOnce(&Value) -> R,
@@ -5047,9 +5951,13 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a reference to the value inside an Arc<Mutex<Root>>
-    pub fn with_arc_mutex<Callback, R>(&self, arc_mutex: &Arc<Mutex<Root>>, f: Callback) -> Option<R>
+    pub fn with_arc_mutex<Callback, R>(
+        &self,
+        arc_mutex: &Arc<Mutex<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         F: Clone,
         Callback: FnOnce(&Value) -> R,
@@ -5059,11 +5967,17 @@ where
             f(value)
         })
     }
-    
+
     #[cfg(feature = "tagged")]
     /// Adapt this keypath to work with Tagged<Root, Tag> instead of Root
     /// This unwraps the Tagged wrapper and applies the keypath to the inner value
-    pub fn for_tagged<Tag>(self) -> KeyPath<Tagged<Root, Tag>, Value, impl for<'r> Fn(&'r Tagged<Root, Tag>) -> &'r Value + 'static>
+    pub fn for_tagged<Tag>(
+        self,
+    ) -> KeyPath<
+        Tagged<Root, Tag>,
+        Value,
+        impl for<'r> Fn(&'r Tagged<Root, Tag>) -> &'r Value + 'static,
+    >
     where
         Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
         F: 'static,
@@ -5073,15 +5987,13 @@ where
     {
         use std::ops::Deref;
         let getter = self.getter;
-        
+
         KeyPath {
-            getter: move |tagged: &Tagged<Root, Tag>| {
-                getter(tagged.deref())
-            },
+            getter: move |tagged: &Tagged<Root, Tag>| getter(tagged.deref()),
             _phantom: PhantomData,
         }
     }
-    
+
     #[cfg(feature = "tagged")]
     /// Execute a closure with a reference to the value inside a Tagged
     /// This avoids cloning by working with references directly
@@ -5094,25 +6006,29 @@ where
         let value = self.get(tagged.deref());
         f(value)
     }
-    
+
     /// Adapt this keypath to work with Option<Root> instead of Root
     /// This converts the KeyPath to an OptionalKeyPath and unwraps the Option
-    pub fn for_option(self) -> OptionalKeyPath<Option<Root>, Value, impl for<'r> Fn(&'r Option<Root>) -> Option<&'r Value> + 'static>
+    pub fn for_option(
+        self,
+    ) -> OptionalKeyPath<
+        Option<Root>,
+        Value,
+        impl for<'r> Fn(&'r Option<Root>) -> Option<&'r Value> + 'static,
+    >
     where
         F: 'static,
         Root: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |opt: &Option<Root>| {
-                opt.as_ref().map(|root| getter(root))
-            },
+            getter: move |opt: &Option<Root>| opt.as_ref().map(|root| getter(root)),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Get an iterator over a Vec when Value is Vec<T>
     /// Returns Some(iterator) if the value is a Vec, None otherwise
     pub fn iter<'r, T>(&self, root: &'r Root) -> Option<std::slice::Iter<'r, T>>
@@ -5122,19 +6038,19 @@ where
         let value_ref: &'r Value = self.get(root);
         Some(value_ref.as_ref().iter())
     }
-    
+
     /// Extract values from a slice of owned values
     /// Returns a Vec of references to the extracted values
     pub fn extract_from_slice<'r>(&self, slice: &'r [Root]) -> Vec<&'r Value> {
         slice.iter().map(|item| self.get(item)).collect()
     }
-    
+
     /// Extract values from a slice of references
     /// Returns a Vec of references to the extracted values
     pub fn extract_from_ref_slice<'r>(&self, slice: &'r [&Root]) -> Vec<&'r Value> {
         slice.iter().map(|item| self.get(item)).collect()
     }
-    
+
     /// Chain this keypath with another keypath
     /// Returns a KeyPath that chains both keypaths
     pub fn then<SubValue, G>(
@@ -5149,13 +6065,13 @@ where
     {
         let first = self.getter;
         let second = next.getter;
-        
+
         KeyPath::new(move |root: &Root| {
             let value = first(root);
             second(value)
         })
     }
-    
+
     /// Chain this keypath with an optional keypath
     /// Returns an OptionalKeyPath that chains both keypaths
     pub fn chain_optional<SubValue, G>(
@@ -5170,13 +6086,12 @@ where
     {
         let first = self.getter;
         let second = next.getter;
-        
+
         OptionalKeyPath::new(move |root: &Root| {
             let value = first(root);
             second(value)
         })
     }
-    
 }
 
 // Extension methods for KeyPath to support Arc<RwLock> and Arc<Mutex> directly
@@ -5186,7 +6101,11 @@ where
 {
     /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
     /// This is a convenience method that works directly with Arc<RwLock<T>>
-    pub fn with_arc_rwlock_direct<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    pub fn with_arc_rwlock_direct<Callback, R>(
+        &self,
+        arc_rwlock: &Arc<RwLock<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&Value) -> R,
     {
@@ -5195,10 +6114,14 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a reference to the value inside an Arc<Mutex<Root>>
     /// This is a convenience method that works directly with Arc<Mutex<T>>
-    pub fn with_arc_mutex_direct<Callback, R>(&self, arc_mutex: &Arc<Mutex<Root>>, f: Callback) -> Option<R>
+    pub fn with_arc_mutex_direct<Callback, R>(
+        &self,
+        arc_mutex: &Arc<Mutex<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&Value) -> R,
     {
@@ -5216,11 +6139,13 @@ pub fn for_slice<T>() -> impl for<'r> Fn(&'r [T], usize) -> Option<&'r T> {
 
 // Container access utilities
 pub mod containers {
-    use super::{OptionalKeyPath, WritableOptionalKeyPath, KeyPath, WritableKeyPath};
-    use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
-    use std::sync::{Mutex, RwLock, Weak as StdWeak, Arc};
-    use std::rc::{Weak as RcWeak, Rc};
+    use super::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+    use std::collections::{
+        BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque,
+    };
     use std::ops::{Deref, DerefMut};
+    use std::rc::{Rc, Weak as RcWeak};
+    use std::sync::{Arc, Mutex, RwLock, Weak as StdWeak};
 
     #[cfg(feature = "parking_lot")]
     use parking_lot::{Mutex as ParkingMutex, RwLock as ParkingRwLock};
@@ -5229,24 +6154,31 @@ pub mod containers {
     use tagged_core::Tagged;
 
     /// Create a keypath for indexed access in Vec<T>
-    pub fn for_vec_index<T>(index: usize) -> OptionalKeyPath<Vec<T>, T, impl for<'r> Fn(&'r Vec<T>) -> Option<&'r T>> {
+    pub fn for_vec_index<T>(
+        index: usize,
+    ) -> OptionalKeyPath<Vec<T>, T, impl for<'r> Fn(&'r Vec<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(move |vec: &Vec<T>| vec.get(index))
     }
 
     /// Create a keypath for indexed access in VecDeque<T>
-    pub fn for_vecdeque_index<T>(index: usize) -> OptionalKeyPath<VecDeque<T>, T, impl for<'r> Fn(&'r VecDeque<T>) -> Option<&'r T>> {
+    pub fn for_vecdeque_index<T>(
+        index: usize,
+    ) -> OptionalKeyPath<VecDeque<T>, T, impl for<'r> Fn(&'r VecDeque<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(move |deque: &VecDeque<T>| deque.get(index))
     }
 
     /// Create a keypath for indexed access in LinkedList<T>
-    pub fn for_linkedlist_index<T>(index: usize) -> OptionalKeyPath<LinkedList<T>, T, impl for<'r> Fn(&'r LinkedList<T>) -> Option<&'r T>> {
-        OptionalKeyPath::new(move |list: &LinkedList<T>| {
-            list.iter().nth(index)
-        })
+    pub fn for_linkedlist_index<T>(
+        index: usize,
+    ) -> OptionalKeyPath<LinkedList<T>, T, impl for<'r> Fn(&'r LinkedList<T>) -> Option<&'r T>>
+    {
+        OptionalKeyPath::new(move |list: &LinkedList<T>| list.iter().nth(index))
     }
 
     /// Create a keypath for key-based access in HashMap<K, V>
-    pub fn for_hashmap_key<K, V>(key: K) -> OptionalKeyPath<HashMap<K, V>, V, impl for<'r> Fn(&'r HashMap<K, V>) -> Option<&'r V>>
+    pub fn for_hashmap_key<K, V>(
+        key: K,
+    ) -> OptionalKeyPath<HashMap<K, V>, V, impl for<'r> Fn(&'r HashMap<K, V>) -> Option<&'r V>>
     where
         K: std::hash::Hash + Eq + Clone + 'static,
         V: 'static,
@@ -5255,7 +6187,9 @@ pub mod containers {
     }
 
     /// Create a keypath for key-based access in BTreeMap<K, V>
-    pub fn for_btreemap_key<K, V>(key: K) -> OptionalKeyPath<BTreeMap<K, V>, V, impl for<'r> Fn(&'r BTreeMap<K, V>) -> Option<&'r V>>
+    pub fn for_btreemap_key<K, V>(
+        key: K,
+    ) -> OptionalKeyPath<BTreeMap<K, V>, V, impl for<'r> Fn(&'r BTreeMap<K, V>) -> Option<&'r V>>
     where
         K: Ord + Clone + 'static,
         V: 'static,
@@ -5264,7 +6198,9 @@ pub mod containers {
     }
 
     /// Create a keypath for getting a value from HashSet<T> (returns Option<&T>)
-    pub fn for_hashset_get<T>(value: T) -> OptionalKeyPath<HashSet<T>, T, impl for<'r> Fn(&'r HashSet<T>) -> Option<&'r T>>
+    pub fn for_hashset_get<T>(
+        value: T,
+    ) -> OptionalKeyPath<HashSet<T>, T, impl for<'r> Fn(&'r HashSet<T>) -> Option<&'r T>>
     where
         T: std::hash::Hash + Eq + Clone + 'static,
     {
@@ -5272,7 +6208,9 @@ pub mod containers {
     }
 
     /// Create a keypath for checking membership in BTreeSet<T>
-    pub fn for_btreeset_get<T>(value: T) -> OptionalKeyPath<BTreeSet<T>, T, impl for<'r> Fn(&'r BTreeSet<T>) -> Option<&'r T>>
+    pub fn for_btreeset_get<T>(
+        value: T,
+    ) -> OptionalKeyPath<BTreeSet<T>, T, impl for<'r> Fn(&'r BTreeSet<T>) -> Option<&'r T>>
     where
         T: Ord + Clone + 'static,
     {
@@ -5280,7 +6218,8 @@ pub mod containers {
     }
 
     /// Create a keypath for peeking at the top of BinaryHeap<T>
-    pub fn for_binaryheap_peek<T>() -> OptionalKeyPath<BinaryHeap<T>, T, impl for<'r> Fn(&'r BinaryHeap<T>) -> Option<&'r T>>
+    pub fn for_binaryheap_peek<T>()
+    -> OptionalKeyPath<BinaryHeap<T>, T, impl for<'r> Fn(&'r BinaryHeap<T>) -> Option<&'r T>>
     where
         T: Ord + 'static,
     {
@@ -5290,17 +6229,32 @@ pub mod containers {
     // ========== WRITABLE VERSIONS ==========
 
     /// Create a writable keypath for indexed access in Vec<T>
-    pub fn for_vec_index_mut<T>(index: usize) -> WritableOptionalKeyPath<Vec<T>, T, impl for<'r> Fn(&'r mut Vec<T>) -> Option<&'r mut T>> {
+    pub fn for_vec_index_mut<T>(
+        index: usize,
+    ) -> WritableOptionalKeyPath<Vec<T>, T, impl for<'r> Fn(&'r mut Vec<T>) -> Option<&'r mut T>>
+    {
         WritableOptionalKeyPath::new(move |vec: &mut Vec<T>| vec.get_mut(index))
     }
 
     /// Create a writable keypath for indexed access in VecDeque<T>
-    pub fn for_vecdeque_index_mut<T>(index: usize) -> WritableOptionalKeyPath<VecDeque<T>, T, impl for<'r> Fn(&'r mut VecDeque<T>) -> Option<&'r mut T>> {
+    pub fn for_vecdeque_index_mut<T>(
+        index: usize,
+    ) -> WritableOptionalKeyPath<
+        VecDeque<T>,
+        T,
+        impl for<'r> Fn(&'r mut VecDeque<T>) -> Option<&'r mut T>,
+    > {
         WritableOptionalKeyPath::new(move |deque: &mut VecDeque<T>| deque.get_mut(index))
     }
 
     /// Create a writable keypath for indexed access in LinkedList<T>
-    pub fn for_linkedlist_index_mut<T>(index: usize) -> WritableOptionalKeyPath<LinkedList<T>, T, impl for<'r> Fn(&'r mut LinkedList<T>) -> Option<&'r mut T>> {
+    pub fn for_linkedlist_index_mut<T>(
+        index: usize,
+    ) -> WritableOptionalKeyPath<
+        LinkedList<T>,
+        T,
+        impl for<'r> Fn(&'r mut LinkedList<T>) -> Option<&'r mut T>,
+    > {
         WritableOptionalKeyPath::new(move |list: &mut LinkedList<T>| {
             // LinkedList doesn't have get_mut, so we need to iterate
             let mut iter = list.iter_mut();
@@ -5309,7 +6263,13 @@ pub mod containers {
     }
 
     /// Create a writable keypath for key-based access in HashMap<K, V>
-    pub fn for_hashmap_key_mut<K, V>(key: K) -> WritableOptionalKeyPath<HashMap<K, V>, V, impl for<'r> Fn(&'r mut HashMap<K, V>) -> Option<&'r mut V>>
+    pub fn for_hashmap_key_mut<K, V>(
+        key: K,
+    ) -> WritableOptionalKeyPath<
+        HashMap<K, V>,
+        V,
+        impl for<'r> Fn(&'r mut HashMap<K, V>) -> Option<&'r mut V>,
+    >
     where
         K: std::hash::Hash + Eq + Clone + 'static,
         V: 'static,
@@ -5318,7 +6278,13 @@ pub mod containers {
     }
 
     /// Create a writable keypath for key-based access in BTreeMap<K, V>
-    pub fn for_btreemap_key_mut<K, V>(key: K) -> WritableOptionalKeyPath<BTreeMap<K, V>, V, impl for<'r> Fn(&'r mut BTreeMap<K, V>) -> Option<&'r mut V>>
+    pub fn for_btreemap_key_mut<K, V>(
+        key: K,
+    ) -> WritableOptionalKeyPath<
+        BTreeMap<K, V>,
+        V,
+        impl for<'r> Fn(&'r mut BTreeMap<K, V>) -> Option<&'r mut V>,
+    >
     where
         K: Ord + Clone + 'static,
         V: 'static,
@@ -5328,7 +6294,13 @@ pub mod containers {
 
     /// Create a writable keypath for getting a mutable value from HashSet<T>
     /// Note: HashSet doesn't support mutable access to elements, but we provide it for consistency
-    pub fn for_hashset_get_mut<T>(value: T) -> WritableOptionalKeyPath<HashSet<T>, T, impl for<'r> Fn(&'r mut HashSet<T>) -> Option<&'r mut T>>
+    pub fn for_hashset_get_mut<T>(
+        value: T,
+    ) -> WritableOptionalKeyPath<
+        HashSet<T>,
+        T,
+        impl for<'r> Fn(&'r mut HashSet<T>) -> Option<&'r mut T>,
+    >
     where
         T: std::hash::Hash + Eq + Clone + 'static,
     {
@@ -5347,7 +6319,13 @@ pub mod containers {
 
     /// Create a writable keypath for getting a mutable value from BTreeSet<T>
     /// Note: BTreeSet doesn't support mutable access to elements, but we provide it for consistency
-    pub fn for_btreeset_get_mut<T>(value: T) -> WritableOptionalKeyPath<BTreeSet<T>, T, impl for<'r> Fn(&'r mut BTreeSet<T>) -> Option<&'r mut T>>
+    pub fn for_btreeset_get_mut<T>(
+        value: T,
+    ) -> WritableOptionalKeyPath<
+        BTreeSet<T>,
+        T,
+        impl for<'r> Fn(&'r mut BTreeSet<T>) -> Option<&'r mut T>,
+    >
     where
         T: Ord + Clone + 'static,
     {
@@ -5369,16 +6347,18 @@ pub mod containers {
     /// Due to Rust's borrowing rules, we cannot return &mut T directly from PeekMut.
     /// This function returns None as BinaryHeap doesn't support direct mutable access
     /// through keypaths. Use heap.peek_mut() directly for mutable access.
-    pub fn for_binaryheap_peek_mut<T>() -> WritableOptionalKeyPath<BinaryHeap<T>, T, impl for<'r> Fn(&'r mut BinaryHeap<T>) -> Option<&'r mut T>>
+    pub fn for_binaryheap_peek_mut<T>() -> WritableOptionalKeyPath<
+        BinaryHeap<T>,
+        T,
+        impl for<'r> Fn(&'r mut BinaryHeap<T>) -> Option<&'r mut T>,
+    >
     where
         T: Ord + 'static,
     {
         // BinaryHeap.peek_mut() returns PeekMut which is a guard type that owns the mutable reference.
         // We cannot return &mut T from it due to lifetime constraints.
         // This is a fundamental limitation - use heap.peek_mut() directly instead.
-        WritableOptionalKeyPath::new(|_heap: &mut BinaryHeap<T>| {
-            None
-        })
+        WritableOptionalKeyPath::new(|_heap: &mut BinaryHeap<T>| None)
     }
 
     // ========== SYNCHRONIZATION PRIMITIVES ==========
@@ -5417,14 +6397,18 @@ pub mod containers {
     /// Helper function to read-lock an Arc<RwLock<T>> and access its value
     /// Returns None if the lock is poisoned
     /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
-    pub fn read_arc_rwlock<T>(arc_rwlock: &Arc<RwLock<T>>) -> Option<std::sync::RwLockReadGuard<'_, T>> {
+    pub fn read_arc_rwlock<T>(
+        arc_rwlock: &Arc<RwLock<T>>,
+    ) -> Option<std::sync::RwLockReadGuard<'_, T>> {
         arc_rwlock.read().ok()
     }
 
     /// Helper function to write-lock an Arc<RwLock<T>> and access its value
     /// Returns None if the lock is poisoned
     /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
-    pub fn write_arc_rwlock<T>(arc_rwlock: &Arc<RwLock<T>>) -> Option<std::sync::RwLockWriteGuard<'_, T>> {
+    pub fn write_arc_rwlock<T>(
+        arc_rwlock: &Arc<RwLock<T>>,
+    ) -> Option<std::sync::RwLockWriteGuard<'_, T>> {
         arc_rwlock.write().ok()
     }
 
@@ -5452,21 +6436,26 @@ pub mod containers {
     #[cfg(feature = "parking_lot")]
     /// Helper function to read-lock a parking_lot::RwLock<T> and access its value
     /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
-    pub fn read_parking_rwlock<T>(rwlock: &ParkingRwLock<T>) -> parking_lot::RwLockReadGuard<'_, T> {
+    pub fn read_parking_rwlock<T>(
+        rwlock: &ParkingRwLock<T>,
+    ) -> parking_lot::RwLockReadGuard<'_, T> {
         rwlock.read()
     }
 
     #[cfg(feature = "parking_lot")]
     /// Helper function to write-lock a parking_lot::RwLock<T> and access its value
     /// Note: This returns a guard, not a reference, so it cannot be used in keypaths directly
-    pub fn write_parking_rwlock<T>(rwlock: &ParkingRwLock<T>) -> parking_lot::RwLockWriteGuard<'_, T> {
+    pub fn write_parking_rwlock<T>(
+        rwlock: &ParkingRwLock<T>,
+    ) -> parking_lot::RwLockWriteGuard<'_, T> {
         rwlock.write()
     }
 
     #[cfg(feature = "tagged")]
     /// Create a keypath for accessing the inner value of Tagged<Tag, T>
     /// Tagged implements Deref, so we can access the inner value directly
-    pub fn for_tagged<Tag, T>() -> KeyPath<Tagged<Tag, T>, T, impl for<'r> Fn(&'r Tagged<Tag, T>) -> &'r T>
+    pub fn for_tagged<Tag, T>()
+    -> KeyPath<Tagged<Tag, T>, T, impl for<'r> Fn(&'r Tagged<Tag, T>) -> &'r T>
     where
         Tagged<Tag, T>: std::ops::Deref<Target = T>,
         Tag: 'static,
@@ -5478,7 +6467,8 @@ pub mod containers {
     #[cfg(feature = "tagged")]
     /// Create a writable keypath for accessing the inner value of Tagged<Tag, T>
     /// Tagged implements DerefMut, so we can access the inner value directly
-    pub fn for_tagged_mut<Tag, T>() -> WritableKeyPath<Tagged<Tag, T>, T, impl for<'r> Fn(&'r mut Tagged<Tag, T>) -> &'r mut T>
+    pub fn for_tagged_mut<Tag, T>()
+    -> WritableKeyPath<Tagged<Tag, T>, T, impl for<'r> Fn(&'r mut Tagged<Tag, T>) -> &'r mut T>
     where
         Tagged<Tag, T>: std::ops::DerefMut<Target = T>,
         Tag: 'static,
@@ -5508,7 +6498,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with an optional inner keypath through Arc<parking_lot::Mutex<T>>
     pub fn then_arc_parking_mutex_optional_at_kp<SubValue, G>(
         self,
@@ -5522,7 +6512,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with a writable inner keypath through Arc<parking_lot::Mutex<T>>
     pub fn chain_arc_parking_mutex_writable_at_kp<SubValue, G>(
         self,
@@ -5536,7 +6526,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with a writable optional inner keypath through Arc<parking_lot::Mutex<T>>
     pub fn then_arc_parking_mutex_writable_optional_at_kp<SubValue, G>(
         self,
@@ -5570,7 +6560,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with an optional inner keypath through Arc<parking_lot::RwLock<T>>
     pub fn then_arc_parking_rwlock_optional_at_kp<SubValue, G>(
         self,
@@ -5584,7 +6574,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with a writable inner keypath through Arc<parking_lot::RwLock<T>>
     pub fn chain_arc_parking_rwlock_writable_at_kp<SubValue, G>(
         self,
@@ -5598,7 +6588,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this keypath with a writable optional inner keypath through Arc<parking_lot::RwLock<T>>
     pub fn then_arc_parking_rwlock_writable_optional_at_kp<SubValue, G>(
         self,
@@ -5634,7 +6624,11 @@ where
         // Simplify type names by removing module paths for cleaner output
         let root_short = root_name.split("::").last().unwrap_or(root_name);
         let value_short = value_name.split("::").last().unwrap_or(value_name);
-        write!(f, "OptionalKeyPath<{} -> Option<{}>>", root_short, value_short)
+        write!(
+            f,
+            "OptionalKeyPath<{} -> Option<{}>>",
+            root_short, value_short
+        )
     }
 }
 
@@ -5657,18 +6651,18 @@ where
             _phantom: PhantomData,
         }
     }
-    
+
     pub fn get<'r>(&self, root: &'r Root) -> Option<&'r Value> {
         (self.getter)(root)
     }
-    
+
     /// Chain this optional keypath with an inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get() time
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { mutex_data: Some(Arc::new(Mutex::new(SomeStruct { data: "test".to_string() }))) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_fr()
     ///     .chain_arc_mutex_at_kp(SomeStruct::data_r())
@@ -5686,14 +6680,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with an optional inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get() time
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { mutex_data: Some(Arc::new(Mutex::new(SomeStruct { optional_field: Some("test".to_string()) }))) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::mutex_data_fr()
     ///     .chain_arc_mutex_optional_at_kp(SomeStruct::optional_field_fr())
@@ -5711,14 +6705,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with an inner keypath through Arc<RwLock<T>> - functional style
     /// Compose first, then apply container at get() time (uses read lock)
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { rwlock_data: Some(Arc::new(RwLock::new(SomeStruct { data: "test".to_string() }))) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::rwlock_data_fr()
     ///     .chain_arc_rwlock_at_kp(SomeStruct::data_r())
@@ -5736,14 +6730,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with an optional inner keypath through Arc<RwLock<T>> - functional style
     /// Compose first, then apply container at get() time (uses read lock)
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { rwlock_data: Some(Arc::new(RwLock::new(SomeStruct { optional_field: Some("test".to_string()) }))) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get()
     /// ContainerTest::rwlock_data_fr()
     ///     .chain_arc_rwlock_optional_at_kp(SomeStruct::optional_field_fr())
@@ -5761,14 +6755,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with a writable inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get_mut() time
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { mutex_data: Some(Arc::new(Mutex::new(SomeStruct { data: "test".to_string() }))) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get_mut()
     /// ContainerTest::mutex_data_fr()
     ///     .chain_arc_mutex_writable_at_kp(SomeStruct::data_w())
@@ -5786,14 +6780,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with a writable optional inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get_mut() time
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { mutex_data: Some(Arc::new(Mutex::new(SomeStruct { optional_field: Some("test".to_string()) }))) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get_mut()
     /// ContainerTest::mutex_data_fr()
     ///     .chain_arc_mutex_writable_optional_at_kp(SomeStruct::optional_field_fw())
@@ -5811,14 +6805,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with a writable inner keypath through Arc<RwLock<T>> - functional style
     /// Compose first, then apply container at get_mut() time (uses write lock)
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { rwlock_data: Some(Arc::new(RwLock::new(SomeStruct { data: "test".to_string() }))) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get_mut()
     /// ContainerTest::rwlock_data_fr()
     ///     .chain_arc_rwlock_writable_at_kp(SomeStruct::data_w())
@@ -5836,14 +6830,14 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with a writable optional inner keypath through Arc<RwLock<T>> - functional style
     /// Compose first, then apply container at get_mut() time (uses write lock)
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let container = ContainerTest { rwlock_data: Some(Arc::new(RwLock::new(SomeStruct { optional_field: Some("test".to_string()) }))) };
-    /// 
+    ///
     /// // Functional style: compose first, apply container at get_mut()
     /// ContainerTest::rwlock_data_fr()
     ///     .chain_arc_rwlock_writable_optional_at_kp(SomeStruct::optional_field_fw())
@@ -5989,7 +6983,7 @@ where
             inner_keypath,
         }
     }
-    
+
     // Swift-like operator for chaining OptionalKeyPath
     pub fn then<SubValue, G>(
         self,
@@ -6003,68 +6997,72 @@ where
     {
         let first = self.getter;
         let second = next.getter;
-        
-        OptionalKeyPath::new(move |root: &Root| {
-            first(root).and_then(|value| second(value))
-        })
+
+        OptionalKeyPath::new(move |root: &Root| first(root).and_then(|value| second(value)))
     }
-    
+
     // Instance methods for unwrapping containers from Option<Container<T>>
     // Option<Box<T>> -> Option<&T> (type automatically inferred from Value::Target)
-    pub fn for_box<Target>(self) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
+    pub fn for_box<Target>(
+        self,
+    ) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
     where
         Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |root: &Root| {
-                getter(root).map(|boxed| boxed.deref())
-            },
+            getter: move |root: &Root| getter(root).map(|boxed| boxed.deref()),
             _phantom: PhantomData,
         }
     }
-    
+
     // Option<Arc<T>> -> Option<&T> (type automatically inferred from Value::Target)
-    pub fn for_arc<Target>(self) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
+    pub fn for_arc<Target>(
+        self,
+    ) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
     where
         Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |root: &Root| {
-                getter(root).map(|arc| arc.deref())
-            },
+            getter: move |root: &Root| getter(root).map(|arc| arc.deref()),
             _phantom: PhantomData,
         }
     }
-    
+
     // Option<Rc<T>> -> Option<&T> (type automatically inferred from Value::Target)
-    pub fn for_rc<Target>(self) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
+    pub fn for_rc<Target>(
+        self,
+    ) -> OptionalKeyPath<Root, Target, impl for<'r> Fn(&'r Root) -> Option<&'r Target> + 'static>
     where
         Value: std::ops::Deref<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |root: &Root| {
-                getter(root).map(|rc| rc.deref())
-            },
+            getter: move |root: &Root| getter(root).map(|rc| rc.deref()),
             _phantom: PhantomData,
         }
     }
-    
+
     #[cfg(feature = "tagged")]
     /// Adapt this keypath to work with Tagged<Root, Tag> instead of Root
     /// This unwraps the Tagged wrapper and applies the keypath to the inner value
-    pub fn for_tagged<Tag>(self) -> OptionalKeyPath<Tagged<Root, Tag>, Value, impl for<'r> Fn(&'r Tagged<Root, Tag>) -> Option<&'r Value> + 'static>
+    pub fn for_tagged<Tag>(
+        self,
+    ) -> OptionalKeyPath<
+        Tagged<Root, Tag>,
+        Value,
+        impl for<'r> Fn(&'r Tagged<Root, Tag>) -> Option<&'r Value> + 'static,
+    >
     where
         Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
         F: 'static,
@@ -6074,19 +7072,21 @@ where
     {
         use std::ops::Deref;
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |tagged: &Tagged<Root, Tag>| {
-                getter(tagged.deref())
-            },
+            getter: move |tagged: &Tagged<Root, Tag>| getter(tagged.deref()),
             _phantom: PhantomData,
         }
     }
-    
+
     #[cfg(feature = "tagged")]
     /// Execute a closure with a reference to the value inside a Tagged
     /// This avoids cloning by working with references directly
-    pub fn with_tagged<Tag, Callback, R>(&self, tagged: &Tagged<Root, Tag>, f: Callback) -> Option<R>
+    pub fn with_tagged<Tag, Callback, R>(
+        &self,
+        tagged: &Tagged<Root, Tag>,
+        f: Callback,
+    ) -> Option<R>
     where
         Tagged<Root, Tag>: std::ops::Deref<Target = Root>,
         F: Clone,
@@ -6095,28 +7095,38 @@ where
         use std::ops::Deref;
         self.get(tagged.deref()).map(|value| f(value))
     }
-    
+
     /// Adapt this keypath to work with Option<Root> instead of Root
     /// This unwraps the Option and applies the keypath to the inner value
-    pub fn for_option(self) -> OptionalKeyPath<Option<Root>, Value, impl for<'r> Fn(&'r Option<Root>) -> Option<&'r Value> + 'static>
+    pub fn for_option(
+        self,
+    ) -> OptionalKeyPath<
+        Option<Root>,
+        Value,
+        impl for<'r> Fn(&'r Option<Root>) -> Option<&'r Value> + 'static,
+    >
     where
         F: 'static,
         Root: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |opt: &Option<Root>| {
-                opt.as_ref().and_then(|root| getter(root))
-            },
+            getter: move |opt: &Option<Root>| opt.as_ref().and_then(|root| getter(root)),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Result<Root, E> instead of Root
     /// This unwraps the Result and applies the keypath to the Ok value
-    pub fn for_result<E>(self) -> OptionalKeyPath<Result<Root, E>, Value, impl for<'r> Fn(&'r Result<Root, E>) -> Option<&'r Value> + 'static>
+    pub fn for_result<E>(
+        self,
+    ) -> OptionalKeyPath<
+        Result<Root, E>,
+        Value,
+        impl for<'r> Fn(&'r Result<Root, E>) -> Option<&'r Value> + 'static,
+    >
     where
         F: 'static,
         Root: 'static,
@@ -6124,7 +7134,7 @@ where
         E: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
             getter: move |result: &Result<Root, E>| {
                 result.as_ref().ok().and_then(|root| getter(root))
@@ -6177,7 +7187,16 @@ where
     /// Convert this optional keypath to an Arc<RwLock> chain keypath
     /// Creates a chain with an identity inner keypath, ready for further chaining
     /// Type inference automatically determines InnerValue from Value
-    pub fn to_arc_rwlock_chain<InnerValue>(self) -> OptionalArcRwLockKeyPathChain<Root, Value, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    pub fn to_arc_rwlock_chain<InnerValue>(
+        self,
+    ) -> OptionalArcRwLockKeyPathChain<
+        Root,
+        Value,
+        InnerValue,
+        InnerValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static,
+    >
     where
         Value: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
         F: 'static,
@@ -6193,7 +7212,16 @@ where
     /// Convert this optional keypath to an Arc<Mutex> chain keypath
     /// Creates a chain with an identity inner keypath, ready for further chaining
     /// Type inference automatically determines InnerValue from Value
-    pub fn to_arc_mutex_chain<InnerValue>(self) -> OptionalArcMutexKeyPathChain<Root, Value, InnerValue, InnerValue, F, impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static>
+    pub fn to_arc_mutex_chain<InnerValue>(
+        self,
+    ) -> OptionalArcMutexKeyPathChain<
+        Root,
+        Value,
+        InnerValue,
+        InnerValue,
+        F,
+        impl for<'r> Fn(&'r InnerValue) -> &'r InnerValue + 'static,
+    >
     where
         Value: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
         F: 'static,
@@ -6249,9 +7277,15 @@ where
     //     });
     //     lock_kp.chain_arc_parking_mutex_at_kp(identity)
     // }
-    
+
     // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
-    pub fn for_arc_root(self) -> OptionalKeyPath<Arc<Root>, Value, impl for<'r> Fn(&'r Arc<Root>) -> Option<&'r Value> + 'static>
+    pub fn for_arc_root(
+        self,
+    ) -> OptionalKeyPath<
+        Arc<Root>,
+        Value,
+        impl for<'r> Fn(&'r Arc<Root>) -> Option<&'r Value> + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -6259,17 +7293,21 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |arc: &Arc<Root>| {
-                getter(arc.as_ref())
-            },
+            getter: move |arc: &Arc<Root>| getter(arc.as_ref()),
             _phantom: PhantomData,
         }
     }
-    
+
     // Overload: Adapt root type to Rc<Root> when Value is Sized (not a container)
-    pub fn for_rc_root(self) -> OptionalKeyPath<Rc<Root>, Value, impl for<'r> Fn(&'r Rc<Root>) -> Option<&'r Value> + 'static>
+    pub fn for_rc_root(
+        self,
+    ) -> OptionalKeyPath<
+        Rc<Root>,
+        Value,
+        impl for<'r> Fn(&'r Rc<Root>) -> Option<&'r Value> + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -6277,80 +7315,95 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         OptionalKeyPath {
-            getter: move |rc: &Rc<Root>| {
-                getter(rc.as_ref())
-            },
+            getter: move |rc: &Rc<Root>| getter(rc.as_ref()),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Execute a closure with a reference to the value inside an Option
     pub fn with_option<Callback, R>(&self, option: &Option<Root>, f: Callback) -> Option<R>
     where
         F: Clone,
         Callback: FnOnce(&Value) -> R,
     {
-        option.as_ref().and_then(|root| {
-            self.get(root).map(|value| f(value))
-        })
+        option
+            .as_ref()
+            .and_then(|root| self.get(root).map(|value| f(value)))
     }
-    
+
     /// Execute a closure with a reference to the value inside a Mutex
     pub fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
     where
         F: Clone,
         Callback: FnOnce(&Value) -> R,
     {
-        mutex.lock().ok().and_then(|guard| {
-            self.get(&*guard).map(|value| f(value))
-        })
+        mutex
+            .lock()
+            .ok()
+            .and_then(|guard| self.get(&*guard).map(|value| f(value)))
     }
-    
+
     /// Execute a closure with a reference to the value inside an RwLock
     pub fn with_rwlock<Callback, R>(&self, rwlock: &RwLock<Root>, f: Callback) -> Option<R>
     where
         F: Clone,
         Callback: FnOnce(&Value) -> R,
     {
-        rwlock.read().ok().and_then(|guard| {
-            self.get(&*guard).map(|value| f(value))
-        })
+        rwlock
+            .read()
+            .ok()
+            .and_then(|guard| self.get(&*guard).map(|value| f(value)))
     }
-    
+
     /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
-    pub fn with_arc_rwlock<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    pub fn with_arc_rwlock<Callback, R>(
+        &self,
+        arc_rwlock: &Arc<RwLock<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         F: Clone,
         Callback: FnOnce(&Value) -> R,
     {
-        arc_rwlock.read().ok().and_then(|guard| {
-            self.get(&*guard).map(|value| f(value))
-        })
+        arc_rwlock
+            .read()
+            .ok()
+            .and_then(|guard| self.get(&*guard).map(|value| f(value)))
     }
-    
+
     /// Execute a closure with a reference to the value inside an Arc<RwLock<Root>>
     /// This is a convenience method that works directly with Arc<RwLock<T>>
     /// Unlike with_arc_rwlock, this doesn't require F: Clone
-    pub fn with_arc_rwlock_direct<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    pub fn with_arc_rwlock_direct<Callback, R>(
+        &self,
+        arc_rwlock: &Arc<RwLock<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&Value) -> R,
     {
-        arc_rwlock.read().ok().and_then(|guard| {
-            self.get(&*guard).map(|value| f(value))
-        })
+        arc_rwlock
+            .read()
+            .ok()
+            .and_then(|guard| self.get(&*guard).map(|value| f(value)))
     }
-    
+
     /// Execute a closure with a reference to the value inside an Arc<Mutex<Root>>
-    pub fn with_arc_mutex<Callback, R>(&self, arc_mutex: &Arc<Mutex<Root>>, f: Callback) -> Option<R>
+    pub fn with_arc_mutex<Callback, R>(
+        &self,
+        arc_mutex: &Arc<Mutex<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         F: Clone,
         Callback: FnOnce(&Value) -> R,
     {
-        arc_mutex.lock().ok().and_then(|guard| {
-            self.get(&*guard).map(|value| f(value))
-        })
+        arc_mutex
+            .lock()
+            .ok()
+            .and_then(|guard| self.get(&*guard).map(|value| f(value)))
     }
 }
 
@@ -6374,7 +7427,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with an optional inner keypath through Arc<parking_lot::Mutex<T>>
     pub fn then_arc_parking_mutex_optional_at_kp<SubValue, G>(
         self,
@@ -6388,7 +7441,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with a writable inner keypath through Arc<parking_lot::Mutex<T>>
     pub fn chain_arc_parking_mutex_writable_at_kp<SubValue, G>(
         self,
@@ -6402,7 +7455,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with a writable optional inner keypath through Arc<parking_lot::Mutex<T>>
     pub fn then_arc_parking_mutex_writable_optional_at_kp<SubValue, G>(
         self,
@@ -6436,7 +7489,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with an optional inner keypath through Arc<parking_lot::RwLock<T>>
     pub fn then_arc_parking_rwlock_optional_at_kp<SubValue, G>(
         self,
@@ -6450,7 +7503,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with a writable inner keypath through Arc<parking_lot::RwLock<T>>
     pub fn chain_arc_parking_rwlock_writable_at_kp<SubValue, G>(
         self,
@@ -6464,7 +7517,7 @@ where
             inner_keypath,
         }
     }
-    
+
     /// Chain this optional keypath with a writable optional inner keypath through Arc<parking_lot::RwLock<T>>
     pub fn then_arc_parking_rwlock_writable_optional_at_kp<SubValue, G>(
         self,
@@ -6479,7 +7532,6 @@ where
         }
     }
 }
-
 
 // WritableKeyPath for mutable access
 #[derive(Clone)]
@@ -6524,14 +7576,20 @@ where
             _phantom: PhantomData,
         }
     }
-    
+
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> &'r mut Value {
         (self.getter)(root)
     }
-    
+
     /// Adapt this keypath to work with Result<Root, E> instead of Root
     /// This unwraps the Result and applies the keypath to the Ok value
-    pub fn for_result<E>(self) -> WritableOptionalKeyPath<Result<Root, E>, Value, impl for<'r> Fn(&'r mut Result<Root, E>) -> Option<&'r mut Value> + 'static>
+    pub fn for_result<E>(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Result<Root, E>,
+        Value,
+        impl for<'r> Fn(&'r mut Result<Root, E>) -> Option<&'r mut Value> + 'static,
+    >
     where
         F: 'static,
         Root: 'static,
@@ -6539,7 +7597,7 @@ where
         E: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
             getter: move |result: &mut Result<Root, E>| {
                 result.as_mut().ok().map(|root| getter(root))
@@ -6547,9 +7605,15 @@ where
             _phantom: PhantomData,
         }
     }
-    
+
     // Overload: Adapt root type to Box<Root> when Value is Sized (not a container)
-    pub fn for_box_root(self) -> WritableKeyPath<Box<Root>, Value, impl for<'r> Fn(&'r mut Box<Root>) -> &'r mut Value + 'static>
+    pub fn for_box_root(
+        self,
+    ) -> WritableKeyPath<
+        Box<Root>,
+        Value,
+        impl for<'r> Fn(&'r mut Box<Root>) -> &'r mut Value + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -6557,97 +7621,105 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableKeyPath {
-            getter: move |boxed: &mut Box<Root>| {
-                getter(boxed.as_mut())
-            },
+            getter: move |boxed: &mut Box<Root>| getter(boxed.as_mut()),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Option<Root> instead of Root
     /// This unwraps the Option and applies the keypath to the Some value
-    pub fn for_option(self) -> WritableOptionalKeyPath<Option<Root>, Value, impl for<'r> Fn(&'r mut Option<Root>) -> Option<&'r mut Value> + 'static>
+    pub fn for_option(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Option<Root>,
+        Value,
+        impl for<'r> Fn(&'r mut Option<Root>) -> Option<&'r mut Value> + 'static,
+    >
     where
         F: 'static,
         Root: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
-            getter: move |option: &mut Option<Root>| {
-                option.as_mut().map(|root| getter(root))
-            },
+            getter: move |option: &mut Option<Root>| option.as_mut().map(|root| getter(root)),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Convert a WritableKeyPath to WritableOptionalKeyPath for chaining
     /// This allows non-optional writable keypaths to be chained with then()
-    pub fn to_optional(self) -> WritableOptionalKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>
+    pub fn to_optional(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Root,
+        Value,
+        impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+    >
     where
         F: 'static,
     {
         let getter = self.getter;
         WritableOptionalKeyPath::new(move |root: &mut Root| Some(getter(root)))
     }
-    
+
     // Instance methods for unwrapping containers (automatically infers Target from Value::Target)
     // Box<T> -> T
-    pub fn for_box<Target>(self) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
+    pub fn for_box<Target>(
+        self,
+    ) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
     where
         Value: std::ops::DerefMut<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableKeyPath {
-            getter: move |root: &mut Root| {
-                getter(root).deref_mut()
-            },
+            getter: move |root: &mut Root| getter(root).deref_mut(),
             _phantom: PhantomData,
         }
     }
-    
+
     // Arc<T> -> T (Note: Arc doesn't support mutable access, but we provide it for consistency)
     // This will require interior mutability patterns
-    pub fn for_arc<Target>(self) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
+    pub fn for_arc<Target>(
+        self,
+    ) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
     where
         Value: std::ops::DerefMut<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableKeyPath {
-            getter: move |root: &mut Root| {
-                getter(root).deref_mut()
-            },
+            getter: move |root: &mut Root| getter(root).deref_mut(),
             _phantom: PhantomData,
         }
     }
-    
+
     // Rc<T> -> T (Note: Rc doesn't support mutable access, but we provide it for consistency)
     // This will require interior mutability patterns
-    pub fn for_rc<Target>(self) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
+    pub fn for_rc<Target>(
+        self,
+    ) -> WritableKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> &'r mut Target + 'static>
     where
         Value: std::ops::DerefMut<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableKeyPath {
-            getter: move |root: &mut Root| {
-                getter(root).deref_mut()
-            },
+            getter: move |root: &mut Root| getter(root).deref_mut(),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Execute a closure with a mutable reference to the value inside a Box
     pub fn with_box_mut<Callback, R>(&self, boxed: &mut Box<Root>, f: Callback) -> R
     where
@@ -6657,9 +7729,13 @@ where
         let value = self.get_mut(boxed);
         f(value)
     }
-    
+
     /// Execute a closure with a mutable reference to the value inside a Result
-    pub fn with_result_mut<Callback, R, E>(&self, result: &mut Result<Root, E>, f: Callback) -> Option<R>
+    pub fn with_result_mut<Callback, R, E>(
+        &self,
+        result: &mut Result<Root, E>,
+        f: Callback,
+    ) -> Option<R>
     where
         F: Clone,
         Callback: FnOnce(&mut Value) -> R,
@@ -6669,7 +7745,7 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a mutable reference to the value inside an Option
     pub fn with_option_mut<Callback, R>(&self, option: &mut Option<Root>, f: Callback) -> Option<R>
     where
@@ -6681,7 +7757,7 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a mutable reference to the value inside a RefCell
     pub fn with_refcell_mut<Callback, R>(&self, refcell: &RefCell<Root>, f: Callback) -> Option<R>
     where
@@ -6693,7 +7769,7 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a mutable reference to the value inside a Mutex
     pub fn with_mutex_mut<Callback, R>(&self, mutex: &mut Mutex<Root>, f: Callback) -> Option<R>
     where
@@ -6705,7 +7781,7 @@ where
             f(value)
         })
     }
-    
+
     /// Execute a closure with a mutable reference to the value inside an RwLock
     pub fn with_rwlock_mut<Callback, R>(&self, rwlock: &mut RwLock<Root>, f: Callback) -> Option<R>
     where
@@ -6717,7 +7793,7 @@ where
             f(value)
         })
     }
-    
+
     /// Get a mutable iterator over a Vec when Value is Vec<T>
     /// Returns Some(iterator) if the value is a Vec, None otherwise
     pub fn iter_mut<'r, T>(&self, root: &'r mut Root) -> Option<std::slice::IterMut<'r, T>>
@@ -6727,19 +7803,22 @@ where
         let value_ref: &'r mut Value = self.get_mut(root);
         Some(value_ref.as_mut().iter_mut())
     }
-    
+
     /// Extract mutable values from a slice of owned mutable values
     /// Returns a Vec of mutable references to the extracted values
     pub fn extract_mut_from_slice<'r>(&self, slice: &'r mut [Root]) -> Vec<&'r mut Value> {
         slice.iter_mut().map(|item| self.get_mut(item)).collect()
     }
-    
+
     /// Extract mutable values from a slice of mutable references
     /// Returns a Vec of mutable references to the extracted values
-    pub fn extract_mut_from_ref_slice<'r>(&self, slice: &'r mut [&'r mut Root]) -> Vec<&'r mut Value> {
+    pub fn extract_mut_from_ref_slice<'r>(
+        &self,
+        slice: &'r mut [&'r mut Root],
+    ) -> Vec<&'r mut Value> {
         slice.iter_mut().map(|item| self.get_mut(*item)).collect()
     }
-    
+
     /// Chain this keypath with another writable keypath
     /// Returns a WritableKeyPath that chains both keypaths
     pub fn then<SubValue, G>(
@@ -6754,19 +7833,23 @@ where
     {
         let first = self.getter;
         let second = next.getter;
-        
+
         WritableKeyPath::new(move |root: &mut Root| {
             let value = first(root);
             second(value)
         })
     }
-    
+
     /// Chain this keypath with a writable optional keypath
     /// Returns a WritableOptionalKeyPath that chains both keypaths
     pub fn chain_optional<SubValue, G>(
         self,
         next: WritableOptionalKeyPath<Value, SubValue, G>,
-    ) -> WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>
+    ) -> WritableOptionalKeyPath<
+        Root,
+        SubValue,
+        impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>,
+    >
     where
         G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue>,
         F: 'static,
@@ -6775,7 +7858,7 @@ where
     {
         let first = self.getter;
         let second = next.getter;
-        
+
         WritableOptionalKeyPath::new(move |root: &mut Root| {
             let value = first(root);
             second(value)
@@ -6822,7 +7905,6 @@ where
     {
         self
     }
-
 }
 
 // WritableOptionalKeyPath for failable mutable access
@@ -6845,7 +7927,11 @@ where
         // Simplify type names by removing module paths for cleaner output
         let root_short = root_name.split("::").last().unwrap_or(root_name);
         let value_short = value_name.split("::").last().unwrap_or(value_name);
-        write!(f, "WritableOptionalKeyPath<{} -> Option<{}>>", root_short, value_short)
+        write!(
+            f,
+            "WritableOptionalKeyPath<{} -> Option<{}>>",
+            root_short, value_short
+        )
     }
 }
 
@@ -6859,14 +7945,25 @@ where
         let value_name = std::any::type_name::<Value>();
         let root_short = root_name.split("::").last().unwrap_or(root_name);
         let value_short = value_name.split("::").last().unwrap_or(value_name);
-        
+
         // Use alternate format for more detailed debugging
         if f.alternate() {
-            writeln!(f, "WritableOptionalKeyPath<{} -> Option<{}>>", root_short, value_short)?;
-            writeln!(f, "  ⚠ Chain may break if any intermediate step returns None")?;
+            writeln!(
+                f,
+                "WritableOptionalKeyPath<{} -> Option<{}>>",
+                root_short, value_short
+            )?;
+            writeln!(
+                f,
+                "  ⚠ Chain may break if any intermediate step returns None"
+            )?;
             writeln!(f, "  💡 Use trace_chain() to find where the chain breaks")
         } else {
-            write!(f, "WritableOptionalKeyPath<{} -> Option<{}>>", root_short, value_short)
+            write!(
+                f,
+                "WritableOptionalKeyPath<{} -> Option<{}>>",
+                root_short, value_short
+            )
         }
     }
 }
@@ -6881,20 +7978,20 @@ where
             _phantom: PhantomData,
         }
     }
-    
+
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut Value> {
         (self.getter)(root)
     }
-    
+
     /// Trace the chain to find where it breaks
     /// Returns Ok(()) if the chain succeeds, or Err with diagnostic information
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let path = SomeComplexStruct::scsf_fw()
     ///     .then(SomeOtherStruct::sosf_fw())
     ///     .then(SomeEnum::b_fw());
-    /// 
+    ///
     /// match path.trace_chain(&mut instance) {
     ///     Ok(()) => println!("Chain succeeded"),
     ///     Err(msg) => println!("Chain broken: {}", msg),
@@ -6908,34 +8005,45 @@ where
                 let value_name = std::any::type_name::<Value>();
                 let root_short = root_name.split("::").last().unwrap_or(root_name);
                 let value_short = value_name.split("::").last().unwrap_or(value_name);
-                Err(format!("{} -> Option<{}> returned None (chain broken at this step)", root_short, value_short))
+                Err(format!(
+                    "{} -> Option<{}> returned None (chain broken at this step)",
+                    root_short, value_short
+                ))
             }
         }
     }
-    
+
     /// Adapt this keypath to work with Option<Root> instead of Root
     /// This unwraps the Option and applies the keypath to the Some value
-    pub fn for_option(self) -> WritableOptionalKeyPath<Option<Root>, Value, impl for<'r> Fn(&'r mut Option<Root>) -> Option<&'r mut Value> + 'static>
+    pub fn for_option(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Option<Root>,
+        Value,
+        impl for<'r> Fn(&'r mut Option<Root>) -> Option<&'r mut Value> + 'static,
+    >
     where
         F: 'static,
         Root: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
-            getter: move |option: &mut Option<Root>| {
-                option.as_mut().and_then(|root| getter(root))
-            },
+            getter: move |option: &mut Option<Root>| option.as_mut().and_then(|root| getter(root)),
             _phantom: PhantomData,
         }
     }
-    
+
     // Swift-like operator for chaining WritableOptionalKeyPath
     pub fn then<SubValue, G>(
         self,
         next: WritableOptionalKeyPath<Value, SubValue, G>,
-    ) -> WritableOptionalKeyPath<Root, SubValue, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>>
+    ) -> WritableOptionalKeyPath<
+        Root,
+        SubValue,
+        impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue>,
+    >
     where
         G: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue>,
         F: 'static,
@@ -6944,67 +8052,85 @@ where
     {
         let first = self.getter;
         let second = next.getter;
-        
+
         WritableOptionalKeyPath::new(move |root: &mut Root| {
             first(root).and_then(|value| second(value))
         })
     }
-    
+
     // Instance methods for unwrapping containers from Option<Container<T>>
     // Option<Box<T>> -> Option<&mut T> (type automatically inferred from Value::Target)
-    pub fn for_box<Target>(self) -> WritableOptionalKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static>
+    pub fn for_box<Target>(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Root,
+        Target,
+        impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static,
+    >
     where
         Value: std::ops::DerefMut<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
-            getter: move |root: &mut Root| {
-                getter(root).map(|boxed| boxed.deref_mut())
-            },
+            getter: move |root: &mut Root| getter(root).map(|boxed| boxed.deref_mut()),
             _phantom: PhantomData,
         }
     }
-    
+
     // Option<Arc<T>> -> Option<&mut T> (type automatically inferred from Value::Target)
-    pub fn for_arc<Target>(self) -> WritableOptionalKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static>
+    pub fn for_arc<Target>(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Root,
+        Target,
+        impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static,
+    >
     where
         Value: std::ops::DerefMut<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
-            getter: move |root: &mut Root| {
-                getter(root).map(|arc| arc.deref_mut())
-            },
+            getter: move |root: &mut Root| getter(root).map(|arc| arc.deref_mut()),
             _phantom: PhantomData,
         }
     }
-    
+
     // Option<Rc<T>> -> Option<&mut T> (type automatically inferred from Value::Target)
-    pub fn for_rc<Target>(self) -> WritableOptionalKeyPath<Root, Target, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static>
+    pub fn for_rc<Target>(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Root,
+        Target,
+        impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Target> + 'static,
+    >
     where
         Value: std::ops::DerefMut<Target = Target>,
         F: 'static,
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
-            getter: move |root: &mut Root| {
-                getter(root).map(|rc| rc.deref_mut())
-            },
+            getter: move |root: &mut Root| getter(root).map(|rc| rc.deref_mut()),
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Result<Root, E> instead of Root
     /// This unwraps the Result and applies the keypath to the Ok value
-    pub fn for_result<E>(self) -> WritableOptionalKeyPath<Result<Root, E>, Value, impl for<'r> Fn(&'r mut Result<Root, E>) -> Option<&'r mut Value> + 'static>
+    pub fn for_result<E>(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Result<Root, E>,
+        Value,
+        impl for<'r> Fn(&'r mut Result<Root, E>) -> Option<&'r mut Value> + 'static,
+    >
     where
         F: 'static,
         Root: 'static,
@@ -7012,7 +8138,7 @@ where
         E: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
             getter: move |result: &mut Result<Root, E>| {
                 result.as_mut().ok().and_then(|root| getter(root))
@@ -7020,9 +8146,15 @@ where
             _phantom: PhantomData,
         }
     }
-    
+
     // Overload: Adapt root type to Box<Root> when Value is Sized (not a container)
-    pub fn for_box_root(self) -> WritableOptionalKeyPath<Box<Root>, Value, impl for<'r> Fn(&'r mut Box<Root>) -> Option<&'r mut Value> + 'static>
+    pub fn for_box_root(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Box<Root>,
+        Value,
+        impl for<'r> Fn(&'r mut Box<Root>) -> Option<&'r mut Value> + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -7030,17 +8162,21 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
-            getter: move |boxed: &mut Box<Root>| {
-                getter(boxed.as_mut())
-            },
+            getter: move |boxed: &mut Box<Root>| getter(boxed.as_mut()),
             _phantom: PhantomData,
         }
     }
-    
+
     // Overload: Adapt root type to Arc<Root> when Value is Sized (not a container)
-    pub fn for_arc_root(self) -> WritableOptionalKeyPath<Arc<Root>, Value, impl for<'r> Fn(&'r mut Arc<Root>) -> Option<&'r mut Value> + 'static>
+    pub fn for_arc_root(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Arc<Root>,
+        Value,
+        impl for<'r> Fn(&'r mut Arc<Root>) -> Option<&'r mut Value> + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -7048,7 +8184,7 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
             getter: move |arc: &mut Arc<Root>| {
                 // Arc doesn't support mutable access without interior mutability
@@ -7058,9 +8194,15 @@ where
             _phantom: PhantomData,
         }
     }
-    
+
     // Overload: Adapt root type to Rc<Root> when Value is Sized (not a container)
-    pub fn for_rc_root(self) -> WritableOptionalKeyPath<Rc<Root>, Value, impl for<'r> Fn(&'r mut Rc<Root>) -> Option<&'r mut Value> + 'static>
+    pub fn for_rc_root(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Rc<Root>,
+        Value,
+        impl for<'r> Fn(&'r mut Rc<Root>) -> Option<&'r mut Value> + 'static,
+    >
     where
         Value: Sized,
         F: 'static,
@@ -7068,7 +8210,7 @@ where
         Value: 'static,
     {
         let getter = self.getter;
-        
+
         WritableOptionalKeyPath {
             getter: move |rc: &mut Rc<Root>| {
                 // Rc doesn't support mutable access without interior mutability
@@ -7125,24 +8267,28 @@ where
 impl WritableOptionalKeyPath<(), (), fn(&mut ()) -> Option<&mut ()>> {
     // Static method for Option<T> -> Option<&mut T>
     // Note: This is a factory method. Use instance method `for_option()` to adapt existing keypaths.
-    pub fn for_option_static<T>() -> WritableOptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r mut Option<T>) -> Option<&'r mut T>> {
+    pub fn for_option_static<T>() -> WritableOptionalKeyPath<
+        Option<T>,
+        T,
+        impl for<'r> Fn(&'r mut Option<T>) -> Option<&'r mut T>,
+    > {
         WritableOptionalKeyPath::new(|opt: &mut Option<T>| opt.as_mut())
     }
-    
+
     /// Backword compatibility method for writable enum keypath
     // Create a writable enum keypath for enum variants
     /// This allows both reading and writing to enum variant fields
-    /// 
+    ///
     /// # Arguments
     /// * `embedder` - Function to embed a value into the enum variant (for API consistency, not used)
     /// * `read_extractor` - Function to extract a read reference from the enum (for API consistency, not used)
     /// * `write_extractor` - Function to extract a mutable reference from the enum
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// enum Color { Other(RGBU8) }
     /// struct RGBU8(u8, u8, u8);
-    /// 
+    ///
     /// let case_path = WritableOptionalKeyPath::writable_enum(
     ///     |v| Color::Other(v),
     ///     |p: &Color| match p { Color::Other(rgb) => Some(rgb), _ => None },
@@ -7153,7 +8299,11 @@ impl WritableOptionalKeyPath<(), (), fn(&mut ()) -> Option<&mut ()>> {
         _embedder: EmbedFn,
         _read_extractor: ReadExtractFn,
         write_extractor: WriteExtractFn,
-    ) -> WritableOptionalKeyPath<Enum, Variant, impl for<'r> Fn(&'r mut Enum) -> Option<&'r mut Variant> + 'static>
+    ) -> WritableOptionalKeyPath<
+        Enum,
+        Variant,
+        impl for<'r> Fn(&'r mut Enum) -> Option<&'r mut Variant> + 'static,
+    >
     where
         EmbedFn: Fn(Variant) -> Enum + 'static,
         ReadExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
@@ -7166,12 +8316,16 @@ impl WritableOptionalKeyPath<(), (), fn(&mut ()) -> Option<&mut ()>> {
 // Enum-specific keypaths
 /// EnumKeyPath - A keypath for enum variants that supports both extraction and embedding
 /// Uses generic type parameters instead of dynamic dispatch for zero-cost abstraction
-/// 
+///
 /// This struct serves dual purpose:
 /// 1. As a concrete keypath instance: `EnumKeyPath<Enum, Variant, ExtractFn, EmbedFn>`
 /// 2. As a namespace for static factory methods: `EnumKeyPath::readable_enum(...)`
-pub struct EnumKeyPath<Enum = (), Variant = (), ExtractFn = fn(&()) -> Option<&()>, EmbedFn = fn(()) -> ()> 
-where
+pub struct EnumKeyPath<
+    Enum = (),
+    Variant = (),
+    ExtractFn = fn(&()) -> Option<&()>,
+    EmbedFn = fn(()) -> (),
+> where
     ExtractFn: for<'r> Fn(&'r Enum) -> Option<&'r Variant> + 'static,
     EmbedFn: Fn(Variant) -> Enum + 'static,
 {
@@ -7185,31 +8339,28 @@ where
     EmbedFn: Fn(Variant) -> Enum + 'static,
 {
     /// Create a new EnumKeyPath with extractor and embedder functions
-    pub fn new(
-        extractor: ExtractFn,
-        embedder: EmbedFn,
-    ) -> Self {
+    pub fn new(extractor: ExtractFn, embedder: EmbedFn) -> Self {
         Self {
             extractor: OptionalKeyPath::new(extractor),
             embedder,
         }
     }
-    
+
     /// Extract the value from an enum variant
     pub fn get<'r>(&self, enum_value: &'r Enum) -> Option<&'r Variant> {
         self.extractor.get(enum_value)
     }
-    
+
     /// Embed a value into the enum variant
     pub fn embed(&self, value: Variant) -> Enum {
         (self.embedder)(value)
     }
-    
+
     /// Get the underlying OptionalKeyPath for composition
     pub fn as_optional(&self) -> &OptionalKeyPath<Enum, Variant, ExtractFn> {
         &self.extractor
     }
-    
+
     /// Convert to OptionalKeyPath (loses embedding capability but gains composition)
     pub fn to_optional(self) -> OptionalKeyPath<Enum, Variant, ExtractFn> {
         self.extractor
@@ -7230,64 +8381,69 @@ impl EnumKeyPath {
     {
         EnumKeyPath::new(extractor, embedder)
     }
-    
+
     /// Extract from a specific enum variant
     pub fn for_variant<Enum, Variant, ExtractFn>(
-        extractor: ExtractFn
+        extractor: ExtractFn,
     ) -> OptionalKeyPath<Enum, Variant, impl for<'r> Fn(&'r Enum) -> Option<&'r Variant>>
     where
         ExtractFn: Fn(&Enum) -> Option<&Variant>,
     {
         OptionalKeyPath::new(extractor)
     }
-    
+
     /// Match against multiple variants (returns a tagged union)
     pub fn for_match<Enum, Output, MatchFn>(
-        matcher: MatchFn
+        matcher: MatchFn,
     ) -> KeyPath<Enum, Output, impl for<'r> Fn(&'r Enum) -> &'r Output>
     where
         MatchFn: Fn(&Enum) -> &Output,
     {
         KeyPath::new(matcher)
     }
-    
+
     /// Extract from Result<T, E> - Ok variant
-    pub fn for_ok<T, E>() -> OptionalKeyPath<Result<T, E>, T, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r T>> {
+    pub fn for_ok<T, E>()
+    -> OptionalKeyPath<Result<T, E>, T, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r T>> {
         OptionalKeyPath::new(|result: &Result<T, E>| result.as_ref().ok())
     }
-    
+
     /// Extract from Result<T, E> - Err variant
-    pub fn for_err<T, E>() -> OptionalKeyPath<Result<T, E>, E, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r E>> {
+    pub fn for_err<T, E>()
+    -> OptionalKeyPath<Result<T, E>, E, impl for<'r> Fn(&'r Result<T, E>) -> Option<&'r E>> {
         OptionalKeyPath::new(|result: &Result<T, E>| result.as_ref().err())
     }
-    
+
     /// Extract from Option<T> - Some variant
-    pub fn for_some<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
+    pub fn for_some<T>()
+    -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
-    
+
     /// Extract from Option<T> - Some variant (alias for for_some for consistency)
-    pub fn for_option<T>() -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
+    pub fn for_option<T>()
+    -> OptionalKeyPath<Option<T>, T, impl for<'r> Fn(&'r Option<T>) -> Option<&'r T>> {
         OptionalKeyPath::new(|opt: &Option<T>| opt.as_ref())
     }
-    
+
     /// Unwrap Box<T> -> T
     pub fn for_box<T>() -> KeyPath<Box<T>, T, impl for<'r> Fn(&'r Box<T>) -> &'r T> {
         KeyPath::new(|b: &Box<T>| b.as_ref())
     }
-    
+
     /// Unwrap Arc<T> -> T
     pub fn for_arc<T>() -> KeyPath<Arc<T>, T, impl for<'r> Fn(&'r Arc<T>) -> &'r T> {
         KeyPath::new(|arc: &Arc<T>| arc.as_ref())
     }
-    
+
     /// Unwrap Rc<T> -> T
     pub fn for_rc<T>() -> KeyPath<std::rc::Rc<T>, T, impl for<'r> Fn(&'r std::rc::Rc<T>) -> &'r T> {
         KeyPath::new(|rc: &std::rc::Rc<T>| rc.as_ref())
     }
 
     /// Unwrap Box<T> -> T (mutable)
-    pub fn for_box_mut<T>() -> WritableKeyPath<Box<T>, T, impl for<'r> Fn(&'r mut Box<T>) -> &'r mut T> {
+    pub fn for_box_mut<T>()
+    -> WritableKeyPath<Box<T>, T, impl for<'r> Fn(&'r mut Box<T>) -> &'r mut T> {
         WritableKeyPath::new(|b: &mut Box<T>| b.as_mut())
     }
 
@@ -7308,9 +8464,9 @@ where
 
 /// PartialKeyPath - Hides the Value type but keeps Root visible
 /// Useful for storing keypaths in collections without knowing the exact Value type
-/// 
+///
 /// # Why PhantomData<Root>?
-/// 
+///
 /// `PhantomData<Root>` is needed because:
 /// 1. The `Root` type parameter is not actually stored in the struct (only used in the closure)
 /// 2. Rust needs to know the generic type parameter for:
@@ -7327,14 +8483,16 @@ pub struct PartialKeyPath<Root> {
 }
 
 impl<Root> PartialKeyPath<Root> {
-    pub fn new<Value>(keypath: KeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> &'r Value + 'static>) -> Self
+    pub fn new<Value>(
+        keypath: KeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> &'r Value + 'static>,
+    ) -> Self
     where
         Value: Any + 'static,
         Root: 'static,
     {
         let value_type_id = TypeId::of::<Value>();
         let getter = Rc::new(keypath.getter);
-        
+
         Self {
             getter: Rc::new(move |root: &Root| {
                 let value: &Value = getter(root);
@@ -7344,26 +8502,28 @@ impl<Root> PartialKeyPath<Root> {
             _phantom: PhantomData,
         }
     }
-    
+
     /// Create a PartialKeyPath from a concrete KeyPath
     /// Alias for `new()` for consistency with `from()` pattern
-    pub fn from<Value>(keypath: KeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> &'r Value + 'static>) -> Self
+    pub fn from<Value>(
+        keypath: KeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> &'r Value + 'static>,
+    ) -> Self
     where
         Value: Any + 'static,
         Root: 'static,
     {
         Self::new(keypath)
     }
-    
+
     pub fn get<'r>(&self, root: &'r Root) -> &'r dyn Any {
         (self.getter)(root)
     }
-    
+
     /// Get the TypeId of the Value type
     pub fn value_type_id(&self) -> TypeId {
         self.value_type_id
     }
-    
+
     /// Try to downcast the result to a specific type
     pub fn get_as<'a, Value: Any>(&self, root: &'a Root) -> Option<&'a Value> {
         if self.value_type_id == TypeId::of::<Value>() {
@@ -7372,13 +8532,13 @@ impl<Root> PartialKeyPath<Root> {
             None
         }
     }
-    
+
     /// Get a human-readable name for the value type
     /// Returns a string representation of the TypeId
     pub fn kind_name(&self) -> String {
         format!("{:?}", self.value_type_id)
     }
-    
+
     /// Adapt this keypath to work with Arc<Root> instead of Root
     pub fn for_arc(&self) -> PartialOptionalKeyPath<Arc<Root>>
     where
@@ -7386,16 +8546,14 @@ impl<Root> PartialKeyPath<Root> {
     {
         let getter = self.getter.clone();
         let value_type_id = self.value_type_id;
-        
+
         PartialOptionalKeyPath {
-            getter: Rc::new(move |arc: &Arc<Root>| {
-                Some(getter(arc.as_ref()))
-            }),
+            getter: Rc::new(move |arc: &Arc<Root>| Some(getter(arc.as_ref()))),
             value_type_id,
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Box<Root> instead of Root
     pub fn for_box(&self) -> PartialOptionalKeyPath<Box<Root>>
     where
@@ -7403,16 +8561,14 @@ impl<Root> PartialKeyPath<Root> {
     {
         let getter = self.getter.clone();
         let value_type_id = self.value_type_id;
-        
+
         PartialOptionalKeyPath {
-            getter: Rc::new(move |boxed: &Box<Root>| {
-                Some(getter(boxed.as_ref()))
-            }),
+            getter: Rc::new(move |boxed: &Box<Root>| Some(getter(boxed.as_ref()))),
             value_type_id,
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Rc<Root> instead of Root
     pub fn for_rc(&self) -> PartialOptionalKeyPath<Rc<Root>>
     where
@@ -7420,16 +8576,14 @@ impl<Root> PartialKeyPath<Root> {
     {
         let getter = self.getter.clone();
         let value_type_id = self.value_type_id;
-        
+
         PartialOptionalKeyPath {
-            getter: Rc::new(move |rc: &Rc<Root>| {
-                Some(getter(rc.as_ref()))
-            }),
+            getter: Rc::new(move |rc: &Rc<Root>| Some(getter(rc.as_ref()))),
             value_type_id,
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Option<Root> instead of Root
     pub fn for_option(&self) -> PartialOptionalKeyPath<Option<Root>>
     where
@@ -7437,16 +8591,14 @@ impl<Root> PartialKeyPath<Root> {
     {
         let getter = self.getter.clone();
         let value_type_id = self.value_type_id;
-        
+
         PartialOptionalKeyPath {
-            getter: Rc::new(move |opt: &Option<Root>| {
-                opt.as_ref().map(|root| getter(root))
-            }),
+            getter: Rc::new(move |opt: &Option<Root>| opt.as_ref().map(|root| getter(root))),
             value_type_id,
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Result<Root, E> instead of Root
     pub fn for_result<E>(&self) -> PartialOptionalKeyPath<Result<Root, E>>
     where
@@ -7455,7 +8607,7 @@ impl<Root> PartialKeyPath<Root> {
     {
         let getter = self.getter.clone();
         let value_type_id = self.value_type_id;
-        
+
         PartialOptionalKeyPath {
             getter: Rc::new(move |result: &Result<Root, E>| {
                 result.as_ref().ok().map(|root| getter(root))
@@ -7464,7 +8616,7 @@ impl<Root> PartialKeyPath<Root> {
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Arc<RwLock<Root>> instead of Root
     /// Note: This requires the Root to be cloned first, then use the keypath on the cloned value
     /// Example: `keypath.get_as::<Value>(&arc_rwlock.read().unwrap().clone())`
@@ -7484,7 +8636,7 @@ impl<Root> PartialKeyPath<Root> {
             _phantom: PhantomData,
         }
     }
-    
+
     /// Adapt this keypath to work with Arc<Mutex<Root>> instead of Root
     /// Note: This requires the Root to be cloned first, then use the keypath on the cloned value
     /// Example: `keypath.get_as::<Value>(&arc_mutex.lock().unwrap().clone())`
@@ -7508,9 +8660,9 @@ impl<Root> PartialKeyPath<Root> {
 
 /// PartialOptionalKeyPath - Hides the Value type but keeps Root visible
 /// Useful for storing optional keypaths in collections without knowing the exact Value type
-/// 
+///
 /// # Why PhantomData<Root>?
-/// 
+///
 /// See `PartialKeyPath` documentation for explanation of why `PhantomData` is needed.
 #[derive(Clone)]
 pub struct PartialOptionalKeyPath<Root> {
@@ -7520,32 +8672,36 @@ pub struct PartialOptionalKeyPath<Root> {
 }
 
 impl<Root> PartialOptionalKeyPath<Root> {
-    pub fn new<Value>(keypath: OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>) -> Self
+    pub fn new<Value>(
+        keypath: OptionalKeyPath<
+            Root,
+            Value,
+            impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+        >,
+    ) -> Self
     where
         Value: Any + 'static,
         Root: 'static,
     {
         let value_type_id = TypeId::of::<Value>();
         let getter = Rc::new(keypath.getter);
-        
+
         Self {
-            getter: Rc::new(move |root: &Root| {
-                getter(root).map(|value: &Value| value as &dyn Any)
-            }),
+            getter: Rc::new(move |root: &Root| getter(root).map(|value: &Value| value as &dyn Any)),
             value_type_id,
             _phantom: PhantomData,
         }
     }
-    
+
     pub fn get<'r>(&self, root: &'r Root) -> Option<&'r dyn Any> {
         (self.getter)(root)
     }
-    
+
     /// Get the TypeId of the Value type
     pub fn value_type_id(&self) -> TypeId {
         self.value_type_id
     }
-    
+
     /// Try to downcast the result to a specific type
     pub fn get_as<'a, Value: Any>(&self, root: &'a Root) -> Option<Option<&'a Value>> {
         if self.value_type_id == TypeId::of::<Value>() {
@@ -7554,7 +8710,7 @@ impl<Root> PartialOptionalKeyPath<Root> {
             None
         }
     }
-    
+
     /// Chain with another PartialOptionalKeyPath
     /// Note: This requires the Value type of the first keypath to match the Root type of the second
     /// For type-erased chaining, consider using AnyKeyPath instead
@@ -7569,7 +8725,7 @@ impl<Root> PartialOptionalKeyPath<Root> {
         let first = self.getter;
         let second = next.getter;
         let value_type_id = next.value_type_id;
-        
+
         PartialOptionalKeyPath {
             getter: Rc::new(move |root: &Root| {
                 first(root).and_then(|any| {
@@ -7587,9 +8743,9 @@ impl<Root> PartialOptionalKeyPath<Root> {
 }
 
 /// PartialWritableKeyPath - Hides the Value type but keeps Root visible (writable)
-/// 
+///
 /// # Why PhantomData<Root>?
-/// 
+///
 /// See `PartialKeyPath` documentation for explanation of why `PhantomData` is needed.
 #[derive(Clone)]
 pub struct PartialWritableKeyPath<Root> {
@@ -7599,14 +8755,20 @@ pub struct PartialWritableKeyPath<Root> {
 }
 
 impl<Root> PartialWritableKeyPath<Root> {
-    pub fn new<Value>(keypath: WritableKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static>) -> Self
+    pub fn new<Value>(
+        keypath: WritableKeyPath<
+            Root,
+            Value,
+            impl for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+        >,
+    ) -> Self
     where
         Value: Any + 'static,
         Root: 'static,
     {
         let value_type_id = TypeId::of::<Value>();
         let getter = Rc::new(keypath.getter);
-        
+
         Self {
             getter: Rc::new(move |root: &mut Root| {
                 let value: &mut Value = getter(root);
@@ -7616,26 +8778,32 @@ impl<Root> PartialWritableKeyPath<Root> {
             _phantom: PhantomData,
         }
     }
-    
+
     /// Create a PartialWritableKeyPath from a concrete WritableKeyPath
     /// Alias for `new()` for consistency with `from()` pattern
-    pub fn from<Value>(keypath: WritableKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static>) -> Self
+    pub fn from<Value>(
+        keypath: WritableKeyPath<
+            Root,
+            Value,
+            impl for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static,
+        >,
+    ) -> Self
     where
         Value: Any + 'static,
         Root: 'static,
     {
         Self::new(keypath)
     }
-    
+
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> &'r mut dyn Any {
         (self.getter)(root)
     }
-    
+
     /// Get the TypeId of the Value type
     pub fn value_type_id(&self) -> TypeId {
         self.value_type_id
     }
-    
+
     /// Try to downcast the result to a specific type
     pub fn get_mut_as<'a, Value: Any>(&self, root: &'a mut Root) -> Option<&'a mut Value> {
         if self.value_type_id == TypeId::of::<Value>() {
@@ -7647,9 +8815,9 @@ impl<Root> PartialWritableKeyPath<Root> {
 }
 
 /// PartialWritableOptionalKeyPath - Hides the Value type but keeps Root visible (writable optional)
-/// 
+///
 /// # Why PhantomData<Root>?
-/// 
+///
 /// See `PartialKeyPath` documentation for explanation of why `PhantomData` is needed.
 #[derive(Clone)]
 pub struct PartialWritableOptionalKeyPath<Root> {
@@ -7659,14 +8827,20 @@ pub struct PartialWritableOptionalKeyPath<Root> {
 }
 
 impl<Root> PartialWritableOptionalKeyPath<Root> {
-    pub fn new<Value>(keypath: WritableOptionalKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>) -> Self
+    pub fn new<Value>(
+        keypath: WritableOptionalKeyPath<
+            Root,
+            Value,
+            impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+        >,
+    ) -> Self
     where
         Value: Any + 'static,
         Root: 'static,
     {
         let value_type_id = TypeId::of::<Value>();
         let getter = Rc::new(keypath.getter);
-        
+
         Self {
             getter: Rc::new(move |root: &mut Root| {
                 getter(root).map(|value: &mut Value| value as &mut dyn Any)
@@ -7675,16 +8849,16 @@ impl<Root> PartialWritableOptionalKeyPath<Root> {
             _phantom: PhantomData,
         }
     }
-    
+
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut dyn Any> {
         (self.getter)(root)
     }
-    
+
     /// Get the TypeId of the Value type
     pub fn value_type_id(&self) -> TypeId {
         self.value_type_id
     }
-    
+
     /// Try to downcast the result to a specific type
     pub fn get_mut_as<'a, Value: Any>(&self, root: &'a mut Root) -> Option<Option<&'a mut Value>> {
         if self.value_type_id == TypeId::of::<Value>() {
@@ -7700,9 +8874,9 @@ impl<Root> PartialWritableOptionalKeyPath<Root> {
 /// AnyKeyPath - Hides both Root and Value types
 /// Equivalent to Swift's AnyKeyPath
 /// Useful for storing keypaths in collections without knowing either type
-/// 
+///
 /// # Why No PhantomData?
-/// 
+///
 /// Unlike `PartialKeyPath`, `AnyKeyPath` doesn't need `PhantomData` because:
 /// - Both `Root` and `Value` types are completely erased
 /// - We store `TypeId` instead for runtime type checking
@@ -7716,7 +8890,13 @@ pub struct AnyKeyPath {
 }
 
 impl AnyKeyPath {
-    pub fn new<Root, Value>(keypath: OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>) -> Self
+    pub fn new<Root, Value>(
+        keypath: OptionalKeyPath<
+            Root,
+            Value,
+            impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+        >,
+    ) -> Self
     where
         Root: Any + 'static,
         Value: Any + 'static,
@@ -7724,7 +8904,7 @@ impl AnyKeyPath {
         let root_type_id = TypeId::of::<Root>();
         let value_type_id = TypeId::of::<Value>();
         let getter = keypath.getter;
-        
+
         Self {
             getter: Rc::new(move |any: &dyn Any| {
                 if let Some(root) = any.downcast_ref::<Root>() {
@@ -7737,46 +8917,54 @@ impl AnyKeyPath {
             value_type_id,
         }
     }
-    
+
     /// Create an AnyKeyPath from a concrete OptionalKeyPath
     /// Alias for `new()` for consistency with `from()` pattern
-    pub fn from<Root, Value>(keypath: OptionalKeyPath<Root, Value, impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>) -> Self
+    pub fn from<Root, Value>(
+        keypath: OptionalKeyPath<
+            Root,
+            Value,
+            impl for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
+        >,
+    ) -> Self
     where
         Root: Any + 'static,
         Value: Any + 'static,
     {
         Self::new(keypath)
     }
-    
+
     pub fn get<'r>(&self, root: &'r dyn Any) -> Option<&'r dyn Any> {
         (self.getter)(root)
     }
-    
+
     /// Get the TypeId of the Root type
     pub fn root_type_id(&self) -> TypeId {
         self.root_type_id
     }
-    
+
     /// Get the TypeId of the Value type
     pub fn value_type_id(&self) -> TypeId {
         self.value_type_id
     }
-    
+
     /// Try to get the value with type checking
     pub fn get_as<'a, Root: Any, Value: Any>(&self, root: &'a Root) -> Option<Option<&'a Value>> {
-        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>() {
-            self.get(root as &dyn Any).map(|any| any.downcast_ref::<Value>())
+        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>()
+        {
+            self.get(root as &dyn Any)
+                .map(|any| any.downcast_ref::<Value>())
         } else {
             None
         }
     }
-    
+
     /// Get a human-readable name for the value type
     /// Returns a string representation of the TypeId
     pub fn kind_name(&self) -> String {
         format!("{:?}", self.value_type_id)
     }
-    
+
     /// Adapt this keypath to work with Arc<Root> instead of Root
     pub fn for_arc<Root>(&self) -> AnyKeyPath
     where
@@ -7785,7 +8973,7 @@ impl AnyKeyPath {
         let root_type_id = self.root_type_id;
         let value_type_id = self.value_type_id;
         let getter = self.getter.clone();
-        
+
         AnyKeyPath {
             getter: Rc::new(move |any: &dyn Any| {
                 if let Some(arc) = any.downcast_ref::<Arc<Root>>() {
@@ -7798,7 +8986,7 @@ impl AnyKeyPath {
             value_type_id,
         }
     }
-    
+
     /// Adapt this keypath to work with Box<Root> instead of Root
     pub fn for_box<Root>(&self) -> AnyKeyPath
     where
@@ -7807,7 +8995,7 @@ impl AnyKeyPath {
         let root_type_id = self.root_type_id;
         let value_type_id = self.value_type_id;
         let getter = self.getter.clone();
-        
+
         AnyKeyPath {
             getter: Rc::new(move |any: &dyn Any| {
                 if let Some(boxed) = any.downcast_ref::<Box<Root>>() {
@@ -7820,7 +9008,7 @@ impl AnyKeyPath {
             value_type_id,
         }
     }
-    
+
     /// Adapt this keypath to work with Rc<Root> instead of Root
     pub fn for_rc<Root>(&self) -> AnyKeyPath
     where
@@ -7829,7 +9017,7 @@ impl AnyKeyPath {
         let root_type_id = self.root_type_id;
         let value_type_id = self.value_type_id;
         let getter = self.getter.clone();
-        
+
         AnyKeyPath {
             getter: Rc::new(move |any: &dyn Any| {
                 if let Some(rc) = any.downcast_ref::<Rc<Root>>() {
@@ -7842,7 +9030,7 @@ impl AnyKeyPath {
             value_type_id,
         }
     }
-    
+
     /// Adapt this keypath to work with Option<Root> instead of Root
     pub fn for_option<Root>(&self) -> AnyKeyPath
     where
@@ -7851,7 +9039,7 @@ impl AnyKeyPath {
         let root_type_id = self.root_type_id;
         let value_type_id = self.value_type_id;
         let getter = self.getter.clone();
-        
+
         AnyKeyPath {
             getter: Rc::new(move |any: &dyn Any| {
                 if let Some(opt) = any.downcast_ref::<Option<Root>>() {
@@ -7864,7 +9052,7 @@ impl AnyKeyPath {
             value_type_id,
         }
     }
-    
+
     /// Adapt this keypath to work with Result<Root, E> instead of Root
     pub fn for_result<Root, E>(&self) -> AnyKeyPath
     where
@@ -7874,11 +9062,14 @@ impl AnyKeyPath {
         let root_type_id = self.root_type_id;
         let value_type_id = self.value_type_id;
         let getter = self.getter.clone();
-        
+
         AnyKeyPath {
             getter: Rc::new(move |any: &dyn Any| {
                 if let Some(result) = any.downcast_ref::<Result<Root, E>>() {
-                    result.as_ref().ok().and_then(|root| getter(root as &dyn Any))
+                    result
+                        .as_ref()
+                        .ok()
+                        .and_then(|root| getter(root as &dyn Any))
                 } else {
                     None
                 }
@@ -7887,7 +9078,7 @@ impl AnyKeyPath {
             value_type_id,
         }
     }
-    
+
     /// Adapt this keypath to work with Arc<RwLock<Root>> instead of Root
     /// Note: This requires the Root to be cloned first, then use the keypath on the cloned value
     pub fn for_arc_rwlock<Root>(&self) -> AnyKeyPath
@@ -7906,7 +9097,7 @@ impl AnyKeyPath {
             value_type_id: self.value_type_id,
         }
     }
-    
+
     /// Adapt this keypath to work with Arc<Mutex<Root>> instead of Root
     /// Note: This requires the Root to be cloned first, then use the keypath on the cloned value
     pub fn for_arc_mutex<Root>(&self) -> AnyKeyPath
@@ -7936,7 +9127,7 @@ pub struct AnyWritableKeyPath {
 }
 
 /// FailableCombinedKeyPath - A keypath that supports readable, writable, and owned access patterns
-/// 
+///
 /// This keypath type combines the functionality of OptionalKeyPath, WritableOptionalKeyPath,
 /// and adds owned access. It's useful when you need all three access patterns for the same field.
 #[derive(Clone)]
@@ -7952,7 +9143,8 @@ where
     _phantom: PhantomData<(Root, Value)>,
 }
 
-impl<Root, Value, ReadFn, WriteFn, OwnedFn> FailableCombinedKeyPath<Root, Value, ReadFn, WriteFn, OwnedFn>
+impl<Root, Value, ReadFn, WriteFn, OwnedFn>
+    FailableCombinedKeyPath<Root, Value, ReadFn, WriteFn, OwnedFn>
 where
     ReadFn: for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static,
     WriteFn: for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
@@ -7967,38 +9159,44 @@ where
             _phantom: PhantomData,
         }
     }
-    
+
     /// Get an immutable reference to the value (readable access)
     pub fn get<'r>(&self, root: &'r Root) -> Option<&'r Value> {
         (self.readable)(root)
     }
-    
+
     /// Get a mutable reference to the value (writable access)
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut Value> {
         (self.writable)(root)
     }
-    
+
     /// Get an owned value (owned access) - consumes the root
     pub fn get_failable_owned(&self, root: Root) -> Option<Value> {
         (self.owned)(root)
     }
-    
+
     /// Convert to OptionalKeyPath (loses writable and owned capabilities)
     pub fn to_optional(self) -> OptionalKeyPath<Root, Value, ReadFn> {
         OptionalKeyPath::new(self.readable)
     }
-    
+
     /// Convert to WritableOptionalKeyPath (loses owned capability)
     pub fn to_writable_optional(self) -> WritableOptionalKeyPath<Root, Value, WriteFn> {
         WritableOptionalKeyPath::new(self.writable)
     }
-    
+
     /// Compose this keypath with another FailableCombinedKeyPath
     /// Returns a new FailableCombinedKeyPath that chains both keypaths
     pub fn then<SubValue, SubReadFn, SubWriteFn, SubOwnedFn>(
         self,
         next: FailableCombinedKeyPath<Value, SubValue, SubReadFn, SubWriteFn, SubOwnedFn>,
-    ) -> FailableCombinedKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue> + 'static, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue> + 'static, impl Fn(Root) -> Option<SubValue> + 'static>
+    ) -> FailableCombinedKeyPath<
+        Root,
+        SubValue,
+        impl for<'r> Fn(&'r Root) -> Option<&'r SubValue> + 'static,
+        impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue> + 'static,
+        impl Fn(Root) -> Option<SubValue> + 'static,
+    >
     where
         SubReadFn: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
         SubWriteFn: for<'r> Fn(&'r mut Value) -> Option<&'r mut SubValue> + 'static,
@@ -8016,27 +9214,27 @@ where
         let second_read = next.readable;
         let second_write = next.writable;
         let second_owned = next.owned;
-        
+
         FailableCombinedKeyPath::new(
-            move |root: &Root| {
-                first_read(root).and_then(|value| second_read(value))
-            },
-            move |root: &mut Root| {
-                first_write(root).and_then(|value| second_write(value))
-            },
-            move |root: Root| {
-                first_owned(root).and_then(|value| second_owned(value))
-            },
+            move |root: &Root| first_read(root).and_then(|value| second_read(value)),
+            move |root: &mut Root| first_write(root).and_then(|value| second_write(value)),
+            move |root: Root| first_owned(root).and_then(|value| second_owned(value)),
         )
     }
-    
+
     /// Compose with OptionalKeyPath (readable only)
     /// Returns a FailableCombinedKeyPath that uses the readable from OptionalKeyPath
     /// and creates dummy writable/owned closures that return None
     pub fn chain_optional<SubValue, SubReadFn>(
         self,
         next: OptionalKeyPath<Value, SubValue, SubReadFn>,
-    ) -> FailableCombinedKeyPath<Root, SubValue, impl for<'r> Fn(&'r Root) -> Option<&'r SubValue> + 'static, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue> + 'static, impl Fn(Root) -> Option<SubValue> + 'static>
+    ) -> FailableCombinedKeyPath<
+        Root,
+        SubValue,
+        impl for<'r> Fn(&'r Root) -> Option<&'r SubValue> + 'static,
+        impl for<'r> Fn(&'r mut Root) -> Option<&'r mut SubValue> + 'static,
+        impl Fn(Root) -> Option<SubValue> + 'static,
+    >
     where
         SubReadFn: for<'r> Fn(&'r Value) -> Option<&'r SubValue> + 'static,
         ReadFn: 'static,
@@ -8050,11 +9248,9 @@ where
         let first_write = self.writable;
         let first_owned = self.owned;
         let second_read = next.getter;
-        
+
         FailableCombinedKeyPath::new(
-            move |root: &Root| {
-                first_read(root).and_then(|value| second_read(value))
-            },
+            move |root: &Root| first_read(root).and_then(|value| second_read(value)),
             move |_root: &mut Root| {
                 None // Writable not supported when composing with OptionalKeyPath
             },
@@ -8069,7 +9265,15 @@ where
 }
 
 // Factory function for FailableCombinedKeyPath
-impl FailableCombinedKeyPath<(), (), fn(&()) -> Option<&()>, fn(&mut ()) -> Option<&mut ()>, fn(()) -> Option<()>> {
+impl
+    FailableCombinedKeyPath<
+        (),
+        (),
+        fn(&()) -> Option<&()>,
+        fn(&mut ()) -> Option<&mut ()>,
+        fn(()) -> Option<()>,
+    >
+{
     /// Create a FailableCombinedKeyPath with all three access patterns
     pub fn failable_combined<Root, Value, ReadFn, WriteFn, OwnedFn>(
         readable: ReadFn,
@@ -8086,7 +9290,13 @@ impl FailableCombinedKeyPath<(), (), fn(&()) -> Option<&()>, fn(&mut ()) -> Opti
 }
 
 impl AnyWritableKeyPath {
-    pub fn new<Root, Value>(keypath: WritableOptionalKeyPath<Root, Value, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>) -> Self
+    pub fn new<Root, Value>(
+        keypath: WritableOptionalKeyPath<
+            Root,
+            Value,
+            impl for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static,
+        >,
+    ) -> Self
     where
         Root: Any + 'static,
         Value: Any + 'static,
@@ -8094,7 +9304,7 @@ impl AnyWritableKeyPath {
         let root_type_id = TypeId::of::<Root>();
         let value_type_id = TypeId::of::<Value>();
         let getter = keypath.getter;
-        
+
         Self {
             getter: Rc::new(move |any: &mut dyn Any| {
                 if let Some(root) = any.downcast_mut::<Root>() {
@@ -8107,25 +9317,30 @@ impl AnyWritableKeyPath {
             value_type_id,
         }
     }
-    
+
     pub fn get_mut<'r>(&self, root: &'r mut dyn Any) -> Option<&'r mut dyn Any> {
         (self.getter)(root)
     }
-    
+
     /// Get the TypeId of the Root type
     pub fn root_type_id(&self) -> TypeId {
         self.root_type_id
     }
-    
+
     /// Get the TypeId of the Value type
     pub fn value_type_id(&self) -> TypeId {
         self.value_type_id
     }
-    
+
     /// Try to get the value with type checking
-    pub fn get_mut_as<'a, Root: Any, Value: Any>(&self, root: &'a mut Root) -> Option<Option<&'a mut Value>> {
-        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>() {
-            self.get_mut(root as &mut dyn Any).map(|any| any.downcast_mut::<Value>())
+    pub fn get_mut_as<'a, Root: Any, Value: Any>(
+        &self,
+        root: &'a mut Root,
+    ) -> Option<Option<&'a mut Value>> {
+        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>()
+        {
+            self.get_mut(root as &mut dyn Any)
+                .map(|any| any.downcast_mut::<Value>())
         } else {
             None
         }
@@ -8143,7 +9358,7 @@ where
     pub fn to_partial(self) -> PartialKeyPath<Root> {
         PartialKeyPath::new(self)
     }
-    
+
     /// Alias for `to_partial()` - converts to PartialKeyPath
     pub fn to(self) -> PartialKeyPath<Root> {
         self.to_partial()
@@ -8160,12 +9375,12 @@ where
     pub fn to_partial(self) -> PartialOptionalKeyPath<Root> {
         PartialOptionalKeyPath::new(self)
     }
-    
+
     /// Convert to AnyKeyPath (hides both Root and Value types)
     pub fn to_any(self) -> AnyKeyPath {
         AnyKeyPath::new(self)
     }
-    
+
     /// Convert to PartialOptionalKeyPath (alias for `to_partial()`)
     pub fn to(self) -> PartialOptionalKeyPath<Root> {
         self.to_partial()
@@ -8182,7 +9397,7 @@ where
     pub fn to_partial(self) -> PartialWritableKeyPath<Root> {
         PartialWritableKeyPath::new(self)
     }
-    
+
     /// Alias for `to_partial()` - converts to PartialWritableKeyPath
     pub fn to(self) -> PartialWritableKeyPath<Root> {
         self.to_partial()
@@ -8199,12 +9414,12 @@ where
     pub fn to_partial(self) -> PartialWritableOptionalKeyPath<Root> {
         PartialWritableOptionalKeyPath::new(self)
     }
-    
+
     /// Convert to AnyWritableKeyPath (hides both Root and Value types)
     pub fn to_any(self) -> AnyWritableKeyPath {
         AnyWritableKeyPath::new(self)
     }
-    
+
     /// Convert to PartialWritableOptionalKeyPath (alias for `to_partial()`)
     pub fn to(self) -> PartialWritableOptionalKeyPath<Root> {
         self.to_partial()
@@ -8223,9 +9438,11 @@ where
 //         fn setter(r: &mut R) -> Option< &mut V>;
 // }
 
-pub fn test<R, V, F>(x: R) 
-where  F: Fn(&R) -> Option<&V> 
-{}
+pub fn test<R, V, F>(x: R)
+where
+    F: Fn(&R) -> Option<&V>,
+{
+}
 
 type Getter<R, V> = for<'r> fn(&'r R) -> Option<&'r V>;
 type Setter<R, V> = for<'r> fn(&'r mut R) -> Option<&'r mut V>;
@@ -8233,48 +9450,65 @@ type Setter<R, V> = for<'r> fn(&'r mut R) -> Option<&'r mut V>;
 // type LockSetter<R, V> = for<'r> fn(&'r mut R) -> Option<Arc<&'r mut V>>;
 
 pub type Kp<R, V> = KpType<
-R,
-V, 
-Getter<R, V>, 
-Setter<R, V>,
-//  LockGetter<R, V>, 
-//  LockSetter<R, V>
- >;
+    R,
+    V,
+    Getter<R, V>,
+    Setter<R, V>,
+    //  LockGetter<R, V>,
+    //  LockSetter<R, V>
+>;
 
- #[derive(Debug)]
-pub struct KpType<R, V, G, S, 
-// LG, SG
->
-where 
-G:for<'r> Fn(&'r R) -> Option<&'r V>,
-S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>,
-// LG:for<'r> Fn(&'r R) -> Option<Arc<&'r V>>, 
-// SG:for<'r> Fn(&'r mut R) -> Option<Arc<&'r mut V>>,  
+#[derive(Debug)]
+pub struct KpType<
+    R,
+    V,
+    G,
+    S,
+    // LG, SG
+> where
+    G: for<'r> Fn(&'r R) -> Option<&'r V>,
+    S: for<'r> Fn(&'r mut R) -> Option<&'r mut V>,
+    // LG:for<'r> Fn(&'r R) -> Option<Arc<&'r V>>,
+    // SG:for<'r> Fn(&'r mut R) -> Option<Arc<&'r mut V>>,
 {
     g: G,
     s: S,
     // lg: LG,
     // sg: SG,
-    _p: PhantomData<(R, V)>
+    _p: PhantomData<(R, V)>,
 }
 
-impl<R, V, G, S, 
-// LG, SG
-> KpType<R, V, G, S, 
-// LG, SG
+impl<
+    R,
+    V,
+    G,
+    S,
+    // LG, SG
 >
-where 
-G:for<'r> Fn(&'r R) -> Option<&'r V>,
-S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
+    KpType<
+        R,
+        V,
+        G,
+        S,
+        // LG, SG
+    >
+where
+    G: for<'r> Fn(&'r R) -> Option<&'r V>,
+    S: for<'r> Fn(&'r mut R) -> Option<&'r mut V>,
+{
     pub fn new(get: G, set: S) -> Self {
-        Self { g: get, s: set, _p: PhantomData }
+        Self {
+            g: get,
+            s: set,
+            _p: PhantomData,
+        }
     }
 
     pub fn get<'a>(&self, r: &'a R) -> Option<&'a V> {
         (self.g)(r)
     }
-    
-    pub fn get_mut<'a>(&self, r: &'a mut R) -> Option< &'a mut V> {
+
+    pub fn get_mut<'a>(&self, r: &'a mut R) -> Option<&'a mut V> {
         (self.s)(r)
     }
     // pub fn then<SubValue>(
@@ -8286,7 +9520,7 @@ S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
     //     let second_get = next.g;
     //     let first_set = self.s;
     //     let second_set = next.s;
-        
+
     //     KpType::new(
     //         move |root: &R| {
     //             first_get(root).and_then(|value| second_get(value))
@@ -8296,8 +9530,6 @@ S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
     //         }
     //     )
     // }
-
-
 
     pub fn then<SubValue, G2, S2>(
         self,
@@ -8311,20 +9543,16 @@ S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
     where
         G2: for<'r> Fn(&'r V) -> Option<&'r SubValue>,
         S2: for<'r> Fn(&'r mut V) -> Option<&'r mut SubValue>,
-        V: 'static
+        V: 'static,
     {
         // let first_get = self.g;
         // let second_get = next.g;
         // let first_set = self.s;
         // let second_set = next.s;
-        
+
         KpType::new(
-            move |root: &R| {
-                (self.g)(root).and_then(|value| (next.g)(value))
-            },
-            move |root: &mut R| {
-                (self.s)(root).and_then(|value| (next.s)(value))
-            }
+            move |root: &R| (self.g)(root).and_then(|value| (next.g)(value)),
+            move |root: &mut R| (self.s)(root).and_then(|value| (next.s)(value)),
         )
     }
 }
@@ -8334,9 +9562,9 @@ impl<R> KpType<R, R, Getter<R, R>, Setter<R, R>> {
     /// Creates an identity keypath that returns the value itself
     pub fn identity() -> Self {
         Kp {
-            g: |r: &R| { Some(r) },
-            s: |r: &mut R| { Some(r) },
-            _p: PhantomData
+            g: |r: &R| Some(r),
+            s: |r: &mut R| Some(r),
+            _p: PhantomData,
         }
     }
 }
@@ -8347,23 +9575,20 @@ struct TestKP {
     c: Arc<String>,
     d: Mutex<String>,
     e: Arc<Mutex<TestKP2>>,
-    f: Option<TestKP2>
+    f: Option<TestKP2>,
 }
 
 impl TestKP {
     fn new() -> Self {
-        Self {         
+        Self {
             a: String::from("a"),
             b: String::from("b"),
             c: Arc::new(String::from("c")),
             d: Mutex::new(String::from("d")),
-            e: Arc::new(Mutex::new(TestKP2 { 
-                a: String::from("a2"), 
-                b: Arc::new(Mutex::new(String::from("b2"))) 
-            })),
-            f: Some(TestKP2 { 
-                a: String::from("a3"), 
-                b: Arc::new(Mutex::new(String::from("b3"))) 
+            e: Arc::new(Mutex::new(TestKP2::new())),
+            f: Some(TestKP2 {
+                a: String::from("a3"),
+                b: Arc::new(Mutex::new(TestKP3::new())),
             }),
         }
     }
@@ -8371,88 +9596,141 @@ impl TestKP {
     // Helper to create an identity keypath for TestKP2
     fn identity() -> Kp<TestKP2, TestKP2> {
         Kp {
-            g: |r: &TestKP2| { Some(r) },
-            s: |r: &mut TestKP2| { Some(r) },
-            _p: PhantomData
+            g: |r: &TestKP2| Some(r),
+            s: |r: &mut TestKP2| Some(r),
+            _p: PhantomData,
         }
     }
-
 }
 
 struct TestKP2 {
     a: String,
-    b: Arc<Mutex<String>>
+    b: Arc<Mutex<TestKP3>>,
 }
 
 impl TestKP2 {
+    fn new() -> Self {
+        TestKP2 {
+                a: String::from("a2"),
+                b: Arc::new(Mutex::new(TestKP3::new())),
+            }
+    }
+
     fn a() -> Kp<TestKP2, String> {
         Kp {
-            g: |r: &TestKP2| { Some(&r.a) },
-            s: |r: &mut TestKP2| { Some(&mut r.a) },
-            _p: PhantomData
+            g: |r: &TestKP2| Some(&r.a),
+            s: |r: &mut TestKP2| Some(&mut r.a),
+            _p: PhantomData,
         }
     }
 
-    fn b() -> Kp<TestKP2, Arc<Mutex<String>>> {
+    fn b() -> Kp<TestKP2, Arc<Mutex<TestKP3>>> {
         Kp {
-            g: |r: &TestKP2| { Some(&r.b) },
-            s: |r: &mut TestKP2| { Some(&mut r.b) },
-            _p: PhantomData
+            g: |r: &TestKP2| Some(&r.b),
+            s: |r: &mut TestKP2| Some(&mut r.b),
+            _p: PhantomData,
         }
     }
 
     // fn identity() -> Kp<Self, Self> {
     //     Kp::identity()
     // }
-
 }
+
+#[derive(Debug)]
+struct TestKP3 {
+    a: String,
+    b: Arc<Mutex<String>>,
+}
+
+impl TestKP3 {
+    fn new() -> Self {
+        TestKP3 {
+                a: String::from("a2"),
+                b: Arc::new(Mutex::new(String::from("b2"))),
+            }
+    }
+
+    fn a() -> Kp<TestKP3, String> {
+        Kp {
+            g: |r: &TestKP3| Some(&r.a),
+            s: |r: &mut TestKP3| Some(&mut r.a),
+            _p: PhantomData,
+        }
+    }
+
+    fn b_lock() -> LKp<
+        Kp<TestKP2, TestKP3>,                    // Root
+        Kp<TestKP3, String>,                     // MutexValue
+        TestKP3,                                 // InnerValue
+        String,                                  // SubValue
+        fn(&TestKP3) -> Option<&String>,         // G: 不可变引用
+        fn(&mut TestKP3) -> Option<&mut String>  // S: 可变引用
+    > {
+        todo!()
+    }
+
+fn b() -> Kp<TestKP3, Arc<Mutex<String>>> {
+        Kp {
+            g: |r: &TestKP3| Some(&r.b),
+            s: |r: &mut TestKP3| Some(&mut r.b),
+            _p: PhantomData,
+        }
+    }
+
+
+    // fn identity() -> Kp<Self, Self> {
+    //     Kp::identity()
+    // }
+}
+
 
 impl TestKP {
     fn a() -> Kp<TestKP, String> {
         Kp {
-            g: |r: &TestKP| { Some(&r.a) },
-            s: |r: &mut TestKP| { Some(&mut r.a) },
-            _p: PhantomData
+            g: |r: &TestKP| Some(&r.a),
+            s: |r: &mut TestKP| Some(&mut r.a),
+            _p: PhantomData,
         }
     }
 
     fn b() -> Kp<TestKP, String> {
         Kp {
-            g: |r: &TestKP| { Some(&r.b) },
-            s: |r: &mut TestKP| { Some(&mut r.b) },
-            _p: PhantomData
+            g: |r: &TestKP| Some(&r.b),
+            s: |r: &mut TestKP| Some(&mut r.b),
+            _p: PhantomData,
         }
     }
 
     fn c() -> Kp<TestKP, String> {
         Kp {
-            g: |r: &TestKP| { Some(r.c.as_ref()) },
-            s: |r: &mut TestKP| { None },
-            _p: PhantomData
+            g: |r: &TestKP| Some(r.c.as_ref()),
+            s: |r: &mut TestKP| None,
+            _p: PhantomData,
         }
     }
 
     fn d() -> Kp<TestKP, Mutex<String>> {
         Kp {
-            g: |r: &TestKP| { Some(&r.d) },
-            s: |r: &mut TestKP| { Some(&mut r.d) },
-            _p: PhantomData
+            g: |r: &TestKP| Some(&r.d),
+            s: |r: &mut TestKP| Some(&mut r.d),
+            _p: PhantomData,
         }
     }
 
     fn e() -> Kp<TestKP, Arc<Mutex<TestKP2>>> {
         Kp {
-            g: |r: &TestKP| { Some(&r.e) },
-            s: |r: &mut TestKP| { Some(&mut r.e) },
-            _p: PhantomData
+            g: |r: &TestKP| Some(&r.e),
+            s: |r: &mut TestKP| Some(&mut r.e),
+            _p: PhantomData,
         }
     }
 
     fn f() -> Kp<TestKP, TestKP2> {
         Kp {
-            g: |r: &TestKP| { r.f.as_ref() },
-            s: |r: &mut TestKP| { r.f.as_mut() },
-            _p: PhantomData
+            g: |r: &TestKP| r.f.as_ref(),
+            s: |r: &mut TestKP| r.f.as_mut(),
+            _p: PhantomData,
         }
     }
 }
@@ -8476,20 +9754,20 @@ mod testsas {
     #[test]
     fn test_single_mutex_access() {
         let mut root = TestKP::new();
-        
+
         // Create LKp for TestKP.e -> TestKP2.a
         let lkp = LKp::new(TestKP::e(), TestKP2::a());
-        
+
         // Get value through mutex
         let value = lkp.get_cloned(&root);
         println!("Single mutex - initial value: {:?}", value);
         assert_eq!(value, Some("a2".to_string()));
-        
+
         // Mutate value through mutex
         lkp.get_mut(&mut root, |val| {
             *val = "modified a2".to_string();
         });
-        
+
         let new_value = lkp.get_cloned(&root);
         println!("Single mutex - updated value: {:?}", new_value);
         assert_eq!(new_value, Some("modified a2".to_string()));
@@ -8498,41 +9776,39 @@ mod testsas {
     #[test]
     fn test_chained_mutex_access() {
         let mut root = TestKP::new();
-        
+
         // Create LKp for TestKP.e -> TestKP2
-        let outer_lkp = LKp::new(TestKP::e(), Kp {
-            g: |r: &TestKP2| { Some(r) },
-            s: |r: &mut TestKP2| { Some(r) },
-            _p: PhantomData
-        });
-        
+        let outer_lkp = LKp::new(
+            TestKP::e(),
+            Kp::identity(),
+        );
+
         // Chain to TestKP2.b (which is Arc<Mutex<String>>)
         let chained_lkp = outer_lkp.then(TestKP2::b());
-        
         // Now we have: TestKP.e (Arc<Mutex<TestKP2>>) -> TestKP2 -> TestKP2.b (Arc<Mutex<String>>)
         // This gives us access to the Arc<Mutex<String>>
         let arc_mutex = chained_lkp.get_cloned(&root);
         println!("Chained mutex - Arc<Mutex>: {:?}", arc_mutex);
-        
+
         // To access the inner String, we need to lock it
         if let Some(am) = arc_mutex {
             if let Ok(guard) = am.lock() {
                 println!("Chained mutex - inner value: {:?}", *guard);
-                assert_eq!(*guard, "b2".to_string());
+                assert_eq!(*guard.a, "a2".to_string());
             }
         }
-        
+
         // Mutate the Arc<Mutex<String>> reference itself (swap it out)
         chained_lkp.get_mut(&mut root, |arc_mutex_ref| {
-            *arc_mutex_ref = Arc::new(Mutex::new("replaced b2".to_string()));
+            *arc_mutex_ref = Arc::new(Mutex::new(TestKP3{ a: "replaced b2".to_string(), b: Arc::new(Mutex::new(String::new())) }));
         });
-        
+
         // Verify the change
         let new_arc_mutex = chained_lkp.get_cloned(&root);
         if let Some(am) = new_arc_mutex {
             if let Ok(guard) = am.lock() {
                 println!("Chained mutex - replaced value: {:?}", *guard);
-                assert_eq!(*guard, "replaced b2".to_string());
+                assert_eq!(*guard.a, "replaced b2".to_string());
             }
         }
     }
@@ -8540,68 +9816,64 @@ mod testsas {
     #[test]
     fn test_double_nested_mutex() {
         let mut root = TestKP::new();
-        
+
         // First level: TestKP.e -> TestKP2
         let first_lkp: LKp<TestKP, Arc<Mutex<TestKP2>>, TestKP2, TestKP2, _, _> = LKp::new(
             TestKP::e(),
             Kp {
-                g: |r: &TestKP2| { Some(r) },
-                s: |r: &mut TestKP2| { Some(r) },
-                _p: PhantomData
-            }
+                g: |r: &TestKP2| Some(r),
+                s: |r: &mut TestKP2| Some(r),
+                _p: PhantomData,
+            },
         );
-        
+
         // Second level: chain to TestKP2.b (Arc<Mutex<String>>)
         // This creates: TestKP -> Arc<Mutex<TestKP2>> -> TestKP2.b
         let second_lkp = first_lkp.then(TestKP2::b());
-        
+
         // Now create another LKp to go through the second mutex
         // TestKP -> Arc<Mutex<TestKP2>> -> Arc<Mutex<String>> -> String
-        let final_lkp = LKp::new(
-            TestKP::e(),
-            {
-                let inner_kp = Kp {
-                    g: |r: &TestKP2| { Some(&r.b) },
-                    s: |r: &mut TestKP2| { Some(&mut r.b) },
-                    _p: PhantomData
-                };
-                inner_kp
-            }
-        );
-        
-        // Access the deeply nested String value
-        let value = final_lkp.get_cloned(&root);
-        println!("Double nested mutex - value: {:?}", value);
-        
-        // The value should be cloned from the inner Arc<Mutex<String>>
-        if let Some(arc_string) = value {
-            if let Ok(guard) = arc_string.lock() {
-                assert_eq!(*guard, "b2".to_string());
-            }
-        }
-    }
+        let final_lkp = LKp::new(TestKP::e(), {
+            let inner_kp = Kp {
+                g: |r: &TestKP2| Some(&r.b),
+                s: |r: &mut TestKP2| Some(&mut r.b),
+                _p: PhantomData,
+            };
+            inner_kp
+        });
 
+        // Access the deeply nested String value
+        // let value = final_lkp.get_cloned(&root);
+        // println!("Double nested mutex - value: {:?}", value);
+
+        // // The value should be cloned from the inner Arc<Mutex<String>>
+        // if let Some(arc_string) = value {
+        //     if let Ok(guard) = arc_string.lock() {
+        //         assert_eq!(*guard, "b2".to_string());
+        //     }
+        // }
+    }
 
     #[test]
     fn test_lkp_then_chaining() {
         let mut root = TestKP::new();
-        
+
         // Start with TestKP.e -> TestKP2 (identity)
         let first_lkp = LKp::new(TestKP::e(), Kp::identity());
-        
+
         // Chain to TestKP2.a to get: TestKP.e -> TestKP2 -> TestKP2.a
         let chained = first_lkp.then(TestKP2::a());
-        
+
         // Access the deeply nested String value
         let value = chained.get_cloned(&root);
         println!("LKp chained - value: {:?}", value);
         assert_eq!(value, Some("a2".to_string()));
-        
+
         // Mutate it
         chained.get_mut(&mut root, |val| {
             *val = "chained modified".to_string();
         });
-        
+
         let new_value = chained.get_cloned(&root);
         assert_eq!(new_value, Some("chained modified".to_string()));
     }
@@ -8609,27 +9881,24 @@ mod testsas {
     #[test]
     fn test_simple_keypath_composition() {
         let mut root = TestKP::new();
-        
+
         // Option 1: Direct access without LKp (when you have a direct path)
         let direct_kp = TestKP::f().then(TestKP2::a());
         assert_eq!(direct_kp.get(&root), Some(&"a3".to_string()));
-        
+
         // Option 2: Through mutex using LKp
         let mutex_lkp = LKp::new(TestKP::e(), TestKP2::a());
         assert_eq!(mutex_lkp.get_cloned(&root), Some("a2".to_string()));
-        
+
         // Option 3: Chain LKp for deeper access
-        let deep_lkp = LKp::new(
-            TestKP::e(),
-            Kp::identity()
-        ).then(TestKP2::a());
-        
+        let deep_lkp = LKp::new(TestKP::e(), Kp::identity()).then(TestKP2::a());
+
         assert_eq!(deep_lkp.get_cloned(&root), Some("a2".to_string()));
     }
 }
 
 // ========== SHR OPERATOR IMPLEMENTATIONS (>> operator) ==========
-// 
+//
 // The `>>` operator provides the same functionality as `then()` methods.
 // It requires nightly Rust with the `nightly` feature enabled.
 //
@@ -8637,10 +9906,10 @@ mod testsas {
 // ```rust
 // #![feature(impl_trait_in_assoc_type)]  // Must be in YOUR code
 // use rust_keypaths::{keypath, KeyPath};
-// 
+//
 // struct User { address: Address }
 // struct Address { street: String }
-// 
+//
 // let kp1 = keypath!(|u: &User| &u.address);
 // let kp2 = keypath!(|a: &Address| &a.street);
 // let chained = kp1 >> kp2; // Works with nightly feature
@@ -8748,8 +10017,8 @@ mod testsas {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::rc::Rc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     // Global counter to track memory allocations/deallocations
     static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -8799,54 +10068,52 @@ mod tests {
         DEALLOC_COUNT.load(Ordering::SeqCst)
     }
 
-// Usage example
-#[derive(Debug)]
-struct User {
-    name: String,
-    metadata: Option<Box<UserMetadata>>,
-    friends: Vec<Arc<User>>,
-}
+    // Usage example
+    #[derive(Debug)]
+    struct User {
+        name: String,
+        metadata: Option<Box<UserMetadata>>,
+        friends: Vec<Arc<User>>,
+    }
 
-#[derive(Debug)]
-struct UserMetadata {
-    created_at: String,
-}
+    #[derive(Debug)]
+    struct UserMetadata {
+        created_at: String,
+    }
 
-fn some_fn() {
+    fn some_fn() {
         let akash = User {
-        name: "Akash".to_string(),
-        metadata: Some(Box::new(UserMetadata {
-            created_at: "2024-01-01".to_string(),
-        })),
-        friends: vec![
-            Arc::new(User {
+            name: "Akash".to_string(),
+            metadata: Some(Box::new(UserMetadata {
+                created_at: "2024-01-01".to_string(),
+            })),
+            friends: vec![Arc::new(User {
                 name: "Bob".to_string(),
                 metadata: None,
                 friends: vec![],
-            }),
-        ],
-    };
-    
-    // Create keypaths
-    let name_kp = KeyPath::new(|u: &User| &u.name);
-    let metadata_kp = OptionalKeyPath::new(|u: &User| u.metadata.as_ref());
-    let friends_kp = KeyPath::new(|u: &User| &u.friends);
-    
-    // Use them
+            })],
+        };
+
+        // Create keypaths
+        let name_kp = KeyPath::new(|u: &User| &u.name);
+        let metadata_kp = OptionalKeyPath::new(|u: &User| u.metadata.as_ref());
+        let friends_kp = KeyPath::new(|u: &User| &u.friends);
+
+        // Use them
         println!("Name: {}", name_kp.get(&akash));
-    
+
         if let Some(metadata) = metadata_kp.get(&akash) {
-        println!("Has metadata: {:?}", metadata);
-    }
-    
-    // Access first friend's name
+            println!("Has metadata: {:?}", metadata);
+        }
+
+        // Access first friend's name
         if let Some(first_friend) = akash.friends.get(0) {
-        println!("First friend: {}", name_kp.get(first_friend));
-    }
-    
+            println!("First friend: {}", name_kp.get(first_friend));
+        }
+
         // Access metadata through Box using for_box()
-    let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
-    
+        let created_at_kp = KeyPath::new(|m: &UserMetadata| &m.created_at);
+
         if let Some(metadata) = akash.metadata.as_ref() {
             // Use for_box() to unwrap Box<UserMetadata> to &UserMetadata
             let boxed_metadata: &Box<UserMetadata> = metadata;
@@ -8859,149 +10126,151 @@ fn some_fn() {
     fn test_name() {
         some_fn();
     }
-    
+
     #[test]
     fn test_no_cloning_on_keypath_operations() {
         reset_memory_counters();
-        
+
         // Create a value that panics on clone
         let value = NoCloneType::new("test".to_string());
         let boxed = Box::new(value);
-        
+
         // Create keypath - should not clone
         let kp = KeyPath::new(|b: &Box<NoCloneType>| b.as_ref());
-        
+
         // Access value - should not clone
         let _ref = kp.get(&boxed);
-        
+
         // Clone the keypath itself (this is allowed)
         let _kp_clone = kp.clone();
-        
+
         // Access again - should not clone the value
         let _ref2 = _kp_clone.get(&boxed);
-        
+
         // Verify no panics occurred (if we got here, no cloning happened)
         assert_eq!(get_alloc_count(), 1);
     }
-    
+
     #[test]
     fn test_no_cloning_on_optional_keypath_operations() {
         reset_memory_counters();
-        
+
         let value = NoCloneType::new("test".to_string());
         let opt = Some(Box::new(value));
-        
+
         // Create optional keypath
         let okp = OptionalKeyPath::new(|o: &Option<Box<NoCloneType>>| o.as_ref());
-        
+
         // Access - should not clone
         let _ref = okp.get(&opt);
-        
+
         // Clone keypath (allowed)
         let _okp_clone = okp.clone();
-        
+
         // Chain operations - should not clone values
-        let chained = okp.then(OptionalKeyPath::new(|b: &Box<NoCloneType>| Some(b.as_ref())));
+        let chained = okp.then(OptionalKeyPath::new(|b: &Box<NoCloneType>| {
+            Some(b.as_ref())
+        }));
         let _ref2 = chained.get(&opt);
-        
+
         assert_eq!(get_alloc_count(), 1);
     }
-    
+
     #[test]
     fn test_memory_release() {
         reset_memory_counters();
-        
+
         {
             let value = NoCloneType::new("test".to_string());
             let boxed = Box::new(value);
             let kp = KeyPath::new(|b: &Box<NoCloneType>| b.as_ref());
-            
+
             // Use the keypath
             let _ref = kp.get(&boxed);
-            
+
             // boxed goes out of scope here
         }
-        
+
         // After drop, memory should be released
         // Note: This is a best-effort check since drop timing can vary
         assert_eq!(get_alloc_count(), 1);
         // Deallocation happens when the value is dropped
         // We can't reliably test exact timing, but we verify the counter exists
     }
-    
+
     #[test]
     fn test_keypath_clone_does_not_clone_underlying_data() {
         reset_memory_counters();
-        
+
         let value = NoCloneType::new("data".to_string());
         let rc_value = Rc::new(value);
-        
+
         // Create keypath
         let kp = KeyPath::new(|r: &Rc<NoCloneType>| r.as_ref());
-        
+
         // Clone keypath multiple times
         let kp1 = kp.clone();
         let kp2 = kp.clone();
         let kp3 = kp1.clone();
-        
+
         // All should work without cloning the underlying data
         let _ref1 = kp.get(&rc_value);
         let _ref2 = kp1.get(&rc_value);
         let _ref3 = kp2.get(&rc_value);
         let _ref4 = kp3.get(&rc_value);
-        
+
         // Only one allocation should have happened
         assert_eq!(get_alloc_count(), 1);
     }
-    
+
     #[test]
     fn test_optional_keypath_chaining_no_clone() {
         reset_memory_counters();
-        
+
         let value = NoCloneType::new("value1".to_string());
-        
+
         struct Container {
             inner: Option<Box<NoCloneType>>,
         }
-        
+
         let container = Container {
             inner: Some(Box::new(value)),
         };
-        
+
         // Create chained keypath
         let kp1 = OptionalKeyPath::new(|c: &Container| c.inner.as_ref());
         let kp2 = OptionalKeyPath::new(|b: &Box<NoCloneType>| Some(b.as_ref()));
-        
+
         // Chain them - should not clone
         let chained = kp1.then(kp2);
-        
+
         // Use chained keypath
         let _result = chained.get(&container);
-        
+
         // Should only have one allocation
         assert_eq!(get_alloc_count(), 1);
     }
-    
+
     #[test]
     fn test_for_box_no_clone() {
         reset_memory_counters();
-        
+
         let value = NoCloneType::new("test".to_string());
         let boxed = Box::new(value);
         let opt_boxed = Some(boxed);
-        
+
         // Create keypath with for_box
         let kp = OptionalKeyPath::new(|o: &Option<Box<NoCloneType>>| o.as_ref());
         let unwrapped = kp.for_box();
-        
+
         // Access - should not clone
         let _ref = unwrapped.get(&opt_boxed);
-        
+
         assert_eq!(get_alloc_count(), 1);
     }
-    
+
     // ========== MACRO USAGE EXAMPLES ==========
-    
+
     #[derive(Debug, PartialEq)]
     struct TestUser {
         name: String,
@@ -9009,19 +10278,19 @@ fn some_fn() {
         metadata: Option<String>,
         address: Option<TestAddress>,
     }
-    
+
     #[derive(Debug, PartialEq)]
     struct TestAddress {
         street: String,
         city: String,
         country: Option<TestCountry>,
     }
-    
+
     #[derive(Debug, PartialEq)]
     struct TestCountry {
         name: String,
     }
-    
+
     #[test]
     fn test_keypath_macro() {
         let user = TestUser {
@@ -9030,11 +10299,11 @@ fn some_fn() {
             metadata: None,
             address: None,
         };
-        
+
         // Simple field access using closure
         let name_kp = keypath!(|u: &TestUser| &u.name);
         assert_eq!(name_kp.get(&user), "Akash");
-        
+
         // Nested field access
         let user_with_address = TestUser {
             name: "Bob".to_string(),
@@ -9046,10 +10315,10 @@ fn some_fn() {
                 country: None,
             }),
         };
-        
+
         let street_kp = keypath!(|u: &TestUser| &u.address.as_ref().unwrap().street);
         assert_eq!(street_kp.get(&user_with_address), "123 Main St");
-        
+
         // Deeper nesting
         let user_with_country = TestUser {
             name: "Charlie".to_string(),
@@ -9063,15 +10332,16 @@ fn some_fn() {
                 }),
             }),
         };
-        
-        let country_name_kp = keypath!(|u: &TestUser| &u.address.as_ref().unwrap().country.as_ref().unwrap().name);
+
+        let country_name_kp =
+            keypath!(|u: &TestUser| &u.address.as_ref().unwrap().country.as_ref().unwrap().name);
         assert_eq!(country_name_kp.get(&user_with_country), "UK");
-        
+
         // Fallback: using closure
         let age_kp = keypath!(|u: &TestUser| &u.age);
         assert_eq!(age_kp.get(&user), &30);
     }
-    
+
     #[test]
     fn test_opt_keypath_macro() {
         let user = TestUser {
@@ -9080,11 +10350,11 @@ fn some_fn() {
             metadata: Some("admin".to_string()),
             address: None,
         };
-        
+
         // Simple Option field access using closure
         let metadata_kp = opt_keypath!(|u: &TestUser| u.metadata.as_ref());
         assert_eq!(metadata_kp.get(&user), Some(&"admin".to_string()));
-        
+
         // None case
         let user_no_metadata = TestUser {
             name: "Bob".to_string(),
@@ -9093,7 +10363,7 @@ fn some_fn() {
             address: None,
         };
         assert_eq!(metadata_kp.get(&user_no_metadata), None);
-        
+
         // Nested Option access
         let user_with_address = TestUser {
             name: "Charlie".to_string(),
@@ -9105,10 +10375,13 @@ fn some_fn() {
                 country: None,
             }),
         };
-        
+
         let street_kp = opt_keypath!(|u: &TestUser| u.address.as_ref().map(|a| &a.street));
-        assert_eq!(street_kp.get(&user_with_address), Some(&"789 Pine Rd".to_string()));
-        
+        assert_eq!(
+            street_kp.get(&user_with_address),
+            Some(&"789 Pine Rd".to_string())
+        );
+
         // Deeper nesting through Options
         let user_with_country = TestUser {
             name: "David".to_string(),
@@ -9122,15 +10395,21 @@ fn some_fn() {
                 }),
             }),
         };
-        
-        let country_name_kp = opt_keypath!(|u: &TestUser| u.address.as_ref().and_then(|a| a.country.as_ref().map(|c| &c.name)));
-        assert_eq!(country_name_kp.get(&user_with_country), Some(&"Japan".to_string()));
-        
+
+        let country_name_kp = opt_keypath!(|u: &TestUser| u
+            .address
+            .as_ref()
+            .and_then(|a| a.country.as_ref().map(|c| &c.name)));
+        assert_eq!(
+            country_name_kp.get(&user_with_country),
+            Some(&"Japan".to_string())
+        );
+
         // Fallback: using closure
         let metadata_kp2 = opt_keypath!(|u: &TestUser| u.metadata.as_ref());
         assert_eq!(metadata_kp2.get(&user), Some(&"admin".to_string()));
     }
-    
+
     #[test]
     fn test_writable_keypath_macro() {
         let mut user = TestUser {
@@ -9139,12 +10418,12 @@ fn some_fn() {
             metadata: None,
             address: None,
         };
-        
+
         // Simple field mutation using closure
         let name_kp = writable_keypath!(|u: &mut TestUser| &mut u.name);
         *name_kp.get_mut(&mut user) = "Bob".to_string();
         assert_eq!(user.name, "Bob");
-        
+
         // Nested field mutation
         let mut user_with_address = TestUser {
             name: "Charlie".to_string(),
@@ -9156,11 +10435,15 @@ fn some_fn() {
                 country: None,
             }),
         };
-        
-        let street_kp = writable_keypath!(|u: &mut TestUser| &mut u.address.as_mut().unwrap().street);
+
+        let street_kp =
+            writable_keypath!(|u: &mut TestUser| &mut u.address.as_mut().unwrap().street);
         *street_kp.get_mut(&mut user_with_address) = "456 Oak Ave".to_string();
-        assert_eq!(user_with_address.address.as_ref().unwrap().street, "456 Oak Ave");
-        
+        assert_eq!(
+            user_with_address.address.as_ref().unwrap().street,
+            "456 Oak Ave"
+        );
+
         // Deeper nesting
         let mut user_with_country = TestUser {
             name: "David".to_string(),
@@ -9174,17 +10457,34 @@ fn some_fn() {
                 }),
             }),
         };
-        
-        let country_name_kp = writable_keypath!(|u: &mut TestUser| &mut u.address.as_mut().unwrap().country.as_mut().unwrap().name);
+
+        let country_name_kp = writable_keypath!(|u: &mut TestUser| &mut u
+            .address
+            .as_mut()
+            .unwrap()
+            .country
+            .as_mut()
+            .unwrap()
+            .name);
         *country_name_kp.get_mut(&mut user_with_country) = "United Kingdom".to_string();
-        assert_eq!(user_with_country.address.as_ref().unwrap().country.as_ref().unwrap().name, "United Kingdom");
-        
+        assert_eq!(
+            user_with_country
+                .address
+                .as_ref()
+                .unwrap()
+                .country
+                .as_ref()
+                .unwrap()
+                .name,
+            "United Kingdom"
+        );
+
         // Fallback: using closure
         let age_kp = writable_keypath!(|u: &mut TestUser| &mut u.age);
         *age_kp.get_mut(&mut user) = 31;
         assert_eq!(user.age, 31);
     }
-    
+
     #[test]
     fn test_writable_opt_keypath_macro() {
         let mut user = TestUser {
@@ -9193,14 +10493,14 @@ fn some_fn() {
             metadata: Some("user".to_string()),
             address: None,
         };
-        
+
         // Simple Option field mutation using closure
         let metadata_kp = writable_opt_keypath!(|u: &mut TestUser| u.metadata.as_mut());
         if let Some(metadata) = metadata_kp.get_mut(&mut user) {
             *metadata = "admin".to_string();
         }
         assert_eq!(user.metadata, Some("admin".to_string()));
-        
+
         // None case - should return None
         let mut user_no_metadata = TestUser {
             name: "Bob".to_string(),
@@ -9209,7 +10509,7 @@ fn some_fn() {
             address: None,
         };
         assert_eq!(metadata_kp.get_mut(&mut user_no_metadata), None);
-        
+
         // Nested Option access
         let mut user_with_address = TestUser {
             name: "Charlie".to_string(),
@@ -9221,13 +10521,17 @@ fn some_fn() {
                 country: None,
             }),
         };
-        
-        let street_kp = writable_opt_keypath!(|u: &mut TestUser| u.address.as_mut().map(|a| &mut a.street));
+
+        let street_kp =
+            writable_opt_keypath!(|u: &mut TestUser| u.address.as_mut().map(|a| &mut a.street));
         if let Some(street) = street_kp.get_mut(&mut user_with_address) {
             *street = "456 Oak Ave".to_string();
         }
-        assert_eq!(user_with_address.address.as_ref().unwrap().street, "456 Oak Ave");
-        
+        assert_eq!(
+            user_with_address.address.as_ref().unwrap().street,
+            "456 Oak Ave"
+        );
+
         // Deeper nesting through Options
         let mut user_with_country = TestUser {
             name: "David".to_string(),
@@ -9241,13 +10545,26 @@ fn some_fn() {
                 }),
             }),
         };
-        
-        let country_name_kp = writable_opt_keypath!(|u: &mut TestUser| u.address.as_mut().and_then(|a| a.country.as_mut().map(|c| &mut c.name)));
+
+        let country_name_kp = writable_opt_keypath!(|u: &mut TestUser| u
+            .address
+            .as_mut()
+            .and_then(|a| a.country.as_mut().map(|c| &mut c.name)));
         if let Some(country_name) = country_name_kp.get_mut(&mut user_with_country) {
             *country_name = "Nippon".to_string();
         }
-        assert_eq!(user_with_country.address.as_ref().unwrap().country.as_ref().unwrap().name, "Nippon");
-        
+        assert_eq!(
+            user_with_country
+                .address
+                .as_ref()
+                .unwrap()
+                .country
+                .as_ref()
+                .unwrap()
+                .name,
+            "Nippon"
+        );
+
         // Fallback: using closure
         let metadata_kp2 = writable_opt_keypath!(|u: &mut TestUser| u.metadata.as_mut());
         if let Some(metadata) = metadata_kp2.get_mut(&mut user) {
@@ -9392,7 +10709,11 @@ where
         self.with_result(result, f)
     }
 
-    fn with_result_mut<Callback, R, E>(&self, _result: &mut Result<Root, E>, _f: Callback) -> Option<R>
+    fn with_result_mut<Callback, R, E>(
+        &self,
+        _result: &mut Result<Root, E>,
+        _f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&mut Value) -> R,
     {
@@ -9471,7 +10792,11 @@ where
         self.with_arc_rwlock(arc_rwlock, f)
     }
 
-    fn with_arc_rwlock_mut<Callback, R>(&self, _arc_rwlock: &Arc<RwLock<Root>>, _f: Callback) -> Option<R>
+    fn with_arc_rwlock_mut<Callback, R>(
+        &self,
+        _arc_rwlock: &Arc<RwLock<Root>>,
+        _f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&mut Value) -> R,
     {
@@ -9502,8 +10827,12 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        eprintln!("[DEBUG] OptionalKeyPath does not support mutable access - use WritableOptionalKeyPath instead");
-        unreachable!("OptionalKeyPath does not support mutable access - use WritableOptionalKeyPath instead")
+        eprintln!(
+            "[DEBUG] OptionalKeyPath does not support mutable access - use WritableOptionalKeyPath instead"
+        );
+        unreachable!(
+            "OptionalKeyPath does not support mutable access - use WritableOptionalKeyPath instead"
+        )
     }
 
     fn with_rc<Callback, R>(&self, rc: &Rc<Root>, f: Callback) -> R
@@ -9520,7 +10849,11 @@ where
         self.with_result(result, f)
     }
 
-    fn with_result_mut<Callback, R, E>(&self, _result: &mut Result<Root, E>, _f: Callback) -> Option<R>
+    fn with_result_mut<Callback, R, E>(
+        &self,
+        _result: &mut Result<Root, E>,
+        _f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&mut Value) -> R,
     {
@@ -9602,7 +10935,11 @@ where
         self.with_arc_rwlock(arc_rwlock, f)
     }
 
-    fn with_arc_rwlock_mut<Callback, R>(&self, _arc_rwlock: &Arc<RwLock<Root>>, _f: Callback) -> Option<R>
+    fn with_arc_rwlock_mut<Callback, R>(
+        &self,
+        _arc_rwlock: &Arc<RwLock<Root>>,
+        _f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&mut Value) -> R,
     {
@@ -9621,7 +10958,9 @@ where
     {
         // Arc doesn't support mutable access without interior mutability
         // This method requires &mut Arc<Root> which we don't have
-        eprintln!("[DEBUG] WritableKeyPath::with_arc requires &mut Arc<Root> or interior mutability");
+        eprintln!(
+            "[DEBUG] WritableKeyPath::with_arc requires &mut Arc<Root> or interior mutability"
+        );
         unreachable!("WritableKeyPath::with_arc requires &mut Arc<Root> or interior mutability")
     }
 
@@ -9631,7 +10970,9 @@ where
     {
         // Box doesn't support getting mutable reference from immutable reference
         // This is a limitation - we'd need &mut Box<Root> for mutable access
-        eprintln!("[DEBUG] WritableKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead");
+        eprintln!(
+            "[DEBUG] WritableKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead"
+        );
         unreachable!("WritableKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead")
     }
 
@@ -9662,7 +11003,11 @@ where
         None
     }
 
-    fn with_result_mut<Callback, R, E>(&self, result: &mut Result<Root, E>, f: Callback) -> Option<R>
+    fn with_result_mut<Callback, R, E>(
+        &self,
+        result: &mut Result<Root, E>,
+        f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&mut Value) -> R,
     {
@@ -9718,8 +11063,12 @@ where
     {
         // WritableKeyPath requires &mut Root, but we only have &Tagged<Root, Tag>
         // This is a limitation - Tagged doesn't support mutable access without interior mutability
-        eprintln!("[DEBUG] WritableKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability");
-        unreachable!("WritableKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability")
+        eprintln!(
+            "[DEBUG] WritableKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability"
+        );
+        unreachable!(
+            "WritableKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability"
+        )
     }
 
     fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
@@ -9772,7 +11121,11 @@ where
         None
     }
 
-    fn with_arc_rwlock_mut<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    fn with_arc_rwlock_mut<Callback, R>(
+        &self,
+        arc_rwlock: &Arc<RwLock<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&mut Value) -> R,
     {
@@ -9794,8 +11147,12 @@ where
     {
         // Arc doesn't support mutable access without interior mutability
         // This method requires &mut Arc<Root> which we don't have
-        eprintln!("[DEBUG] WritableOptionalKeyPath::with_arc requires &mut Arc<Root> or interior mutability");
-        unreachable!("WritableOptionalKeyPath::with_arc requires &mut Arc<Root> or interior mutability")
+        eprintln!(
+            "[DEBUG] WritableOptionalKeyPath::with_arc requires &mut Arc<Root> or interior mutability"
+        );
+        unreachable!(
+            "WritableOptionalKeyPath::with_arc requires &mut Arc<Root> or interior mutability"
+        )
     }
 
     fn with_box<Callback, R>(&self, _boxed: &Box<Root>, _f: Callback) -> R
@@ -9804,8 +11161,12 @@ where
     {
         // WritableOptionalKeyPath requires &mut Root, but we only have &Box<Root>
         // This is a limitation - use with_box_mut for mutable access
-        eprintln!("[DEBUG] WritableOptionalKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead");
-        unreachable!("WritableOptionalKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead")
+        eprintln!(
+            "[DEBUG] WritableOptionalKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead"
+        );
+        unreachable!(
+            "WritableOptionalKeyPath::with_box requires &mut Box<Root> - use with_box_mut instead"
+        )
     }
 
     fn with_box_mut<Callback, R>(&self, boxed: &mut Box<Root>, f: Callback) -> R
@@ -9826,8 +11187,12 @@ where
     {
         // Rc doesn't support mutable access without interior mutability
         // This method requires &mut Rc<Root> which we don't have
-        eprintln!("[DEBUG] WritableOptionalKeyPath::with_rc requires &mut Rc<Root> or interior mutability");
-        unreachable!("WritableOptionalKeyPath::with_rc requires &mut Rc<Root> or interior mutability")
+        eprintln!(
+            "[DEBUG] WritableOptionalKeyPath::with_rc requires &mut Rc<Root> or interior mutability"
+        );
+        unreachable!(
+            "WritableOptionalKeyPath::with_rc requires &mut Rc<Root> or interior mutability"
+        )
     }
 
     fn with_result<Callback, R, E>(&self, _result: &Result<Root, E>, _f: Callback) -> Option<R>
@@ -9839,13 +11204,18 @@ where
         None
     }
 
-    fn with_result_mut<Callback, R, E>(&self, result: &mut Result<Root, E>, f: Callback) -> Option<R>
+    fn with_result_mut<Callback, R, E>(
+        &self,
+        result: &mut Result<Root, E>,
+        f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        result.as_mut().ok().and_then(|root| {
-            self.get_mut(root).map(|value| f(value))
-        })
+        result
+            .as_mut()
+            .ok()
+            .and_then(|root| self.get_mut(root).map(|value| f(value)))
     }
 
     fn with_option<Callback, R>(&self, _option: &Option<Root>, _f: Callback) -> Option<R>
@@ -9861,9 +11231,9 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        option.as_mut().and_then(|root| {
-            self.get_mut(root).map(|value| f(value))
-        })
+        option
+            .as_mut()
+            .and_then(|root| self.get_mut(root).map(|value| f(value)))
     }
 
     fn with_refcell<Callback, R>(&self, _refcell: &RefCell<Root>, _f: Callback) -> Option<R>
@@ -9879,9 +11249,10 @@ where
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        refcell.try_borrow_mut().ok().and_then(|mut borrow| {
-            self.get_mut(&mut *borrow).map(|value| f(value))
-        })
+        refcell
+            .try_borrow_mut()
+            .ok()
+            .and_then(|mut borrow| self.get_mut(&mut *borrow).map(|value| f(value)))
     }
 
     #[cfg(feature = "tagged")]
@@ -9892,17 +11263,22 @@ where
     {
         // WritableOptionalKeyPath requires &mut Root, but we only have &Tagged<Root, Tag>
         // This is a limitation - Tagged doesn't support mutable access without interior mutability
-        eprintln!("[DEBUG] WritableOptionalKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability");
-        unreachable!("WritableOptionalKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability")
+        eprintln!(
+            "[DEBUG] WritableOptionalKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability"
+        );
+        unreachable!(
+            "WritableOptionalKeyPath::with_tagged requires &mut Tagged<Root, Tag> or interior mutability"
+        )
     }
 
     fn with_mutex<Callback, R>(&self, mutex: &Mutex<Root>, f: Callback) -> Option<R>
     where
         Callback: FnOnce(&Value) -> R,
     {
-        mutex.lock().ok().and_then(|mut guard| {
-            self.get_mut(&mut *guard).map(|value| f(value))
-        })
+        mutex
+            .lock()
+            .ok()
+            .and_then(|mut guard| self.get_mut(&mut *guard).map(|value| f(value)))
     }
 
     fn with_mutex_mut<Callback, R>(&self, mutex: &mut Mutex<Root>, f: Callback) -> Option<R>
@@ -9910,9 +11286,10 @@ where
         Callback: FnOnce(&mut Value) -> R,
     {
         // Mutex::get_mut returns Result<&mut Root, PoisonError>
-        mutex.get_mut().ok().and_then(|root| {
-            self.get_mut(root).map(|value| f(value))
-        })
+        mutex
+            .get_mut()
+            .ok()
+            .and_then(|root| self.get_mut(root).map(|value| f(value)))
     }
 
     fn with_rwlock<Callback, R>(&self, _rwlock: &RwLock<Root>, _f: Callback) -> Option<R>
@@ -9929,12 +11306,17 @@ where
         Callback: FnOnce(&mut Value) -> R,
     {
         // RwLock::get_mut returns Result<&mut Root, PoisonError>
-        rwlock.get_mut().ok().and_then(|root| {
-            self.get_mut(root).map(|value| f(value))
-        })
+        rwlock
+            .get_mut()
+            .ok()
+            .and_then(|root| self.get_mut(root).map(|value| f(value)))
     }
 
-    fn with_arc_rwlock<Callback, R>(&self, _arc_rwlock: &Arc<RwLock<Root>>, _f: Callback) -> Option<R>
+    fn with_arc_rwlock<Callback, R>(
+        &self,
+        _arc_rwlock: &Arc<RwLock<Root>>,
+        _f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&Value) -> R,
     {
@@ -9943,13 +11325,17 @@ where
         None
     }
 
-    fn with_arc_rwlock_mut<Callback, R>(&self, arc_rwlock: &Arc<RwLock<Root>>, f: Callback) -> Option<R>
+    fn with_arc_rwlock_mut<Callback, R>(
+        &self,
+        arc_rwlock: &Arc<RwLock<Root>>,
+        f: Callback,
+    ) -> Option<R>
     where
         Callback: FnOnce(&mut Value) -> R,
     {
-        arc_rwlock.write().ok().and_then(|mut guard| {
-            self.get_mut(&mut *guard).map(|value| f(value))
-        })
+        arc_rwlock
+            .write()
+            .ok()
+            .and_then(|mut guard| self.get_mut(&mut *guard).map(|value| f(value)))
     }
 }
-
