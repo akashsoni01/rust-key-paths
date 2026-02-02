@@ -1,20 +1,20 @@
 use keypaths_proc::Kp;
-use std::sync::{Mutex, RwLock};
 use std::rc::Weak;
+use std::sync::{Mutex, RwLock};
 
 #[derive(Debug, Kp)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
     result_int: Result<i32, String>,
-    
+
     // Synchronization primitives
     mutex_data: Mutex<String>,
     rwlock_data: RwLock<i32>,
-    
+
     // Reference counting with weak references
     weak_ref: Weak<String>,
-    
+
     // Basic types for comparison
     name: String,
     age: u32,
@@ -22,7 +22,7 @@ struct ContainerTest {
 
 fn main() {
     println!("=== New Container Types Test ===");
-    
+
     let container = ContainerTest {
         result: Ok("Success!".to_string()),
         result_int: Ok(42),
@@ -90,7 +90,7 @@ fn main() {
 
     // Test with error cases
     println!("\n=== Error Cases ===");
-    
+
     let error_container = ContainerTest {
         result: Err("Something went wrong".to_string()),
         result_int: Err("Invalid number".to_string()),
@@ -128,13 +128,27 @@ fn main() {
     }
 
     println!("\n=== Keypaths Types ===");
-    println!("result() returns: KeyPath<ContainerTest, String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r String> (failable readable)");
-    println!("result_int() returns: KeyPath<ContainerTest, i32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r i32> (failable readable)");
-    println!("mutex_data() returns: KeyPath<ContainerTest, Mutex<String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r Mutex<String>> (readable)");
-    println!("rwlock_data() returns: KeyPath<ContainerTest, RwLock<i32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r RwLock<i32>> (readable)");
-    println!("weak_ref() returns: KeyPath<ContainerTest, Weak<String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r Weak<String>> (readable)");
-    println!("name() returns: KeyPath<ContainerTest, String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r String> (readable)");
-    println!("age() returns: KeyPath<ContainerTest, u32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r u32> (readable)");
+    println!(
+        "result() returns: KeyPath<ContainerTest, String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r String> (failable readable)"
+    );
+    println!(
+        "result_int() returns: KeyPath<ContainerTest, i32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r i32> (failable readable)"
+    );
+    println!(
+        "mutex_data() returns: KeyPath<ContainerTest, Mutex<String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r Mutex<String>> (readable)"
+    );
+    println!(
+        "rwlock_data() returns: KeyPath<ContainerTest, RwLock<i32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r RwLock<i32>> (readable)"
+    );
+    println!(
+        "weak_ref() returns: KeyPath<ContainerTest, Weak<String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r Weak<String>> (readable)"
+    );
+    println!(
+        "name() returns: KeyPath<ContainerTest, String, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r String> (readable)"
+    );
+    println!(
+        "age() returns: KeyPath<ContainerTest, u32, impl for<\'r> Fn(&\'r ContainerTest) -> &\'r u32> (readable)"
+    );
 
     println!("\n=== All new container tests completed successfully! ===");
 }

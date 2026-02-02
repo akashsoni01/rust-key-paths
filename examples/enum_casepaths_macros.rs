@@ -34,7 +34,7 @@ fn main() {
         user.name.push_str("_edited");
     }
     println!("Status2 = {:?}", status2);
-    
+
     // Embedding via readable enum - use the generated embed function
     let embedded = Status::active_embed(User {
         id: 3,

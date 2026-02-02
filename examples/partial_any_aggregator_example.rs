@@ -1,8 +1,8 @@
-use rust_keypaths::{PartialKeyPath, AnyKeyPath};
-use keypaths_proc::{Kp, PartialKp, AnyKeypaths};
-use std::sync::{Arc, Mutex, RwLock};
-use std::rc::Rc;
+use keypaths_proc::{AnyKeypaths, Kp, PartialKp};
+use rust_keypaths::{AnyKeyPath, PartialKeyPath};
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Debug, Clone, Kp, PartialKp, AnyKeypaths)]
 struct Person {
@@ -74,7 +74,10 @@ fn main() {
     let person_result: Result<Person, String> = Ok(person.clone());
     let name_result_partial = name_partial.clone().for_result::<String>();
     if let Some(Some(name)) = name_result_partial.get_as::<String>(&person_result) {
-        println!("Person name via Result<Person, String> (partial): {:?}", name);
+        println!(
+            "Person name via Result<Person, String> (partial): {:?}",
+            name
+        );
     }
 
     // Test Arc<RwLock> aggregator - need to clone the root first
@@ -112,7 +115,8 @@ fn main() {
     }
 
     // Test Rc aggregator (using Arc since Rc is not Send + Sync)
-    let person_arc_boxed2: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(person.clone()));
+    let person_arc_boxed2: Box<dyn std::any::Any + Send + Sync> =
+        Box::new(Arc::new(person.clone()));
     let name_arc_any2 = name_any.clone().for_arc::<Person>();
     if let Some(value) = name_arc_any2.get(&*person_arc_boxed2) {
         println!("Person name via Arc<Person> #2 (any): {:?}", value);
@@ -126,14 +130,16 @@ fn main() {
     }
 
     // Test Result aggregator
-    let person_result_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Ok::<Person, String>(person.clone()));
+    let person_result_boxed: Box<dyn std::any::Any + Send + Sync> =
+        Box::new(Ok::<Person, String>(person.clone()));
     let name_result_any = name_any.clone().for_result::<Person, String>();
     if let Some(value) = name_result_any.get(&*person_result_boxed) {
         println!("Person name via Result<Person, String> (any): {:?}", value);
     }
 
     // Test Arc<RwLock> aggregator - need to clone the root first
-    let person_arc_rwlock_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(RwLock::new(person.clone())));
+    let person_arc_rwlock_boxed: Box<dyn std::any::Any + Send + Sync> =
+        Box::new(Arc::new(RwLock::new(person.clone())));
     if let Some(arc_rwlock) = person_arc_rwlock_boxed.downcast_ref::<Arc<RwLock<Person>>>() {
         let cloned_person = arc_rwlock.read().unwrap().clone();
         if let Some(name) = name_any.get_as::<Person, String>(&cloned_person) {
@@ -144,7 +150,8 @@ fn main() {
     }
 
     // Test Arc<Mutex> aggregator - need to clone the root first
-    let person_arc_mutex_boxed: Box<dyn std::any::Any + Send + Sync> = Box::new(Arc::new(Mutex::new(person.clone())));
+    let person_arc_mutex_boxed: Box<dyn std::any::Any + Send + Sync> =
+        Box::new(Arc::new(Mutex::new(person.clone())));
     if let Some(arc_mutex) = person_arc_mutex_boxed.downcast_ref::<Arc<Mutex<Person>>>() {
         let cloned_person = arc_mutex.lock().unwrap().clone();
         if let Some(name) = name_any.get_as::<Person, String>(&cloned_person) {
@@ -177,7 +184,7 @@ fn main() {
     // Test with different aggregators
     for (i, container) in containers.iter().enumerate() {
         match i {
-             0 => {
+            0 => {
                 // Direct Person
                 if let Some(person_ref) = container.downcast_ref::<Person>() {
                     if let Some(name) = name_partial.get_as::<String>(person_ref) {
@@ -230,7 +237,7 @@ fn main() {
                     }
                 }
             }
-             6 => {
+            6 => {
                 // Arc<RwLock<Person>> - need to clone the root first
                 if let Some(arc_rwlock_ref) = container.downcast_ref::<Arc<RwLock<Person>>>() {
                     let cloned_person = arc_rwlock_ref.read().unwrap().clone();

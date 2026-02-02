@@ -7,8 +7,8 @@
 // 5. Track field-level changes
 // cargo run --example form_binding
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Kp;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug, Clone, Kp)]
 #[All]
@@ -29,7 +29,7 @@ struct UserSettings {
 
 // Generic form field that binds to any field type
 // Uses type erasure to store keypaths with different closure types
-struct FormField<T: 'static, F: 'static> 
+struct FormField<T: 'static, F: 'static>
 where
     F: Clone + std::fmt::Display + 'static,
 {
@@ -148,12 +148,7 @@ impl<T> FormBinding<T> {
     }
 
     // Update a string field by name
-    fn update_string(
-        &self,
-        model: &mut T,
-        field_name: &str,
-        value: String,
-    ) -> Result<(), String> {
+    fn update_string(&self, model: &mut T, field_name: &str, value: String) -> Result<(), String> {
         for field in &self.string_fields {
             if field.field_name == field_name {
                 return field.write(model, value);
@@ -353,7 +348,11 @@ fn main() {
     }
 
     // Update email
-    match form.update_string(&mut profile, "email", "akash.johnson@example.com".to_string()) {
+    match form.update_string(
+        &mut profile,
+        "email",
+        "akash.johnson@example.com".to_string(),
+    ) {
         Ok(_) => println!("✓ Updated email successfully"),
         Err(e) => println!("✗ Failed to update email: {}", e),
     }
@@ -447,4 +446,3 @@ fn main() {
 
     println!("\n✓ Form binding demo complete!");
 }
-

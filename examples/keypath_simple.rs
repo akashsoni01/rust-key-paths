@@ -24,7 +24,7 @@ fn main() {
     };
 
     println!("=== Smart Keypaths Access ===");
-    
+
     // Basic types - readable keypath
     println!("Name: {:?}", Person::name_r().get(&person));
     println!("Age: {:?}", Person::age_r().get(&person));
@@ -44,9 +44,19 @@ fn main() {
     println!("Scores: {:?}", scores);
 
     println!("\n=== Keypaths Types ===");
-    println!("name() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (readable)");
-    println!("age() returns: KeyPath<Person, u32, impl for<\'r> Fn(&\'r Person) -> &\'r u32> (readable)");
-    println!("email() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (failable readable)");
-    println!("hobbies() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (failable readable)");
-    println!("scores() returns: KeyPath<Person, HashMap<String, u32, impl for<\'r> Fn(&\'r Person) -> &\'r HashMap<String, u32>> (readable)");
+    println!(
+        "name() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (readable)"
+    );
+    println!(
+        "age() returns: KeyPath<Person, u32, impl for<\'r> Fn(&\'r Person) -> &\'r u32> (readable)"
+    );
+    println!(
+        "email() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (failable readable)"
+    );
+    println!(
+        "hobbies() returns: KeyPath<Person, String, impl for<\'r> Fn(&\'r Person) -> &\'r String> (failable readable)"
+    );
+    println!(
+        "scores() returns: KeyPath<Person, HashMap<String, u32, impl for<\'r> Fn(&\'r Person) -> &\'r HashMap<String, u32>> (readable)"
+    );
 }

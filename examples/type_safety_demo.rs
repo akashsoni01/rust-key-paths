@@ -46,35 +46,34 @@ fn main() {
 
     // ✅ CORRECT: Chaining keypaths that share the same root
     // Person -> Address -> city (all part of the same type hierarchy)
-    let city_kp = Person::address_r()
-        .then(Address::city_r());
-    
+    let city_kp = Person::address_r().then(Address::city_r());
+
     println!("City: {}", city_kp.get(&person));
 
     // ❌ COMPILE ERROR: Trying to chain keypaths from different roots
     // Person::name_r() returns KeyPath<Person, String>
     // Product::name_r() expects Product as root, not String!
-    
+
     // Uncomment the following to see the compile error:
     /*
     let invalid_kp = Person::name_r()
         .then(Product::name_r());  // ERROR: expected `String`, found `Product`
     */
-    
+
     // ❌ COMPILE ERROR: Trying to use a keypath from a completely different struct
     // Person::age_r() returns KeyPath<Person, u32>
     // Company::name_r() expects Company as root, not u32!
-    
+
     // Uncomment the following to see the compile error:
     /*
     let invalid_kp2 = Person::age_r()
         .then(Company::name_r());  // ERROR: expected `u32`, found `Company`
     */
-    
+
     // ❌ COMPILE ERROR: Type mismatch in the chain
     // Person::address_r() returns KeyPath<Person, Address>
     // Person::name_r() expects Person as root, not Address!
-    
+
     // Uncomment the following to see the compile error:
     /*
     let invalid_kp3 = Person::address_r()
@@ -96,4 +95,3 @@ fn main() {
     println!("   - When chaining, the Value (String) must match the Root (Product)");
     println!("   - Since String ≠ Product, the compiler rejects it");
 }
-

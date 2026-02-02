@@ -1,5 +1,5 @@
-use rust_keypaths::{OptionalKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Kp;
+use rust_keypaths::{OptionalKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug, Kp)]
 #[All]

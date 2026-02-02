@@ -40,7 +40,11 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Add a filter predicate
-    fn where_<F, P>(mut self, path: KeyPath<T, F, P>, predicate: impl Fn(&F) -> bool + 'static) -> Self
+    fn where_<F, P>(
+        mut self,
+        path: KeyPath<T, F, P>,
+        predicate: impl Fn(&F) -> bool + 'static,
+    ) -> Self
     where
         F: 'static,
         P: for<'r> Fn(&'r T) -> &'r F + 'static,
@@ -48,9 +52,8 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
         // Store the keypath in a Box to move it into the closure
         // Since KeyPath has a get method, we can box it and use it
         let path_box: Box<dyn Fn(&T) -> &F> = Box::new(move |t: &T| path.get(t));
-        self.filters.push(Box::new(move |item| {
-            predicate(path_box(item))
-        }));
+        self.filters
+            .push(Box::new(move |item| predicate(path_box(item))));
         self
     }
 
@@ -142,13 +145,18 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
         results.sort_by(|a, b| {
             let a_val = *path.get(a);
             let b_val = *path.get(b);
-            a_val.partial_cmp(&b_val).unwrap_or(std::cmp::Ordering::Equal)
+            a_val
+                .partial_cmp(&b_val)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
         results
     }
 
     // Order by a float field (descending) - for f64
-    fn order_by_float_desc(&self, path: KeyPath<T, f64, impl for<'r> Fn(&'r T) -> &'r f64>) -> Vec<T> {
+    fn order_by_float_desc(
+        &self,
+        path: KeyPath<T, f64, impl for<'r> Fn(&'r T) -> &'r f64>,
+    ) -> Vec<T> {
         let mut results: Vec<T> = self
             .data
             .iter()
@@ -159,7 +167,9 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
         results.sort_by(|a, b| {
             let a_val = *path.get(a);
             let b_val = *path.get(b);
-            b_val.partial_cmp(&a_val).unwrap_or(std::cmp::Ordering::Equal)
+            b_val
+                .partial_cmp(&a_val)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
         results
     }
@@ -177,7 +187,10 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     }
 
     // Group by a field
-    fn group_by<F>(&self, path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>) -> HashMap<F, Vec<T>>
+    fn group_by<F>(
+        &self,
+        path: KeyPath<T, F, impl for<'r> Fn(&'r T) -> &'r F>,
+    ) -> HashMap<F, Vec<T>>
     where
         F: Eq + std::hash::Hash + Clone + 'static,
     {
@@ -186,7 +199,10 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
         for item in self.data.iter() {
             if self.filters.iter().all(|f| f(item)) {
                 let key = path.get(item).clone();
-                groups.entry(key).or_insert_with(Vec::new).push(item.clone());
+                groups
+                    .entry(key)
+                    .or_insert_with(Vec::new)
+                    .push(item.clone());
             }
         }
 
@@ -255,7 +271,11 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     fn max_float(&self, path: KeyPath<T, f64, impl for<'r> Fn(&'r T) -> &'r f64>) -> Option<f64> {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f: &Box<dyn Fn(&T) -> bool>| f(item)))
+            .filter(|item| {
+                self.filters
+                    .iter()
+                    .all(|f: &Box<dyn Fn(&T) -> bool>| f(item))
+            })
             .map(|item| *path.get(item))
             .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
@@ -412,15 +432,34 @@ fn main() {
 
     // Query 5: Aggregations - Electronics statistics
     println!("\n--- Query 5: Electronics Category Statistics ---");
-    let electronics_query = Query::new(&products)
-        .where_(Product::category_r(), |cat| cat == "Electronics");
+    let electronics_query =
+        Query::new(&products).where_(Product::category_r(), |cat| cat == "Electronics");
 
     println!("  Count: {}", electronics_query.count());
-    println!("  Total Value: ${:.2}", electronics_query.sum(Product::price_r()));
-    println!("  Average Price: ${:.2}", electronics_query.avg(Product::price_r()).unwrap_or(0.0));
-    println!("  Min Price: ${:.2}", electronics_query.min_float(Product::price_r()).unwrap_or(0.0));
-    println!("  Max Price: ${:.2}", electronics_query.max_float(Product::price_r()).unwrap_or(0.0));
-    println!("  Total Stock: {}", electronics_query.sum(Product::stock_r()));
+    println!(
+        "  Total Value: ${:.2}",
+        electronics_query.sum(Product::price_r())
+    );
+    println!(
+        "  Average Price: ${:.2}",
+        electronics_query.avg(Product::price_r()).unwrap_or(0.0)
+    );
+    println!(
+        "  Min Price: ${:.2}",
+        electronics_query
+            .min_float(Product::price_r())
+            .unwrap_or(0.0)
+    );
+    println!(
+        "  Max Price: ${:.2}",
+        electronics_query
+            .max_float(Product::price_r())
+            .unwrap_or(0.0)
+    );
+    println!(
+        "  Total Stock: {}",
+        electronics_query.sum(Product::stock_r())
+    );
 
     // Query 6: Complex filtering with ordering
     println!("\n--- Query 6: Electronics Under $200, Ordered by Rating ---");
@@ -454,8 +493,7 @@ fn main() {
 
     // Query 9: First matching item
     println!("\n--- Query 9: Find First Product Over $1000 ---");
-    let query9 = Query::new(&products)
-        .where_(Product::price_r(), |&price| price > 1000.0);
+    let query9 = Query::new(&products).where_(Product::price_r(), |&price| price > 1000.0);
     let expensive = query9.first();
 
     if let Some(product) = expensive {
@@ -480,9 +518,15 @@ fn main() {
         println!("\n  {} Statistics:", category);
         println!("    Products: {}", items.len());
         println!("    Total Value: ${:.2}", cat_query.sum(Product::price_r()));
-        println!("    Avg Price: ${:.2}", cat_query.avg(Product::price_r()).unwrap_or(0.0));
+        println!(
+            "    Avg Price: ${:.2}",
+            cat_query.avg(Product::price_r()).unwrap_or(0.0)
+        );
         println!("    Total Stock: {}", cat_query.sum(Product::stock_r()));
-        println!("    Avg Rating: {:.2}", cat_query.avg(Product::rating_r()).unwrap_or(0.0));
+        println!(
+            "    Avg Rating: {:.2}",
+            cat_query.avg(Product::rating_r()).unwrap_or(0.0)
+        );
     }
 
     // Query 12: Complex multi-stage query
@@ -503,8 +547,7 @@ fn main() {
 
     // Query 13: Select multiple fields (simulated with tuples)
     println!("\n--- Query 13: Select Name and Price for Electronics ---");
-    let query13 = Query::new(&products)
-        .where_(Product::category_r(), |cat| cat == "Electronics");
+    let query13 = Query::new(&products).where_(Product::category_r(), |cat| cat == "Electronics");
     let electronics = query13.all();
 
     for product in electronics {
@@ -546,4 +589,3 @@ fn main() {
 
     println!("\n✓ Advanced query builder demo complete!");
 }
-

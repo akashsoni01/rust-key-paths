@@ -1,7 +1,7 @@
 // This example demonstrates support for locks and tagged types
 // Run with: cargo run --example locks_and_tagged --features "tagged,parking_lot"
 
-use rust_keypaths::{containers, OptionalKeyPath};
+use rust_keypaths::{OptionalKeyPath, containers};
 use std::sync::{Arc, Mutex, RwLock};
 
 #[cfg(feature = "tagged")]
@@ -58,7 +58,10 @@ fn main() {
 
     // Read access
     if let Some(guard) = containers::read_rwlock(&rwlock_data) {
-        println!("  RwLock (read) value: {}, name: {}", guard.value, guard.name);
+        println!(
+            "  RwLock (read) value: {}, name: {}",
+            guard.value, guard.name
+        );
     }
 
     // Write access
@@ -86,7 +89,10 @@ fn main() {
     }));
 
     if let Some(guard) = containers::read_arc_rwlock(&arc_rwlock_data) {
-        println!("  Arc<RwLock> (read) value: {}, name: {}", guard.value, guard.name);
+        println!(
+            "  Arc<RwLock> (read) value: {}, name: {}",
+            guard.value, guard.name
+        );
     }
 
     // ========== Weak References ==========
@@ -105,25 +111,30 @@ fn main() {
     #[cfg(feature = "tagged")]
     {
         println!("\n6. Tagged Types Examples:");
-        
+
         // Note: Tagged types require Deref/DerefMut implementation
         // This example shows the API, but actual usage depends on how Tagged is implemented
         println!("  Tagged type support is available via containers::for_tagged()");
-        println!("  Usage: containers::for_tagged::<Tag, T>() where Tagged<Tag, T>: Deref<Target = T>");
+        println!(
+            "  Usage: containers::for_tagged::<Tag, T>() where Tagged<Tag, T>: Deref<Target = T>"
+        );
     }
 
     // ========== Parking Lot (if enabled) ==========
     #[cfg(feature = "parking_lot")]
     {
         println!("\n7. Parking Lot Examples:");
-        
+
         let parking_mutex = ParkingMutex::new(Data {
             value: 600,
             name: "ParkingMutexData".to_string(),
         });
 
         let guard = containers::lock_parking_mutex(&parking_mutex);
-        println!("  Parking Mutex value: {}, name: {}", guard.value, guard.name);
+        println!(
+            "  Parking Mutex value: {}, name: {}",
+            guard.value, guard.name
+        );
         drop(guard);
 
         let parking_rwlock = ParkingRwLock::new(Data {
@@ -132,17 +143,23 @@ fn main() {
         });
 
         let read_guard = containers::read_parking_rwlock(&parking_rwlock);
-        println!("  Parking RwLock (read) value: {}, name: {}", read_guard.value, read_guard.name);
+        println!(
+            "  Parking RwLock (read) value: {}, name: {}",
+            read_guard.value, read_guard.name
+        );
         drop(read_guard);
 
         let mut write_guard = containers::write_parking_rwlock(&parking_rwlock);
         write_guard.value = 800;
-        println!("  Parking RwLock (write) updated value to: {}", write_guard.value);
+        println!(
+            "  Parking RwLock (write) updated value to: {}",
+            write_guard.value
+        );
     }
 
     // ========== Complex Chaining Example ==========
     println!("\n8. Complex Chaining: Root -> Level1 -> Level2 -> Arc<RwLock<Data>>:");
-    
+
     let root = Root {
         level1: Some(Level1 {
             level2: Some(Level2 {
@@ -161,32 +178,40 @@ fn main() {
     let root_to_level1 = OptionalKeyPath::new(|r: &Root| r.level1.as_ref());
     let level1_to_level2 = OptionalKeyPath::new(|l1: &Level1| l1.level2.as_ref());
     let level2_to_arc_rwlock = OptionalKeyPath::new(|l2: &Level2| Some(&l2.data));
-    
+
     // Chain all the way to Arc<RwLock<Data>>
     let chained_to_arc = root_to_level1
         .then(level1_to_level2)
         .then(level2_to_arc_rwlock);
-    
+
     // Access the Arc<RwLock<Data>> and then lock it
     if let Some(arc_rwlock) = chained_to_arc.get(&root) {
         println!("  Successfully chained to Arc<RwLock<Data>>");
-        
+
         // Now use the helper function to read the data
         if let Some(guard) = containers::read_arc_rwlock(arc_rwlock) {
-            println!("  Chained read - value: {}, name: {}", guard.value, guard.name);
+            println!(
+                "  Chained read - value: {}, name: {}",
+                guard.value, guard.name
+            );
         }
-        
+
         // Write access through the chain
         if let Some(mut guard) = containers::write_arc_rwlock(arc_rwlock) {
             guard.value = 1000;
             guard.name = "UpdatedChainedData".to_string();
-            println!("  Chained write - updated value: {}, name: {}", guard.value, guard.name);
+            println!(
+                "  Chained write - updated value: {}, name: {}",
+                guard.value, guard.name
+            );
         }
     }
 
     // ========== Even More Complex: Accessing nested field through chain ==========
-    println!("\n9. Ultra Complex Chaining: Root -> Level1 -> Level2 -> Arc<RwLock<Data>> -> Data.value:");
-    
+    println!(
+        "\n9. Ultra Complex Chaining: Root -> Level1 -> Level2 -> Arc<RwLock<Data>> -> Data.value:"
+    );
+
     // Create a new root for this example
     let mut root2 = Root {
         level1: Some(Level1 {
@@ -207,45 +232,50 @@ fn main() {
     let root_to_level1_2 = OptionalKeyPath::new(|r: &Root| r.level1.as_ref());
     let level1_to_level2_2 = OptionalKeyPath::new(|l1: &Level1| l1.level2.as_ref());
     let level2_to_arc_rwlock_2 = OptionalKeyPath::new(|l2: &Level2| Some(&l2.data));
-    
+
     let chained_to_arc_2 = root_to_level1_2
         .then(level1_to_level2_2)
         .then(level2_to_arc_rwlock_2);
-    
+
     // Access and modify through the complete chain
     if let Some(arc_rwlock) = chained_to_arc_2.get(&root2) {
         // Read the value field through the chain
         if let Some(guard) = containers::read_arc_rwlock(arc_rwlock) {
-            println!("  Ultra chained read - value: {}, name: {}", guard.value, guard.name);
+            println!(
+                "  Ultra chained read - value: {}, name: {}",
+                guard.value, guard.name
+            );
         }
-        
+
         // Modify the value field through the chain
         if let Some(mut guard) = containers::write_arc_rwlock(arc_rwlock) {
             guard.value = 3000;
             println!("  Ultra chained write - updated value: {}", guard.value);
         }
-        
+
         // Verify the change
         if let Some(guard) = containers::read_arc_rwlock(arc_rwlock) {
-            println!("  Verification - final value: {}, name: {}", guard.value, guard.name);
+            println!(
+                "  Verification - final value: {}, name: {}",
+                guard.value, guard.name
+            );
         }
     }
 
     // ========== Chaining with metadata access ==========
     println!("\n10. Chaining to Optional Field: Root -> Level1 -> Level2 -> metadata:");
-    
+
     let root_to_level1_3 = OptionalKeyPath::new(|r: &Root| r.level1.as_ref());
     let level1_to_level2_3 = OptionalKeyPath::new(|l1: &Level1| l1.level2.as_ref());
     let level2_to_metadata = OptionalKeyPath::new(|l2: &Level2| l2.metadata.as_ref());
-    
+
     let chained_to_metadata = root_to_level1_3
         .then(level1_to_level2_3)
         .then(level2_to_metadata);
-    
+
     if let Some(metadata) = chained_to_metadata.get(&root2) {
         println!("  Chained to metadata: {}", metadata);
     }
 
     println!("\n✅ All lock and tagged type examples completed!");
 }
-

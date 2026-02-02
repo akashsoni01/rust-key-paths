@@ -1,7 +1,9 @@
 // Simple example demonstrating the for_mutex() adapter for KeyPaths
 // Run with: cargo run --example simple_mutex_example
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
+use rust_keypaths::{
+    KeyPath, OptionalKeyPath, WithContainer, WritableKeyPath, WritableOptionalKeyPath,
+};
 use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -25,7 +27,7 @@ fn main() {
 
     // ===== Example 1: Basic Mutex Usage =====
     println!("--- Example 1: Basic Mutex Usage ---");
-    
+
     let mutex_user = Mutex::new(user.clone());
 
     // Note: We'll create the adapted keypaths inline since they can't be cloned
@@ -37,7 +39,7 @@ fn main() {
 
     // ===== Example 2: Collection of Mutex =====
     println!("--- Example 2: Collection of Mutex ---");
-    
+
     let mutex_users: Vec<Mutex<User>> = vec![
         Mutex::new(User {
             name: "Bob".to_string(),

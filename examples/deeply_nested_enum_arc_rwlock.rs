@@ -1,5 +1,5 @@
 //! Example demonstrating deeply nested enums with Arc<RwLock<T>> case paths
-//! 
+//!
 //! Run with: cargo run --example deeply_nested_enum_arc_rwlock
 
 use keypaths_proc::{Casepaths, Kp, WritableKeypaths};
@@ -66,7 +66,7 @@ impl AppState {
             }))),
         }
     }
-    
+
     fn new_idle() -> Self {
         Self {
             current_mode: AppMode::Idle,
@@ -79,48 +79,48 @@ fn main() {
     let app_state = AppState::new_active();
     // ========== READING ==========
     // Use _fr() (failable readable) with chain_arc_rwlock_at_kp or chain_arc_rwlock_optional_at_kp
-    
+
     // Read non-optional field through the chain
     println!("Reading user_name (non-optional field):");
     let kp = AppState::current_mode_fr()
         .then(AppMode::active_r())
-        .chain_arc_rwlock_at_kp(Session::user_name_r());  // Use _r() for non-optional
+        .chain_arc_rwlock_at_kp(Session::user_name_r()); // Use _r() for non-optional
     kp.get(&app_state, |value| {
         println!("  ✓ user_name = {:?}", value);
     });
-    
+
     // Read optional field through the chain
     println!("\nReading user_email (optional field):");
     let kp = AppState::current_mode_fr()
         .then(AppMode::active_r())
-        .chain_arc_rwlock_optional_at_kp(Session::user_email_fr());  // Use _fr() for optional
+        .chain_arc_rwlock_optional_at_kp(Session::user_email_fr()); // Use _fr() for optional
     kp.get(&app_state, |value| {
         println!("  ✓ user_email = {:?}", value);
     });
-    
+
     // ========== WRITING (with full chain syntax!) ==========
     // Use _w() or _fw() (writable) with chain_arc_rwlock_writable_at_kp or chain_arc_rwlock_writable_optional_at_kp
-    
+
     // Write to non-optional field through the full chain
     println!("\nWriting to user_name (using chain_arc_rwlock_writable_at_kp):");
     let kp = AppState::current_mode_fr()
         .then(AppMode::active_r())
-        .chain_arc_rwlock_writable_at_kp(Session::user_name_w());  // Use _w() for non-optional writable
+        .chain_arc_rwlock_writable_at_kp(Session::user_name_w()); // Use _w() for non-optional writable
     kp.get_mut(&app_state, |value| {
         *value = "Akash (Updated via chain!)".to_string();
         println!("  ✓ Updated user_name");
     });
-    
+
     // Write to optional field through the full chain
     println!("\nWriting to user_email (using chain_arc_rwlock_writable_optional_at_kp):");
     let kp = AppState::current_mode_fr()
         .then(AppMode::active_r())
-        .chain_arc_rwlock_writable_optional_at_kp(Session::user_email_fw());  // Use _fw() for optional writable
+        .chain_arc_rwlock_writable_optional_at_kp(Session::user_email_fw()); // Use _fw() for optional writable
     kp.get_mut(&app_state, |value| {
         *value = "updated@example.com".to_string();
         println!("  ✓ Updated user_email");
     });
-    
+
     // Verify the writes
     println!("\nVerifying writes:");
     let kp = AppState::current_mode_fr()
@@ -129,14 +129,14 @@ fn main() {
     kp.get(&app_state, |value| {
         println!("  ✓ user_name = {:?}", value);
     });
-    
+
     let kp = AppState::current_mode_fr()
         .then(AppMode::active_r())
         .chain_arc_rwlock_optional_at_kp(Session::user_email_fr());
     kp.get(&app_state, |value| {
         println!("  ✓ user_email = {:?}", value);
     });
-    
+
     // ========== IDLE STATE (Non-matching variant) ==========
     println!("\nTesting with Idle state (non-matching variant):");
     let idle_state = AppState::new_idle();
@@ -147,11 +147,13 @@ fn main() {
     if result.is_none() {
         println!("  ✓ Correctly returned None - enum is Idle, not Active");
     }
-    
+
     println!("\n=== Example completed ===");
     println!("\nSyntax summary:");
     println!("  READING non-optional:  .chain_arc_rwlock_at_kp(Session::field_r())");
     println!("  READING optional:      .chain_arc_rwlock_optional_at_kp(Session::field_fr())");
     println!("  WRITING non-optional:  .chain_arc_rwlock_writable_at_kp(Session::field_w())");
-    println!("  WRITING optional:      .chain_arc_rwlock_writable_optional_at_kp(Session::field_fw())");
+    println!(
+        "  WRITING optional:      .chain_arc_rwlock_writable_optional_at_kp(Session::field_fw())"
+    );
 }

@@ -1,7 +1,7 @@
 //! Simple example demonstrating Tokio RwLock with keypaths
-//! 
+//!
 //! Run with: cargo run --example tokio_simple --features tokio
-//! 
+//!
 //! This example shows how to:
 //! 1. Use derive-generated keypath methods for lock fields
 //! 2. Read and write through a single Arc<tokio::sync::RwLock<T>>
@@ -12,11 +12,11 @@
 
 #[cfg(feature = "tokio")]
 mod example {
-    use std::sync::Arc;
     use keypaths_proc::Kp;
+    use std::sync::Arc;
 
     #[derive(Kp)]
-    #[All]  // Generate all methods (readable, writable, owned)
+    #[All] // Generate all methods (readable, writable, owned)
     pub struct AppState {
         pub user_data: Arc<tokio::sync::RwLock<UserData>>,
     }
@@ -28,7 +28,7 @@ mod example {
     }
 
     #[derive(Kp)]
-    #[All]  // Generate all methods (readable, writable, owned)
+    #[All] // Generate all methods (readable, writable, owned)
     pub struct UserData {
         pub name: String,
         pub age: u32,
@@ -135,7 +135,9 @@ mod example {
 
         println!("\n=== Key Takeaways ===");
         println!("✅ No cloning occurred - all access was zero-copy!");
-        println!("✅ Used derive-generated keypaths: AppState::user_data_fr_at(), AppState::user_data_fw_at()");
+        println!(
+            "✅ Used derive-generated keypaths: AppState::user_data_fr_at(), AppState::user_data_fw_at()"
+        );
         println!("✅ Chained through Arc<tokio::sync::RwLock<T>> safely");
         println!("✅ All operations are async and must be awaited");
         println!("✅ Works with Tokio for async runtime compatibility");
@@ -153,4 +155,3 @@ fn main() {
     eprintln!("This example requires the 'tokio' feature.");
     eprintln!("Run with: cargo run --example tokio_simple --features tokio");
 }
-

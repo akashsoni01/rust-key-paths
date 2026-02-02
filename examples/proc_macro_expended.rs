@@ -1,5 +1,5 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Kp;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug)]
 struct SomeComplexStruct {
@@ -17,12 +17,20 @@ impl SomeComplexStruct {
     // fn w() -> KeyPaths<>{}
 
     // failable read only keypath = field_name_fr
-    fn scsf_fr() -> OptionalKeyPath<SomeComplexStruct, SomeOtherStruct, impl for<'r> Fn(&'r SomeComplexStruct) -> Option<&'r SomeOtherStruct>> {
+    fn scsf_fr() -> OptionalKeyPath<
+        SomeComplexStruct,
+        SomeOtherStruct,
+        impl for<'r> Fn(&'r SomeComplexStruct) -> Option<&'r SomeOtherStruct>,
+    > {
         OptionalKeyPath::new(|root: &SomeComplexStruct| root.scsf.as_ref())
     }
 
     // failable writeable keypath = field_name_fw
-    fn scsf_fw() -> WritableOptionalKeyPath<SomeComplexStruct, SomeOtherStruct, impl for<'r> Fn(&'r mut SomeComplexStruct) -> Option<&'r mut SomeOtherStruct>> {
+    fn scsf_fw() -> WritableOptionalKeyPath<
+        SomeComplexStruct,
+        SomeOtherStruct,
+        impl for<'r> Fn(&'r mut SomeComplexStruct) -> Option<&'r mut SomeOtherStruct>,
+    > {
         WritableOptionalKeyPath::new(|root: &mut SomeComplexStruct| root.scsf.as_mut())
     }
 }

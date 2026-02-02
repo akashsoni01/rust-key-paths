@@ -157,7 +157,7 @@
 //     // Demonstrate the power of keypaths: accessing nested fields directly
 //     println!("\n--- Direct keypath access demonstration ---");
 //     let theme_path = UserProfile::settings_w().to_optional().then(UserSettings::theme_w());
-    
+
 //     let theme = theme_path.get_mut(&mut profile);
 //     {
 //         println!("Current theme: {}", theme);
@@ -176,6 +176,5 @@
 
 //     println!("\nFinal profile: {:#?}", profile);
 // }
-
 
 fn main() {}

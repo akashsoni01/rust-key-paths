@@ -7,8 +7,8 @@
 // 5. Use keypaths for type-safe join conditions
 // cargo run --example join_query_builder
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Kp;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use std::collections::HashMap;
 
 // Database schema: Users, Orders, Products
@@ -85,7 +85,12 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
     }
 
     // Inner join: returns only matching pairs
-    fn inner_join<K, O, F, PL, PR>(&self, left_key: KeyPath<L, K, PL>, right_key: KeyPath<R, K, PR>, mapper: F) -> Vec<O>
+    fn inner_join<K, O, F, PL, PR>(
+        &self,
+        left_key: KeyPath<L, K, PL>,
+        right_key: KeyPath<R, K, PR>,
+        mapper: F,
+    ) -> Vec<O>
     where
         K: Eq + std::hash::Hash + Clone + 'static,
         F: Fn(&L, &R) -> O,
@@ -114,7 +119,12 @@ impl<'a, L: Clone, R: Clone> JoinQuery<'a, L, R> {
     }
 
     // Left join: returns all left items, with optional right matches
-    fn left_join<K, O, F, PL, PR>(&self, left_key: KeyPath<L, K, PL>, right_key: KeyPath<R, K, PR>, mapper: F) -> Vec<O>
+    fn left_join<K, O, F, PL, PR>(
+        &self,
+        left_key: KeyPath<L, K, PL>,
+        right_key: KeyPath<R, K, PR>,
+        mapper: F,
+    ) -> Vec<O>
     where
         K: Eq + std::hash::Hash + Clone + 'static,
         F: Fn(&L, Option<&R>) -> O,
@@ -334,7 +344,7 @@ fn main() {
 
     // Join 2: Three-way join (Orders -> Users, Orders -> Products)
     println!("\n--- Join 2: Complete Order Details (3-Way Join) ---");
-    
+
     // First join: Orders with Users
     let orders_with_users = JoinQuery::new(&orders, &users).inner_join(
         Order::user_id_r(),
@@ -368,7 +378,7 @@ fn main() {
 
     // Join 3: Left join to show all users (including those without orders)
     println!("\n--- Join 3: All Users with Order Count (Left Join) ---");
-    
+
     // Use left_join to get all users with their orders (or None)
     let user_order_pairs = JoinQuery::new(&users, &orders).left_join(
         User::id_r(),
@@ -407,7 +417,10 @@ fn main() {
                 stat.user_name, stat.user_city, stat.order_count, stat.total_spent
             );
         } else {
-            println!("  • {} ({}) - No orders yet", stat.user_name, stat.user_city);
+            println!(
+                "  • {} ({}) - No orders yet",
+                stat.user_name, stat.user_city
+            );
         }
     }
 
@@ -485,7 +498,7 @@ fn main() {
 
     // Join 7: Product popularity
     println!("\n--- Join 7: Product Popularity Ranking ---");
-    
+
     // Join orders with products
     let product_order_pairs = JoinQuery::new(&products, &orders).inner_join(
         Product::id_r(),
@@ -505,7 +518,7 @@ fn main() {
     }
 
     let mut popularity: Vec<_> = product_sales.into_iter().collect();
-    popularity.sort_by(|a, b| b.1 .1.cmp(&a.1 .1)); // sort by order count
+    popularity.sort_by(|a, b| b.1.1.cmp(&a.1.1)); // sort by order count
 
     for (_, (name, order_count, total_qty, revenue)) in &popularity {
         println!(
@@ -516,7 +529,7 @@ fn main() {
 
     // Join 8: User spending by city
     println!("\n--- Join 8: Total Spending by City ---");
-    
+
     // Join users with orders to get city and spending info
     let user_city_orders = JoinQuery::new(&users, &orders).inner_join(
         User::id_r(),
@@ -538,10 +551,8 @@ fn main() {
         .into_iter()
         .map(|(city, (total, customers))| (city, total, customers.len()))
         .collect();
-    
-    city_stats.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-    });
+
+    city_stats.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     for (city, total, customer_count) in &city_stats {
         println!(
@@ -556,13 +567,16 @@ fn main() {
     // Statistics summary
     println!("\n=== Summary Statistics ===");
     println!("Total orders: {}", orders.len());
-    
+
     let total_revenue: f64 = orders.iter().map(|o| o.total).sum();
     println!("Total revenue: ${:.2}", total_revenue);
-    println!("Average order value: ${:.2}", total_revenue / orders.len() as f64);
-    
+    println!(
+        "Average order value: ${:.2}",
+        total_revenue / orders.len() as f64
+    );
+
     // Count unique customers using a join
-    let unique_customers: std::collections::HashSet<u32> = 
+    let unique_customers: std::collections::HashSet<u32> =
         orders.iter().map(|o| o.user_id).collect();
     println!("Active customers: {}", unique_customers.len());
     println!(
@@ -572,4 +586,3 @@ fn main() {
 
     println!("\n✓ Join query builder demo complete!");
 }
-

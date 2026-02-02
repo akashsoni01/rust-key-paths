@@ -2,15 +2,14 @@
 //!
 //! This example shows how to use keypaths with Tokio's async synchronization primitives.
 //! Tokio locks are async, so all operations must be awaited.
-/// cargo run --example tokio_containers 2>&1
-
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath};
 use keypaths_proc::Kp;
+/// cargo run --example tokio_containers 2>&1
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
 #[derive(Kp, Debug)]
-#[All]  // Generate all methods (readable, writable, owned)
+#[All] // Generate all methods (readable, writable, owned)
 struct AppState {
     user_data: Arc<tokio::sync::Mutex<UserData>>,
     config: Arc<tokio::sync::RwLock<Config>>,
@@ -25,7 +24,7 @@ impl Clone for AppState {
 }
 
 #[derive(Kp, Debug)]
-#[All]  // Generate all methods (readable, writable, owned)
+#[All] // Generate all methods (readable, writable, owned)
 struct UserData {
     name: String,
     email: String,
@@ -39,7 +38,7 @@ impl Clone for UserData {
 }
 
 #[derive(Kp, Debug)]
-#[All]  // Generate all methods (readable, writable, owned)
+#[All] // Generate all methods (readable, writable, owned)
 struct UserSettings {
     theme: String,
     notifications: bool,
@@ -52,7 +51,7 @@ impl Clone for UserSettings {
 }
 
 #[derive(Kp, Debug)]
-#[All]  // Generate all methods (readable, writable, owned)
+#[All] // Generate all methods (readable, writable, owned)
 struct Config {
     api_key: String,
     timeout: u64,
@@ -66,7 +65,7 @@ impl Clone for Config {
 }
 
 #[derive(Kp, Debug)]
-#[All]  // Generate all methods (readable, writable, owned)
+#[All] // Generate all methods (readable, writable, owned)
 struct FeatureFlags {
     enable_logging: bool,
     enable_metrics: bool,
@@ -79,7 +78,7 @@ impl Clone for FeatureFlags {
 }
 
 #[derive(Kp, Debug)]
-#[All]  // Generate all methods (readable, writable, owned)
+#[All] // Generate all methods (readable, writable, owned)
 struct Cache {
     entries: Vec<String>,
     size: usize,
@@ -118,7 +117,11 @@ async fn main() {
             size: 2,
         }))),
         optional_mutex_cache: Some(Arc::new(tokio::sync::Mutex::new(Cache {
-            entries: vec!["mutex_entry1".to_string(), "mutex_entry2".to_string(), "mutex_entry3".to_string()],
+            entries: vec![
+                "mutex_entry1".to_string(),
+                "mutex_entry2".to_string(),
+                "mutex_entry3".to_string(),
+            ],
             size: 3,
         }))),
     };
@@ -302,4 +305,3 @@ async fn main() {
 
     println!("\n=== Example Complete ===");
 }
-

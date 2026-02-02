@@ -1,7 +1,7 @@
 use keypaths_proc::Kp;
+use parking_lot::RwLock;
 use rust_keypaths::OptionalKeyPath;
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 // Deeply nested data structures for demonstration
 #[derive(Kp, Clone, Debug)]
@@ -123,22 +123,20 @@ fn main() {
                 },
             ],
         },
-        subsidiaries: vec![
-            Company {
-                name: "TechCorp Europe".to_string(),
-                headquarters: Address {
-                    street: "456 European Ave".to_string(),
-                    city: "London".to_string(),
-                    country: "UK".to_string(),
-                    coordinates: Some(Coordinates {
-                        latitude: 51.5074,
-                        longitude: -0.1278,
-                    }),
-                },
-                employees: vec![],
-                departments: vec![],
+        subsidiaries: vec![Company {
+            name: "TechCorp Europe".to_string(),
+            headquarters: Address {
+                street: "456 European Ave".to_string(),
+                city: "London".to_string(),
+                country: "UK".to_string(),
+                coordinates: Some(Coordinates {
+                    latitude: 51.5074,
+                    longitude: -0.1278,
+                }),
             },
-        ],
+            employees: vec![],
+            departments: vec![],
+        }],
         global_contact: Contact {
             email: "global@techcorp.com".to_string(),
             phone: Some("+1-555-GLOBAL".to_string()),
@@ -161,7 +159,7 @@ fn main() {
     println!("\n1️⃣  Simple Composition - Company Name");
     println!("-------------------------------------");
     let company_name_path = Organization::company_fr().then(Company::name_fr());
-    
+
     {
         let guard = organization.read();
         if let Some(name) = company_name_path.get(&*guard) {
@@ -176,7 +174,7 @@ fn main() {
         .to_optional()
         .then(Company::headquarters_r().to_optional())
         .then(Address::city_r().to_optional());
-    
+
     {
         let guard = organization.read();
         if let Some(city) = hq_city_path.get(&*guard) {
@@ -192,7 +190,7 @@ fn main() {
         .then(Company::headquarters_r().to_optional())
         .then(Address::coordinates_fr())
         .then(Coordinates::latitude_r().to_optional());
-    
+
     {
         let guard = organization.read();
         if let Some(latitude) = hq_lat_path.get(&*guard) {
@@ -206,7 +204,7 @@ fn main() {
     let global_email_path = Organization::global_contact_r()
         .to_optional()
         .then(OptionalKeyPath::new(|c: &Contact| Some(&c.email)));
-    
+
     {
         let guard = organization.read();
         if let Some(email) = global_email_path.get(&*guard) {
@@ -222,7 +220,7 @@ fn main() {
         .then(Contact::address_r().to_optional())
         .then(Address::coordinates_fr())
         .then(Coordinates::latitude_r().to_optional());
-    
+
     {
         let guard = organization.read();
         if let Some(latitude) = global_coords_path.get(&*guard) {
@@ -233,7 +231,7 @@ fn main() {
     // Example 6: Working with collections - First department budget
     println!("\n6️⃣  Working with Collections - First Department Budget");
     println!("---------------------------------------------------");
-    
+
     // Since Vec doesn't have get_r, we'll access the first department directly
     // This demonstrates how to work with collections in a natural way
     {
@@ -249,7 +247,7 @@ fn main() {
     // Example 7: Working with employees - First employee contact
     println!("\n7️⃣  Working with Employees - First Employee Contact");
     println!("-------------------------------------------------");
-    
+
     {
         let guard = organization.read();
         let org = &*guard;
@@ -269,7 +267,7 @@ fn main() {
     let global_phone_path = Organization::global_contact_r()
         .to_optional()
         .then(Contact::phone_fr());
-    
+
     {
         let guard = organization.read();
         if let Some(phone) = global_phone_path.get(&*guard) {
@@ -283,16 +281,16 @@ fn main() {
     // Pattern 1: Building keypaths step by step (very natural)
     println!("\n📝 Pattern 1: Step-by-Step Composition");
     println!("--------------------------------------");
-    
+
     // Start with organization
     let org_path = Organization::company_r().to_optional();
-    
+
     // Add company level
     let company_path = org_path.then(Company::headquarters_r().to_optional());
-    
+
     // Add headquarters level
     let hq_path = company_path.then(Address::city_r().to_optional());
-    
+
     {
         let guard = organization.read();
         if let Some(city) = hq_path.get(&*guard) {
@@ -303,12 +301,12 @@ fn main() {
     // Pattern 2: Fluent composition (very readable)
     println!("\n📝 Pattern 2: Fluent Composition");
     println!("-------------------------------");
-    
+
     let fluent_path = Organization::company_r()
         .to_optional()
         .then(Company::headquarters_r().to_optional())
         .then(Address::country_r().to_optional());
-    
+
     {
         let guard = organization.read();
         if let Some(country) = fluent_path.get(&*guard) {
@@ -319,12 +317,12 @@ fn main() {
     // Pattern 3: Reusable intermediate keypaths
     println!("\n📝 Pattern 3: Reusable Intermediate KeyPaths");
     println!("-------------------------------------------");
-    
+
     // Create reusable base paths
     let company_base = Organization::company_r().to_optional();
     let hq_base = company_base.then(Company::headquarters_r().to_optional());
     let address_base = hq_base.then(Address::coordinates_fr());
-    
+
     // Compose different paths using the same base
     // Note: We recreate the base path since OptionalKeyPath doesn't implement Clone
     let hq_lat_path = Organization::company_r()
@@ -337,7 +335,7 @@ fn main() {
         .then(Company::headquarters_r().to_optional())
         .then(Address::coordinates_fr())
         .then(Coordinates::longitude_r().to_optional());
-    
+
     {
         let guard = organization.read();
         if let Some(lat) = hq_lat_path.get(&*guard) {
@@ -351,13 +349,13 @@ fn main() {
     // Pattern 4: Working with multiple levels of Option
     println!("\n📝 Pattern 4: Multiple Levels of Option");
     println!("-------------------------------------");
-    
+
     let optional_coords_path = Organization::company_r()
         .to_optional()
         .then(Company::headquarters_r().to_optional())
         .then(Address::coordinates_fr())
         .then(Coordinates::latitude_r().to_optional());
-    
+
     {
         let guard = organization.read();
         if let Some(latitude) = optional_coords_path.get(&*guard) {
@@ -370,16 +368,18 @@ fn main() {
     // Pattern 5: Working with collections using iteration
     println!("\n📝 Pattern 5: Working with Collections");
     println!("-------------------------------------");
-    
+
     {
         let guard = organization.read();
         let org = &*guard;
-        
+
         // Iterate through employees and use keypaths on each
         for (i, employee) in org.company.employees.iter().enumerate() {
             let employee_name_path = Employee::name_r();
-            let employee_email_path = Employee::contact_r().to_optional().then(OptionalKeyPath::new(|c: &Contact| Some(&c.email)));
-            
+            let employee_email_path = Employee::contact_r()
+                .to_optional()
+                .then(OptionalKeyPath::new(|c: &Contact| Some(&c.email)));
+
             let name = employee_name_path.get(&employee);
             if let Some(email) = employee_email_path.get(&employee) {
                 println!("✅ Employee {}: {} ({})", i + 1, name, email);

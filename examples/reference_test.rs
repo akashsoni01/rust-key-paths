@@ -30,7 +30,7 @@ fn main() {
     // Test 1: Basic get with readable keypath
     println!("--- Test 1: get with Readable KeyPath ---");
     let name_path = KeyPath::new(|p: &Person| &p.name);
-    
+
     let person_refs: Vec<&Person> = people.iter().collect();
     for person_ref in &person_refs {
         let name = name_path.get(person_ref);
@@ -42,7 +42,7 @@ fn main() {
     // Test 2: get returns correct values
     println!("--- Test 2: get Value Correctness ---");
     let age_path = KeyPath::new(|p: &Person| &p.age);
-    
+
     let first_ref = &people[0];
     let age = age_path.get(first_ref);
     println!("  First person age: {}", age);
@@ -62,7 +62,7 @@ fn main() {
     // Test 4: Writable keypaths don't have get() method
     println!("--- Test 4: Writable KeyPath (no get method) ---");
     let name_path_w = WritableKeyPath::new(|p: &mut Person| &mut p.name);
-    
+
     // WritableKeyPath doesn't have get(), only get_mut()
     // This test demonstrates that writable paths are for mutation only
     println!("  WritableKeyPath only has get_mut(), not get()");
@@ -72,7 +72,7 @@ fn main() {
     println!("--- Test 5: get_mut with Mutable References ---");
     let mut people_mut = people.clone();
     let name_path_w = WritableKeyPath::new(|p: &mut Person| &mut p.name);
-    
+
     let person_mut_ref = &mut people_mut[0];
     let name = name_path_w.get_mut(person_mut_ref);
     println!("  Original name: {}", name);
@@ -83,13 +83,13 @@ fn main() {
 
     // Test 6: get_ref with failable keypaths
     println!("--- Test 6: get_ref with Failable KeyPath ---");
-    
+
     #[derive(Debug)]
     struct Employee {
         name: String,
         manager: Option<String>,
     }
-    
+
     let employees = vec![
         Employee {
             name: "Akash".to_string(),
@@ -100,10 +100,10 @@ fn main() {
             manager: None,
         },
     ];
-    
+
     let manager_path = OptionalKeyPath::new(|e: &Employee| e.manager.as_ref());
     let employee_refs: Vec<&Employee> = employees.iter().collect();
-    
+
     for emp_ref in &employee_refs {
         match manager_path.get(emp_ref) {
             Some(manager) => println!("  {} has manager: {}", emp_ref.name, manager),
@@ -116,11 +116,11 @@ fn main() {
     println!("--- Test 7: get with Different References ---");
     let owned_person = &people[0];
     let ref_person = &people[0];
-    
+
     // Using get with direct reference
     let name1 = name_path.get(owned_person);
     println!("  get() result: {}", name1);
-    
+
     // Using get with another reference
     let name2 = name_path.get(ref_person);
     println!("  get() result: {}", name2);
@@ -135,7 +135,7 @@ fn main() {
             age: 20 + (i % 50),
         })
         .collect();
-    
+
     // With references (no cloning)
     let refs: Vec<&Person> = large_collection.iter().collect();
     let mut count = 0;
@@ -150,4 +150,3 @@ fn main() {
 
     println!("=== All Tests Passed! ===");
 }
-

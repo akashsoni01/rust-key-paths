@@ -7,8 +7,8 @@
 // 5. Display history of changes
 // cargo run --example undo_redo
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Kp;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Kp)]
@@ -141,11 +141,7 @@ impl<T> UndoStack<T> {
             .iter()
             .enumerate()
             .map(|(i, cmd)| {
-                let marker = if i < self.current {
-                    "✓"
-                } else {
-                    " "
-                };
+                let marker = if i < self.current { "✓" } else { " " };
                 format!("{} {}", marker, cmd.description())
             })
             .collect()
@@ -167,9 +163,8 @@ where
     let old_value = read_path.get(target).map(|s| s.clone()).unwrap_or_default();
     let path_rc = Rc::new(path);
     let path_clone = path_rc.clone();
-    let path_box: Box<dyn Fn(&mut T) -> Option<&mut String>> = Box::new(move |t: &mut T| {
-        path_clone.get_mut(t)
-    });
+    let path_box: Box<dyn Fn(&mut T) -> Option<&mut String>> =
+        Box::new(move |t: &mut T| path_clone.get_mut(t));
     Box::new(ChangeCommand {
         path: path_box,
         old_value,
@@ -193,9 +188,8 @@ where
     let old_value = read_path.get(target).copied().unwrap_or_default();
     let path_rc = Rc::new(path);
     let path_clone = path_rc.clone();
-    let path_box: Box<dyn Fn(&mut T) -> Option<&mut u32>> = Box::new(move |t: &mut T| {
-        path_clone.get_mut(t)
-    });
+    let path_box: Box<dyn Fn(&mut T) -> Option<&mut u32>> =
+        Box::new(move |t: &mut T| path_clone.get_mut(t));
     Box::new(ChangeCommand {
         path: path_box,
         old_value,
@@ -219,9 +213,8 @@ where
     let old_value = read_path.get(target).map(|v| v.clone()).unwrap_or_default();
     let path_rc = Rc::new(path);
     let path_clone = path_rc.clone();
-    let path_box: Box<dyn Fn(&mut T) -> Option<&mut Vec<String>>> = Box::new(move |t: &mut T| {
-        path_clone.get_mut(t)
-    });
+    let path_box: Box<dyn Fn(&mut T) -> Option<&mut Vec<String>>> =
+        Box::new(move |t: &mut T| path_clone.get_mut(t));
     Box::new(ChangeCommand {
         path: path_box,
         old_value,
@@ -278,8 +271,12 @@ fn main() {
     println!("\n--- Change 3: Update author (nested field) ---");
     let cmd = make_string_change(
         &doc,
-        Document::metadata_w().to_optional().then(DocumentMetadata::author_w().to_optional()),
-        Document::metadata_r().to_optional().then(DocumentMetadata::author_r().to_optional()),
+        Document::metadata_w()
+            .to_optional()
+            .then(DocumentMetadata::author_w().to_optional()),
+        Document::metadata_r()
+            .to_optional()
+            .then(DocumentMetadata::author_r().to_optional()),
         "Bob".to_string(),
         "Change author to 'Bob'".to_string(),
     );
@@ -290,8 +287,12 @@ fn main() {
     println!("\n--- Change 4: Update revision ---");
     let cmd = make_u32_change(
         &doc,
-        Document::metadata_w().to_optional().then(DocumentMetadata::revision_w().to_optional()),
-        Document::metadata_r().to_optional().then(DocumentMetadata::revision_r().to_optional()),
+        Document::metadata_w()
+            .to_optional()
+            .then(DocumentMetadata::revision_w().to_optional()),
+        Document::metadata_r()
+            .to_optional()
+            .then(DocumentMetadata::revision_r().to_optional()),
         2,
         "Increment revision to 2".to_string(),
     );
@@ -302,8 +303,12 @@ fn main() {
     println!("\n--- Change 5: Update tags ---");
     let cmd = make_vec_string_change(
         &doc,
-        Document::metadata_w().to_optional().then(DocumentMetadata::tags_w().to_optional()),
-        Document::metadata_r().to_optional().then(DocumentMetadata::tags_r().to_optional()),
+        Document::metadata_w()
+            .to_optional()
+            .then(DocumentMetadata::tags_w().to_optional()),
+        Document::metadata_r()
+            .to_optional()
+            .then(DocumentMetadata::tags_r().to_optional()),
         vec!["draft".to_string(), "reviewed".to_string()],
         "Add 'reviewed' tag".to_string(),
     );
@@ -416,8 +421,14 @@ fn main() {
     // Verify we're back to the original state
     println!("\n=== Verification ===");
     println!("Title matches original: {}", doc.title == "My Document");
-    println!("Content matches original: {}", doc.content == "Hello, World!");
-    println!("Author matches original: {}", doc.metadata.author == "Akash");
+    println!(
+        "Content matches original: {}",
+        doc.content == "Hello, World!"
+    );
+    println!(
+        "Author matches original: {}",
+        doc.metadata.author == "Akash"
+    );
     println!("Revision matches original: {}", doc.metadata.revision == 1);
     println!(
         "Tags match original: {}",
@@ -444,4 +455,3 @@ fn main() {
 
     println!("\n✓ Undo/Redo demo complete!");
 }
-

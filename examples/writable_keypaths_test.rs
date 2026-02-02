@@ -219,6 +219,4 @@
 //     println!("\n=== All writable keypath tests completed successfully! ===");
 // }
 
-fn main() {
-    
-}
+fn main() {}

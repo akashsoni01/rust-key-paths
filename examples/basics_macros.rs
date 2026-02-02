@@ -1,5 +1,5 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Kp;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug, Kp)]
 #[All]
@@ -36,9 +36,7 @@ fn main() {
     println!("Width: {:?}", width_direct.get(&rect));
 
     // Writable keypath for modifying fields:
-    let width_mut = WritableKeyPath::new(
-        |r: &mut Rectangle| &mut r.size.width,
-    );
+    let width_mut = WritableKeyPath::new(|r: &mut Rectangle| &mut r.size.width);
     // Mutable
     let hp_mut = width_mut.get_mut(&mut rect);
     {

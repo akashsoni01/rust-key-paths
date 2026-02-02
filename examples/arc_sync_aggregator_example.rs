@@ -126,7 +126,7 @@
 //     // Example 1: Multi-level composition with no-clone approach
 //     println!("\n📝 Example 1: Multi-level Composition (No Clone)");
 //     println!("-----------------------------------------------");
-    
+
 //     let nested_email_path = Profile::user_r().to_optional().then(User::email_fr());
 //     nested_email_path.with_arc_rwlock_direct(&arc_rwlock_profile, |email| {
 //         println!("✅ Nested email from Arc<RwLock<Profile>> (no clone): {:?}", email);
@@ -135,7 +135,7 @@
 //     // Example 2: Complex composition with multiple levels
 //     println!("\n📝 Example 2: Complex Multi-level Composition");
 //     println!("--------------------------------------------");
-    
+
 //     // Create a more complex nested structure
 //     let complex_profile = Arc::new(RwLock::new(Profile {
 //         user: User {
@@ -149,7 +149,7 @@
 //     // Multi-level composition: Profile -> User -> Email
 //     let complex_email_path = Profile::user_r()
 //         .then(User::email_fr());
-    
+
 //     complex_email_path.with_arc_rwlock_direct(&complex_profile, |email| {
 //         println!("✅ Complex nested email (no clone): {:?}", email);
 //     });
@@ -157,7 +157,7 @@
 //     // Example 3: Composition with aggregators (with cloning)
 //     println!("\n📝 Example 3: Composition with Aggregators (With Clone)");
 //     println!("----------------------------------------------------");
-    
+
 //     let nested_email_aggregator = Profile::user_r()
 //         .then(User::email_fr())
 //         .for_arc_rwlock();
@@ -169,7 +169,7 @@
 //     // Example 4: Reusable composition patterns
 //     println!("\n📝 Example 4: Reusable Composition Patterns");
 //     println!("-------------------------------------------");
-    
+
 //     // Create reusable base paths
 //     let user_base = Profile::user_r();
 //     let user_name_path = user_base.clone().then(User::name_r().to_optional());
@@ -192,15 +192,15 @@
 //     // Example 5: Composition with different container types
 //     println!("\n📝 Example 5: Mixed Container Types");
 //     println!("----------------------------------");
-    
+
 //     // Use the same keypath with different container types
 //     let name_path = User::name_r();
-    
+
 //     // With Arc<Mutex<T>>
 //     name_path.with_arc_mutex_direct(&arc_mutex_user, |name| {
 //         println!("✅ Name from Arc<Mutex<User>> (no clone): {}", name);
 //     });
-    
+
 //     // With Arc<RwLock<T>> (through Profile)
 //     let profile_name_path = Profile::user_r().to_optional().then(User::name_r().to_optional());
 //     profile_name_path.with_arc_rwlock_direct(&arc_rwlock_profile, |name| {
@@ -226,7 +226,7 @@
 
 //     println!("\n📝 Collections - No Clone Approach");
 //     println!("----------------------------------");
-    
+
 //     let name_path = User::name_r();
 //     let email_path = User::email_fr();
 
@@ -240,7 +240,7 @@
 
 //     println!("\n📝 Collections - Aggregator Approach (With Clone)");
 //     println!("------------------------------------------------");
-    
+
 //     let name_aggregator = User::name_r().for_arc_mutex();
 //     let email_aggregator = User::email_fr().for_arc_mutex();
 

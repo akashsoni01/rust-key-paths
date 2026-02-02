@@ -223,6 +223,4 @@
 //     println!("\n✅ All enum examples completed successfully!");
 // }
 
-fn main() {
-    
-}
+fn main() {}

@@ -1,7 +1,6 @@
 use keypaths_proc::Kp;
 use rust_keypaths::KeyPath;
 
-
 #[derive(Clone, Kp)]
 #[Writable]
 struct Person {
@@ -26,8 +25,7 @@ fn test_attribute_scoped_keypaths() {
     let name_r = Person::name_fr();
     let name_fr = Person::name_fr();
     let title_r = Person::title_r();
-    let readable_value = name_r
-        .get(&person);
+    let readable_value = name_r.get(&person);
     assert_eq!(readable_value, Some(&"Akash".to_string()));
 
     let failable_read = name_fr.get(&person);
@@ -55,4 +53,3 @@ fn test_attribute_scoped_keypaths() {
     let owned_direct = nickname_o.get(&person).clone();
     assert_eq!(owned_direct, Some("Ace".to_string()));
 }
-

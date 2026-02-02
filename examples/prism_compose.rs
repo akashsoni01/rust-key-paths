@@ -1,4 +1,4 @@
-use rust_keypaths::{WritableOptionalKeyPath};
+use rust_keypaths::WritableOptionalKeyPath;
 
 #[derive(Debug)]
 struct Size {

@@ -1,7 +1,7 @@
 //! Example demonstrating deeply nested parking_lot RwLock chains
-//! 
+//!
 //! Run with: cargo run --example parking_lot_nested_chain --features parking_lot
-//! 
+//!
 //! This example shows how to:
 //! 1. Use derive-generated keypath methods for lock fields
 //! 2. Use the new `_parking_fr_at()` and `_parking_fw_at()` helper methods
@@ -9,17 +9,19 @@
 //! 4. Read and write through nested locks without cloning
 
 #[cfg(not(feature = "parking_lot"))]
-compile_error!("This example requires the 'parking_lot' feature. Run with: cargo run --example parking_lot_nested_chain --features parking_lot");
+compile_error!(
+    "This example requires the 'parking_lot' feature. Run with: cargo run --example parking_lot_nested_chain --features parking_lot"
+);
 
 #[cfg(feature = "parking_lot")]
 mod example {
-    use std::sync::Arc;
     use keypaths_proc::Kp;
     use parking_lot::RwLock;
     use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+    use std::sync::Arc;
 
     #[derive(Kp)]
-    #[All]  // Generate both readable and writable keypaths
+    #[All] // Generate both readable and writable keypaths
     pub struct SomeStruct {
         pub f1: Arc<RwLock<SomeOtherStruct>>,
     }
@@ -37,18 +39,18 @@ mod example {
     }
 
     #[derive(Kp)]
-    #[All]  // Generate both readable and writable keypaths
+    #[All] // Generate both readable and writable keypaths
     pub struct SomeOtherStruct {
         pub f3: Option<String>,
         pub f4: Arc<RwLock<DeeplyNestedStruct>>,
     }
 
     #[derive(Kp)]
-    #[All]  // Generate both readable and writable keypaths
+    #[All] // Generate both readable and writable keypaths
     pub struct DeeplyNestedStruct {
         pub f1: Option<String>,
         pub f2: Option<i32>,
-        pub name: String,  // Non-optional field
+        pub name: String, // Non-optional field
     }
 
     impl Clone for DeeplyNestedStruct {
@@ -96,26 +98,25 @@ mod example {
 
         // Create a keypath to the name field (non-optional)
         let name_kp = KeyPath::new(|s: &DeeplyNestedStruct| &s.name);
-        
+
         // Use the generated f1_fr_at() to chain through the first lock
         // (defaults to parking_lot since we used `RwLock` without `std::sync::` prefix)
-        SomeStruct::f1_fr_at(SomeOtherStruct::f4_r())
-            .get(&instance, |f4_arc| {
-                // Now chain through the second lock to get the name
-                SomeOtherStruct::f4_fr_at(name_kp.clone())
-                    .get(&instance.f1.read(), |name| {
-                        println!("✅ Read name via _fr_at chain (parking_lot): {:?}", name);
-                    });
+        SomeStruct::f1_fr_at(SomeOtherStruct::f4_r()).get(&instance, |f4_arc| {
+            // Now chain through the second lock to get the name
+            SomeOtherStruct::f4_fr_at(name_kp.clone()).get(&instance.f1.read(), |name| {
+                println!("✅ Read name via _fr_at chain (parking_lot): {:?}", name);
             });
-        
+        });
+
         // Alternative: Direct chaining through both locks
         // Using the identity keypath pattern for nested access
         let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
-        
+
         SomeStruct::f1_r()
             .chain_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
             .get(&instance, |f4_arc| {
-                identity_kp.clone()
+                identity_kp
+                    .clone()
                     .chain_arc_parking_rwlock_at_kp(name_kp.clone())
                     .get(f4_arc, |name| {
                         println!("✅ Read name via nested chain: {:?}", name);
@@ -144,13 +145,15 @@ mod example {
                 let deep_f1_kp = OptionalKeyPath::new(|s: &DeeplyNestedStruct| s.f1.as_ref());
                 let deep_f2_kp = OptionalKeyPath::new(|s: &DeeplyNestedStruct| s.f2.as_ref());
 
-                identity_kp.clone()
+                identity_kp
+                    .clone()
                     .then_arc_parking_rwlock_optional_at_kp(deep_f1_kp)
                     .get(f4_arc, |value| {
                         println!("✅ Read f4.f1 via nested chain: {:?}", value);
                     });
 
-                identity_kp.clone()
+                identity_kp
+                    .clone()
                     .then_arc_parking_rwlock_optional_at_kp(deep_f2_kp)
                     .get(f4_arc, |value| {
                         println!("✅ Read f4.f2 via nested chain: {:?}", value);
@@ -197,11 +200,14 @@ mod example {
             .chain_arc_parking_rwlock_at_kp(SomeOtherStruct::f4_r())
             .get(&instance, |f4_arc| {
                 let identity_kp = KeyPath::new(|s: &Arc<RwLock<DeeplyNestedStruct>>| s);
-                
-                let deep_f1_w_kp = WritableOptionalKeyPath::new(|s: &mut DeeplyNestedStruct| s.f1.as_mut());
-                let deep_f2_w_kp = WritableOptionalKeyPath::new(|s: &mut DeeplyNestedStruct| s.f2.as_mut());
 
-                identity_kp.clone()
+                let deep_f1_w_kp =
+                    WritableOptionalKeyPath::new(|s: &mut DeeplyNestedStruct| s.f1.as_mut());
+                let deep_f2_w_kp =
+                    WritableOptionalKeyPath::new(|s: &mut DeeplyNestedStruct| s.f2.as_mut());
+
+                identity_kp
+                    .clone()
                     .then_arc_parking_rwlock_writable_optional_at_kp(deep_f1_w_kp)
                     .get_mut(f4_arc, |value| {
                         *value = String::from("updated_deep_string");

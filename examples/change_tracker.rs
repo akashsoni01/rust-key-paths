@@ -6,8 +6,8 @@
 // 4. Build a generic change detection system
 // cargo run --example change_tracker
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Kp;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Kp)]
@@ -53,9 +53,9 @@ struct FieldChange {
 // - Writable paths (_w) work with mutable references for updates
 struct ChangeTracker<T: 'static> {
     // Use closures to store keypaths with different closure types
-    read_paths: Vec<Box<dyn Fn(&T) -> Option<&String>>>,  // For reading/comparing
+    read_paths: Vec<Box<dyn Fn(&T) -> Option<&String>>>, // For reading/comparing
     write_paths: Vec<Box<dyn Fn(&mut T) -> Option<&mut String>>>, // For writing changes
-    path_names: Vec<Vec<String>>,          // Human-readable path identifiers
+    path_names: Vec<Vec<String>>,                        // Human-readable path identifiers
 }
 
 impl<T> ChangeTracker<T> {
@@ -72,21 +72,18 @@ impl<T> ChangeTracker<T> {
         read_path: OptionalKeyPath<T, String, FR>,
         write_path: WritableOptionalKeyPath<T, String, FW>,
         name: Vec<String>,
-    )
-    where
+    ) where
         FR: for<'r> Fn(&'r T) -> Option<&'r String> + 'static,
         FW: for<'r> Fn(&'r mut T) -> Option<&'r mut String> + 'static,
     {
         // Extract the closures from the keypaths and store them as trait objects
         // We need to move the keypaths into the closures
-        let read_closure: Box<dyn Fn(&T) -> Option<&String>> = Box::new(move |t: &T| {
-            read_path.get(t)
-        });
-        
-        let write_closure: Box<dyn Fn(&mut T) -> Option<&mut String>> = Box::new(move |t: &mut T| {
-            write_path.get_mut(t)
-        });
-        
+        let read_closure: Box<dyn Fn(&T) -> Option<&String>> =
+            Box::new(move |t: &T| read_path.get(t));
+
+        let write_closure: Box<dyn Fn(&mut T) -> Option<&mut String>> =
+            Box::new(move |t: &mut T| write_path.get_mut(t));
+
         self.read_paths.push(read_closure);
         self.write_paths.push(write_closure);
         self.path_names.push(name);
@@ -169,19 +166,29 @@ fn main() {
     // Add paths to track (need both readable for comparison and writable for updates)
     tracker.add_path(
         AppState::user_r().to_optional().then(User::name_fr()),
-        AppState::user_w().to_optional().then(User::name_w().to_optional()),
+        AppState::user_w()
+            .to_optional()
+            .then(User::name_w().to_optional()),
         vec!["user".into(), "name".into()],
     );
 
     tracker.add_path(
-        AppState::settings_r().to_optional().then(Settings::theme_r().to_optional()),
-        AppState::settings_w().to_optional().then(Settings::theme_w().to_optional()),
+        AppState::settings_r()
+            .to_optional()
+            .then(Settings::theme_r().to_optional()),
+        AppState::settings_w()
+            .to_optional()
+            .then(Settings::theme_w().to_optional()),
         vec!["settings".into(), "theme".into()],
     );
 
     tracker.add_path(
-        AppState::settings_r().to_optional().then(Settings::language_r().to_optional()),
-        AppState::settings_w().to_optional().then(Settings::language_w().to_optional()),
+        AppState::settings_r()
+            .to_optional()
+            .then(Settings::language_r().to_optional()),
+        AppState::settings_w()
+            .to_optional()
+            .then(Settings::language_w().to_optional()),
         vec!["settings".into(), "language".into()],
     );
 
@@ -235,7 +242,7 @@ fn main() {
     println!("Making local changes...");
     // Note: WritableKeyPath doesn't have then() - convert to optional first
     if let Some(name) = AppState::user_w()
-        .to_optional()  // Convert WritableKeyPath to WritableOptionalKeyPath for chaining
+        .to_optional() // Convert WritableKeyPath to WritableOptionalKeyPath for chaining
         .then(User::name_w().to_optional())
         .get_mut(&mut local_state)
     {
@@ -243,7 +250,7 @@ fn main() {
     }
 
     if let Some(language) = AppState::settings_w()
-        .to_optional()  // Convert WritableKeyPath to WritableOptionalKeyPath for chaining
+        .to_optional() // Convert WritableKeyPath to WritableOptionalKeyPath for chaining
         .then(Settings::language_w().to_optional())
         .get_mut(&mut local_state)
     {
@@ -269,14 +276,16 @@ fn main() {
 
     // Demonstrate deserializing and applying changes
     println!("\n--- Deserializing Changes from JSON ---");
-    let deserialized_changes: Vec<FieldChange> =
-        serde_json::from_str(&outgoing_json).unwrap();
-    println!("Successfully deserialized {} changes", deserialized_changes.len());
+    let deserialized_changes: Vec<FieldChange> = serde_json::from_str(&outgoing_json).unwrap();
+    println!(
+        "Successfully deserialized {} changes",
+        deserialized_changes.len()
+    );
 
     // Apply to a new state (simulating server receiving changes)
     let mut server_state = remote_state.clone();
     tracker.apply_changes(&mut server_state, &deserialized_changes);
-    
+
     println!("\nServer state after applying changes:");
     println!("{:#?}", server_state);
 
@@ -286,4 +295,3 @@ fn main() {
         println!("\n✓ Full bidirectional sync successful!");
     }
 }
-

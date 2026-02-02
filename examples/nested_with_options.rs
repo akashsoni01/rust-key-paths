@@ -32,14 +32,15 @@ struct NestedContainerExample {
     // option_hashmap_field: Option<HashMap<String, usize>>,
     // // Support added for even random containers not even possible in real life
     value: Option<Arc<Box<SomeStruct>>>,
-
 }
 
 fn main() {
     println!("=== Nested Container Options Example ===\n");
 
     let mut example = NestedContainerExample {
-        value: Some(Arc::new(Box::new(SomeStruct { value: Some(String::from("Hello, world!")) }))),
+        value: Some(Arc::new(Box::new(SomeStruct {
+            value: Some(String::from("Hello, world!")),
+        }))),
         option_box_field: Some(Box::new("jkhkhjhk".to_string())),
         option_rc_field: Some(std::rc::Rc::new("World".to_string())),
         option_arc_field: Some(std::sync::Arc::new("Rust".to_string())),
@@ -63,7 +64,11 @@ fn main() {
         // },
     };
     println!("Value");
-    if let Some(value) = NestedContainerExample::value_fr().for_box().then(SomeStruct::value_fr()).get(&example) {
+    if let Some(value) = NestedContainerExample::value_fr()
+        .for_box()
+        .then(SomeStruct::value_fr())
+        .get(&example)
+    {
         // *value = String::from("changed");
         println!("   Changed value: {:?}", value);
     }
@@ -73,7 +78,7 @@ fn main() {
     if let Some(value) = NestedContainerExample::option_box_field_fr().get(&example) {
         println!("   Read value: {}", value);
     }
-    
+
     if let Some(value) = NestedContainerExample::option_box_field_fw().get_mut(&mut example) {
         *value = "kjlkjljljk".to_string();
         println!("   Changed value: {}", value);
@@ -102,7 +107,7 @@ fn main() {
     if let Some(value) = NestedContainerExample::box_option_field_fr().get(&example) {
         println!("   Inner value: {}", value);
     }
-    
+
     if let Some(value) = NestedContainerExample::box_option_field_fw().get_mut(&mut example) {
         *value = 99;
         println!("   Changed inner value: {}", value);
@@ -196,21 +201,20 @@ fn main() {
 
     // Demonstrate composition
     println!("=== Composition Example ===");
-    
+
     // Compose Option<Box<T>> with another struct field
     #[derive(Debug, Kp)]
     struct Outer {
         inner: Option<Box<NestedContainerExample>>,
     }
-    
+
     let mut outer = Outer {
         inner: Some(Box::new(example.clone())),
     };
-    
+
     // This would work when we have methods available
     // let path = Outer::inner_fr().then(NestedContainerExample::option_box_field_fr());
     println!("Composition ready for outer structures");
-    
+
     println!("\n=== All tests completed successfully! ===");
 }
-

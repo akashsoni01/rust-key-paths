@@ -2,9 +2,9 @@
 // Run with: cargo run --example with_container_trait_example
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use std::sync::{Arc, Mutex, RwLock};
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Debug, Clone)]
 struct User {
@@ -30,7 +30,7 @@ fn main() {
 
     // ===== Example 1: Trait Usage with Arc =====
     println!("--- Example 1: Trait Usage with Arc ---");
-    
+
     let arc_user = Arc::new(user.clone());
 
     // Using the method directly (Arc doesn't support direct mutable access without interior mutability)
@@ -39,7 +39,7 @@ fn main() {
 
     // ===== Example 2: Trait Usage with Box =====
     println!("--- Example 2: Trait Usage with Box ---");
-    
+
     let mut boxed_user = Box::new(user.clone());
 
     // Read directly from Box (Box implements Deref)
@@ -55,7 +55,7 @@ fn main() {
 
     // ===== Example 3: Trait Usage with Rc =====
     println!("--- Example 3: Trait Usage with Rc ---");
-    
+
     let rc_user = Rc::new(user.clone());
 
     // Read directly from Rc (Rc implements Deref)
@@ -64,13 +64,14 @@ fn main() {
 
     // ===== Example 4: Trait Usage with Result =====
     println!("--- Example 4: Trait Usage with Result ---");
-    
+
     let mut result_user: Result<User, String> = Ok(user.clone());
 
     // Read via EnumKeyPath::for_ok()
     use rust_keypaths::EnumKeyPath;
     let name_path_clone = KeyPath::new(|u: &User| &u.name);
-    let name_path_result = EnumKeyPath::for_ok::<User, String>().then(name_path_clone.to_optional());
+    let name_path_result =
+        EnumKeyPath::for_ok::<User, String>().then(name_path_clone.to_optional());
     if let Some(name) = name_path_result.get(&result_user) {
         println!("  Name from Result: {}", name);
     }
@@ -87,7 +88,7 @@ fn main() {
 
     // ===== Example 5: Trait Usage with Option =====
     println!("--- Example 5: Trait Usage with Option ---");
-    
+
     let mut option_user: Option<User> = Some(user.clone());
 
     // Read via OptionalKeyPath - need to chain through Option first
@@ -109,7 +110,7 @@ fn main() {
 
     // ===== Example 6: Trait Usage with RefCell =====
     println!("--- Example 6: Trait Usage with RefCell ---");
-    
+
     let refcell_user = RefCell::new(user.clone());
 
     // Read via RefCell (RefCell provides interior mutability)
@@ -131,7 +132,7 @@ fn main() {
 
     // ===== Example 7: Trait Usage with Mutex =====
     println!("--- Example 7: Trait Usage with Mutex ---");
-    
+
     let mutex_user = Mutex::new(user.clone());
 
     // Read via with_mutex (OptionalKeyPath has this method)
@@ -154,7 +155,7 @@ fn main() {
 
     // ===== Example 8: Trait Usage with RwLock =====
     println!("--- Example 8: Trait Usage with RwLock ---");
-    
+
     let rwlock_user = RwLock::new(user.clone());
 
     // Read via RwLock directly
@@ -176,13 +177,13 @@ fn main() {
 
     // ===== Example 9: Generic Function Using Methods =====
     println!("--- Example 9: Generic Function Using Methods ---");
-    
+
     println!("  Methods are available directly on keypath types");
     println!("  Use with_option(), with_mutex(), with_rwlock(), etc.");
 
     // ===== Example 10: Method Benefits =====
     println!("--- Example 10: Method Benefits ---");
-    
+
     println!("  ✅ Clean API: All with_* methods are available on keypath types");
     println!("  ✅ Extensibility: Easy to add new container types");
     println!("  ✅ Consistency: All methods follow the same pattern");

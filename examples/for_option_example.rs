@@ -1,7 +1,9 @@
 // Example demonstrating the for_option adapter method
 // Run with: cargo run --example for_option_example
 
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath, WithContainer};
+use rust_keypaths::{
+    KeyPath, OptionalKeyPath, WithContainer, WritableKeyPath, WritableOptionalKeyPath,
+};
 
 #[derive(Debug, Clone)]
 struct User {
@@ -40,12 +42,12 @@ fn main() {
 
     // ===== Example 1: Basic Option Usage =====
     println!("--- Example 1: Basic Option Usage ---");
-    
+
     let mut option_user: Option<User> = Some(user.clone());
 
     // Use for_option to create a keypath that works with Option<User>
     let name_option_path = name_path.clone().for_option();
-    
+
     // Access name from Option<User> using get_ref
     if let Some(name) = name_option_path.get(&option_user) {
         println!("  Name from Option: {}", name);
@@ -53,12 +55,12 @@ fn main() {
 
     // ===== Example 2: Writable Option Usage =====
     println!("--- Example 2: Writable Option Usage ---");
-    
+
     let mut option_user_mut: Option<User> = Some(user.clone());
 
     // Use for_option with writable keypath
     let name_option_path_w = name_path_w.clone().for_option();
-    
+
     // Modify name in Option<User> using get_mut
     if let Some(name) = name_option_path_w.get_mut(&mut option_user_mut) {
         *name = "Akash Updated".to_string();
@@ -67,7 +69,7 @@ fn main() {
 
     // ===== Example 3: Failable KeyPath with Option =====
     println!("--- Example 3: Failable KeyPath with Option ---");
-    
+
     let option_user_with_email: Option<User> = Some(User {
         name: "Bob".to_string(),
         age: 25,
@@ -76,7 +78,7 @@ fn main() {
 
     // Use failable keypath with for_option
     let email_option_path = email_path.clone().for_option();
-    
+
     // Access email from Option<User> using get_ref
     if let Some(email) = email_option_path.get(&option_user_with_email) {
         println!("  Email from Option: {}", email);
@@ -86,7 +88,7 @@ fn main() {
 
     // ===== Example 4: None Option Handling =====
     println!("--- Example 4: None Option Handling ---");
-    
+
     let none_user: Option<User> = None;
 
     // Try to access name from None Option using get_ref
@@ -98,7 +100,7 @@ fn main() {
 
     // ===== Example 5: Collection of Options =====
     println!("--- Example 5: Collection of Options ---");
-    
+
     let option_users: Vec<Option<User>> = vec![
         Some(User {
             name: "Charlie".to_string(),
@@ -124,12 +126,12 @@ fn main() {
 
     // ===== Example 6: Nested Option Structure =====
     println!("--- Example 6: Nested Option Structure ---");
-    
+
     let mut option_profile: Option<Profile> = Some(profile.clone());
 
     // Create a keypath that goes through Option<Profile> -> Option<User> -> String
-    let profile_user_name_path = OptionalKeyPath::new(|p: &Profile| p.user.as_ref())
-        .then(name_path.clone().to_optional());
+    let profile_user_name_path =
+        OptionalKeyPath::new(|p: &Profile| p.user.as_ref()).then(name_path.clone().to_optional());
 
     // Use for_option to work with Option<Profile>
     let profile_name_option_path = profile_user_name_path.for_option();
@@ -141,7 +143,7 @@ fn main() {
 
     // ===== Example 7: Mutable Nested Option =====
     println!("--- Example 7: Mutable Nested Option ---");
-    
+
     let mut option_profile_mut: Option<Profile> = Some(profile.clone());
 
     // Create a writable keypath for nested Option<Profile> -> Option<User> -> String
@@ -159,12 +161,13 @@ fn main() {
 
     // ===== Example 8: Composition with for_option =====
     println!("--- Example 8: Composition with for_option ---");
-    
+
     let option_user_comp: Option<User> = Some(user.clone());
 
     // Compose keypaths: Option<User> -> User -> Option<String> -> String
-    let composed_path = name_path.clone()
-        .for_option()  // KeyPaths<Option<User>, &String>
+    let composed_path = name_path
+        .clone()
+        .for_option() // KeyPaths<Option<User>, &String>
         .then(OptionalKeyPath::new(|s: &String| Some(s))); // KeyPaths<Option<&String>, &String>
 
     // This creates a complex nested Option structure
@@ -172,7 +175,7 @@ fn main() {
 
     // ===== Example 9: Error Handling =====
     println!("--- Example 9: Error Handling ---");
-    
+
     // Test with None at different levels
     let none_profile: Option<Profile> = None;
     if profile_name_option_path.get(&none_profile).is_some() {
@@ -187,8 +190,11 @@ fn main() {
         settings: Some("light_mode".to_string()),
     };
     let option_profile_none_user: Option<Profile> = Some(profile_with_none_user);
-    
-    if profile_name_option_path.get(&option_profile_none_user).is_some() {
+
+    if profile_name_option_path
+        .get(&option_profile_none_user)
+        .is_some()
+    {
         println!("  Name from Profile with None user");
     } else {
         println!("  Correctly handled Profile with None user");

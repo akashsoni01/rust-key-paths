@@ -1,5 +1,5 @@
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use keypaths_proc::Kp;
+use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Clone, Debug, Kp)]
 #[Readable]
@@ -44,4 +44,3 @@ fn main() {
     // Uncommenting the next line would fail to compile because `nickname` only has readable methods.
     // let _ = Account::nickname_w();
 }
-

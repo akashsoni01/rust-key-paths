@@ -76,7 +76,7 @@
 //     // Example 1: Reading from Mutex with keypath composition and chaining
 //     // ==========================================
 //     println!("1. Reading user name from Mutex<UserData> using keypath chaining:");
-    
+
 //     // Chain through Option types and Mutex using keypath composition
 //     // ApplicationState -> Option<UserAccount> -> Option<UserProfile> -> Mutex<UserData> -> name
 //     // Pattern: L1::f1_fr().then(L2::f1_fr()).get() to get UserProfile, then use fr_at with the lock
@@ -95,7 +95,7 @@
 //     // Example 2: Reading preferences from RwLock<Vec<String>> using keypath chaining
 //     // ==========================================
 //     println!("\n2. Reading preferences from RwLock<Vec<String>> using keypath chaining:");
-    
+
 //     // Chain through Option types and RwLock using keypath composition
 //     // ApplicationState -> Option<UserAccount> -> Option<UserProfile> -> RwLock<Vec<String>> -> Vec<String>
 //     if let Some(user_profile) = ApplicationState::user_fr()
@@ -116,7 +116,7 @@
 //     // Example 3: Writing to Mutex with direct value
 //     // ==========================================
 //     println!("\n3. Updating user age in Mutex<UserData>:");
-    
+
 //     // Chain through Option types using failable writable keypaths
 //     if let Some(user_profile) = ApplicationState::user_fw()
 //         .then(UserAccount::profile_fw())
@@ -124,10 +124,10 @@
 //     {
 //         // Create writable keypath to age field
 //         let age_kp = UserData::age_w();
-        
+
 //         // Use the helper method to update value directly
 //         let update_age = UserProfile::data_mutex_fw_at(age_kp, 31u32);
-        
+
 //         if update_age(&user_profile.data).is_some() {
 //             println!("   Updated age to: 31");
 //             // Verify the update using keypath chaining
@@ -142,7 +142,7 @@
 //     // Example 4: Writing to RwLock with direct value
 //     // ==========================================
 //     println!("\n4. Updating preferences in RwLock<Vec<String>>:");
-    
+
 //     // Chain through Option types to get mutable access to UserProfile
 //     if let Some(user_profile) = ApplicationState::user_fw()
 //         .then(UserAccount::profile_fw())
@@ -150,13 +150,13 @@
 //     {
 //         // Create writable keypath to the Vec
 //         let vec_kp = rust_keypaths::WritableKeyPath::new(|v: &mut Vec<String>| v);
-        
+
 //         // Create new preferences list with added item
 //         let mut new_prefs = vec!["dark_mode".to_string(), "notifications".to_string(), "accessibility".to_string()];
-        
+
 //         // Use the helper method to update with new value directly
 //         let update_preferences = UserProfile::preferences_rwlock_fw_at(vec_kp, new_prefs);
-        
+
 //         if update_preferences(&user_profile.preferences).is_some() {
 //             println!("   Updated preferences list");
 //             // Verify the update using keypath chaining
@@ -172,7 +172,7 @@
 //     // Example 5: Working with Arc<Mutex<T>> using keypath chaining
 //     // ==========================================
 //     println!("\n5. Reading from Arc<Mutex<HashMap>> using keypath chaining:");
-    
+
 //     // Chain through Option types and Arc<Mutex> using keypath composition
 //     if let Some(user_profile) = ApplicationState::user_fr()
 //         .then(UserAccount::profile_fr())
@@ -191,7 +191,7 @@
 //     // Example 6: Working with Arc<RwLock<T>>
 //     // ==========================================
 //     println!("\n6. Reading and writing to Arc<RwLock<SystemConfig>>:");
-    
+
 //     // Read theme using keypath chaining (direct access since system_config is not Option)
 //     let theme_kp = SystemConfig::theme_r();
 //     // Note: Since system_config is not Option, we access it directly
@@ -203,11 +203,11 @@
 //     if let Some(theme) = get_theme(&app_state.system_config) {
 //         println!("   Current theme: {}", theme);
 //     }
-    
+
 //     // Update language
 //     let language_kp = SystemConfig::language_w();
 //     let update_language = ApplicationState::system_config_arc_rwlock_fw_at(language_kp, "fr".to_string());
-    
+
 //     if update_language(&app_state.system_config).is_some() {
 //         println!("   Updated language to: fr");
 //         // Verify the update using keypath chaining
@@ -222,7 +222,7 @@
 //     // Example 7: Deep multi-level access through Option chains
 //     // ==========================================
 //     println!("\n7. Deep multi-level access through Option chains:");
-    
+
 //     // Access nested fields through multiple Option levels using keypath chaining
 //     // ApplicationState -> Option<UserAccount> -> Option<UserProfile> -> Mutex<UserData> -> email
 //     // Pattern: L1::f1_fr().then(L2::f1_fr()).get() to get UserProfile, then use fr_at with the lock
@@ -240,7 +240,7 @@
 //     // Example 8: Complex update with multiple fields
 //     // ==========================================
 //     println!("\n8. Complex update with multiple fields:");
-    
+
 //     // Chain through Option types to get mutable access
 //     if let Some(user_profile) = ApplicationState::user_fw()
 //         .then(UserAccount::profile_fw())
@@ -249,13 +249,13 @@
 //         // Update multiple fields in separate lock acquisitions
 //         let name_kp = UserData::name_w();
 //         let update_name = UserProfile::data_mutex_fw_at(name_kp, "Akash Updated".to_string());
-        
+
 //         if update_name(&user_profile.data).is_some() {
 //             println!("   Updated name to: Akash Updated");
 //             // Then update age in a separate operation
 //             let age_kp = UserData::age_w();
 //             let update_age = UserProfile::data_mutex_fw_at(age_kp, 31u32);
-            
+
 //             if update_age(&user_profile.data).is_some() {
 //                 println!("   Updated age to: 31");
 //                 // Read both back to verify using keypath chaining
@@ -275,7 +275,7 @@
 //     // Example 9: Working with collections inside locks
 //     // ==========================================
 //     println!("\n9. Working with collections inside locks:");
-    
+
 //     // Chain through Option types
 //     if let Some(user_profile) = ApplicationState::user_fw()
 //         .then(UserAccount::profile_fw())
@@ -287,17 +287,17 @@
 //         if let Some(prefs) = get_prefs(&user_profile.preferences) {
 //             println!("   Current preferences count: {}", prefs.len());
 //         }
-        
+
 //         // Modify the collection - read current, modify, then write back
 //         let vec_kp_read = rust_keypaths::KeyPath::new(|v: &Vec<String>| v);
 //         let get_prefs_read = UserProfile::preferences_rwlock_fr_at(vec_kp_read);
 //         if let Some(mut prefs) = get_prefs_read(&user_profile.preferences) {
 //             prefs.retain(|p| p != "notifications");
 //             prefs.push("high_contrast".to_string());
-            
+
 //             let vec_kp_mut = rust_keypaths::WritableKeyPath::new(|v: &mut Vec<String>| v);
 //             let modify_prefs = UserProfile::preferences_rwlock_fw_at(vec_kp_mut, prefs);
-            
+
 //             if modify_prefs(&user_profile.preferences).is_some() {
 //                 println!("   Modified preferences list");
 //                 // Read after modification using keypath chaining
@@ -314,7 +314,7 @@
 //     // Example 10: Concurrent-safe access patterns
 //     // ==========================================
 //     println!("\n10. Concurrent-safe access patterns:");
-    
+
 //     // Demonstrate that locks are properly acquired and released
 //     // Chain through Option types using keypaths
 //     if let Some(user_profile) = ApplicationState::user_fr()
@@ -337,7 +337,7 @@
 //     // Example 11: Error handling with lock acquisition
 //     // ==========================================
 //     println!("\n11. Error handling with lock acquisition:");
-    
+
 //     // Chain through Option types - if any is None, the chain short-circuits
 //     if let Some(user_profile) = ApplicationState::user_fr()
 //         .then(UserAccount::profile_fr())
@@ -357,7 +357,7 @@
 //     // Example 12: Composition with .then() for nested structures
 //     // ==========================================
 //     println!("\n12. Composition pattern for nested structures:");
-    
+
 //     // This demonstrates how you can compose keypaths before using them with locks
 //     // Chain through Option types using keypath composition
 //     if let Some(user_profile) = ApplicationState::user_fr()
@@ -370,7 +370,7 @@
 //         if let Some(name) = get_name(&user_profile.data) {
 //             println!("   Composed keypath result: {}", name);
 //         }
-        
+
 //         // You can also create keypaths on-the-fly
 //         let custom_kp = rust_keypaths::KeyPath::new(|data: &UserData| &data.email);
 //         let get_email = UserProfile::data_mutex_fr_at(custom_kp);
@@ -383,29 +383,29 @@
 //     // Example 13: Real-world scenario - User profile update
 //     // ==========================================
 //     println!("\n13. Real-world scenario - Complete user profile update:");
-    
+
 //     // Chain through Option types to get mutable access
 //     if let Some(user_profile) = ApplicationState::user_fw()
 //         .then(UserAccount::profile_fw())
 //         .get_mut(&mut app_state)
 //     {
 //         println!("   Performing complete profile update...");
-        
+
 //         // Update user data
 //         let name_kp = UserData::name_w();
 //         let update_name = UserProfile::data_mutex_fw_at(name_kp, "Akash Smith".to_string());
 //         update_name(&user_profile.data);
-        
+
 //         let age_kp = UserData::age_w();
 //         let update_age = UserProfile::data_mutex_fw_at(age_kp, 32u32);
 //         update_age(&user_profile.data);
-        
+
 //         // Update preferences
 //         let prefs_kp = rust_keypaths::WritableKeyPath::new(|v: &mut Vec<String>| v);
 //         let new_prefs = vec!["dark_mode".to_string(), "compact_view".to_string()];
 //         let update_prefs = UserProfile::preferences_rwlock_fw_at(prefs_kp, new_prefs);
 //         update_prefs(&user_profile.preferences);
-        
+
 //         // Update metadata - read current, modify, then write back
 //         let metadata_kp_read = rust_keypaths::KeyPath::new(|m: &HashMap<String, String>| m);
 //         let get_metadata = UserProfile::metadata_arc_mutex_fr_at(metadata_kp_read);
@@ -415,9 +415,9 @@
 //             let update_metadata = UserProfile::metadata_arc_mutex_fw_at(metadata_kp, meta);
 //             update_metadata(&user_profile.metadata);
 //         }
-        
+
 //         println!("   Profile update complete!");
-        
+
 //         // Verify all updates using keypath chaining
 //         let get_name = UserProfile::data_mutex_fr_at(UserData::name_r());
 //         let get_age = UserProfile::data_mutex_fr_at(UserData::age_r());
