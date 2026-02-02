@@ -9569,6 +9569,67 @@ impl<R> KpType<R, R, Getter<R, R>, Setter<R, R>> {
     }
 }
 
+impl<R, V, G, S> KpType<R, V, G, S>
+where
+    G: for<'r> Fn(&'r R) -> Option<&'r V>,
+    S: for<'r> Fn(&'r mut R) -> Option<&'r mut V>,
+{
+    // Converts Kp<R, V> to Kp<Arc<R>, V>
+    pub fn for_arc(
+        self,
+    ) -> KpType<
+        Arc<R>,
+        V,
+        impl for<'r> Fn(&'r Arc<R>) -> Option<&'r V>,
+        impl for<'r> Fn(&'r mut Arc<R>) -> Option<&'r mut V>,
+    > {
+        KpType {
+            g: move |root: &Arc<R>| {
+                // Dereference the Arc to get &R, then apply the original getter
+                (self.g)(&root)
+            },
+            s: move |root: &mut Arc<R>| {
+                // For mutable access, we need to handle Arc's interior mutability carefully
+                // This assumes R: Send + Sync for thread safety with Arc
+                // Note: This will only work if the Arc has exactly one strong reference
+                // Otherwise, we cannot get a mutable reference
+
+                // Try to get a mutable reference from Arc
+                if let Some(r) = Arc::get_mut(root) {
+                    (self.s)(r)
+                } else {
+                    None
+                }
+            },
+            _p: PhantomData,
+        }
+    }
+
+    // Converts Kp<R, V> to Kp<Rc<R>, V>
+    pub fn for_rc(
+        self,
+    ) -> KpType<
+        Rc<R>,
+        V,
+        impl for<'r> Fn(&'r Rc<R>) -> Option<&'r V>,
+        impl for<'r> Fn(&'r mut Rc<R>) -> Option<&'r mut V>,
+    > {
+        KpType {
+            g: move |root: &Rc<R>| {
+                (self.g)(&root)
+            },
+            s: move |root: &mut Rc<R>| {
+                if let Some(r) = Rc::get_mut(root) {
+                    (self.s)(r)
+                } else {
+                    None
+                }
+            },
+            _p: PhantomData,
+        }
+    }
+}
+
 struct TestKP {
     a: String,
     b: String,
@@ -9611,9 +9672,9 @@ struct TestKP2 {
 impl TestKP2 {
     fn new() -> Self {
         TestKP2 {
-                a: String::from("a2"),
-                b: Arc::new(Mutex::new(TestKP3::new())),
-            }
+            a: String::from("a2"),
+            b: Arc::new(Mutex::new(TestKP3::new())),
+        }
     }
 
     fn a() -> Kp<TestKP2, String> {
@@ -9646,9 +9707,9 @@ struct TestKP3 {
 impl TestKP3 {
     fn new() -> Self {
         TestKP3 {
-                a: String::from("a2"),
-                b: Arc::new(Mutex::new(String::from("b2"))),
-            }
+            a: String::from("a2"),
+            b: Arc::new(Mutex::new(String::from("b2"))),
+        }
     }
 
     fn a() -> Kp<TestKP3, String> {
@@ -9660,30 +9721,45 @@ impl TestKP3 {
     }
 
     fn b_lock() -> LKp<
-        Kp<TestKP2, TestKP3>,                    // Root
-        Kp<TestKP3, String>,                     // MutexValue
-        TestKP3,                                 // InnerValue
-        String,                                  // SubValue
-        fn(&TestKP3) -> Option<&String>,         // G: 不可变引用
-        fn(&mut TestKP3) -> Option<&mut String>  // S: 可变引用
+        Kp<TestKP2, TestKP3>, // Root
+        Kp<TestKP3, String>,  // MutexValue
+        TestKP3,              // InnerValue
+        String,               // SubValue
+        fn(&TestKP3) -> Option<&String>,
+        fn(&mut TestKP3) -> Option<&mut String>,
     > {
         todo!()
     }
 
-fn b() -> Kp<TestKP3, Arc<Mutex<String>>> {
-        Kp {
-            g: |r: &TestKP3| Some(&r.b),
-            s: |r: &mut TestKP3| Some(&mut r.b),
-            _p: PhantomData,
-        }
-    }
-
+    // fn b() -> Kp<Arc<TestKP3>, Arc<Mutex<String>>> {
+    //         let k = Kp {
+    //             g: |r: &TestKP3| Some(&r.b),
+    //             s: |r: &mut TestKP3| Some(&mut r.b),
+    //             _p: PhantomData,
+    //         };
+    //         k.for_arc()
+    //     }
 
     // fn identity() -> Kp<Self, Self> {
     //     Kp::identity()
     // }
 }
 
+impl TestKP3 {
+    fn b() -> KpType<
+        Arc<TestKP3>,
+        Arc<Mutex<String>>,
+        impl for<'r> Fn(&'r Arc<TestKP3>) -> Option<&'r Arc<Mutex<String>>>,
+        impl for<'r> Fn(&'r mut Arc<TestKP3>) -> Option<&'r mut Arc<Mutex<String>>>,
+    > {
+        let k: KpType<TestKP3, Arc<Mutex<String>>, _, _> = Kp {
+            g: |r: &TestKP3| Some(&r.b),
+            s: |r: &mut TestKP3| Some(&mut r.b),
+            _p: PhantomData,
+        };
+        k.for_arc()
+    }
+}
 
 impl TestKP {
     fn a() -> Kp<TestKP, String> {
@@ -9778,10 +9854,7 @@ mod testsas {
         let mut root = TestKP::new();
 
         // Create LKp for TestKP.e -> TestKP2
-        let outer_lkp = LKp::new(
-            TestKP::e(),
-            Kp::identity(),
-        );
+        let outer_lkp = LKp::new(TestKP::e(), Kp::identity());
 
         // Chain to TestKP2.b (which is Arc<Mutex<String>>)
         let chained_lkp = outer_lkp.then(TestKP2::b());
@@ -9800,7 +9873,10 @@ mod testsas {
 
         // Mutate the Arc<Mutex<String>> reference itself (swap it out)
         chained_lkp.get_mut(&mut root, |arc_mutex_ref| {
-            *arc_mutex_ref = Arc::new(Mutex::new(TestKP3{ a: "replaced b2".to_string(), b: Arc::new(Mutex::new(String::new())) }));
+            *arc_mutex_ref = Arc::new(Mutex::new(TestKP3 {
+                a: "replaced b2".to_string(),
+                b: Arc::new(Mutex::new(String::new())),
+            }));
         });
 
         // Verify the change
@@ -9862,7 +9938,7 @@ mod testsas {
         let first_lkp = LKp::new(TestKP::e(), Kp::identity());
 
         // Chain to TestKP2.a to get: TestKP.e -> TestKP2 -> TestKP2.a
-        let chained = first_lkp.then(TestKP2::a());
+        let chained = first_lkp.then(TestKP2::a()).then(TestKP3::b());
 
         // Access the deeply nested String value
         let value = chained.get_cloned(&root);
