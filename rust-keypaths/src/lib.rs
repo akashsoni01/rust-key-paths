@@ -56,6 +56,49 @@ where
             i: self.i.then(next),
         }
     }
+
+    /// Consider using the fn only when value is of type Rc or Arc else it will clone.
+    pub fn get_cloned(&self, root: &Root) -> Option<SubValue> 
+    where
+        SubValue: Clone,
+    {
+        self.o.get(root)
+            .and_then(|mutex_value| {
+                let arc_mutex = mutex_value.borrow();
+                let guard = arc_mutex.lock().ok()?;
+                let sub_value = self.i.get(&*guard)?;
+                Some(sub_value.clone())
+            })
+    }
+
+    pub fn get_mut<F, R>(&self, root: &mut Root, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut SubValue) -> R,
+    {
+        self.o.get_mut(root)
+            .and_then(|mutex_value| {
+                let arc_mutex = mutex_value.borrow();
+                let mut guard = arc_mutex.lock().ok()?;
+                let sub_value = self.i.get_mut(&mut *guard)?;
+                Some(f(sub_value))
+            })
+    }
+
+    pub fn get<F, R>(&self, root: &Root, f: F) -> Option<R>
+    where
+        F: FnOnce(&SubValue) -> R,
+    {
+        self.o.get(root)
+            .and_then(|mutex_value| {
+                let arc_mutex = mutex_value.borrow();
+                let mut guard = arc_mutex.lock().ok()?;
+                let sub_value = self.i.get(&mut *guard)?;
+                Some(f(sub_value))
+            })
+    }
+
+
+
 }
 
 /// A composed keypath chain through Arc<Mutex<T>> - functional style
