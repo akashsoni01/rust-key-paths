@@ -14,58 +14,48 @@ use std::fmt;
 // ========== FUNCTIONAL KEYPATH CHAIN (Compose first, apply container at get) ==========
 
 #[derive(Debug)]
-pub struct LKp<Root, MutexValue, InnerValue, SubValue>
+pub struct LKp<Root, MutexValue, InnerValue, SubValue, G, S>
+where
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    S: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
 {
     o: Kp<Root, MutexValue>,
-    i: Kp<InnerValue, SubValue>
+    i: KpType<InnerValue, SubValue, G, S>,
 }
 
-impl<Root, MutexValue, InnerValue, SubValue> LKp<Root, MutexValue, InnerValue, SubValue> 
-    where
-    // MutexValue: DerefMut<Target = InnerValue> + Deref<Target = InnerValue>,
+impl<Root, MutexValue, InnerValue, SubValue, G, S> LKp<Root, MutexValue, InnerValue, SubValue, G, S>
+where
     MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    S: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
 {
-
-    pub fn new(outer: Kp<Root, MutexValue>, inner: Kp<InnerValue, SubValue>) -> Self {
+    pub fn new(outer: Kp<Root, MutexValue>, inner: KpType<InnerValue, SubValue, G, S>) -> Self {
         Self { o: outer, i: inner }
     }
 
-    // pub fn then<NextValue>(
-    //     self,
-    //     next: Kp<SubValue, NextValue>,
-    // ) -> LKp<Root, MutexValue, InnerValue, NextValue>
-    // where
-    //     InnerValue: 'static,
-    //     SubValue: 'static,
-    //     NextValue: 'static,
-    // {
-    //     let first = self.i;
-    //     let second = next;
-    //     // let first2 = self.i;
-    //     // let second2 = next;
-
-    //     // let composed_get = |inner: &InnerValue| -> Option<&NextValue> {
-    //     //     first.get(inner).and_then(|s| second.get(s))
-    //     // };
-        
-    //     // let composed_set = |inner: &mut InnerValue| -> Option<&mut NextValue> {
-    //     //     first.get_mut(inner).and_then(|s| second.get_mut(s))
-    //     // };
-        
-    //     let composed = KpType::new(move |inner: &InnerValue| -> Option<&NextValue> {
-    //         first.get(inner).and_then(|s| second.get(s))
-    //     }, |inner: &mut InnerValue| -> Option<&mut NextValue> {
-    //         // first.get_mut(inner).and_then(|s| second.get_mut(s))
-    //         None
-    //     });
-        
-    //     // LKp {
-    //     //     o: self.o,
-    //     //     i: composed,
-    //     // }
-
-    //     todo!()
-    // }
+    pub fn then<NextValue, G2, S2>(
+        self,
+        next: KpType<SubValue, NextValue, G2, S2>,
+    ) -> LKp<
+        Root,
+        MutexValue,
+        InnerValue,
+        NextValue,
+        impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue>,
+        impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue>,
+    >
+    where
+        InnerValue: 'static,
+        SubValue: 'static,
+        NextValue: 'static,
+        G2: for<'r> Fn(&'r SubValue) -> Option<&'r NextValue>,
+        S2: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut NextValue>,
+    {        
+        LKp {
+            o: self.o,
+            i: self.i.then(next),
+        }
+    }
 }
 
 /// A composed keypath chain through Arc<Mutex<T>> - functional style
