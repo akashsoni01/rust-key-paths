@@ -23,12 +23,16 @@ where
     i: KpType<InnerValue, SubValue, G, S>,
 }
 
+// Helper function to create LKp from simple keypaths
 impl<Root, MutexValue, InnerValue, SubValue, G, S> LKp<Root, MutexValue, InnerValue, SubValue, G, S>
 where
     MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
     G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
     S: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
 {
+    /// Create an LKp from two simple keypaths
+    /// - outer: keypath from Root to Arc<Mutex<InnerValue>>
+    /// - inner: keypath from InnerValue to SubValue
     pub fn new(outer: Kp<Root, MutexValue>, inner: KpType<InnerValue, SubValue, G, S>) -> Self {
         Self { o: outer, i: inner }
     }
@@ -8273,7 +8277,6 @@ S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
     pub fn get_mut<'a>(&self, r: &'a mut R) -> Option< &'a mut V> {
         (self.s)(r)
     }
-
     // pub fn then<SubValue>(
     //     self,
     //     next: Kp<V, SubValue>,
@@ -8326,108 +8329,129 @@ S:for<'r>  Fn(&'r mut R) -> Option< &'r mut V>, {
     }
 }
 
+// Add identity as an associated function
+impl<R> KpType<R, R, Getter<R, R>, Setter<R, R>> {
+    /// Creates an identity keypath that returns the value itself
+    pub fn identity() -> Self {
+        Kp {
+            g: |r: &R| { Some(r) },
+            s: |r: &mut R| { Some(r) },
+            _p: PhantomData
+        }
+    }
+}
 
 struct TestKP {
     a: String,
     b: String,
     c: Arc<String>,
     d: Mutex<String>,
-    e: Mutex<TestKP2>,
+    e: Arc<Mutex<TestKP2>>,
     f: Option<TestKP2>
-
 }
 
 impl TestKP {
     fn new() -> Self {
         Self {         
-        a: String::from("a"),
-        b: String::from("b"),
-        c: Arc::new(String::from("c")),
-        d: Mutex::new(String::from("b")),
-        e: Mutex::new(TestKP2 { a: String::from("a2") }),
-        f: Some(TestKP2 { a: String::from("a2") }),
-}
+            a: String::from("a"),
+            b: String::from("b"),
+            c: Arc::new(String::from("c")),
+            d: Mutex::new(String::from("d")),
+            e: Arc::new(Mutex::new(TestKP2 { 
+                a: String::from("a2"), 
+                b: Arc::new(Mutex::new(String::from("b2"))) 
+            })),
+            f: Some(TestKP2 { 
+                a: String::from("a3"), 
+                b: Arc::new(Mutex::new(String::from("b3"))) 
+            }),
+        }
     }
+
+    // Helper to create an identity keypath for TestKP2
+    fn identity() -> Kp<TestKP2, TestKP2> {
+        Kp {
+            g: |r: &TestKP2| { Some(r) },
+            s: |r: &mut TestKP2| { Some(r) },
+            _p: PhantomData
+        }
+    }
+
 }
+
 struct TestKP2 {
-    a: String
+    a: String,
+    b: Arc<Mutex<String>>
 }
 
 impl TestKP2 {
-    fn a() -> Kp<TestKP2, String>{
-        Kp{
-            g: |r: &TestKP2| {Some(&r.a)},
-            s: |r: &mut TestKP2| {Some(&mut r.a)},
-            // lg: |r: &TestKP| { Some(Arc::new(&r.a))},
-            // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
+    fn a() -> Kp<TestKP2, String> {
+        Kp {
+            g: |r: &TestKP2| { Some(&r.a) },
+            s: |r: &mut TestKP2| { Some(&mut r.a) },
             _p: PhantomData
         }
     }
+
+    fn b() -> Kp<TestKP2, Arc<Mutex<String>>> {
+        Kp {
+            g: |r: &TestKP2| { Some(&r.b) },
+            s: |r: &mut TestKP2| { Some(&mut r.b) },
+            _p: PhantomData
+        }
+    }
+
+    // fn identity() -> Kp<Self, Self> {
+    //     Kp::identity()
+    // }
+
 }
 
 impl TestKP {
-    fn a() ->  Kp<TestKP, String> {
-        Kp{
-            g: |r: &TestKP| {Some(&r.a)},
-            s: |r: &mut TestKP| {Some(&mut r.a)},
-            // lg: |r: &TestKP| { Some(Arc::new(&r.a))},
-            // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
+    fn a() -> Kp<TestKP, String> {
+        Kp {
+            g: |r: &TestKP| { Some(&r.a) },
+            s: |r: &mut TestKP| { Some(&mut r.a) },
             _p: PhantomData
         }
     }
 
-    fn b() ->  Kp<TestKP, String> {
-        Kp{
-            g: |r: &TestKP| {Some(&r.b)},
-            s: |r: &mut TestKP| {Some(&mut r.b)},
-            // lg: |r: &TestKP| { Some(Arc::new(&r.b))},
-            // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.b))},
+    fn b() -> Kp<TestKP, String> {
+        Kp {
+            g: |r: &TestKP| { Some(&r.b) },
+            s: |r: &mut TestKP| { Some(&mut r.b) },
             _p: PhantomData
         }
     }
 
-fn c() ->  Kp<TestKP, String> {
-    Kp{
-        g: |r: &TestKP| {Some(r.c.as_ref())},
-        s: |r: &mut TestKP| {None},
-        // lg: |r: &TestKP| { Some(Arc::new(&r.c))},
-        // sg: |r: &mut TestKP| { None },
-        _p: PhantomData
+    fn c() -> Kp<TestKP, String> {
+        Kp {
+            g: |r: &TestKP| { Some(r.c.as_ref()) },
+            s: |r: &mut TestKP| { None },
+            _p: PhantomData
+        }
     }
-}
 
-// Alternative cleaner solution using type aliases
-// type Getter<R, V> = for<'r> fn(&'r R) -> Option<&'r V>;
-// type Setter<R, V> = for<'r> fn(&'r mut R) -> Option<&'r mut V>;
-
-fn d() -> Kp<TestKP, Mutex<String>> {
-    Kp {
-        g:|r: &TestKP| { Some(&r.d) },
-        s:|r: &mut TestKP| { Some(&mut r.d) },
-        // lg: |r: &TestKP| { let x = r.d.lock().as_deref().ok().map(Arc::new);
-        // return x.clone()
-        // },
-        // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
-        _p: PhantomData
+    fn d() -> Kp<TestKP, Mutex<String>> {
+        Kp {
+            g: |r: &TestKP| { Some(&r.d) },
+            s: |r: &mut TestKP| { Some(&mut r.d) },
+            _p: PhantomData
+        }
     }
-}
 
-fn e() -> Kp<TestKP, Mutex<TestKP2>> {
-    Kp {
-        g:|r: &TestKP| { Some(&r.e) },
-        s:|r: &mut TestKP| { Some(&mut r.e) },
-        // lg: |r: &TestKP| { let x = r.d.lock().as_deref().ok().map(Arc::new);
-        // return x.clone()
-        // },
-        // sg: |r: &mut TestKP| { Some(Arc::new(&mut r.a))},
-        _p: PhantomData
+    fn e() -> Kp<TestKP, Arc<Mutex<TestKP2>>> {
+        Kp {
+            g: |r: &TestKP| { Some(&r.e) },
+            s: |r: &mut TestKP| { Some(&mut r.e) },
+            _p: PhantomData
+        }
     }
-}
 
     fn f() -> Kp<TestKP, TestKP2> {
         Kp {
-            g:|r: &TestKP| { r.f.as_ref() },
-            s:|r: &mut TestKP| {  r.f.as_mut() },
+            g: |r: &TestKP| { r.f.as_ref() },
+            s: |r: &mut TestKP| { r.f.as_mut() },
             _p: PhantomData
         }
     }
@@ -8438,17 +8462,172 @@ mod testsas {
     use super::*;
 
     #[test]
-fn test_kp_for_struct() {
-    let mut i = TestKP::new();
-    let kp = TestKP::f().then(TestKP2::a());
-
-    println!("working = {:?}", kp.get(&i));
-    if let Some(x)   =  kp.get_mut(&mut i){
-        *x = "this is also working".to_string();
+    fn test_kp_for_struct() {
+        let mut i = TestKP::new();
+        let kp = TestKP::f().then(TestKP2::a());
+        println!("initial value = {:?}", kp.get(&i));
+        if let Some(x) = kp.get_mut(&mut i) {
+            *x = "this is also working".to_string();
+        }
+        println!("updated value = {:?}", kp.get(&i));
+        assert_eq!(kp.get(&i), Some(&"this is also working".to_string()));
     }
-    println!("working = {:?}", kp.get(&i));
+
+    #[test]
+    fn test_single_mutex_access() {
+        let mut root = TestKP::new();
+        
+        // Create LKp for TestKP.e -> TestKP2.a
+        let lkp = LKp::new(TestKP::e(), TestKP2::a());
+        
+        // Get value through mutex
+        let value = lkp.get_cloned(&root);
+        println!("Single mutex - initial value: {:?}", value);
+        assert_eq!(value, Some("a2".to_string()));
+        
+        // Mutate value through mutex
+        lkp.get_mut(&mut root, |val| {
+            *val = "modified a2".to_string();
+        });
+        
+        let new_value = lkp.get_cloned(&root);
+        println!("Single mutex - updated value: {:?}", new_value);
+        assert_eq!(new_value, Some("modified a2".to_string()));
+    }
+
+    #[test]
+    fn test_chained_mutex_access() {
+        let mut root = TestKP::new();
+        
+        // Create LKp for TestKP.e -> TestKP2
+        let outer_lkp = LKp::new(TestKP::e(), Kp {
+            g: |r: &TestKP2| { Some(r) },
+            s: |r: &mut TestKP2| { Some(r) },
+            _p: PhantomData
+        });
+        
+        // Chain to TestKP2.b (which is Arc<Mutex<String>>)
+        let chained_lkp = outer_lkp.then(TestKP2::b());
+        
+        // Now we have: TestKP.e (Arc<Mutex<TestKP2>>) -> TestKP2 -> TestKP2.b (Arc<Mutex<String>>)
+        // This gives us access to the Arc<Mutex<String>>
+        let arc_mutex = chained_lkp.get_cloned(&root);
+        println!("Chained mutex - Arc<Mutex>: {:?}", arc_mutex);
+        
+        // To access the inner String, we need to lock it
+        if let Some(am) = arc_mutex {
+            if let Ok(guard) = am.lock() {
+                println!("Chained mutex - inner value: {:?}", *guard);
+                assert_eq!(*guard, "b2".to_string());
+            }
+        }
+        
+        // Mutate the Arc<Mutex<String>> reference itself (swap it out)
+        chained_lkp.get_mut(&mut root, |arc_mutex_ref| {
+            *arc_mutex_ref = Arc::new(Mutex::new("replaced b2".to_string()));
+        });
+        
+        // Verify the change
+        let new_arc_mutex = chained_lkp.get_cloned(&root);
+        if let Some(am) = new_arc_mutex {
+            if let Ok(guard) = am.lock() {
+                println!("Chained mutex - replaced value: {:?}", *guard);
+                assert_eq!(*guard, "replaced b2".to_string());
+            }
+        }
+    }
+
+    #[test]
+    fn test_double_nested_mutex() {
+        let mut root = TestKP::new();
+        
+        // First level: TestKP.e -> TestKP2
+        let first_lkp: LKp<TestKP, Arc<Mutex<TestKP2>>, TestKP2, TestKP2, _, _> = LKp::new(
+            TestKP::e(),
+            Kp {
+                g: |r: &TestKP2| { Some(r) },
+                s: |r: &mut TestKP2| { Some(r) },
+                _p: PhantomData
+            }
+        );
+        
+        // Second level: chain to TestKP2.b (Arc<Mutex<String>>)
+        // This creates: TestKP -> Arc<Mutex<TestKP2>> -> TestKP2.b
+        let second_lkp = first_lkp.then(TestKP2::b());
+        
+        // Now create another LKp to go through the second mutex
+        // TestKP -> Arc<Mutex<TestKP2>> -> Arc<Mutex<String>> -> String
+        let final_lkp = LKp::new(
+            TestKP::e(),
+            {
+                let inner_kp = Kp {
+                    g: |r: &TestKP2| { Some(&r.b) },
+                    s: |r: &mut TestKP2| { Some(&mut r.b) },
+                    _p: PhantomData
+                };
+                inner_kp
+            }
+        );
+        
+        // Access the deeply nested String value
+        let value = final_lkp.get_cloned(&root);
+        println!("Double nested mutex - value: {:?}", value);
+        
+        // The value should be cloned from the inner Arc<Mutex<String>>
+        if let Some(arc_string) = value {
+            if let Ok(guard) = arc_string.lock() {
+                assert_eq!(*guard, "b2".to_string());
+            }
+        }
+    }
+
+
+    #[test]
+    fn test_lkp_then_chaining() {
+        let mut root = TestKP::new();
+        
+        // Start with TestKP.e -> TestKP2 (identity)
+        let first_lkp = LKp::new(TestKP::e(), Kp::identity());
+        
+        // Chain to TestKP2.a to get: TestKP.e -> TestKP2 -> TestKP2.a
+        let chained = first_lkp.then(TestKP2::a());
+        
+        // Access the deeply nested String value
+        let value = chained.get_cloned(&root);
+        println!("LKp chained - value: {:?}", value);
+        assert_eq!(value, Some("a2".to_string()));
+        
+        // Mutate it
+        chained.get_mut(&mut root, |val| {
+            *val = "chained modified".to_string();
+        });
+        
+        let new_value = chained.get_cloned(&root);
+        assert_eq!(new_value, Some("chained modified".to_string()));
+    }
+
+    #[test]
+    fn test_simple_keypath_composition() {
+        let mut root = TestKP::new();
+        
+        // Option 1: Direct access without LKp (when you have a direct path)
+        let direct_kp = TestKP::f().then(TestKP2::a());
+        assert_eq!(direct_kp.get(&root), Some(&"a3".to_string()));
+        
+        // Option 2: Through mutex using LKp
+        let mutex_lkp = LKp::new(TestKP::e(), TestKP2::a());
+        assert_eq!(mutex_lkp.get_cloned(&root), Some("a2".to_string()));
+        
+        // Option 3: Chain LKp for deeper access
+        let deep_lkp = LKp::new(
+            TestKP::e(),
+            Kp::identity()
+        ).then(TestKP2::a());
+        
+        assert_eq!(deep_lkp.get_cloned(&root), Some("a2".to_string()));
+    }
 }
-}
+
 // ========== SHR OPERATOR IMPLEMENTATIONS (>> operator) ==========
 // 
 // The `>>` operator provides the same functionality as `then()` methods.
