@@ -61,120 +61,6 @@ where
         }
     }
 
-    // pub fn and_then<MutexValue2, InnerValue2, NextValue, G2, S2>(
-    //     self,
-    //     next: LKp<SubValue, MutexValue2, InnerValue2, NextValue, G2, S2>,
-    // ) -> LKp<
-    //     Root,
-    //     MutexValue,
-    //     InnerValue,
-    //     NextValue,
-    //     impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue>,
-    //     impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue>,
-    // >
-    // where
-    //     InnerValue: 'static,
-    //     SubValue: 'static,
-    //     MutexValue2: std::borrow::Borrow<Arc<Mutex<InnerValue2>>> + 'static,
-    //     InnerValue2: 'static,
-    //     NextValue: 'static,
-    //     G2: for<'r> Fn(&'r InnerValue2) -> Option<&'r NextValue> + 'static,
-    //     S2: for<'r> Fn(&'r mut InnerValue2) -> Option<&'r mut NextValue> + 'static,
-    // {
-    //     let outer_get = self.i.g;
-    //     let outer_set = self.i.s;
-    //     let middle_get = next.o.g;
-    //     let middle_set = next.o.s;
-    //     let inner_get = next.i.g;
-    //     let inner_set = next.i.s;
-
-    //     let composed = KpType::new(
-    //         move |inner: &InnerValue| -> Option<&NextValue> {
-    //             let sub_value = outer_get(inner)?;
-    //             let mutex_value = middle_get(sub_value)?;
-    //             let arc_mutex = mutex_value.borrow();
-    //             let guard = arc_mutex.lock().ok()?;
-    //             inner_get(&*guard.a)
-    //         },
-    //         move |inner: &mut InnerValue| -> Option<&mut NextValue> {
-    //             let sub_value = outer_set(inner)?;
-    //             let mutex_value = middle_set(sub_value)?;
-    //             let arc_mutex = mutex_value.borrow();
-    //             let mut guard = arc_mutex.lock().ok()?;
-    //             inner_set(&mut *guard)
-    //         },
-    //     );
-
-    //     LKp {
-    //         o: self.o,
-    //         i: composed,
-    //     }
-    // }
-
-    // pub fn and_then<MutexValue2, InnerValue2, NextValue, G2, S2, G3, S3>(
-    //     self,
-    //     next: LKp<SubValue, MutexValue2, InnerValue2, NextValue, G2, S2>,
-    // ) -> LKp<
-    //     Root,
-    //     MutexValue,
-    //     InnerValue,
-    //     NextValue,
-    //     impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue>,
-    //     impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue>,
-    // >
-    // where
-    //     InnerValue: 'static,
-    //     SubValue: 'static,
-    //     MutexValue2: std::borrow::Borrow<Arc<Mutex<InnerValue2>>> + 'static,
-    //     InnerValue2: 'static,
-    //     NextValue: 'static,
-    //     G2: for<'r> Fn(&'r InnerValue2) -> Option<&'r NextValue> + 'static,
-    //     S2: for<'r> Fn(&'r mut InnerValue2) -> Option<&'r mut NextValue> + 'static,
-    //     G3: for<'r> Fn(&'r SubValue) -> Option<&'r MutexValue2> + 'static,
-    //     S3: for<'r> Fn(&'r mut SubValue) -> Option<&'r mut MutexValue2> + 'static,
-    // {
-    //     // Compose the inner keypaths
-    //     // self.i: InnerValue -> SubValue
-    //     // next.o: SubValue -> MutexValue2 (which is Arc<Mutex<InnerValue2>>)
-    //     // next.i: InnerValue2 -> NextValue
-
-    //     let outer_get = self.i.g;
-    //     let outer_set = self.i.s;
-    //     let middle_get = next.o.g;
-    //     let middle_set = next.o.s;
-    //     let inner_get = next.i.g;
-    //     let inner_set = next.i.s;
-
-    //     let composed = KpType::new(
-    //         move |inner: &InnerValue| -> Option<&NextValue> {
-    //             // First navigate through self.i to get SubValue
-    //             let sub_value = outer_get(inner)?;
-    //             // Then navigate through next.o to get the Arc<Mutex<InnerValue2>>
-    //             let mutex_value = middle_get(sub_value)?;
-    //             // Lock the mutex to get InnerValue2
-    //             let arc_mutex = mutex_value.borrow();
-    //             let guard = arc_mutex.lock().ok()?;
-    //             // Finally navigate through next.i to get NextValue
-    //             inner_get(&*guard)
-    //         },
-    //         move |inner: &mut InnerValue| -> Option<&mut NextValue> {
-    //             // First navigate through self.i to get SubValue
-    //             let sub_value = outer_set(inner)?;
-    //             // Then navigate through next.o to get the Arc<Mutex<InnerValue2>>
-    //             let mutex_value = middle_set(sub_value)?;
-    //             // Lock the mutex to get InnerValue2
-    //             let arc_mutex = mutex_value.borrow();
-    //             let mut guard = arc_mutex.lock().ok()?;
-    //             // Finally navigate through next.i to get NextValue
-    //             inner_set(&mut *guard)
-    //         },
-    //     );
-
-    //     LKp {
-    //         o: self.o,
-    //         i: composed,
-    //     }
-    // }
     /// Consider using the fn only when value is of type Rc or Arc else it will clone.
     pub fn get_cloned(&self, root: &Root) -> Option<SubValue>
     where
@@ -187,6 +73,19 @@ where
             Some(sub_value.clone())
         })
     }
+
+    pub fn get_arc(&self, root: &Root) -> Option<Arc<SubValue>>
+    where
+        SubValue: Clone,
+    {
+        self.o.get(root).and_then(|mutex_value| {
+            let arc_mutex = mutex_value.borrow();
+            let guard = arc_mutex.lock().ok()?;
+            let sub_value = self.i.get(&*guard)?;
+            Some(Arc::new(sub_value.clone()))
+        })
+    }
+
 
     pub fn get_mut<F, R>(&self, root: &mut Root, f: F) -> Option<R>
     where
@@ -210,6 +109,141 @@ where
             let sub_value = self.i.get(&mut *guard)?;
             Some(f(sub_value))
         })
+    }
+}
+
+impl<Root, MutexValue, InnerValue, SubValue, G, S> LKp<Root, MutexValue, InnerValue, SubValue, G, S>
+where
+    MutexValue: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+    G: for<'r> Fn(&'r InnerValue) -> Option<&'r SubValue>,
+    S: for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut SubValue>,
+{
+    // ... existing methods ...
+
+    // /// Chain through another mutex layer
+    // /// SubValue must be Arc<Mutex<NextInner>> to go through another mutex
+    // pub fn and_then<NextInner, NextValue, G2, S2>(
+    //     self,
+    //     next_inner: KpType<NextInner, NextValue, G2, S2>,
+    // ) -> LKp
+    // <
+    //     Root,
+    //     MutexValue,
+    //     InnerValue,
+    //     NextValue,
+    //     impl for<'r> Fn(&'r InnerValue) -> Option<&'r NextValue>,
+    //     impl for<'r> Fn(&'r mut InnerValue) -> Option<&'r mut NextValue>,
+    // >
+    // where
+    //     SubValue: std::borrow::Borrow<Arc<Mutex<NextInner>>>,
+    //     InnerValue: 'static,
+    //     SubValue: 'static,
+    //     NextInner: 'static,
+    //     NextValue: 'static,
+    //     G2: for<'r> Fn(&'r NextInner) -> Option<&'r NextValue> + 'static,
+    //     S2: for<'r> Fn(&'r mut NextInner) -> Option<&'r mut NextValue> + 'static,
+    // {
+    //     let outer_get = self.i.g;
+    //     let outer_set = self.i.s;
+    //     let inner_get = next_inner.g;
+    //     let inner_set = next_inner.s;
+
+    //     let composed = KpType::new(
+    //         move |inner: &InnerValue| -> Option<&NextValue> {
+    //             // Navigate to SubValue (which is Arc<Mutex<NextInner>>)
+    //             let sub_value = outer_get(inner)?;
+    //             // Borrow as Arc<Mutex<NextInner>> and lock it
+    //             let arc_mutex = sub_value.borrow();
+    //             let guard = arc_mutex.lock().ok()?;
+    //             // Navigate through the locked NextInner to get NextValue
+    //             inner_get(&*guard)
+    //         },
+    //         move |inner: &mut InnerValue| -> Option<&mut NextValue> {
+    //             let sub_value = outer_set(inner)?;
+    //             let arc_mutex = sub_value.borrow();
+    //             let mut guard = arc_mutex.lock().ok()?;
+    //             inner_set(&mut *guard)
+    //         },
+    //     );
+
+    //     LKp {
+    //         o: self.o,
+    //         i: composed,
+    //     }
+    // }
+
+    /// Chain through another mutex layer with callback-based access (safer)
+    pub fn and_then_with<NextInner, NextValue, G2, S2, F, R>(
+        &self,
+        next_inner: &KpType<NextInner, NextValue, G2, S2>,
+        root: &Root,
+        callback: F,
+    ) -> Option<R>
+    where
+        SubValue: std::borrow::Borrow<Arc<Mutex<NextInner>>>,
+        G2: for<'r> Fn(&'r NextInner) -> Option<&'r NextValue>,
+        S2: for<'r> Fn(&'r mut NextInner) -> Option<&'r mut NextValue>,
+        F: FnOnce(&NextValue) -> R,
+    {
+        self.o.get(root).and_then(|mutex_value| {
+            let arc_mutex = mutex_value.borrow();
+            let guard = arc_mutex.lock().ok()?;
+            let sub_value = self.i.get(&*guard)?;
+            
+            // Now sub_value is Arc<Mutex<NextInner>>
+            let next_arc_mutex = sub_value.borrow();
+            let next_guard = next_arc_mutex.lock().ok()?;
+            let next_value = next_inner.get(&*next_guard)?;
+            
+            Some(callback(next_value))
+        })
+    }
+
+    /// Mutable version of and_then_with
+    pub fn and_then_with_mut<NextInner, NextValue, G2, S2, F, R>(
+        &self,
+        next_inner: &KpType<NextInner, NextValue, G2, S2>,
+        root: &mut Root,
+        callback: F,
+    ) -> Option<R>
+    where
+        SubValue: std::borrow::Borrow<Arc<Mutex<NextInner>>>,
+        G2: for<'r> Fn(&'r NextInner) -> Option<&'r NextValue>,
+        S2: for<'r> Fn(&'r mut NextInner) -> Option<&'r mut NextValue>,
+        F: FnOnce(&mut NextValue) -> R,
+    {
+        self.o.get_mut(root).and_then(|mutex_value| {
+            let arc_mutex = mutex_value.borrow();
+            let mut guard = arc_mutex.lock().ok()?;
+            let sub_value = self.i.get_mut(&mut *guard)?;
+            
+            let next_arc_mutex = sub_value.borrow();
+            let mut next_guard = next_arc_mutex.lock().ok()?;
+            let next_value = next_inner.get_mut(&mut *next_guard)?;
+            
+            Some(callback(next_value))
+        })
+    }
+}
+
+// Add helper identity methods for common types
+// impl<T> Kp<T, T> {
+//     pub fn identity() -> Self {
+//         Kp {
+//             g: |r: &T| Some(r),
+//             s: |r: &mut T| Some(r),
+//             _p: PhantomData,
+//         }
+//     }
+// }
+
+impl<T> Kp<Arc<Mutex<T>>, Arc<Mutex<T>>> {
+    pub fn identity_arc_mutex() -> Self {
+        Kp {
+            g: |r: &Arc<Mutex<T>>| Some(r),
+            s: |r: &mut Arc<Mutex<T>>| Some(r),
+            _p: PhantomData,
+        }
     }
 }
 
@@ -9511,25 +9545,6 @@ where
     pub fn get_mut<'a>(&self, r: &'a mut R) -> Option<&'a mut V> {
         (self.s)(r)
     }
-    // pub fn then<SubValue>(
-    //     self,
-    //     next: Kp<V, SubValue>,
-    // ) -> Kp<R, SubValue>
-    // {
-    //     let first_get = self.g;
-    //     let second_get = next.g;
-    //     let first_set = self.s;
-    //     let second_set = next.s;
-
-    //     KpType::new(
-    //         move |root: &R| {
-    //             first_get(root).and_then(|value| second_get(value))
-    //         },
-    //         move |root: &mut R| {
-    //             first_set(root).and_then(|value| second_set(value))
-    //         }
-    //     )
-    // }
 
     pub fn then<SubValue, G2, S2>(
         self,
@@ -9545,16 +9560,29 @@ where
         S2: for<'r> Fn(&'r mut V) -> Option<&'r mut SubValue>,
         V: 'static,
     {
-        // let first_get = self.g;
-        // let second_get = next.g;
-        // let first_set = self.s;
-        // let second_set = next.s;
-
         KpType::new(
             move |root: &R| (self.g)(root).and_then(|value| (next.g)(value)),
             move |root: &mut R| (self.s)(root).and_then(|value| (next.s)(value)),
         )
     }
+
+    // /// Convert this keypath to an Arc<Mutex> chain-ready keypath
+    // /// Returns self, but serves as a marker for intent and enables chaining
+    // pub fn for_arc_mutex<InnerValue>(self) -> Self
+    // where
+    //     V: std::borrow::Borrow<Arc<Mutex<InnerValue>>>,
+    // {
+    //     self
+    // }
+
+    // /// Convert this keypath to an Arc<RwLock> chain-ready keypath
+    // /// Returns self, but serves as a marker for intent and enables chaining
+    // pub fn for_arc_rwlock<InnerValue>(self) -> Self
+    // where
+    //     V: std::borrow::Borrow<Arc<RwLock<InnerValue>>>,
+    // {
+    //     self
+    // }
 }
 
 // Add identity as an associated function
@@ -9737,7 +9765,7 @@ impl TestKP3 {
     //             s: |r: &mut TestKP3| Some(&mut r.b),
     //             _p: PhantomData,
     //         };
-    //         k.for_arc()
+    //         k.for_arc_mutex()
     //     }
 
     // fn identity() -> Kp<Self, Self> {
@@ -9747,17 +9775,19 @@ impl TestKP3 {
 
 impl TestKP3 {
     fn b() -> KpType<
-        Arc<TestKP3>,
+        // Arc<TestKP3>,
+        TestKP3,
         Arc<Mutex<String>>,
-        impl for<'r> Fn(&'r Arc<TestKP3>) -> Option<&'r Arc<Mutex<String>>>,
-        impl for<'r> Fn(&'r mut Arc<TestKP3>) -> Option<&'r mut Arc<Mutex<String>>>,
+        // impl for<'r> Fn(&'r Arc<TestKP3>) -> Option<&'r Arc<Mutex<String>>>,
+        impl for<'r> Fn(&'r TestKP3) -> Option<&'r Arc<Mutex<String>>>,
+        impl for<'r> Fn(&'r mut TestKP3) -> Option<&'r mut Arc<Mutex<String>>>,
     > {
-        let k: KpType<TestKP3, Arc<Mutex<String>>, _, _> = Kp {
+        Kp {
             g: |r: &TestKP3| Some(&r.b),
             s: |r: &mut TestKP3| Some(&mut r.b),
             _p: PhantomData,
-        };
-        k.for_arc()
+        }
+        // k.for_arc()
     }
 }
 
@@ -9905,7 +9935,11 @@ mod testsas {
 
         // Second level: chain to TestKP2.b (Arc<Mutex<String>>)
         // This creates: TestKP -> Arc<Mutex<TestKP2>> -> TestKP2.b
-        let second_lkp = first_lkp.then(TestKP2::b());
+        // let second_lkp = first_lkp.then(TestKP2::b()).get_mut(&mut root, |next| {
+        //     let x = &next.lock().ok().unwrap();
+        //     let result = TestKP3::b().get(x);
+            
+        // });
 
         // Now create another LKp to go through the second mutex
         // TestKP -> Arc<Mutex<TestKP2>> -> Arc<Mutex<String>> -> String
@@ -9938,7 +9972,7 @@ mod testsas {
         let first_lkp = LKp::new(TestKP::e(), Kp::identity());
 
         // Chain to TestKP2.a to get: TestKP.e -> TestKP2 -> TestKP2.a
-        let chained = first_lkp.then(TestKP2::a()).then(TestKP3::b());
+        let chained = first_lkp.then(TestKP2::a());
 
         // Access the deeply nested String value
         let value = chained.get_cloned(&root);
