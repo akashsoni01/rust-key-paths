@@ -3,24 +3,18 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::Arc;
 
-// use std::marker::PhantomData;
-// use std::rc::Rc;
-// use std::sync::{Arc, Mutex};
-//
-// type Getter<R, V> = for<'r> fn(&'r R) -> Option<&'r V>;
-// type Setter<R, V> = for<'r> fn(&'r mut R) -> Option<&'r mut V>;
-// // type LockGetter<R, V> = for<'r> fn(&'r R) -> Option<std::sync::Arc<&'r V>>;
-// // type LockSetter<R, V> = for<'r> fn(&'r mut R) -> Option<std::sync::Arc<&'r mut V>>;
-//
-// pub type Kp<R, V> = KpType<
-//     R,
-//     V,
-//     Getter<R, V>,
-//     Setter<R, V>,
-//     //  LockGetter<R, V>,
-//     //  LockSetter<R, V>
-// >;
-//
+// pub type KpType<R, V, Root, Value, MutRoot, MutValue, G, S>
+// where
+//     Root: ,
+//     Value:    Borrow<V>,
+//     MutRoot:  BorrowMut<R>,
+//     MutValue: BorrowMut<V>,
+//     G:        Fn(Root) -> Option<Value>,
+//     S:        Fn(MutRoot) -> Option<MutValue> = Kp<R, V, Root, Value, MutRoot, MutValue, G, S>;
+
+// type Getter<R, V, Root, Value> where Root: Borrow<R>, Value: Borrow<V> = fn(Root) -> Option<Value>;
+// type Setter<R, V> = fn(&'r mut R) -> Option<&'r mut V>;
+
 pub struct Kp<R,V, Root, Value, MutRoot, MutValue,G, S>
     where
     Root: Borrow<R>,
@@ -127,7 +121,7 @@ where
     G: Fn(Root) -> Option<Root>,
     S: Fn(MutRoot) -> Option<MutRoot> {
     pub fn identity() -> Kp<
-    R, R, Root, Root, MutRoot, MutRoot, impl Fn(Root) -> Option<Root>, impl Fn(MutRoot) -> Option<MutRoot>
+    R, R, Root, Root, MutRoot, MutRoot, fn(Root) -> Option<Root>, fn(MutRoot) -> Option<MutRoot>
     > 
     {
         Kp::new(
@@ -137,185 +131,116 @@ where
     }
 }
 
-// struct TestKP {
-//     a: String,
-//     b: String,
-//     c: std::sync::Arc<String>,
-//     d: Mutex<String>,
-//     e: std::sync::Arc<Mutex<TestKP2>>,
-//     f: Option<TestKP2>,
-// }
-//
-// impl TestKP {
-//     fn new() -> Self {
-//         Self {
-//             a: String::from("a"),
-//             b: String::from("b"),
-//             c: Arc::new(String::from("c")),
-//             d: Mutex::new(String::from("d")),
-//             e: Arc::new(Mutex::new(TestKP2::new())),
-//             f: Some(TestKP2 {
-//                 a: String::from("a3"),
-//                 b: Arc::new(Mutex::new(TestKP3::new())),
-//             }),
-//         }
-//     }
-//
-//     // Helper to create an identity keypath for TestKP2
-//     fn identity() -> Kp<TestKP2, TestKP2> {
-//         Kp {
-//             g: |r: &TestKP2| Some(r),
-//             s: |r: &mut TestKP2| Some(r),
-//             _p: PhantomData,
-//         }
-//     }
-// }
-//
-// struct TestKP2 {
-//     a: String,
-//     b: std::sync::Arc<Mutex<TestKP3>>,
-// }
-//
-// impl TestKP2 {
-//     fn new() -> Self {
-//         TestKP2 {
-//             a: String::from("a2"),
-//             b: Arc::new(Mutex::new(TestKP3::new())),
-//         }
-//     }
-//
-//     fn a() -> Kp<TestKP2, String> {
-//         Kp {
-//             g: |r: &TestKP2| Some(&r.a),
-//             s: |r: &mut TestKP2| Some(&mut r.a),
-//             _p: PhantomData,
-//         }
-//     }
-//
-//     fn b() -> Kp<TestKP2, std::sync::Arc<Mutex<TestKP3>>> {
-//         Kp {
-//             g: |r: &TestKP2| Some(&r.b),
-//             s: |r: &mut TestKP2| Some(&mut r.b),
-//             _p: PhantomData,
-//         }
-//     }
-//
-//     // fn identity() -> Kp<Self, Self> {
-//     //     Kp::identity()
-//     // }
-// }
-//
-// #[derive(Debug)]
-// struct TestKP3 {
-//     a: String,
-//     b: std::sync::Arc<Mutex<String>>,
-// }
-//
-// impl TestKP3 {
-//     fn new() -> Self {
-//         TestKP3 {
-//             a: String::from("a2"),
-//             b: Arc::new(Mutex::new(String::from("b2"))),
-//         }
-//     }
-//
-//     fn a() -> Kp<TestKP3, String> {
-//         Kp {
-//             g: |r: &TestKP3| Some(&r.a),
-//             s: |r: &mut TestKP3| Some(&mut r.a),
-//             _p: PhantomData,
-//         }
-//     }
-//
-//     // fn b_lock() -> LKp<
-//     //     Kp<TestKP2, TestKP3>, // Root
-//     //     Kp<TestKP3, String>,  // MutexValue
-//     //     TestKP3,              // InnerValue
-//     //     String,               // SubValue
-//     //     fn(&TestKP3) -> Option<&String>,
-//     //     fn(&mut TestKP3) -> Option<&mut String>,
-//     // > {
-//     //     todo!()
-//     // }
-//
-//     // fn b() -> Kp<std::sync::Arc<TestKP3>, std::sync::Arc<Mutex<String>>> {
-//     //         let k = Kp {
-//     //             g: |r: &TestKP3| Some(&r.b),
-//     //             s: |r: &mut TestKP3| Some(&mut r.b),
-//     //             _p: PhantomData,
-//     //         };
-//     //         k.for_arc_mutex()
-//     //     }
-//
-//     // fn identity() -> Kp<Self, Self> {
-//     //     Kp::identity()
-//     // }
-// }
-//
-// impl TestKP3 {
-//     fn b() -> KpType<
-//         // std::sync::Arc<TestKP3>,
-//         TestKP3,
-//         std::sync::Arc<Mutex<String>>,
-//         // impl for<'r> Fn(&'r std::sync::Arc<TestKP3>) -> Option<&'r std::sync::Arc<Mutex<String>>>,
-//         impl for<'r> Fn(&'r TestKP3) -> Option<&'r std::sync::Arc<Mutex<String>>>,
-//         impl for<'r> Fn(&'r mut TestKP3) -> Option<&'r mut std::sync::Arc<Mutex<String>>>,
-//     > {
-//         Kp {
-//             g: |r: &TestKP3| Some(&r.b),
-//             s: |r: &mut TestKP3| Some(&mut r.b),
-//             _p: PhantomData,
-//         }
-//         // k.for_arc()
-//     }
-// }
-//
-// impl TestKP {
-//     fn a() -> Kp<TestKP, String> {
-//         Kp {
-//             g: |r: &TestKP| Some(&r.a),
-//             s: |r: &mut TestKP| Some(&mut r.a),
-//             _p: PhantomData,
-//         }
-//     }
-//
-//     fn b() -> Kp<TestKP, String> {
-//         Kp {
-//             g: |r: &TestKP| Some(&r.b),
-//             s: |r: &mut TestKP| Some(&mut r.b),
-//             _p: PhantomData,
-//         }
-//     }
-//
-//     fn c() -> Kp<TestKP, String> {
-//         Kp {
-//             g: |r: &TestKP| Some(r.c.as_ref()),
-//             s: |r: &mut TestKP| None,
-//             _p: PhantomData,
-//         }
-//     }
-//
-//     fn d() -> Kp<TestKP, Mutex<String>> {
-//         Kp {
-//             g: |r: &TestKP| Some(&r.d),
-//             s: |r: &mut TestKP| Some(&mut r.d),
-//             _p: PhantomData,
-//         }
-//     }
-//
-//     fn e() -> Kp<TestKP, std::sync::Arc<Mutex<TestKP2>>> {
-//         Kp {
-//             g: |r: &TestKP| Some(&r.e),
-//             s: |r: &mut TestKP| Some(&mut r.e),
-//             _p: PhantomData,
-//         }
-//     }
-//
-//     fn f() -> Kp<TestKP, TestKP2> {
-//         Kp {
-//             g: |r: &TestKP| r.f.as_ref(),
-//             s: |r: &mut TestKP| r.f.as_mut(),
-//             _p: PhantomData,
-//         }
-//     }
-// }
+struct TestKP {
+    a: String,
+    b: String,
+    c: std::sync::Arc<String>,
+    d: std::sync::Mutex<String>,
+    e: std::sync::Arc<std::sync::Mutex<TestKP2>>,
+    f: Option<TestKP2>,
+}
+
+impl TestKP {
+    fn new() -> Self {
+        Self {
+            a: String::from("a"),
+            b: String::from("b"),
+            c: Arc::new(String::from("c")),
+            d: std::sync::Mutex::new(String::from("d")),
+            e: Arc::new(std::sync::Mutex::new(TestKP2::new())),
+            f: Some(TestKP2 {
+                a: String::from("a3"),
+                b: Arc::new(std::sync::Mutex::new(TestKP3::new())),
+            }),
+        }
+    }
+
+    // Helper to create an identity keypath for TestKP2
+    fn identity<Root, MutRoot, G, S>() -> Kp<
+        TestKP2,          // R
+        TestKP2,          // V
+        Root,         // Root
+        Root,         // Value
+        MutRoot,     // MutRoot
+        MutRoot,     // MutValue
+        fn(Root) -> Option<Root>,
+        fn(MutRoot) -> Option<MutRoot>,
+    > where Root: Borrow<TestKP2>,
+            MutRoot: BorrowMut<TestKP2>,
+    G: Fn(Root) -> Option<Root>,
+    S: Fn(MutRoot) -> Option<MutRoot>
+    {
+        Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
+    }
+}
+
+struct TestKP2 {
+    a: String,
+    b: std::sync::Arc<std::sync::Mutex<TestKP3>>,
+}
+
+impl TestKP2 {
+    fn new() -> Self {
+        TestKP2 {
+            a: String::from("a2"),
+            b: Arc::new(std::sync::Mutex::new(TestKP3::new())),
+        }
+    }
+
+    fn identity<Root, MutRoot, G, S>() -> Kp<
+        TestKP2,          // R
+        TestKP2,          // V
+        Root,         // Root
+        Root,         // Value
+        MutRoot,     // MutRoot
+        MutRoot,     // MutValue
+        fn(Root) -> Option<Root>,
+        fn(MutRoot) -> Option<MutRoot>,
+    > where Root: Borrow<TestKP2>,
+            MutRoot: BorrowMut<TestKP2>,
+            G: Fn(Root) -> Option<Root>,
+            S: Fn(MutRoot) -> Option<MutRoot>
+    {
+        Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
+    }
+}
+
+#[derive(Debug)]
+struct TestKP3 {
+    a: String,
+    b: std::sync::Arc<std::sync::Mutex<String>>,
+}
+
+impl TestKP3 {
+    fn new() -> Self {
+        TestKP3 {
+            a: String::from("a2"),
+            b: Arc::new(std::sync::Mutex::new(String::from("b2"))),
+        }
+    }
+
+    fn identity<Root, MutRoot, G, S>() -> Kp<
+        TestKP2,          // R
+        TestKP2,          // V
+        Root,         // Root
+        Root,         // Value
+        MutRoot,     // MutRoot
+        MutRoot,     // MutValue
+        fn(Root) -> Option<Root>,
+        fn(MutRoot) -> Option<MutRoot>,
+    > where Root: Borrow<TestKP2>,
+            MutRoot: BorrowMut<TestKP2>,
+            G: Fn(Root) -> Option<Root>,
+            S: Fn(MutRoot) -> Option<MutRoot>
+    {
+        Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
+    }
+
+
+}
+
+impl TestKP3 {
+}
+
+impl TestKP {
+}
