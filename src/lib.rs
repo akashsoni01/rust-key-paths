@@ -32,6 +32,159 @@ pub type KpType<'a, R, V> = Kp<
 //     for<'a> fn(&'a mut R) -> Option<&'a mut V>,
 // >;
 
+// struct A{
+//     b: std::sync::Arc<std::sync::Mutex<B>>,
+// }
+// struct B{
+//     c: C
+// }
+// struct C{
+//     d: String
+// }
+
+// pub struct LockKp {
+//     first: KpType<'static, A, B>,
+//     mid: KpType<'static, std::sync::Mutex<B>, B>,
+//     second: KpType<'static, B, C>,
+// }
+//
+// impl LockKp {
+//     fn then(&self, kp: KpType<'static, B, String>) {
+//
+//     }
+//     fn then_lock() {}
+// }
+
+// New type alias for composed/transformed keypaths
+pub type KpComposed<R, V> = Kp<
+    R,
+    V,
+    &'static R,
+    &'static V,
+    &'static mut R,
+    &'static mut V,
+    Box<dyn for<'b> Fn(&'b R) -> Option<&'b V>>,
+    Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V>>,
+>;
+
+use std::sync::{Arc, Mutex};
+
+pub struct LockKp<R, V, MV, G1, S1, G2, S2, G3, S3>
+where
+    G1: Fn(&R) -> Option<&Arc<Mutex<MV>>>,
+    S1: Fn(&mut R) -> Option<&mut Arc<Mutex<MV>>>,
+    G2: Fn(&Arc<Mutex<MV>>) -> Option<&MV>,
+    S2: Fn(&mut Arc<Mutex<MV>>) -> Option<&mut MV>,
+    G3: Fn(&MV) -> Option<&V>,
+    S3: Fn(&mut MV) -> Option<&mut V>,
+    R: 'static,
+    V: 'static,
+    MV: 'static,
+    
+{
+    first: Kp<
+        R,
+        Arc<Mutex<MV>>,
+        &'static R,
+        &'static Arc<Mutex<MV>>,
+        &'static mut R,
+        &'static mut Arc<Mutex<MV>>,
+        G1,
+        S1,
+    >,
+    mid: Kp<
+        Arc<Mutex<MV>>,
+        MV,
+        &'static Arc<Mutex<MV>>,
+        &'static MV,
+        &'static mut Arc<Mutex<MV>>,
+        &'static mut MV,
+        G2,
+        S2,
+    >,
+    second: Kp<MV, V, &'static MV, &'static V, &'static mut MV, &'static mut V, G3, S3>,
+}
+
+impl<R, V, MV, G1, S1, G2, S2, G3, S3> LockKp<R, V, MV, G1, S1, G2, S2, G3, S3>
+where
+    R: 'static,
+    V: 'static + Clone,
+    MV: 'static,
+    G1: Fn(&R) -> Option<&Arc<Mutex<MV>>>,
+    S1: Fn(&mut R) -> Option<&mut Arc<Mutex<MV>>>,
+    G2: Fn(&Arc<Mutex<MV>>) -> Option<&MV>,
+    S2: Fn(&mut Arc<Mutex<MV>>) -> Option<&mut MV>,
+    G3: Fn(&MV) -> Option<&V>,
+    S3: Fn(&mut MV) -> Option<&mut V>,
+{
+    pub fn new(
+        first: Kp<
+            R,
+            Arc<Mutex<MV>>,
+            &'static R,
+            &'static Arc<Mutex<MV>>,
+            &'static mut R,
+            &'static mut Arc<Mutex<MV>>,
+            G1,
+            S1,
+        >,
+        mid: Kp<
+            Arc<Mutex<MV>>,
+            MV,
+            &'static Arc<Mutex<MV>>,
+            &'static MV,
+            &'static mut Arc<Mutex<MV>>,
+            &'static mut MV,
+            G2,
+            S2,
+        >,
+        second: Kp<MV, V, &'static MV, &'static V, &'static mut MV, &'static mut V, G3, S3>,
+    ) -> Self {
+        Self { first, mid, second }
+    }
+
+    pub fn get(&self, root: &R) -> Option<V> {
+        (self.first.get)(root).and_then(|arc_mutex| {
+            (self.mid.get)(arc_mutex).and_then(|mv| (self.second.get)(mv).map(|v| v.clone()))
+        })
+    }
+}
+
+// Helper to create mid keypath for Arc<Mutex<T>>
+
+// Usage example
+struct A {
+    b: Arc<Mutex<B>>,
+}
+
+#[derive(Clone)]
+struct B {
+    c: C,
+}
+
+#[derive(Clone)]
+struct C {
+    d: String,
+}
+
+impl A {
+    fn b() -> KpType<'static, A, Arc<Mutex<B>>> {
+        Kp::new(|a: &A| Some(&a.b), |a: &mut A| Some(&mut a.b))
+    }
+}
+
+impl B {
+    fn c() -> KpType<'static, B, C> {
+        Kp::new(|b: &B| Some(&b.c), |b: &mut B| Some(&mut b.c))
+    }
+}
+
+impl C {
+    fn d() -> KpType<'static, C, String> {
+        Kp::new(|c: &C| Some(&c.d), |c: &mut C| Some(&mut c.d))
+    }
+}
+
 pub struct Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,
@@ -123,7 +276,8 @@ where
             },
             move |mut arc_root: std::sync::Arc<R>| {
                 // Get mutable reference only if we have exclusive ownership
-                std::sync::Arc::get_mut(&mut arc_root).and_then(|r_mut| (&self.set)(MutRoot::from(r_mut)))
+                std::sync::Arc::get_mut(&mut arc_root)
+                    .and_then(|r_mut| (&self.set)(MutRoot::from(r_mut)))
             },
         )
     }
@@ -157,7 +311,6 @@ where
             },
         )
     }
-
 }
 
 impl<R, Root, MutRoot, G, S> Kp<R, R, Root, Root, MutRoot, MutRoot, G, S>
@@ -241,11 +394,12 @@ mod tests {
         // Example for taking ref
 
         fn c<'a>() -> KpType<'a, TestKP, String> {
-            KpType::new(|r: &TestKP| Some(r.c.as_ref()), |r: &mut TestKP|
-                match std::sync::Arc::get_mut(&mut r.c) {
+            KpType::new(
+                |r: &TestKP| Some(r.c.as_ref()),
+                |r: &mut TestKP| match std::sync::Arc::get_mut(&mut r.c) {
                     Some(arc_str) => Some(arc_str),
                     None => None,
-                }
+                },
             )
         }
 
@@ -294,7 +448,6 @@ mod tests {
         // {
         //     Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
         // }
-
 
         fn a<'a>() -> KpType<'a, TestKP2, String> {
             KpType::new(|r: &TestKP2| Some(&r.a), |r: &mut TestKP2| Some(&mut r.a))
@@ -370,6 +523,5 @@ mod tests {
         println!("{:?}", res);
         let res = kp.get(&instance);
         println!("{:?}", res);
-
     }
 }

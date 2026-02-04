@@ -86,9 +86,9 @@ where
         })
     }
 
-    pub fn get_mut<F, R>(&self, root: &mut Root, f: F) -> Option<R>
+    pub fn get_mut<F, SubSubValue>(&self, root: &mut Root, f: F) -> Option<SubSubValue>
     where
-        F: FnOnce(&mut SubValue) -> R,
+        F: FnOnce(&mut SubValue) -> SubSubValue,
     {
         self.o.get_mut(root).and_then(|mutex_value| {
             let arc_mutex = mutex_value.borrow();
@@ -98,9 +98,9 @@ where
         })
     }
 
-    pub fn get<F, R>(&self, root: &Root, f: F) -> Option<R>
+    pub fn get<F, SubSubValue>(&self, root: &Root, f: F) -> Option<SubSubValue>
     where
-        F: FnOnce(&SubValue) -> R,
+        F: FnOnce(&SubValue) -> SubSubValue,
     {
         self.o.get(root).and_then(|mutex_value| {
             let arc_mutex = mutex_value.borrow();
