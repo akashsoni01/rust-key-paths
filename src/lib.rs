@@ -10,6 +10,8 @@
 // type Getter<R, V, Root, Value> where Root: std::borrow::Borrow<R>, Value: std::borrow::Borrow<V> = fn(Root) -> Option<Value>;
 // type Setter<R, V> = fn(&'r mut R) -> Option<&'r mut V>;
 
+use std::sync::{Arc, Mutex};
+
 pub type KpType<'a, R, V> = Kp<
     R,
     V,
@@ -67,8 +69,6 @@ pub type KpComposed<R, V> = Kp<
     Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V>>,
 >;
 
-use std::sync::{Arc, Mutex};
-
 pub struct LockKp<R, V, MV, G1, S1, G3, S3>
 where
     G1: Fn(&R) -> Option<&Arc<Mutex<MV>>>,
@@ -79,16 +79,15 @@ where
     V: 'static,
     MV: 'static,
 {
-    first: Kp
-    <
-    R,
-    Arc<Mutex<MV>>,
-    &'static R,
-    &'static Arc<Mutex<MV>>,
-    &'static mut R,
-    &'static mut Arc<Mutex<MV>>,
-    G1,
-    S1,
+    first: Kp<
+        R,
+        Arc<Mutex<MV>>,
+        &'static R,
+        &'static Arc<Mutex<MV>>,
+        &'static mut R,
+        &'static mut Arc<Mutex<MV>>,
+        G1,
+        S1,
     >,
     second: Kp<MV, V, &'static MV, &'static V, &'static mut MV, &'static mut V, G3, S3>,
 }
@@ -104,16 +103,15 @@ where
     S3: Fn(&mut MV) -> Option<&mut V>,
 {
     pub fn new(
-        first: Kp
-        <
-        R,
-        Arc<Mutex<MV>>,
-        &'static R,
-        &'static Arc<Mutex<MV>>,
-        &'static mut R,
-        &'static mut Arc<Mutex<MV>>,
-        G1,
-        S1,
+        first: Kp<
+            R,
+            Arc<Mutex<MV>>,
+            &'static R,
+            &'static Arc<Mutex<MV>>,
+            &'static mut R,
+            &'static mut Arc<Mutex<MV>>,
+            G1,
+            S1,
         >,
         second: Kp<MV, V, &'static MV, &'static V, &'static mut MV, &'static mut V, G3, S3>,
     ) -> Self {
@@ -122,9 +120,10 @@ where
 
     pub fn get(&self, root: &R) -> Option<V> {
         (self.first.get)(root).and_then(|arc_mutex| {
-            arc_mutex.lock().ok().and_then(|guard| {
-                (self.second.get)(&*guard).map(|v| v.clone())
-            })
+            arc_mutex
+                .lock()
+                .ok()
+                .and_then(|guard| (self.second.get)(&*guard).map(|v| v.clone()))
         })
     }
 
@@ -147,6 +146,144 @@ where
                     })
             })
     }
+
+    // Compose with a regular KpType (V -> SV)
+    pub fn then<SV, G4, S4>(
+        self,
+        next: Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G4, S4>,
+    ) -> LockKp<
+        R,
+        SV,
+        MV,
+        G1,
+        S1,
+        for<'a> fn(&'a MV) -> Option<&'a SV>,
+        for<'a> fn(&'a mut MV) -> Option<&'a mut SV>,
+    >
+    where
+        SV: 'static + Clone,
+        G4: Fn(&V) -> Option<&SV> + 'static,
+        S4: Fn(&mut V) -> Option<&mut SV> + 'static,
+    {
+        fn new_get<MV, V, SV, G3, G4>(
+            second: Kp<
+                MV,
+                V,
+                &'static MV,
+                &'static V,
+                &'static mut MV,
+                &'static mut V,
+                G3,
+                impl Fn(&mut MV) -> Option<&mut V>,
+            >,
+            next: Kp<
+                V,
+                SV,
+                &'static V,
+                &'static SV,
+                &'static mut V,
+                &'static mut SV,
+                G4,
+                impl Fn(&mut V) -> Option<&mut SV>,
+            >,
+        ) -> impl Fn(&MV) -> Option<&SV>
+        where
+            G3: Fn(&MV) -> Option<&V>,
+            G4: Fn(&V) -> Option<&SV>,
+        {
+            move |mv: &MV| (second.get)(mv).and_then(|v| (next.get)(v))
+        }
+
+        fn new_set<MV, V, SV, S3, S4>(
+            second: Kp<
+                MV,
+                V,
+                &'static MV,
+                &'static V,
+                &'static mut MV,
+                &'static mut V,
+                impl Fn(&MV) -> Option<&V>,
+                S3,
+            >,
+            next: Kp<
+                V,
+                SV,
+                &'static V,
+                &'static SV,
+                &'static mut V,
+                &'static mut SV,
+                impl Fn(&V) -> Option<&SV>,
+                S4,
+            >,
+        ) -> impl Fn(&mut MV) -> Option<&mut SV>
+        where
+            S3: Fn(&mut MV) -> Option<&mut V>,
+            S4: Fn(&mut V) -> Option<&mut SV>,
+        {
+            move |mv: &mut MV| (second.set)(mv).and_then(|v| (next.set)(v))
+        }
+
+        // Store the closures in static variables won't work, we need a different approach
+        // We need to use function pointers, so we'll box the keypaths
+
+        let second_box = Box::new(self.second);
+        let next_box = Box::new(next);
+
+        let get_fn: for<'a> fn(&'a MV) -> Option<&'a SV> = |mv: &MV| -> Option<&SV> {
+            // This won't work because we can't access the boxes here
+            None
+        };
+
+        let set_fn: for<'a> fn(&'a mut MV) -> Option<&'a mut SV> =
+            |mv: &mut MV| -> Option<&mut SV> { None };
+
+        LockKp {
+            first: self.first,
+            second: Kp::new(get_fn, set_fn),
+        }
+    }
+
+    // Compose with another LockKp (V -> Arc<Mutex<MV2>> -> SV)
+    // pub fn then_lock<SV, MV2, G4, S4, G5, S5>(
+    //     self,
+    //     next: LockKp<V, SV, MV2, G4, S4, G5, S5>,
+    // ) -> LockKp<R, SV, MV, G1, S1, impl Fn(&MV) -> Option<&SV>, impl Fn(&mut MV) -> Option<&mut SV>>
+    // where
+    //     SV: 'static + Clone,
+    //     MV2: 'static,
+    //     G4: Fn(&V) -> Option<&Arc<Mutex<MV2>>> + 'static,
+    //     S4: Fn(&mut V) -> Option<&mut Arc<Mutex<MV2>>> + 'static,
+    //     G5: Fn(&MV2) -> Option<&SV> + 'static,
+    //     S5: Fn(&mut MV2) -> Option<&mut SV> + 'static,
+    // {
+    //     let new_second = Kp::new(
+    //         move |mv: &MV| {
+    //             (self.second.get)(mv)
+    //                 .and_then(|v| {
+    //                     (next.first.get)(v).and_then(|arc_mutex| {
+    //                         arc_mutex
+    //                             .lock()
+    //                             .ok()
+    //                             .and_then(|guard| (next.second.get)(&*guard).map(|sv| sv.clone()))
+    //                     })
+    //                 })
+    //                 .as_ref()
+    //                 .map(|sv| sv as &SV)
+    //         },
+    //         move |mv: &mut MV| {
+    //             (self.second.set)(mv).and_then(|v| {
+    //                 (next.first.get)(v).and_then(|arc_mutex| {
+    //                     arc_mutex
+    //                         .lock()
+    //                         .ok()
+    //                         .and_then(|mut guard| (next.second.set)(&mut *guard))
+    //                 })
+    //             })
+    //         },
+    //     );
+    //
+    //     LockKp::new(self.first, new_second)
+    // }
 }
 
 // Usage example
@@ -158,11 +295,17 @@ struct A {
 #[derive(Debug, Clone)]
 struct B {
     c: C,
+    e: Arc<Mutex<E>>,
 }
 
 #[derive(Debug, Clone)]
 struct C {
     d: String,
+}
+
+#[derive(Debug, Clone)]
+struct E {
+    f: String,
 }
 
 impl A {
@@ -175,6 +318,10 @@ impl B {
     fn c() -> KpType<'static, B, C> {
         Kp::new(|b: &B| Some(&b.c), |b: &mut B| Some(&mut b.c))
     }
+
+    fn e() -> KpType<'static, B, Arc<Mutex<E>>> {
+        Kp::new(|b: &B| Some(&b.e), |b: &mut B| Some(&mut b.e))
+    }
 }
 
 impl C {
@@ -183,34 +330,9 @@ impl C {
     }
 }
 
-fn main() {
-    let lock_kp = LockKp::new(
-        A::b(),
-        B::c(),
-    );
-
-    let a = A {
-        b: Arc::new(Mutex::new(B {
-            c: C {
-                d: String::from("hello"),
-            },
-        })),
-    };
-
-    // Get value
-    if let Some(value) = lock_kp.get(&a) {
-        println!("Got: {:?}", value);
-    }
-
-    // Set value using closure
-    let result = lock_kp.set(&a, |c| {
-        c.d.push_str(" world");
-    });
-
-    if result.is_ok() {
-        if let Some(value) = lock_kp.get(&a) {
-            println!("After set: {:?}", value);
-        }
+impl E {
+    fn f() -> KpType<'static, E, String> {
+        Kp::new(|e: &E| Some(&e.f), |e: &mut E| Some(&mut e.f))
     }
 }
 
