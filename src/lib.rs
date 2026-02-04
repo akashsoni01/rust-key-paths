@@ -15,6 +15,28 @@ use std::sync::Arc;
 // type Getter<R, V, Root, Value> where Root: Borrow<R>, Value: Borrow<V> = fn(Root) -> Option<Value>;
 // type Setter<R, V> = fn(&'r mut R) -> Option<&'r mut V>;
 
+// pub type KpType<'a, R, V> = Kp<
+//     R,
+//     V,
+//     &'a R,
+//     &'a V,
+//     &'a mut R,
+//     &'a mut V,
+//     for<'b> fn(&'b R) -> Option<&'b V>,
+//     for<'b> fn(&'b mut R) -> Option<&'b mut V>,
+// >;
+
+pub type KpType<R, V> = Kp<
+    R,
+    V,
+    &'static R,
+    &'static V,
+    &'static mut R,
+    &'static mut V,
+    for<'a> fn(&'a R) -> Option<&'a V>,
+    for<'a> fn(&'a mut R) -> Option<&'a mut V>,
+>;
+
 pub struct Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: Borrow<R>,
@@ -120,17 +142,21 @@ where
     G: Fn(Root) -> Option<Root>,
     S: Fn(MutRoot) -> Option<MutRoot>,
 {
-    pub fn identity() -> Kp<
-        R,
-        R,
-        Root,
-        Root,
-        MutRoot,
-        MutRoot,
-        fn(Root) -> Option<Root>,
-        fn(MutRoot) -> Option<MutRoot>,
-    > {
-        Kp::new(|r: Root| Some(r), |r: MutRoot| Some(r))
+    // pub fn identity() -> Kp<
+    //     R,
+    //     R,
+    //     Root,
+    //     Root,
+    //     MutRoot,
+    //     MutRoot,
+    //     fn(Root) -> Option<Root>,
+    //     fn(MutRoot) -> Option<MutRoot>,
+    // > {
+    //     Kp::new(|r: Root| Some(r), |r: MutRoot| Some(r))
+    // }
+
+    pub fn identity() -> KpType<R, R> {
+        KpType::identity()
     }
 }
 
@@ -218,27 +244,14 @@ impl TestKP {
             |mut r: MutRoot| Some(MutValue::from(r.borrow_mut().b.clone())),
         )
     }
+
     // Helper to create an identity keypath for TestKP2
-    fn identity<Root, MutRoot, G, S>() -> Kp<
-        TestKP2, // R
-        TestKP2, // V
-        Root,    // Root
-        Root,    // Value
-        MutRoot, // MutRoot
-        MutRoot, // MutValue
-        fn(Root) -> Option<Root>,
-        fn(MutRoot) -> Option<MutRoot>,
-    >
-    where
-        Root: Borrow<TestKP2>,
-        MutRoot: BorrowMut<TestKP2>,
-        G: Fn(Root) -> Option<Root>,
-        S: Fn(MutRoot) -> Option<MutRoot>,
-    {
-        Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
+    fn identity() -> KpType<TestKP2, TestKP2> {
+        KpType::identity()
     }
 }
 
+#[derive(Debug)]
 struct TestKP2 {
     a: String,
     b: std::sync::Arc<std::sync::Mutex<TestKP3>>,
@@ -252,23 +265,27 @@ impl TestKP2 {
         }
     }
 
-    fn identity<Root, MutRoot, G, S>() -> Kp<
-        TestKP2, // R
-        TestKP2, // V
-        Root,    // Root
-        Root,    // Value
-        MutRoot, // MutRoot
-        MutRoot, // MutValue
-        fn(Root) -> Option<Root>,
-        fn(MutRoot) -> Option<MutRoot>,
-    >
-    where
-        Root: Borrow<TestKP2>,
-        MutRoot: BorrowMut<TestKP2>,
-        G: Fn(Root) -> Option<Root>,
-        S: Fn(MutRoot) -> Option<MutRoot>,
-    {
-        Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
+    // fn identity<Root, MutRoot, G, S>() -> Kp<
+    //     TestKP2, // R
+    //     TestKP2, // V
+    //     Root,    // Root
+    //     Root,    // Value
+    //     MutRoot, // MutRoot
+    //     MutRoot, // MutValue
+    //     fn(Root) -> Option<Root>,
+    //     fn(MutRoot) -> Option<MutRoot>,
+    // >
+    // where
+    //     Root: Borrow<TestKP2>,
+    //     MutRoot: BorrowMut<TestKP2>,
+    //     G: Fn(Root) -> Option<Root>,
+    //     S: Fn(MutRoot) -> Option<MutRoot>,
+    // {
+    //     Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
+    // }
+
+    fn identity() -> KpType<TestKP2, TestKP2> {
+        KpType::identity()
     }
 }
 
@@ -285,27 +302,44 @@ impl TestKP3 {
             b: Arc::new(std::sync::Mutex::new(String::from("b2"))),
         }
     }
+    //
+    // fn identity<Root, MutRoot, G, S>() -> Kp<
+    //     TestKP2, // R
+    //     TestKP2, // V
+    //     Root,    // Root
+    //     Root,    // Value
+    //     MutRoot, // MutRoot
+    //     MutRoot, // MutValue
+    //     fn(Root) -> Option<Root>,
+    //     fn(MutRoot) -> Option<MutRoot>,
+    // >
+    // where
+    //     Root: Borrow<TestKP2>,
+    //     MutRoot: BorrowMut<TestKP2>,
+    //     G: Fn(Root) -> Option<Root>,
+    //     S: Fn(MutRoot) -> Option<MutRoot>,
+    // {
+    //     Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
+    // }
 
-    fn identity<Root, MutRoot, G, S>() -> Kp<
-        TestKP2, // R
-        TestKP2, // V
-        Root,    // Root
-        Root,    // Value
-        MutRoot, // MutRoot
-        MutRoot, // MutValue
-        fn(Root) -> Option<Root>,
-        fn(MutRoot) -> Option<MutRoot>,
-    >
-    where
-        Root: Borrow<TestKP2>,
-        MutRoot: BorrowMut<TestKP2>,
-        G: Fn(Root) -> Option<Root>,
-        S: Fn(MutRoot) -> Option<MutRoot>,
-    {
-        Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
+    fn identity() -> KpType<TestKP3, TestKP3> {
+        KpType::identity()
     }
 }
 
 impl TestKP3 {}
 
 impl TestKP {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_a() {
+        let instance = TestKP2::new();
+        let kp = TestKP::identity();
+        let res = kp.get(&instance);
+        println!("{:?}", res);
+    }
+}
