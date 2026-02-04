@@ -326,10 +326,12 @@ mod tests {
     #[test]
     fn test_a() {
         let instance2 = TestKP2::new();
-        let instance = TestKP::new();
+        let mut instance = TestKP::new();
         let kp = TestKP::identity();
         let kp_a = crate::TestKP::a();
         let kp_f = TestKP::f();
+        let wres = kp_f.then(TestKP2::a()).get_mut(&mut instance).unwrap();
+        *wres = String::from("a3 changed successfully");
         let res = kp_f.then(TestKP2::a()).get(&instance);
         println!("{:?}", res);
         let res = kp_f.then(TestKP2::identity()).get(&instance);
