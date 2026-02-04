@@ -134,57 +134,36 @@ where
         )
     }
 
-    // pub fn for_arc<'a, NewRoot, NewMutRoot>(
-    //     &self,
-    // ) -> Kp<
-    //     Arc<R>,
-    //     V,
-    //     Root,
-    //     Value,
-    //     MutRoot,
-    //     MutValue,
-    //     impl Fn(NewRoot) -> Option<Value>,
-    //     impl Fn(NewMutRoot) -> Option<MutValue>,
-    // > where
-    //     NewRoot: Borrow<Arc<R>> + 'a,
-    //     NewMutRoot: BorrowMut<Arc<R>> + 'a,
-    // {
-    //     todo!()
-    //     // Kp::new(
-    //     //     move |root: Root| (&self.get)(root).and_then(|value| (next.get)(value)),
-    //     //     move |root: MutRoot| (&self.set)(root).and_then(|value| (next.set)(value)),
-    //     // )
-    // }
-    //     pub fn for_arc(
-    //         self,
-    //     ) -> KpType<
-    //         std::sync::Arc<R>,
-    //         V,
-    //         impl for<'r> Fn(&'r std::sync::Arc<R>) -> Option<&'r V>,
-    //         impl for<'r> Fn(&'r mut std::sync::Arc<R>) -> Option<&'r mut V>,
-    //     > {
-    //         KpType {
-    //             g: move |root: &std::sync::Arc<R>| {
-    //                 // Dereference the Arc to get &R, then apply the original getter
-    //                 (self.g)(&root)
-    //             },
-    //             s: move |root: &mut std::sync::Arc<R>| {
-    //                 // For mutable access, we need to handle Arc's interior mutability carefully
-    //                 // This assumes R: Send + Sync for thread safety with Arc
-    //                 // Note: This will only work if the Arc has exactly one strong reference
-    //                 // Otherwise, we cannot get a mutable reference
-    //
-    //                 // Try to get a mutable reference from Arc
-    //                 if let Some(r) = Arc::get_mut(root) {
-    //                     (self.s)(r)
-    //                 } else {
-    //                     None
-    //                 }
-    //             },
-    //             _p: PhantomData,
-    //         }
-    //     }
-    //
+    pub fn for_box<'a>(
+        &self,
+    ) -> Kp<
+        Box<R>,
+        V,
+        Box<R>,
+        Value,
+        Box<R>,
+        MutValue,
+        impl Fn(Box<R>) -> Option<Value>,
+        impl Fn(Box<R>) -> Option<MutValue>,
+    >
+    where
+        R: 'a,
+        V: 'a,
+        Root: for<'b> From<&'b R>,
+        MutRoot: for<'b> From<&'b mut R>,
+    {
+        Kp::new(
+            move |r: Box<R>| {
+                let r_ref: &R = r.as_ref();
+                (&self.get)(Root::from(r_ref))
+            },
+            move |mut r: Box<R>| {
+                // Get mutable reference only if we have exclusive ownership
+                (self.set)(MutRoot::from(r.as_mut()))
+            },
+        )
+    }
+
 }
 
 impl<R, Root, MutRoot, G, S> Kp<R, R, Root, Root, MutRoot, MutRoot, G, S>
@@ -382,6 +361,7 @@ mod tests {
         let mut instance = TestKP::new();
         let kp = TestKP::identity();
         let kp_a = crate::TestKP::a();
+        let kp_box = TestKP::a().for_box();
         let kp_f = TestKP::f();
         let wres = kp_f.then(TestKP2::a()).get_mut(&mut instance).unwrap();
         *wres = String::from("a3 changed successfully");
@@ -391,5 +371,6 @@ mod tests {
         println!("{:?}", res);
         let res = kp.get(&instance2);
         println!("{:?}", res);
+
     }
 }
