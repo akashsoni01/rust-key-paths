@@ -158,29 +158,45 @@ impl TestKP {
         }
     }
 
+    // Example for - Clone ref sharing
     // Keypath for field 'a' (String)
-    fn a<Root, MutRoot, Value, MutValue>() -> Kp<
+    // fn a<Root, MutRoot, Value, MutValue>() -> Kp<
+    //     TestKP2,
+    //     String,
+    //     Root,
+    //     Value,
+    //     MutRoot,
+    //     MutValue,
+    //     impl Fn(Root) -> Option<Value>,
+    //     impl Fn(MutRoot) -> Option<MutValue>,
+    // >
+    // where
+    //     Root: Borrow<TestKP2>,
+    //     MutRoot: BorrowMut<TestKP2>,
+    //     Value: Borrow<String> + From<String>,
+    //     MutValue: BorrowMut<String> + From<String>,
+    // {
+    //     Kp::new(
+    //         |r: Root| Some(Value::from(r.borrow().a.clone())),
+    //         |mut r: MutRoot| Some(MutValue::from(r.borrow_mut().a.clone())),
+    //     )
+    // }
+
+    // Example for taking ref
+    fn a<'a>() -> Kp<
         TestKP2,
         String,
-        Root,
-        Value,
-        MutRoot,
-        MutValue,
-        impl Fn(Root) -> Option<Value>,
-        impl Fn(MutRoot) -> Option<MutValue>,
-    >
-    where
-        Root: Borrow<TestKP2>,
-        MutRoot: BorrowMut<TestKP2>,
-        Value: Borrow<String> + From<String>,
-        MutValue: BorrowMut<String> + From<String>,
-    {
-        Kp::new(
-            |r: Root| Some(Value::from(r.borrow().a.clone())),
-            |mut r: MutRoot| Some(MutValue::from(r.borrow_mut().a.clone())),
-        )
+        &'a TestKP2,
+        &'a String,
+        &'a mut TestKP2,
+        &'a mut String,
+        for<'b> fn(&'b TestKP2) -> Option<&'b String>,
+        for<'b> fn(&'b mut TestKP2) -> Option<&'b mut String>,
+    > {
+        Kp::new(|r: &TestKP2| Some(&r.a), |r: &mut TestKP2| Some(&mut r.a))
     }
 
+    // example - cloning arc mutex
     fn b<Root, MutRoot, Value, MutValue>() -> Kp<
         TestKP2,
         Arc<std::sync::Mutex<TestKP3>>,
