@@ -103,6 +103,61 @@ where
         )
     }
 
+    /// need some more work here.
+    pub fn for_arc(
+        &self,
+    ) -> Kp<
+        Arc<R>,
+        V,
+        Arc<R>,
+        Value,
+        Arc<R>,
+        MutValue,
+        impl Fn(Arc<R>) -> Option<Value>,
+        impl Fn(Arc<R>) -> Option<MutValue>,
+    >
+    where
+        R: Clone + 'static,
+        V: 'static,
+        Root: From<R>,
+        MutRoot: From<R>,
+    {
+        Kp::new(
+            move |arc_root: Arc<R>| {
+                let r = (*arc_root).clone();
+                (&self.get)(Root::from(r))
+            },
+            move |arc_root: Arc<R>| {
+                // Try to unwrap Arc to get exclusive ownership
+                match Arc::try_unwrap(arc_root) {
+                    Ok(r) => (&self.set)(MutRoot::from(r)),
+                    Err(_) => None, // Can't mutate if there are multiple references
+                }
+            },
+        )
+    }
+
+    // pub fn for_arc<'a, NewRoot, NewMutRoot>(
+    //     &self,
+    // ) -> Kp<
+    //     Arc<R>,
+    //     V,
+    //     Root,
+    //     Value,
+    //     MutRoot,
+    //     MutValue,
+    //     impl Fn(NewRoot) -> Option<Value>,
+    //     impl Fn(NewMutRoot) -> Option<MutValue>,
+    // > where
+    //     NewRoot: Borrow<Arc<R>> + 'a,
+    //     NewMutRoot: BorrowMut<Arc<R>> + 'a,
+    // {
+    //     todo!()
+    //     // Kp::new(
+    //     //     move |root: Root| (&self.get)(root).and_then(|value| (next.get)(value)),
+    //     //     move |root: MutRoot| (&self.set)(root).and_then(|value| (next.set)(value)),
+    //     // )
+    // }
     //     pub fn for_arc(
     //         self,
     //     ) -> KpType<
@@ -214,12 +269,8 @@ impl TestKP {
     }
 
     // example - cloning arc mutex
-    fn b<'a>() -> KpType<'a, TestKP2, Arc<std::sync::Mutex<TestKP3>>>
-    {
-        Kp::new(
-            |r: &TestKP2| Some(&r.b),
-            |r: &mut TestKP2| Some(&mut r.b),
-        )
+    fn b<'a>() -> KpType<'a, TestKP2, Arc<std::sync::Mutex<TestKP3>>> {
+        Kp::new(|r: &TestKP2| Some(&r.b), |r: &mut TestKP2| Some(&mut r.b))
     }
 
     // Helper to create an identity keypath for TestKP2
@@ -228,10 +279,7 @@ impl TestKP {
     }
 
     fn f<'a>() -> KpType<'a, TestKP, TestKP2> {
-        KpType::new(
-            |r: &TestKP| { r.f.as_ref() },
-            |r: &mut TestKP| { r.f.as_mut() }
-        )
+        KpType::new(|r: &TestKP| r.f.as_ref(), |r: &mut TestKP| r.f.as_mut())
     }
 }
 
@@ -271,6 +319,14 @@ impl TestKP2 {
     fn a<'a>() -> KpType<'a, TestKP2, String> {
         KpType::new(|r: &TestKP2| Some(&r.a), |r: &mut TestKP2| Some(&mut r.a))
     }
+
+    fn b<'a>() -> KpType<'a, TestKP2, Arc<std::sync::Mutex<TestKP3>>> {
+        KpType::new(|r: &TestKP2| Some(&r.b), |r: &mut TestKP2| Some(&mut r.b))
+    }
+
+    // fn b_lock<'a, V>(kp: KpType<'a, TestKP2, V>) -> KpType<'a, TestKP2, std::sync::MutexGuard<'a, TestKP3>> {
+    //     KpType::new(|r: &TestKP2| Some(r.b.lock().unwrap()), |r: &mut TestKP2| Some(r.b.lock().unwrap()))
+    // }
 
     fn identity<'a>() -> KpType<'a, TestKP2, TestKP2> {
         KpType::identity()
