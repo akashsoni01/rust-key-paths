@@ -75,7 +75,7 @@ where
     }
 
     pub fn then<SV, SubValue, MutSubValue, G2, S2>(
-        self,
+        &self,
         next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
     ) -> Kp<
         R,
@@ -98,8 +98,8 @@ where
         V: 'static,
     {
         Kp::new(
-            move |root: Root| (self.get)(root).and_then(|value| (next.get)(value)),
-            move |root: MutRoot| (self.set)(root).and_then(|value| (next.set)(value)),
+            move |root: Root| (&self.get)(root).and_then(|value| (next.get)(value)),
+            move |root: MutRoot| (&self.set)(root).and_then(|value| (next.set)(value)),
         )
     }
 
@@ -268,6 +268,10 @@ impl TestKP2 {
     //     Kp::<TestKP2, TestKP2, Root, Root, MutRoot, MutRoot, G, S>::identity()
     // }
 
+    fn a<'a>() -> KpType<'a, TestKP2, String> {
+        KpType::new(|r: &TestKP2| Some(&r.a), |r: &mut TestKP2| Some(&mut r.a))
+    }
+
     fn identity<'a>() -> KpType<'a, TestKP2, TestKP2> {
         KpType::identity()
     }
@@ -321,10 +325,16 @@ mod tests {
 
     #[test]
     fn test_a() {
-        let instance = TestKP2::new();
+        let instance2 = TestKP2::new();
+        let instance = TestKP::new();
         let kp = TestKP::identity();
         let kp_a = crate::TestKP::a();
-        let res = kp.get(&instance);
+        let kp_f = TestKP::f();
+        let res = kp_f.then(TestKP2::a()).get(&instance);
+        println!("{:?}", res);
+        let res = kp_f.then(TestKP2::identity()).get(&instance);
+        println!("{:?}", res);
+        let res = kp.get(&instance2);
         println!("{:?}", res);
     }
 }
