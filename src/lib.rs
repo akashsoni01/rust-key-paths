@@ -148,6 +148,26 @@ where
             (self.mid.get)(arc_mutex).and_then(|mv| (self.second.get)(mv).map(|v| v.clone()))
         })
     }
+
+    pub fn set<F>(&self, root: &R, updater: F) -> Result<(), String>
+    where
+        F: FnOnce(&mut V),
+    {
+        (self.first.get)(root)
+            .ok_or_else(|| "Failed to get Arc<Mutex>".to_string())
+            .and_then(|arc_mutex| {
+                arc_mutex
+                    .lock()
+                    .map_err(|e| format!("Failed to lock mutex: {}", e))
+                    .and_then(|mut guard| {
+                        (self.second.set)(&mut *guard)
+                            .ok_or_else(|| "Failed to get value".to_string())
+                            .map(|value| {
+                                updater(value);
+                            })
+                    })
+            })
+    }
 }
 
 // Helper to create mid keypath for Arc<Mutex<T>>
