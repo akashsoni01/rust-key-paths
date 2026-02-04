@@ -86,7 +86,6 @@ where
         })
     }
 
-
     pub fn get_mut<F, R>(&self, root: &mut Root, f: F) -> Option<R>
     where
         F: FnOnce(&mut SubValue) -> R,
@@ -189,12 +188,12 @@ where
             let arc_mutex = mutex_value.borrow();
             let guard = arc_mutex.lock().ok()?;
             let sub_value = self.i.get(&*guard)?;
-            
+
             // Now sub_value is Arc<Mutex<NextInner>>
             let next_arc_mutex = sub_value.borrow();
             let next_guard = next_arc_mutex.lock().ok()?;
             let next_value = next_inner.get(&*next_guard)?;
-            
+
             Some(callback(next_value))
         })
     }
@@ -216,11 +215,11 @@ where
             let arc_mutex = mutex_value.borrow();
             let mut guard = arc_mutex.lock().ok()?;
             let sub_value = self.i.get_mut(&mut *guard)?;
-            
+
             let next_arc_mutex = sub_value.borrow();
             let mut next_guard = next_arc_mutex.lock().ok()?;
             let next_value = next_inner.get_mut(&mut *next_guard)?;
-            
+
             Some(callback(next_value))
         })
     }
@@ -9643,9 +9642,7 @@ where
         impl for<'r> Fn(&'r mut Rc<R>) -> Option<&'r mut V>,
     > {
         KpType {
-            g: move |root: &Rc<R>| {
-                (self.g)(&root)
-            },
+            g: move |root: &Rc<R>| (self.g)(&root),
             s: move |root: &mut Rc<R>| {
                 if let Some(r) = Rc::get_mut(root) {
                     (self.s)(r)
@@ -9938,7 +9935,7 @@ mod testsas {
         // let second_lkp = first_lkp.then(TestKP2::b()).get_mut(&mut root, |next| {
         //     let x = &next.lock().ok().unwrap();
         //     let result = TestKP3::b().get(x);
-            
+
         // });
 
         // Now create another LKp to go through the second mutex
