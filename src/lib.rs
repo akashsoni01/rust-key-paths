@@ -104,7 +104,7 @@ where
     }
 
     /// need some more work here.
-    pub fn for_arc(
+    pub fn for_arc<'b>(
         &self,
     ) -> Kp<
         Arc<R>,
@@ -117,22 +117,19 @@ where
         impl Fn(Arc<R>) -> Option<MutValue>,
     >
     where
-        R: Clone + 'static,
-        V: 'static,
-        Root: From<R>,
-        MutRoot: From<R>,
+        R: 'b,
+        V: 'b,
+        Root: for<'a> From<&'a R>,
+        MutRoot: for<'a> From<&'a mut R>,
     {
         Kp::new(
             move |arc_root: Arc<R>| {
-                let r = (*arc_root).clone();
-                (&self.get)(Root::from(r))
+                let r_ref: &R = &*arc_root;
+                (&self.get)(Root::from(r_ref))
             },
-            move |arc_root: Arc<R>| {
-                // Try to unwrap Arc to get exclusive ownership
-                match Arc::try_unwrap(arc_root) {
-                    Ok(r) => (&self.set)(MutRoot::from(r)),
-                    Err(_) => None, // Can't mutate if there are multiple references
-                }
+            move |mut arc_root: Arc<R>| {
+                // Get mutable reference only if we have exclusive ownership
+                Arc::get_mut(&mut arc_root).and_then(|r_mut| (&self.set)(MutRoot::from(r_mut)))
             },
         )
     }
