@@ -1,18 +1,13 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::sync::Arc;
-
 // pub type KpType<R, V, Root, Value, MutRoot, MutValue, G, S>
 // where
 //     Root: ,
 //     Value:    Borrow<V>,
 //     MutRoot:  BorrowMut<R>,
-//     MutValue: BorrowMut<V>,
+//     MutValue: std::borrow::BorrowMut<V>,
 //     G:        Fn(Root) -> Option<Value>,
 //     S:        Fn(MutRoot) -> Option<MutValue> = Kp<R, V, Root, Value, MutRoot, MutValue, G, S>;
 
-// type Getter<R, V, Root, Value> where Root: Borrow<R>, Value: Borrow<V> = fn(Root) -> Option<Value>;
+// type Getter<R, V, Root, Value> where Root: std::borrow::Borrow<R>, Value: std::borrow::Borrow<V> = fn(Root) -> Option<Value>;
 // type Setter<R, V> = fn(&'r mut R) -> Option<&'r mut V>;
 
 pub type KpType<'a, R, V> = Kp<
@@ -39,23 +34,23 @@ pub type KpType<'a, R, V> = Kp<
 
 pub struct Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
-    Root: Borrow<R>,
-    MutRoot: BorrowMut<R>,
-    MutValue: BorrowMut<V>,
+    Root: std::borrow::Borrow<R>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutValue: std::borrow::BorrowMut<V>,
     G: Fn(Root) -> Option<Value>,
     S: Fn(MutRoot) -> Option<MutValue>,
 {
     get: G,
     set: S,
-    _p: PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
+    _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
 }
 
 impl<R, V, Root, Value, MutRoot, MutValue, G, S> Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
-    Root: Borrow<R>,
-    Value: Borrow<V>,
-    MutRoot: BorrowMut<R>,
-    MutValue: BorrowMut<V>,
+    Root: std::borrow::Borrow<R>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutValue: std::borrow::BorrowMut<V>,
     G: Fn(Root) -> Option<Value>,
     S: Fn(MutRoot) -> Option<MutValue>,
 {
@@ -63,7 +58,7 @@ where
         Self {
             get: get,
             set: set,
-            _p: PhantomData,
+            _p: std::marker::PhantomData,
         }
     }
 
@@ -91,8 +86,8 @@ where
         impl Fn(MutRoot) -> Option<MutSubValue>,
     >
     where
-        SubValue: Borrow<SV>,
-        MutSubValue: BorrowMut<SV>,
+        SubValue: std::borrow::Borrow<SV>,
+        MutSubValue: std::borrow::BorrowMut<SV>,
         G2: Fn(Value) -> Option<SubValue>,
         S2: Fn(MutValue) -> Option<MutSubValue>,
         V: 'static,
@@ -103,18 +98,17 @@ where
         )
     }
 
-    /// need some more work here.
     pub fn for_arc<'b>(
         &self,
     ) -> Kp<
-        Arc<R>,
+        std::sync::Arc<R>,
         V,
-        Arc<R>,
+        std::sync::Arc<R>,
         Value,
-        Arc<R>,
+        std::sync::Arc<R>,
         MutValue,
-        impl Fn(Arc<R>) -> Option<Value>,
-        impl Fn(Arc<R>) -> Option<MutValue>,
+        impl Fn(std::sync::Arc<R>) -> Option<Value>,
+        impl Fn(std::sync::Arc<R>) -> Option<MutValue>,
     >
     where
         R: 'b,
@@ -123,13 +117,13 @@ where
         MutRoot: for<'a> From<&'a mut R>,
     {
         Kp::new(
-            move |arc_root: Arc<R>| {
+            move |arc_root: std::sync::Arc<R>| {
                 let r_ref: &R = &*arc_root;
                 (&self.get)(Root::from(r_ref))
             },
-            move |mut arc_root: Arc<R>| {
+            move |mut arc_root: std::sync::Arc<R>| {
                 // Get mutable reference only if we have exclusive ownership
-                Arc::get_mut(&mut arc_root).and_then(|r_mut| (&self.set)(MutRoot::from(r_mut)))
+                std::sync::Arc::get_mut(&mut arc_root).and_then(|r_mut| (&self.set)(MutRoot::from(r_mut)))
             },
         )
     }
@@ -168,8 +162,8 @@ where
 
 impl<R, Root, MutRoot, G, S> Kp<R, R, Root, Root, MutRoot, MutRoot, G, S>
 where
-    Root: Borrow<R>,
-    MutRoot: BorrowMut<R>,
+    Root: std::borrow::Borrow<R>,
+    MutRoot: std::borrow::BorrowMut<R>,
     G: Fn(Root) -> Option<Root>,
     S: Fn(MutRoot) -> Option<MutRoot>,
 {
@@ -205,12 +199,12 @@ impl TestKP {
         Self {
             a: String::from("a"),
             b: String::from("b"),
-            c: Arc::new(String::from("c")),
+            c: std::sync::Arc::new(String::from("c")),
             d: std::sync::Mutex::new(String::from("d")),
-            e: Arc::new(std::sync::Mutex::new(TestKP2::new())),
+            e: std::sync::Arc::new(std::sync::Mutex::new(TestKP2::new())),
             f: Some(TestKP2 {
                 a: String::from("a3"),
-                b: Arc::new(std::sync::Mutex::new(TestKP3::new())),
+                b: std::sync::Arc::new(std::sync::Mutex::new(TestKP3::new())),
             }),
         }
     }
@@ -228,10 +222,10 @@ impl TestKP {
     //     impl Fn(MutRoot) -> Option<MutValue>,
     // >
     // where
-    //     Root: Borrow<TestKP2>,
-    //     MutRoot: BorrowMut<TestKP2>,
-    //     Value: Borrow<String> + From<String>,
-    //     MutValue: BorrowMut<String> + From<String>,
+    //     Root: std::borrow::Borrow<TestKP2>,
+    //     MutRoot: std::borrow::BorrowMut<TestKP2>,
+    //     Value: std::borrow::Borrow<String> + From<String>,
+    //     MutValue: std::borrow::BorrowMut<String> + From<String>,
     // {
     //     Kp::new(
     //         |r: Root| Some(Value::from(r.borrow().a.clone())),
@@ -245,7 +239,7 @@ impl TestKP {
     }
 
     // example - cloning arc mutex
-    fn b<'a>() -> KpType<'a, TestKP2, Arc<std::sync::Mutex<TestKP3>>> {
+    fn b<'a>() -> KpType<'a, TestKP2, std::sync::Arc<std::sync::Mutex<TestKP3>>> {
         Kp::new(|r: &TestKP2| Some(&r.b), |r: &mut TestKP2| Some(&mut r.b))
     }
 
@@ -269,7 +263,7 @@ impl TestKP2 {
     fn new() -> Self {
         TestKP2 {
             a: String::from("a2"),
-            b: Arc::new(std::sync::Mutex::new(TestKP3::new())),
+            b: std::sync::Arc::new(std::sync::Mutex::new(TestKP3::new())),
         }
     }
 
@@ -284,8 +278,8 @@ impl TestKP2 {
     //     fn(MutRoot) -> Option<MutRoot>,
     // >
     // where
-    //     Root: Borrow<TestKP2>,
-    //     MutRoot: BorrowMut<TestKP2>,
+    //     Root: std::borrow::Borrow<TestKP2>,
+    //     MutRoot: std::borrow::BorrowMut<TestKP2>,
     //     G: Fn(Root) -> Option<Root>,
     //     S: Fn(MutRoot) -> Option<MutRoot>,
     // {
@@ -296,7 +290,7 @@ impl TestKP2 {
         KpType::new(|r: &TestKP2| Some(&r.a), |r: &mut TestKP2| Some(&mut r.a))
     }
 
-    fn b<'a>() -> KpType<'a, TestKP2, Arc<std::sync::Mutex<TestKP3>>> {
+    fn b<'a>() -> KpType<'a, TestKP2, std::sync::Arc<std::sync::Mutex<TestKP3>>> {
         KpType::new(|r: &TestKP2| Some(&r.b), |r: &mut TestKP2| Some(&mut r.b))
     }
 
@@ -319,7 +313,7 @@ impl TestKP3 {
     fn new() -> Self {
         TestKP3 {
             a: String::from("a2"),
-            b: Arc::new(std::sync::Mutex::new(String::from("b2"))),
+            b: std::sync::Arc::new(std::sync::Mutex::new(String::from("b2"))),
         }
     }
     //
@@ -334,8 +328,8 @@ impl TestKP3 {
     //     fn(MutRoot) -> Option<MutRoot>,
     // >
     // where
-    //     Root: Borrow<TestKP2>,
-    //     MutRoot: BorrowMut<TestKP2>,
+    //     Root: std::borrow::Borrow<TestKP2>,
+    //     MutRoot: std::borrow::BorrowMut<TestKP2>,
     //     G: Fn(Root) -> Option<Root>,
     //     S: Fn(MutRoot) -> Option<MutRoot>,
     // {
@@ -361,7 +355,7 @@ mod tests {
         let mut instance = TestKP::new();
         let kp = TestKP::identity();
         let kp_a = crate::TestKP::a();
-        let kp_box = TestKP::a().for_box();
+        // TestKP::a().for_arc();
         let kp_f = TestKP::f();
         let wres = kp_f.then(TestKP2::a()).get_mut(&mut instance).unwrap();
         *wres = String::from("a3 changed successfully");
