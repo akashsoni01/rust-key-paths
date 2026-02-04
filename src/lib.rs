@@ -69,20 +69,43 @@ pub type KpComposed<R, V> = Kp<
 
 use std::sync::{Arc, Mutex};
 
-pub struct LockKp<R, V, MV, G1, S1, G2, S2, G3, S3>
+pub struct LockKp<R, V, MV, G1, S1, G3, S3>
 where
     G1: Fn(&R) -> Option<&Arc<Mutex<MV>>>,
     S1: Fn(&mut R) -> Option<&mut Arc<Mutex<MV>>>,
-    G2: Fn(&Arc<Mutex<MV>>) -> Option<&MV>,
-    S2: Fn(&mut Arc<Mutex<MV>>) -> Option<&mut MV>,
     G3: Fn(&MV) -> Option<&V>,
     S3: Fn(&mut MV) -> Option<&mut V>,
     R: 'static,
     V: 'static,
     MV: 'static,
-    
 {
-    first: Kp<
+    first: Kp
+    <
+    R,
+    Arc<Mutex<MV>>,
+    &'static R,
+    &'static Arc<Mutex<MV>>,
+    &'static mut R,
+    &'static mut Arc<Mutex<MV>>,
+    G1,
+    S1,
+    >,
+    second: Kp<MV, V, &'static MV, &'static V, &'static mut MV, &'static mut V, G3, S3>,
+}
+
+impl<R, V, MV, G1, S1, G3, S3> LockKp<R, V, MV, G1, S1, G3, S3>
+where
+    R: 'static,
+    V: 'static + Clone,
+    MV: 'static,
+    G1: Fn(&R) -> Option<&Arc<Mutex<MV>>>,
+    S1: Fn(&mut R) -> Option<&mut Arc<Mutex<MV>>>,
+    G3: Fn(&MV) -> Option<&V>,
+    S3: Fn(&mut MV) -> Option<&mut V>,
+{
+    pub fn new(
+        first: Kp
+        <
         R,
         Arc<Mutex<MV>>,
         &'static R,
@@ -91,61 +114,17 @@ where
         &'static mut Arc<Mutex<MV>>,
         G1,
         S1,
-    >,
-    mid: Kp<
-        Arc<Mutex<MV>>,
-        MV,
-        &'static Arc<Mutex<MV>>,
-        &'static MV,
-        &'static mut Arc<Mutex<MV>>,
-        &'static mut MV,
-        G2,
-        S2,
-    >,
-    second: Kp<MV, V, &'static MV, &'static V, &'static mut MV, &'static mut V, G3, S3>,
-}
-
-impl<R, V, MV, G1, S1, G2, S2, G3, S3> LockKp<R, V, MV, G1, S1, G2, S2, G3, S3>
-where
-    R: 'static,
-    V: 'static + Clone,
-    MV: 'static,
-    G1: Fn(&R) -> Option<&Arc<Mutex<MV>>>,
-    S1: Fn(&mut R) -> Option<&mut Arc<Mutex<MV>>>,
-    G2: Fn(&Arc<Mutex<MV>>) -> Option<&MV>,
-    S2: Fn(&mut Arc<Mutex<MV>>) -> Option<&mut MV>,
-    G3: Fn(&MV) -> Option<&V>,
-    S3: Fn(&mut MV) -> Option<&mut V>,
-{
-    pub fn new(
-        first: Kp<
-            R,
-            Arc<Mutex<MV>>,
-            &'static R,
-            &'static Arc<Mutex<MV>>,
-            &'static mut R,
-            &'static mut Arc<Mutex<MV>>,
-            G1,
-            S1,
-        >,
-        mid: Kp<
-            Arc<Mutex<MV>>,
-            MV,
-            &'static Arc<Mutex<MV>>,
-            &'static MV,
-            &'static mut Arc<Mutex<MV>>,
-            &'static mut MV,
-            G2,
-            S2,
         >,
         second: Kp<MV, V, &'static MV, &'static V, &'static mut MV, &'static mut V, G3, S3>,
     ) -> Self {
-        Self { first, mid, second }
+        Self { first, second }
     }
 
     pub fn get(&self, root: &R) -> Option<V> {
         (self.first.get)(root).and_then(|arc_mutex| {
-            (self.mid.get)(arc_mutex).and_then(|mv| (self.second.get)(mv).map(|v| v.clone()))
+            arc_mutex.lock().ok().and_then(|guard| {
+                (self.second.get)(&*guard).map(|v| v.clone())
+            })
         })
     }
 
@@ -170,19 +149,18 @@ where
     }
 }
 
-// Helper to create mid keypath for Arc<Mutex<T>>
-
 // Usage example
+#[derive(Debug, Clone)]
 struct A {
     b: Arc<Mutex<B>>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct B {
     c: C,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct C {
     d: String,
 }
@@ -202,6 +180,37 @@ impl B {
 impl C {
     fn d() -> KpType<'static, C, String> {
         Kp::new(|c: &C| Some(&c.d), |c: &mut C| Some(&mut c.d))
+    }
+}
+
+fn main() {
+    let lock_kp = LockKp::new(
+        A::b(),
+        B::c(),
+    );
+
+    let a = A {
+        b: Arc::new(Mutex::new(B {
+            c: C {
+                d: String::from("hello"),
+            },
+        })),
+    };
+
+    // Get value
+    if let Some(value) = lock_kp.get(&a) {
+        println!("Got: {:?}", value);
+    }
+
+    // Set value using closure
+    let result = lock_kp.set(&a, |c| {
+        c.d.push_str(" world");
+    });
+
+    if result.is_ok() {
+        if let Some(value) = lock_kp.get(&a) {
+            println!("After set: {:?}", value);
+        }
     }
 }
 
@@ -543,5 +552,40 @@ mod tests {
         println!("{:?}", res);
         let res = kp.get(&instance);
         println!("{:?}", res);
+    }
+
+    #[test]
+    fn test_lock() {
+        let lock_kp = LockKp::new(A::b(), kp_arc_mutex::<B>(), B::c());
+
+        let mut a = A {
+            b: Arc::new(Mutex::new(B {
+                c: C {
+                    d: String::from("hello"),
+                },
+            })),
+        };
+
+        // Get value
+        if let Some(value) = lock_kp.get(&a) {
+            println!("Got: {:?}", value);
+            assert_eq!(value.d, "hello");
+        } else {
+            panic!("Value not found");
+        }
+
+        // Set value using closure
+        let result = lock_kp.set(&a, |d| {
+            d.d.push_str(" world");
+        });
+
+        if result.is_ok() {
+            if let Some(value) = lock_kp.get(&a) {
+                println!("After set: {:?}", value);
+                assert_eq!(value.d, "hello");
+            } else {
+                panic!("Value not found");
+            }
+        }
     }
 }
