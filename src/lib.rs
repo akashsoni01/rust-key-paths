@@ -489,6 +489,254 @@ where
     }
 }
 
+// ========== ENUM KEYPATHS ==========
+
+/// EnumKp - A keypath for enum variants that supports both extraction and embedding
+/// Leverages the existing Kp architecture where optionals are built-in via Option<Value>
+///
+/// This struct serves dual purposes:
+/// 1. As a concrete keypath instance for extracting and embedding enum variants
+/// 2. As a namespace for static factory methods: `EnumKp::for_ok()`, `EnumKp::for_some()`, etc.
+pub struct EnumKp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E>
+where
+    Root: std::borrow::Borrow<Enum>,
+    Value: std::borrow::Borrow<Variant>,
+    MutRoot: std::borrow::BorrowMut<Enum>,
+    MutValue: std::borrow::BorrowMut<Variant>,
+    G: Fn(Root) -> Option<Value>,
+    S: Fn(MutRoot) -> Option<MutValue>,
+    E: Fn(Variant) -> Enum,
+{
+    extractor: Kp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S>,
+    embedder: E,
+}
+
+impl<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E>
+    EnumKp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E>
+where
+    Root: std::borrow::Borrow<Enum>,
+    Value: std::borrow::Borrow<Variant>,
+    MutRoot: std::borrow::BorrowMut<Enum>,
+    MutValue: std::borrow::BorrowMut<Variant>,
+    G: Fn(Root) -> Option<Value>,
+    S: Fn(MutRoot) -> Option<MutValue>,
+    E: Fn(Variant) -> Enum,
+{
+    /// Create a new EnumKp with extractor and embedder functions
+    pub fn new(
+        extractor: Kp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S>,
+        embedder: E,
+    ) -> Self {
+        Self {
+            extractor,
+            embedder,
+        }
+    }
+
+    /// Extract the variant from an enum (returns None if wrong variant)
+    pub fn get(&self, enum_value: Root) -> Option<Value> {
+        self.extractor.get(enum_value)
+    }
+
+    /// Extract the variant mutably from an enum (returns None if wrong variant)
+    pub fn get_mut(&self, enum_value: MutRoot) -> Option<MutValue> {
+        self.extractor.get_mut(enum_value)
+    }
+
+    /// Embed a value into the enum variant
+    pub fn embed(&self, value: Variant) -> Enum {
+        (self.embedder)(value)
+    }
+
+    /// Get the underlying Kp for composition with other keypaths
+    pub fn as_kp(&self) -> &Kp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S> {
+        &self.extractor
+    }
+
+    /// Convert to Kp (loses embedding capability but gains composition)
+    pub fn into_kp(self) -> Kp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S> {
+        self.extractor
+    }
+}
+
+// Type alias for the common case with references
+pub type EnumKpType<'a, Enum, Variant> = EnumKp<
+    Enum,
+    Variant,
+    &'a Enum,
+    &'a Variant,
+    &'a mut Enum,
+    &'a mut Variant,
+    for<'b> fn(&'b Enum) -> Option<&'b Variant>,
+    for<'b> fn(&'b mut Enum) -> Option<&'b mut Variant>,
+    fn(Variant) -> Enum,
+>;
+
+// Static factory functions for creating EnumKp instances
+/// Create an enum keypath with both extraction and embedding for a specific variant
+///
+/// # Example
+/// ```
+/// enum MyEnum {
+///     A(String),
+///     B(i32),
+/// }
+///
+/// let kp = enum_variant(
+///     |e: &MyEnum| match e { MyEnum::A(s) => Some(s), _ => None },
+///     |e: &mut MyEnum| match e { MyEnum::A(s) => Some(s), _ => None },
+///     |s: String| MyEnum::A(s)
+/// );
+/// ```
+pub fn enum_variant<'a, Enum, Variant>(
+    getter: for<'b> fn(&'b Enum) -> Option<&'b Variant>,
+    setter: for<'b> fn(&'b mut Enum) -> Option<&'b mut Variant>,
+    embedder: fn(Variant) -> Enum,
+) -> EnumKpType<'a, Enum, Variant> {
+    EnumKp::new(Kp::new(getter, setter), embedder)
+}
+
+/// Extract from Result<T, E> - Ok variant
+///
+/// # Example
+/// ```
+/// let result: Result<String, i32> = Ok("success".to_string());
+/// let ok_kp = enum_ok();
+/// assert_eq!(ok_kp.get(&result), Some(&"success".to_string()));
+/// ```
+pub fn enum_ok<'a, T, E>() -> EnumKpType<'a, Result<T, E>, T> {
+    EnumKp::new(
+        Kp::new(
+            |r: &Result<T, E>| r.as_ref().ok(),
+            |r: &mut Result<T, E>| r.as_mut().ok(),
+        ),
+        |t: T| Ok(t),
+    )
+}
+
+/// Extract from Result<T, E> - Err variant
+///
+/// # Example
+/// ```
+/// let result: Result<String, i32> = Err(42);
+/// let err_kp = enum_err();
+/// assert_eq!(err_kp.get(&result), Some(&42));
+/// ```
+pub fn enum_err<'a, T, E>() -> EnumKpType<'a, Result<T, E>, E> {
+    EnumKp::new(
+        Kp::new(
+            |r: &Result<T, E>| r.as_ref().err(),
+            |r: &mut Result<T, E>| r.as_mut().err(),
+        ),
+        |e: E| Err(e),
+    )
+}
+
+/// Extract from Option<T> - Some variant
+///
+/// # Example
+/// ```
+/// let opt = Some("value".to_string());
+/// let some_kp = enum_some();
+/// assert_eq!(some_kp.get(&opt), Some(&"value".to_string()));
+/// ```
+pub fn enum_some<'a, T>() -> EnumKpType<'a, Option<T>, T> {
+    EnumKp::new(
+        Kp::new(|o: &Option<T>| o.as_ref(), |o: &mut Option<T>| o.as_mut()),
+        |t: T| Some(t),
+    )
+}
+
+// Helper functions for creating enum keypaths with type inference
+/// Create an enum keypath for a specific variant with type inference
+///
+/// # Example
+/// ```
+/// enum MyEnum {
+///     A(String),
+///     B(i32),
+/// }
+///
+/// let kp_a = variant_of(
+///     |e: &MyEnum| match e { MyEnum::A(s) => Some(s), _ => None },
+///     |e: &mut MyEnum| match e { MyEnum::A(s) => Some(s), _ => None },
+///     |s: String| MyEnum::A(s)
+/// );
+/// ```
+pub fn variant_of<'a, Enum, Variant>(
+    getter: for<'b> fn(&'b Enum) -> Option<&'b Variant>,
+    setter: for<'b> fn(&'b mut Enum) -> Option<&'b mut Variant>,
+    embedder: fn(Variant) -> Enum,
+) -> EnumKpType<'a, Enum, Variant> {
+    enum_variant(getter, setter, embedder)
+}
+
+// ========== CONTAINER KEYPATHS ==========
+
+// Helper functions for working with standard containers (Box, Arc, Rc)
+/// Create a keypath for unwrapping Box<T> -> T
+///
+/// # Example
+/// ```
+/// let boxed = Box::new("value".to_string());
+/// let kp = kp_box();
+/// assert_eq!(kp.get(&boxed), Some(&"value".to_string()));
+/// ```
+pub fn kp_box<'a, T>() -> KpType<'a, Box<T>, T> {
+    Kp::new(
+        |b: &Box<T>| Some(b.as_ref()),
+        |b: &mut Box<T>| Some(b.as_mut()),
+    )
+}
+
+/// Create a keypath for unwrapping Arc<T> -> T (read-only)
+///
+/// # Example
+/// ```
+/// let arc = Arc::new("value".to_string());
+/// let kp = kp_arc();
+/// assert_eq!(kp.get(&arc), Some(&"value".to_string()));
+/// ```
+pub fn kp_arc<'a, T>() -> Kp<
+    Arc<T>,
+    T,
+    &'a Arc<T>,
+    &'a T,
+    &'a mut Arc<T>,
+    &'a mut T,
+    for<'b> fn(&'b Arc<T>) -> Option<&'b T>,
+    for<'b> fn(&'b mut Arc<T>) -> Option<&'b mut T>,
+> {
+    Kp::new(
+        |arc: &Arc<T>| Some(arc.as_ref()),
+        |arc: &mut Arc<T>| Arc::get_mut(arc),
+    )
+}
+
+/// Create a keypath for unwrapping Rc<T> -> T (read-only)
+///
+/// # Example
+/// ```
+/// let rc = Rc::new("value".to_string());
+/// let kp = kp_rc();
+/// assert_eq!(kp.get(&rc), Some(&"value".to_string()));
+/// ```
+pub fn kp_rc<'a, T>() -> Kp<
+    std::rc::Rc<T>,
+    T,
+    &'a std::rc::Rc<T>,
+    &'a T,
+    &'a mut std::rc::Rc<T>,
+    &'a mut T,
+    for<'b> fn(&'b std::rc::Rc<T>) -> Option<&'b T>,
+    for<'b> fn(&'b mut std::rc::Rc<T>) -> Option<&'b mut T>,
+> {
+    Kp::new(
+        |rc: &std::rc::Rc<T>| Some(rc.as_ref()),
+        |rc: &mut std::rc::Rc<T>| std::rc::Rc::get_mut(rc),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -542,7 +790,6 @@ mod tests {
             )
         }
 
-        
         // Example for taking ref
 
         fn c<'a>() -> KpType<'a, TestKP, String> {
@@ -711,4 +958,185 @@ mod tests {
     //         }
     //     }
     // }
+
+    #[test]
+    fn test_enum_kp_result_ok() {
+        let ok_result: Result<String, i32> = Ok("success".to_string());
+        let mut err_result: Result<String, i32> = Err(42);
+
+        let ok_kp = enum_ok();
+
+        // Test extraction
+        assert_eq!(ok_kp.get(&ok_result), Some(&"success".to_string()));
+        assert_eq!(ok_kp.get(&err_result), None);
+
+        // Test embedding
+        let embedded = ok_kp.embed("embedded".to_string());
+        assert_eq!(embedded, Ok("embedded".to_string()));
+
+        // Test mutable access
+        if let Some(val) = ok_kp.get_mut(&mut err_result) {
+            *val = "modified".to_string();
+        }
+        assert_eq!(err_result, Err(42)); // Should still be Err
+
+        let mut ok_result2 = Ok("original".to_string());
+        if let Some(val) = ok_kp.get_mut(&mut ok_result2) {
+            *val = "modified".to_string();
+        }
+        assert_eq!(ok_result2, Ok("modified".to_string()));
+    }
+
+    #[test]
+    fn test_enum_kp_result_err() {
+        let ok_result: Result<String, i32> = Ok("success".to_string());
+        let mut err_result: Result<String, i32> = Err(42);
+
+        let err_kp = enum_err();
+
+        // Test extraction
+        assert_eq!(err_kp.get(&err_result), Some(&42));
+        assert_eq!(err_kp.get(&ok_result), None);
+
+        // Test embedding
+        let embedded = err_kp.embed(99);
+        assert_eq!(embedded, Err(99));
+
+        // Test mutable access
+        if let Some(val) = err_kp.get_mut(&mut err_result) {
+            *val = 100;
+        }
+        assert_eq!(err_result, Err(100));
+    }
+
+    #[test]
+    fn test_enum_kp_option_some() {
+        let some_opt = Some("value".to_string());
+        let mut none_opt: Option<String> = None;
+
+        let some_kp = enum_some();
+
+        // Test extraction
+        assert_eq!(some_kp.get(&some_opt), Some(&"value".to_string()));
+        assert_eq!(some_kp.get(&none_opt), None);
+
+        // Test embedding
+        let embedded = some_kp.embed("embedded".to_string());
+        assert_eq!(embedded, Some("embedded".to_string()));
+
+        // Test mutable access
+        let mut some_opt2 = Some("original".to_string());
+        if let Some(val) = some_kp.get_mut(&mut some_opt2) {
+            *val = "modified".to_string();
+        }
+        assert_eq!(some_opt2, Some("modified".to_string()));
+    }
+
+    #[test]
+    fn test_enum_kp_custom_enum() {
+        #[derive(Debug, PartialEq)]
+        enum MyEnum {
+            A(String),
+            B(i32),
+            C,
+        }
+
+        let mut enum_a = MyEnum::A("hello".to_string());
+        let enum_b = MyEnum::B(42);
+        let enum_c = MyEnum::C;
+
+        // Create keypath for variant A
+        let kp_a = enum_variant(
+            |e: &MyEnum| match e {
+                MyEnum::A(s) => Some(s),
+                _ => None,
+            },
+            |e: &mut MyEnum| match e {
+                MyEnum::A(s) => Some(s),
+                _ => None,
+            },
+            |s: String| MyEnum::A(s),
+        );
+
+        // Test extraction
+        assert_eq!(kp_a.get(&enum_a), Some(&"hello".to_string()));
+        assert_eq!(kp_a.get(&enum_b), None);
+        assert_eq!(kp_a.get(&enum_c), None);
+
+        // Test embedding
+        let embedded = kp_a.embed("world".to_string());
+        assert_eq!(embedded, MyEnum::A("world".to_string()));
+
+        // Test mutable access
+        if let Some(val) = kp_a.get_mut(&mut enum_a) {
+            *val = "modified".to_string();
+        }
+        assert_eq!(enum_a, MyEnum::A("modified".to_string()));
+    }
+
+    #[test]
+    fn test_container_kp_box() {
+        let boxed = Box::new("value".to_string());
+        let mut boxed_mut = Box::new("original".to_string());
+
+        let box_kp = kp_box();
+
+        // Test get
+        assert_eq!(box_kp.get(&boxed), Some(&"value".to_string()));
+
+        // Test get_mut
+        if let Some(val) = box_kp.get_mut(&mut boxed_mut) {
+            *val = "modified".to_string();
+        }
+        assert_eq!(*boxed_mut, "modified".to_string());
+    }
+
+    #[test]
+    fn test_container_kp_arc() {
+        let arc = Arc::new("value".to_string());
+        let mut arc_mut = Arc::new("original".to_string());
+
+        let arc_kp = kp_arc();
+
+        // Test get
+        assert_eq!(arc_kp.get(&arc), Some(&"value".to_string()));
+
+        // Test get_mut (only works if Arc has no other references)
+        if let Some(val) = arc_kp.get_mut(&mut arc_mut) {
+            *val = "modified".to_string();
+        }
+        assert_eq!(*arc_mut, "modified".to_string());
+
+        // Test with multiple references (should return None for mutable access)
+        let arc_shared = Arc::new("shared".to_string());
+        let arc_shared2 = Arc::clone(&arc_shared);
+        let mut arc_shared_mut = arc_shared;
+        assert_eq!(arc_kp.get_mut(&mut arc_shared_mut), None);
+    }
+
+    #[test]
+    fn test_enum_kp_composition() {
+        // Test composing enum keypath with other keypaths
+        #[derive(Debug, PartialEq)]
+        struct Inner {
+            value: String,
+        }
+
+        let result: Result<Inner, i32> = Ok(Inner {
+            value: "nested".to_string(),
+        });
+
+        // Create keypath to Inner.value
+        let inner_kp = KpType::new(
+            |i: &Inner| Some(&i.value),
+            |i: &mut Inner| Some(&mut i.value),
+        );
+
+        // Get the Ok keypath and convert to Kp for composition
+        let ok_kp = enum_ok::<Inner, i32>();
+        let ok_kp_base = ok_kp.into_kp();
+        let composed = ok_kp_base.then(inner_kp);
+
+        assert_eq!(composed.get(&result), Some(&"nested".to_string()));
+    }
 }
