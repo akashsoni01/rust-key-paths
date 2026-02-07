@@ -13,21 +13,14 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
 
 [dependencies]
-rust-keypaths = { path = "rust-keypaths", version = "1.9.0", features = ["tagged", "parking_lot", "tokio"] }
-keypaths-proc = { path = "keypaths-proc", version = "1.9.0"}
 async-trait = "0.1"
 tokio = { version = "1.38.0", features = ["sync", "rt"], optional = true }
 
 [workspace]
 resolver = "3" # or "3"
 members = [
-    "keypaths-proc",
-    "rust-keypaths"
 ]
 
-[patch.crates-io]
-rust-keypaths = { path = "rust-keypaths" }
-keypaths-proc = { path = "keypaths-proc" }
 
 [features]
 default = []
@@ -44,11 +37,3 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 tokio = { version = "1.38.0", features = ["sync", "rt", "rt-multi-thread", "macros"] }
-
-[[bench]]
-name = "keypath_vs_unwrap"
-harness = false
-
-[[bench]]
-name = "rwlock_write_deeply_nested"
-harness = false

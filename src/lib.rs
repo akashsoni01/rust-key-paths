@@ -25,11 +25,6 @@ pub use lock::{ParkingLotMutexAccess, ParkingLotRwLockAccess};
 
 // Export the async_lock module
 pub mod async_lock;
-pub use async_lock::{
-    AsyncLockKp, AsyncLockAccess,
-    TokioMutexAccess as AsyncTokioMutexAccess,
-    TokioRwLockAccess as AsyncTokioRwLockAccess,
-};
 
 pub type KpType<'a, R, V> = Kp<
     R,
