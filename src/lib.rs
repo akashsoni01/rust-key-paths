@@ -426,6 +426,8 @@ where
         impl Fn(MutRoot) -> Option<MappedValue>,
     >
     where
+        // Copy: Required because mapper is used in both getter and setter closures
+        // 'static: Required because the returned Kp must own its closures
         F: Fn(&V) -> MappedValue + Copy + 'static,
         V: 'static,
         MappedValue: 'static,
@@ -470,6 +472,8 @@ where
         impl Fn(MutRoot) -> Option<MutValue>,
     >
     where
+        // Copy: Required because predicate is used in both getter and setter closures
+        // 'static: Required because the returned Kp must own its closures
         F: Fn(&V) -> bool + Copy + 'static,
         V: 'static,
     {
@@ -513,6 +517,8 @@ where
         impl Fn(MutRoot) -> Option<MappedValue>,
     >
     where
+        // Copy: Required because mapper is used in both getter and setter closures
+        // 'static: Required because the returned Kp must own its closures
         F: Fn(&V) -> Option<MappedValue> + Copy + 'static,
         V: 'static,
         MappedValue: 'static,
@@ -547,7 +553,9 @@ where
         mapper: F,
     ) -> impl Fn(Root) -> Vec<Item>
     where
-        F: Fn(&V) -> I + Copy + 'static,
+        // No Copy needed - mapper is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> I + 'static,
         V: 'static,
         I: IntoIterator<Item = Item>,
         Item: 'static,
@@ -584,6 +592,8 @@ where
         impl Fn(MutRoot) -> Option<MutValue>,
     >
     where
+        // Copy: Required because inspector is used in both getter and setter closures
+        // 'static: Required because the returned Kp must own its closures
         F: Fn(&V) + Copy + 'static,
         V: 'static,
     {
@@ -618,8 +628,11 @@ where
     /// ```
     pub fn fold_value<Acc, F>(&self, init: Acc, folder: F) -> impl Fn(Root) -> Acc
     where
-        F: Fn(Acc, &V) -> Acc + Copy + 'static,
+        // No Copy needed - folder is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(Acc, &V) -> Acc + 'static,
         V: 'static,
+        // Copy: Required for init since it's returned as default value
         Acc: Copy + 'static,
     {
         move |root: Root| {
@@ -643,7 +656,9 @@ where
     /// ```
     pub fn any<F>(&self, predicate: F) -> impl Fn(Root) -> bool
     where
-        F: Fn(&V) -> bool + Copy + 'static,
+        // No Copy needed - predicate is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> bool + 'static,
         V: 'static,
     {
         move |root: Root| {
@@ -667,7 +682,9 @@ where
     /// ```
     pub fn all<F>(&self, predicate: F) -> impl Fn(Root) -> bool
     where
-        F: Fn(&V) -> bool + Copy + 'static,
+        // No Copy needed - predicate is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> bool + 'static,
         V: 'static,
     {
         move |root: Root| {
@@ -691,7 +708,9 @@ where
     /// ```
     pub fn count_items<F>(&self, counter: F) -> impl Fn(Root) -> Option<usize>
     where
-        F: Fn(&V) -> usize + Copy + 'static,
+        // No Copy needed - counter is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> usize + 'static,
         V: 'static,
     {
         move |root: Root| {
@@ -715,7 +734,9 @@ where
     /// ```
     pub fn find_in<Item, F>(&self, finder: F) -> impl Fn(Root) -> Option<Item>
     where
-        F: Fn(&V) -> Option<Item> + Copy + 'static,
+        // No Copy needed - finder is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> Option<Item> + 'static,
         V: 'static,
         Item: 'static,
     {
@@ -737,7 +758,9 @@ where
     /// ```
     pub fn take<Output, F>(&self, n: usize, taker: F) -> impl Fn(Root) -> Option<Output>
     where
-        F: Fn(&V, usize) -> Output + Copy + 'static,
+        // No Copy needed - taker is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V, usize) -> Output + 'static,
         V: 'static,
         Output: 'static,
     {
@@ -759,7 +782,9 @@ where
     /// ```
     pub fn skip<Output, F>(&self, n: usize, skipper: F) -> impl Fn(Root) -> Option<Output>
     where
-        F: Fn(&V, usize) -> Output + Copy + 'static,
+        // No Copy needed - skipper is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V, usize) -> Output + 'static,
         V: 'static,
         Output: 'static,
     {
@@ -783,7 +808,9 @@ where
     /// ```
     pub fn partition_value<Output, F>(&self, partitioner: F) -> impl Fn(Root) -> Option<Output>
     where
-        F: Fn(&V) -> Output + Copy + 'static,
+        // No Copy needed - partitioner is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> Output + 'static,
         V: 'static,
         Output: 'static,
     {
@@ -806,7 +833,9 @@ where
     /// ```
     pub fn min_value<Item, F>(&self, min_fn: F) -> impl Fn(Root) -> Option<Item>
     where
-        F: Fn(&V) -> Option<Item> + Copy + 'static,
+        // No Copy needed - min_fn is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> Option<Item> + 'static,
         V: 'static,
         Item: 'static,
     {
@@ -829,7 +858,9 @@ where
     /// ```
     pub fn max_value<Item, F>(&self, max_fn: F) -> impl Fn(Root) -> Option<Item>
     where
-        F: Fn(&V) -> Option<Item> + Copy + 'static,
+        // No Copy needed - max_fn is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> Option<Item> + 'static,
         V: 'static,
         Item: 'static,
     {
@@ -852,7 +883,9 @@ where
     /// ```
     pub fn sum_value<Sum, F>(&self, sum_fn: F) -> impl Fn(Root) -> Option<Sum>
     where
-        F: Fn(&V) -> Sum + Copy + 'static,
+        // No Copy needed - sum_fn is only captured once by the returned closure
+        // 'static: Required so the returned function can outlive the call
+        F: Fn(&V) -> Sum + 'static,
         V: 'static,
         Sum: 'static,
     {
@@ -1096,9 +1129,12 @@ where
         impl Fn(MappedValue) -> Enum,
     >
     where
+        // Copy: Required because mapper is used via extractor.map() which needs it
+        // 'static: Required because the returned EnumKp must own its closures
         F: Fn(&Variant) -> MappedValue + Copy + 'static,
         Variant: 'static,
         MappedValue: 'static,
+        // Copy: Required for embedder to be captured in the panic closure
         E: Fn(Variant) -> Enum + Copy + 'static,
     {
         let mapped_extractor = self.extractor.map(mapper);
@@ -1138,8 +1174,11 @@ where
         E,
     >
     where
+        // Copy: Required because predicate is used via extractor.filter() which needs it
+        // 'static: Required because the returned EnumKp must own its closures
         F: Fn(&Variant) -> bool + Copy + 'static,
         Variant: 'static,
+        // Copy: Required to clone embedder into the new EnumKp
         E: Copy,
     {
         let filtered_extractor = self.extractor.filter(predicate);
