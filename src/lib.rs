@@ -3679,4 +3679,601 @@ mod tests {
         // (92 * 2) + (95 * 2) = 184 + 190 = 374
         assert_eq!(high_scores_doubled(&root), 374);
     }
+
+    // ========== TYPE FILTERING TESTS FOR PKP AND AKP ==========
+    // These tests demonstrate filtering collections by TypeId
+
+    #[test]
+    fn test_pkp_filter_by_value_type() {
+        use std::any::TypeId;
+
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+            score: f64,
+            active: bool,
+        }
+
+        let user = User {
+            name: "Alice".to_string(),
+            age: 30,
+            score: 95.5,
+            active: true,
+        };
+
+        // Create keypaths for different fields with different types
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+        let score_kp = KpType::new(|u: &User| Some(&u.score), |u: &mut User| Some(&mut u.score));
+        let active_kp = KpType::new(|u: &User| Some(&u.active), |u: &mut User| Some(&mut u.active));
+
+        // Convert to partial keypaths and store in a heterogeneous collection
+        let all_keypaths: Vec<PKp<User>> = vec![
+            PKp::new(name_kp),
+            PKp::new(age_kp),
+            PKp::new(score_kp),
+            PKp::new(active_kp),
+        ];
+
+        // Filter for String types
+        let string_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<String>())
+            .collect();
+
+        assert_eq!(string_kps.len(), 1);
+        assert_eq!(string_kps[0].get_as::<String>(&user), Some(&"Alice".to_string()));
+
+        // Filter for i32 types
+        let i32_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<i32>())
+            .collect();
+
+        assert_eq!(i32_kps.len(), 1);
+        assert_eq!(i32_kps[0].get_as::<i32>(&user), Some(&30));
+
+        // Filter for f64 types
+        let f64_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<f64>())
+            .collect();
+
+        assert_eq!(f64_kps.len(), 1);
+        assert_eq!(f64_kps[0].get_as::<f64>(&user), Some(&95.5));
+
+        // Filter for bool types
+        let bool_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<bool>())
+            .collect();
+
+        assert_eq!(bool_kps.len(), 1);
+        assert_eq!(bool_kps[0].get_as::<bool>(&user), Some(&true));
+    }
+
+    #[test]
+    fn test_pkp_filter_by_struct_type() {
+        use std::any::TypeId;
+
+        #[derive(Debug, PartialEq)]
+        struct Address {
+            street: String,
+            city: String,
+        }
+
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+            address: Address,
+        }
+
+        let user = User {
+            name: "Bob".to_string(),
+            age: 25,
+            address: Address {
+                street: "123 Main St".to_string(),
+                city: "NYC".to_string(),
+            },
+        };
+
+        // Create keypaths for different types
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+        let address_kp = KpType::new(
+            |u: &User| Some(&u.address),
+            |u: &mut User| Some(&mut u.address),
+        );
+
+        let all_keypaths: Vec<PKp<User>> = vec![
+            PKp::new(name_kp),
+            PKp::new(age_kp),
+            PKp::new(address_kp),
+        ];
+
+        // Filter for custom struct type (Address)
+        let struct_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<Address>())
+            .collect();
+
+        assert_eq!(struct_kps.len(), 1);
+        assert_eq!(
+            struct_kps[0].get_as::<Address>(&user),
+            Some(&Address {
+                street: "123 Main St".to_string(),
+                city: "NYC".to_string(),
+            })
+        );
+
+        // Filter for primitive types (non-struct)
+        let primitive_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| {
+                pkp.value_type_id() == TypeId::of::<String>()
+                    || pkp.value_type_id() == TypeId::of::<i32>()
+            })
+            .collect();
+
+        assert_eq!(primitive_kps.len(), 2);
+    }
+
+    #[test]
+    fn test_pkp_filter_by_arc_type() {
+        use std::any::TypeId;
+        use std::sync::Arc;
+
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            shared_data: Arc<String>,
+            shared_number: Arc<i32>,
+        }
+
+        let user = User {
+            name: "Charlie".to_string(),
+            shared_data: Arc::new("shared".to_string()),
+            shared_number: Arc::new(42),
+        };
+
+        // Create keypaths for different types including Arc
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let shared_data_kp = KpType::new(
+            |u: &User| Some(&u.shared_data),
+            |u: &mut User| Some(&mut u.shared_data),
+        );
+        let shared_number_kp = KpType::new(
+            |u: &User| Some(&u.shared_number),
+            |u: &mut User| Some(&mut u.shared_number),
+        );
+
+        let all_keypaths: Vec<PKp<User>> = vec![
+            PKp::new(name_kp),
+            PKp::new(shared_data_kp),
+            PKp::new(shared_number_kp),
+        ];
+
+        // Filter for Arc<String> types
+        let arc_string_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<Arc<String>>())
+            .collect();
+
+        assert_eq!(arc_string_kps.len(), 1);
+        assert_eq!(
+            arc_string_kps[0].get_as::<Arc<String>>(&user).map(|arc| arc.as_str()),
+            Some("shared")
+        );
+
+        // Filter for Arc<i32> types
+        let arc_i32_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<Arc<i32>>())
+            .collect();
+
+        assert_eq!(arc_i32_kps.len(), 1);
+        assert_eq!(
+            arc_i32_kps[0].get_as::<Arc<i32>>(&user).map(|arc| **arc),
+            Some(42)
+        );
+
+        // Filter for all Arc types (any T)
+        let all_arc_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| {
+                pkp.value_type_id() == TypeId::of::<Arc<String>>()
+                    || pkp.value_type_id() == TypeId::of::<Arc<i32>>()
+            })
+            .collect();
+
+        assert_eq!(all_arc_kps.len(), 2);
+    }
+
+    #[test]
+    fn test_pkp_filter_by_box_type() {
+        use std::any::TypeId;
+
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            boxed_value: Box<i32>,
+            boxed_string: Box<String>,
+        }
+
+        let user = User {
+            name: "Diana".to_string(),
+            boxed_value: Box::new(100),
+            boxed_string: Box::new("boxed".to_string()),
+        };
+
+        // Create keypaths
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let boxed_value_kp = KpType::new(
+            |u: &User| Some(&u.boxed_value),
+            |u: &mut User| Some(&mut u.boxed_value),
+        );
+        let boxed_string_kp = KpType::new(
+            |u: &User| Some(&u.boxed_string),
+            |u: &mut User| Some(&mut u.boxed_string),
+        );
+
+        let all_keypaths: Vec<PKp<User>> = vec![
+            PKp::new(name_kp),
+            PKp::new(boxed_value_kp),
+            PKp::new(boxed_string_kp),
+        ];
+
+        // Filter for Box<i32>
+        let box_i32_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<Box<i32>>())
+            .collect();
+
+        assert_eq!(box_i32_kps.len(), 1);
+        assert_eq!(
+            box_i32_kps[0].get_as::<Box<i32>>(&user).map(|b| **b),
+            Some(100)
+        );
+
+        // Filter for Box<String>
+        let box_string_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|pkp| pkp.value_type_id() == TypeId::of::<Box<String>>())
+            .collect();
+
+        assert_eq!(box_string_kps.len(), 1);
+        assert_eq!(
+            box_string_kps[0].get_as::<Box<String>>(&user).map(|b| b.as_str()),
+            Some("boxed")
+        );
+    }
+
+    #[test]
+    fn test_akp_filter_by_root_and_value_type() {
+        use std::any::TypeId;
+
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+        }
+
+        #[derive(Debug)]
+        struct Product {
+            title: String,
+            price: f64,
+        }
+
+        let user = User {
+            name: "Eve".to_string(),
+            age: 28,
+        };
+
+        let product = Product {
+            title: "Book".to_string(),
+            price: 19.99,
+        };
+
+        // Create AnyKeypaths for different root/value type combinations
+        let user_name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let user_age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+        let product_title_kp = KpType::new(
+            |p: &Product| Some(&p.title),
+            |p: &mut Product| Some(&mut p.title),
+        );
+        let product_price_kp = KpType::new(
+            |p: &Product| Some(&p.price),
+            |p: &mut Product| Some(&mut p.price),
+        );
+
+        let all_keypaths: Vec<AKp> = vec![
+            AKp::new(user_name_kp),
+            AKp::new(user_age_kp),
+            AKp::new(product_title_kp),
+            AKp::new(product_price_kp),
+        ];
+
+        // Filter for User root type
+        let user_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<User>())
+            .collect();
+
+        assert_eq!(user_kps.len(), 2);
+
+        // Filter for Product root type
+        let product_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<Product>())
+            .collect();
+
+        assert_eq!(product_kps.len(), 2);
+
+        // Filter for String value type
+        let string_value_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.value_type_id() == TypeId::of::<String>())
+            .collect();
+
+        assert_eq!(string_value_kps.len(), 2);
+
+        // Filter for both User root AND String value
+        let user_string_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| {
+                akp.root_type_id() == TypeId::of::<User>()
+                    && akp.value_type_id() == TypeId::of::<String>()
+            })
+            .collect();
+
+        assert_eq!(user_string_kps.len(), 1);
+        assert_eq!(
+            user_string_kps[0].get_as::<User, String>(&user),
+            Some(Some(&"Eve".to_string()))
+        );
+
+        // Filter for Product root AND f64 value
+        let product_f64_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| {
+                akp.root_type_id() == TypeId::of::<Product>()
+                    && akp.value_type_id() == TypeId::of::<f64>()
+            })
+            .collect();
+
+        assert_eq!(product_f64_kps.len(), 1);
+        assert_eq!(
+            product_f64_kps[0].get_as::<Product, f64>(&product),
+            Some(Some(&19.99))
+        );
+    }
+
+    #[test]
+    fn test_akp_filter_by_arc_root_type() {
+        use std::any::TypeId;
+        use std::sync::Arc;
+
+        #[derive(Debug)]
+        struct User {
+            name: String,
+        }
+
+        #[derive(Debug)]
+        struct Product {
+            title: String,
+        }
+
+        let user = User {
+            name: "Frank".to_string(),
+        };
+        let product = Product {
+            title: "Laptop".to_string(),
+        };
+
+        // Create keypaths
+        let user_name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let product_title_kp = KpType::new(
+            |p: &Product| Some(&p.title),
+            |p: &mut Product| Some(&mut p.title),
+        );
+
+        // Create AKp and adapt for Arc
+        let user_akp = AKp::new(user_name_kp).for_arc::<User>();
+        let product_akp = AKp::new(product_title_kp).for_arc::<Product>();
+
+        let all_keypaths: Vec<AKp> = vec![user_akp, product_akp];
+
+        // Filter for Arc<User> root type
+        let arc_user_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<Arc<User>>())
+            .collect();
+
+        assert_eq!(arc_user_kps.len(), 1);
+
+        // Verify it works with Arc<User>
+        let arc_user = Arc::new(user);
+        assert_eq!(
+            arc_user_kps[0].get_as::<Arc<User>, String>(&arc_user),
+            Some(Some(&"Frank".to_string()))
+        );
+
+        // Filter for Arc<Product> root type
+        let arc_product_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<Arc<Product>>())
+            .collect();
+
+        assert_eq!(arc_product_kps.len(), 1);
+
+        // Verify it works with Arc<Product>
+        let arc_product = Arc::new(product);
+        assert_eq!(
+            arc_product_kps[0].get_as::<Arc<Product>, String>(&arc_product),
+            Some(Some(&"Laptop".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_akp_filter_by_box_root_type() {
+        use std::any::TypeId;
+
+        #[derive(Debug)]
+        struct Config {
+            setting: String,
+        }
+
+        let config = Config {
+            setting: "enabled".to_string(),
+        };
+
+        // Create keypath for regular Config
+        let config_kp1 = KpType::new(
+            |c: &Config| Some(&c.setting),
+            |c: &mut Config| Some(&mut c.setting),
+        );
+        let config_kp2 = KpType::new(
+            |c: &Config| Some(&c.setting),
+            |c: &mut Config| Some(&mut c.setting),
+        );
+
+        // Create both regular and Box-adapted AKp
+        let regular_akp = AKp::new(config_kp1);
+        let box_akp = AKp::new(config_kp2).for_box::<Config>();
+
+        let all_keypaths: Vec<AKp> = vec![regular_akp, box_akp];
+
+        // Filter for Config root type
+        let config_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<Config>())
+            .collect();
+
+        assert_eq!(config_kps.len(), 1);
+        assert_eq!(
+            config_kps[0].get_as::<Config, String>(&config),
+            Some(Some(&"enabled".to_string()))
+        );
+
+        // Filter for Box<Config> root type
+        let box_config_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<Box<Config>>())
+            .collect();
+
+        assert_eq!(box_config_kps.len(), 1);
+
+        // Verify it works with Box<Config>
+        let box_config = Box::new(Config {
+            setting: "enabled".to_string(),
+        });
+        assert_eq!(
+            box_config_kps[0].get_as::<Box<Config>, String>(&box_config),
+            Some(Some(&"enabled".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_mixed_collection_type_filtering() {
+        use std::any::TypeId;
+        use std::sync::Arc;
+
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            email: String,
+        }
+
+        #[derive(Debug)]
+        struct Product {
+            title: String,
+            sku: String,
+        }
+
+        let user = User {
+            name: "Grace".to_string(),
+            email: "grace@example.com".to_string(),
+        };
+
+        let product = Product {
+            title: "Widget".to_string(),
+            sku: "WID-001".to_string(),
+        };
+
+        // Create a complex heterogeneous collection
+        let user_name_kp1 = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let user_name_kp2 = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let user_email_kp1 = KpType::new(
+            |u: &User| Some(&u.email),
+            |u: &mut User| Some(&mut u.email),
+        );
+        let user_email_kp2 = KpType::new(
+            |u: &User| Some(&u.email),
+            |u: &mut User| Some(&mut u.email),
+        );
+        let product_title_kp = KpType::new(
+            |p: &Product| Some(&p.title),
+            |p: &mut Product| Some(&mut p.title),
+        );
+        let product_sku_kp = KpType::new(
+            |p: &Product| Some(&p.sku),
+            |p: &mut Product| Some(&mut p.sku),
+        );
+
+        let all_keypaths: Vec<AKp> = vec![
+            AKp::new(user_name_kp1),
+            AKp::new(user_email_kp1),
+            AKp::new(product_title_kp),
+            AKp::new(product_sku_kp),
+            AKp::new(user_name_kp2).for_arc::<User>(),
+            AKp::new(user_email_kp2).for_box::<User>(),
+        ];
+
+        // Test 1: Find all keypaths with String values
+        let string_value_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.value_type_id() == TypeId::of::<String>())
+            .collect();
+
+        assert_eq!(string_value_kps.len(), 6); // All return String
+
+        // Test 2: Find keypaths with User root (excluding Arc<User> and Box<User>)
+        let user_root_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<User>())
+            .collect();
+
+        assert_eq!(user_root_kps.len(), 2);
+
+        // Test 3: Find keypaths with Arc<User> root
+        let arc_user_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<Arc<User>>())
+            .collect();
+
+        assert_eq!(arc_user_kps.len(), 1);
+
+        // Test 4: Find keypaths with Box<User> root
+        let box_user_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<Box<User>>())
+            .collect();
+
+        assert_eq!(box_user_kps.len(), 1);
+
+        // Test 5: Find Product keypaths (non-wrapped)
+        let product_kps: Vec<_> = all_keypaths
+            .iter()
+            .filter(|akp| akp.root_type_id() == TypeId::of::<Product>())
+            .collect();
+
+        assert_eq!(product_kps.len(), 2);
+
+        // Test 6: Verify we can use the filtered keypaths
+        let user_value = user_root_kps[0].get_as::<User, String>(&user);
+        assert!(user_value.is_some());
+        assert!(user_value.unwrap().is_some());
+    }
 }
