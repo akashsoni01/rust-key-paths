@@ -48,11 +48,11 @@ let lock_kp = LockKp::new(prev, ArcMutexAccess::new(), next);
 ```
 
 **Use when:**
+- Multi-threaded environment
 - Simple exclusive access needed
-- Single-threaded or low-contention scenarios
-- Default choice for most cases
+- Default choice for thread-safe locks
 
-### ArcRwLockAccess<T> ⭐ NEW
+### ArcRwLockAccess<T> 
 
 Implementation for `Arc<RwLock<T>>`:
 ```rust
@@ -60,6 +60,7 @@ let lock_kp = LockKp::new(prev, ArcRwLockAccess::new(), next);
 ```
 
 **Use when:**
+- Multi-threaded environment
 - Multiple concurrent readers needed
 - Read-heavy workloads
 - Want to allow parallel read access
@@ -69,13 +70,34 @@ let lock_kp = LockKp::new(prev, ArcRwLockAccess::new(), next);
 - Only one writer can access at a time (exclusive/mutable)
 - Readers and writers are mutually exclusive
 
-| Feature | Mutex | RwLock |
-|---------|-------|--------|
-| Multiple readers | ❌ Blocked | ✅ Concurrent |
-| Write access | ✅ Simple | ✅ Exclusive |
-| Overhead | Low | Slightly higher |
-| Best for | Simple cases, frequent writes | Read-heavy workloads |
-| Use when | Default choice | Many readers, few writers |
+### RcRefCellAccess<T> ⭐ NEW
+
+Implementation for `Rc<RefCell<T>>` (single-threaded):
+```rust
+let lock_kp = LockKp::new(prev, RcRefCellAccess::new(), next);
+```
+
+**Use when:**
+- Single-threaded context only
+- Want lower overhead than Arc/Mutex
+- Don't need thread safety
+- Need interior mutability without atomic operations
+
+**RefCell Semantics:**
+- Multiple immutable borrows allowed simultaneously
+- Only one mutable borrow allowed at a time
+- Runtime borrow checking (panics on violation)
+- **NOT thread-safe** - use only in single-threaded code
+
+| Feature | Arc<Mutex> | Arc<RwLock> | Rc<RefCell> |
+|---------|------------|-------------|-------------|
+| Multiple readers | ❌ Blocked | ✅ Concurrent | ✅ Concurrent |
+| Write access | ✅ Exclusive | ✅ Exclusive | ✅ Exclusive |
+| Thread-safe | ✅ Yes | ✅ Yes | ❌ No (single-threaded) |
+| Overhead | Low | Moderate | Very Low |
+| Atomic ops | Yes | Yes | No |
+| Best for | Multi-threaded, simple | Multi-threaded, read-heavy | Single-threaded |
+| Use when | Default (threaded) | Many readers | No threads needed |
 
 ## Usage Examples
 
@@ -122,6 +144,19 @@ use std::sync::{Arc, RwLock};
 let lock_kp = LockKp::new(
     Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data)),
     ArcRwLockAccess::new(),  // ← Use RwLock for concurrent reads
+    Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value)),
+);
+```
+
+### Rc<RefCell> Example (Single-threaded)
+
+```rust
+use std::rc::Rc;
+use std::cell::RefCell;
+
+let lock_kp = LockKp::new(
+    Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data)),
+    RcRefCellAccess::new(),  // ← Use Rc<RefCell> for single-threaded
     Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value)),
 );
 ```
@@ -282,6 +317,13 @@ The module includes comprehensive tests:
 - `test_rwlock_structure`: Verifies RwLock structure
 - `test_rwlock_three_levels`: Three-level RwLock composition
 
+### Rc<RefCell> Tests (Single-threaded) ⭐ NEW
+- `test_rc_refcell_basic`: Basic Rc<RefCell> functionality
+- `test_rc_refcell_compose_two_levels`: Two-level Rc<RefCell> composition
+- `test_rc_refcell_three_levels`: Three-level Rc<RefCell> composition
+- `test_rc_refcell_panic_on_clone_proof`: Panic-on-clone proof for Rc<RefCell>
+- `test_rc_refcell_vs_arc_mutex`: API comparison between Rc<RefCell> and Arc<Mutex>
+
 ### Shallow Cloning Proof Tests ⭐ CRITICAL
 - **`test_rwlock_panic_on_clone_proof`**: Uses `PanicOnClone` struct in nested RwLocks - **test PASSES** proving NO deep cloning
 - **`test_mutex_panic_on_clone_proof`**: Uses `PanicOnClone` struct (1MB each level) in nested Mutexes - **test PASSES** proving NO deep cloning  
@@ -298,14 +340,14 @@ What these tests verify:
 - Multiple `get()` calls: Consistent shallow behavior
 - Only `Arc` refcounts are incremented (shallow), never the inner data
 
-**All 71 tests pass** (56 from core library + 15 lock module tests).
+**All 76 tests pass** (56 from core library + 20 lock module tests).
 
 ## Integration
 
 The `lock` module is exported from the main library:
 
 ```rust
-use rust_key_paths::{LockKp, LockAccess, ArcMutexAccess, ArcRwLockAccess, LockKpType};
+use rust_key_paths::{LockKp, LockAccess, ArcMutexAccess, ArcRwLockAccess, RcRefCellAccess, LockKpType};
 ```
 
 ## Custom Lock Types

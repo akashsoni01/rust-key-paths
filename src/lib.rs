@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 
 // Export the lock module
 pub mod lock;
-pub use lock::{LockKp, LockAccess, ArcMutexAccess, ArcRwLockAccess, LockKpType};
+pub use lock::{LockKp, LockAccess, ArcMutexAccess, ArcRwLockAccess, RcRefCellAccess, LockKpType};
 
 pub type KpType<'a, R, V> = Kp<
     R,

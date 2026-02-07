@@ -22,7 +22,7 @@ impl Clone for PanicOnClone {
 }
 ```
 
-## The Three Tests
+## The Four Tests
 
 ### 1. `test_rwlock_panic_on_clone_proof` 🔒
 
@@ -109,14 +109,41 @@ Root
 
 **Result**: ✅ **PASSES** - No panics on multiple gets!
 
+### 4. `test_rc_refcell_panic_on_clone_proof` 🔒
+
+**Target**: Proves Rc<RefCell> composition is shallow (single-threaded).
+
+**Structure**:
+```
+Root
+ └── Rc<RefCell<Level1>>
+      ├── PanicOnClone (panic_data)
+      └── Rc<RefCell<Level2>>
+           ├── PanicOnClone (panic_data2)
+           └── i32 (value)
+```
+
+**Operations**:
+- Creates two-level Rc<RefCell> nesting
+- Composes both levels: `lock1.compose(lock2)`
+- Calls `get()` twice to verify consistent behavior
+
+**What Would Fail**:
+- If `Level1` is cloned → `panic!("Level1 was deeply cloned in Rc<RefCell>!")`
+- If `Level2` is cloned → `panic!("Level2 was deeply cloned in Rc<RefCell>!")`
+- If `PanicOnClone` is cloned → `panic!("PanicOnClone was cloned in Rc<RefCell>!")`
+
+**Result**: ✅ **PASSES** - No panics = Rc shallow cloning works!
+
 ## What These Tests Prove
 
 ### ✅ Guaranteed Shallow Cloning
 
 1. **Arc Cloning is Shallow**: Only the refcount is incremented, never the inner value
-2. **LockKp Composition is Zero-Copy**: Composing locks doesn't clone locked data
-3. **Multiple Access is Safe**: Repeated `get()` calls don't accumulate clones
-4. **Mixed Lock Types Work**: RwLock and Mutex can be composed without deep cloning
+2. **Rc Cloning is Shallow**: Only the refcount is incremented (single-threaded), never the inner value
+3. **LockKp Composition is Zero-Copy**: Composing locks doesn't clone locked data
+4. **Multiple Access is Safe**: Repeated `get()` calls don't accumulate clones
+5. **Mixed Lock Types Work**: RwLock and Mutex can be composed without deep cloning
 
 ### ❌ What NEVER Happens
 
@@ -165,6 +192,7 @@ cargo test --lib panic_on_clone
 # test lock::tests::test_rwlock_panic_on_clone_proof ... ok
 # test lock::tests::test_mutex_panic_on_clone_proof ... ok
 # test lock::tests::test_mixed_locks_panic_on_clone_proof ... ok
+# test lock::tests::test_rc_refcell_panic_on_clone_proof ... ok
 ```
 
 If ANY deep cloning occurred, you would see:
@@ -243,14 +271,22 @@ assert!(value.is_some());
 
 ## Conclusion
 
-The three panic-on-clone tests provide **mathematical proof** that `LockKp` composition performs only shallow cloning:
+The four panic-on-clone tests provide **mathematical proof** that `LockKp` composition performs only shallow cloning:
 
 1. **Test passes** ⇒ No panic occurred
 2. **No panic** ⇒ `PanicOnClone.clone()` was never called
 3. **`clone()` not called** ⇒ No deep cloning occurred
-4. **No deep cloning** ⇒ Only Arc refcounts incremented (shallow)
+4. **No deep cloning** ⇒ Only Arc/Rc refcounts incremented (shallow)
 
 This is as close to a formal proof as you can get in a test suite!
+
+The tests cover:
+- **Multi-threaded**: Arc<Mutex>, Arc<RwLock>
+- **Single-threaded**: Rc<RefCell>
+- **Mixed compositions**: RwLock→Mutex
+- **Multiple access patterns**: Repeated `get()` calls
+
+All prove the same thing: **Zero deep cloning, always!** ✅
 
 ## Performance Implications
 

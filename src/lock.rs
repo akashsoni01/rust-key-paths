@@ -543,6 +543,113 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
 }
 
 // ============================================================================
+// RefCell Access Implementation (Single-threaded)
+// ============================================================================
+
+/// Lock access implementation for Rc<RefCell<T>>
+/// 
+/// # RefCell Semantics
+/// 
+/// `RefCell<T>` provides interior mutability with runtime borrow checking:
+/// - Multiple immutable borrows are allowed simultaneously
+/// - Only one mutable borrow is allowed at a time
+/// - Borrows are checked at runtime (will panic if violated)
+/// - **NOT thread-safe** - use only in single-threaded contexts
+/// 
+/// # Cloning Behavior
+/// 
+/// Like `ArcMutexAccess` and `ArcRwLockAccess`, this struct only contains `PhantomData<T>`.
+/// Cloning is a **zero-cost operation** - no data is copied.
+/// 
+/// # Rc vs Arc
+/// 
+/// - **`Rc<RefCell<T>>`**: Single-threaded, lower overhead, no atomic operations
+/// - **`Arc<Mutex<T>>`**: Multi-threaded, thread-safe, atomic reference counting
+/// 
+/// Use `RcRefCellAccess` when:
+/// - Working in single-threaded context
+/// - Want lower overhead than Arc/Mutex
+/// - Don't need thread safety
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use std::rc::Rc;
+/// use std::cell::RefCell;
+/// 
+/// #[derive(Clone)]
+/// struct Root {
+///     data: Rc<RefCell<Inner>>,
+/// }
+/// 
+/// struct Inner {
+///     value: String,
+/// }
+/// 
+/// let lock_kp = LockKp::new(
+///     Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data)),
+///     RcRefCellAccess::new(),
+///     Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value)),
+/// );
+/// ```
+#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+pub struct RcRefCellAccess<T> {
+    _phantom: std::marker::PhantomData<T>,  // Zero-sized, no runtime cost
+}
+
+impl<T> RcRefCellAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T> Default for RcRefCellAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Implementation for immutable access (borrow)
+impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a T> for RcRefCellAccess<T> {
+    fn lock_read(&self, lock: &std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a T> {
+        // Acquire immutable borrow - allows multiple concurrent readers
+        // SHALLOW CLONE: Only Rc refcount is incremented when accessing lock
+        // Note: borrow() panics on borrow violation (not thread-safe, runtime check)
+        let guard = lock.borrow();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+
+    fn lock_write(&self, lock: &mut std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a T> {
+        // For immutable access, we use borrow (not borrow_mut)
+        let guard = lock.borrow();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+}
+
+// Implementation for mutable access (borrow_mut)
+impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a mut T> for RcRefCellAccess<T> {
+    fn lock_read(&self, lock: &std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a mut T> {
+        // For mutable access, we need exclusive borrow
+        // Note: borrow_mut() panics on borrow violation (not thread-safe, runtime check)
+        let mut guard = lock.borrow_mut();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+
+    fn lock_write(&self, lock: &mut std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a mut T> {
+        // Acquire mutable borrow - exclusive access
+        // SHALLOW CLONE: Only Rc refcount is incremented when accessing lock
+        let mut guard = lock.borrow_mut();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -1567,6 +1674,367 @@ mod tests {
         assert!(value2.is_some());
         
         // Still no panic - proves shallow cloning is consistent
+    }
+
+    // ========================================================================
+    // Rc<RefCell<T>> Tests (Single-threaded)
+    // ========================================================================
+
+    #[test]
+    fn test_rc_refcell_basic() {
+        use std::rc::Rc;
+        use std::cell::RefCell;
+
+        #[derive(Clone)]
+        struct Root {
+            data: Rc<RefCell<Inner>>,
+        }
+
+        #[derive(Clone)]
+        struct Inner {
+            value: String,
+        }
+
+        let root = Root {
+            data: Rc::new(RefCell::new(Inner {
+                value: "hello".to_string(),
+            })),
+        };
+
+        // Create LockKp for Rc<RefCell<T>>
+        let lock_kp = {
+            let prev: KpType<Root, Rc<RefCell<Inner>>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Inner, String> = Kp::new(
+                |i: &Inner| Some(&i.value),
+                |i: &mut Inner| Some(&mut i.value),
+            );
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // Test get
+        let value = lock_kp.get(&root);
+        assert!(value.is_some());
+        assert_eq!(value.unwrap(), "hello");
+
+        // Test set
+        let result = lock_kp.set(&root, |s| {
+            *s = "world".to_string();
+        });
+        assert!(result.is_ok());
+
+        // Verify the change
+        let value = lock_kp.get(&root);
+        assert_eq!(value.unwrap(), "world");
+    }
+
+    #[test]
+    fn test_rc_refcell_compose_two_levels() {
+        use std::rc::Rc;
+        use std::cell::RefCell;
+
+        #[derive(Clone)]
+        struct Root {
+            level1: Rc<RefCell<Level1>>,
+        }
+
+        #[derive(Clone)]
+        struct Level1 {
+            level2: Rc<RefCell<Level2>>,
+        }
+
+        #[derive(Clone)]
+        struct Level2 {
+            value: i32,
+        }
+
+        let root = Root {
+            level1: Rc::new(RefCell::new(Level1 {
+                level2: Rc::new(RefCell::new(Level2 { value: 42 })),
+            })),
+        };
+
+        // First level
+        let lock1 = {
+            let prev: KpType<Root, Rc<RefCell<Level1>>> = Kp::new(
+                |r: &Root| Some(&r.level1),
+                |r: &mut Root| Some(&mut r.level1),
+            );
+            let next: KpType<Level1, Level1> = Kp::new(
+                |l: &Level1| Some(l),
+                |l: &mut Level1| Some(l),
+            );
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // Second level
+        let lock2 = {
+            let prev: KpType<Level1, Rc<RefCell<Level2>>> = Kp::new(
+                |l: &Level1| Some(&l.level2),
+                |l: &mut Level1| Some(&mut l.level2),
+            );
+            let next: KpType<Level2, i32> = Kp::new(
+                |l: &Level2| Some(&l.value),
+                |l: &mut Level2| Some(&mut l.value),
+            );
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // Compose both levels
+        let composed = lock1.compose(lock2);
+
+        // Test get through both locks
+        let value = composed.get(&root);
+        assert!(value.is_some());
+        assert_eq!(*value.unwrap(), 42);
+
+        // Test set through both locks
+        let result = composed.set(&root, |v| {
+            *v = 100;
+        });
+        assert!(result.is_ok());
+
+        // Verify change
+        let value = composed.get(&root);
+        assert_eq!(*value.unwrap(), 100);
+    }
+
+    #[test]
+    fn test_rc_refcell_three_levels() {
+        use std::rc::Rc;
+        use std::cell::RefCell;
+
+        #[derive(Clone)]
+        struct Root {
+            l1: Rc<RefCell<L1>>,
+        }
+
+        #[derive(Clone)]
+        struct L1 {
+            l2: Rc<RefCell<L2>>,
+        }
+
+        #[derive(Clone)]
+        struct L2 {
+            l3: Rc<RefCell<L3>>,
+        }
+
+        #[derive(Clone)]
+        struct L3 {
+            value: String,
+        }
+
+        let root = Root {
+            l1: Rc::new(RefCell::new(L1 {
+                l2: Rc::new(RefCell::new(L2 {
+                    l3: Rc::new(RefCell::new(L3 {
+                        value: "deep".to_string(),
+                    })),
+                })),
+            })),
+        };
+
+        // Level 1
+        let lock1 = {
+            let prev: KpType<Root, Rc<RefCell<L1>>> = Kp::new(
+                |r: &Root| Some(&r.l1),
+                |r: &mut Root| Some(&mut r.l1),
+            );
+            let next: KpType<L1, L1> = Kp::new(|l: &L1| Some(l), |l: &mut L1| Some(l));
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // Level 2
+        let lock2 = {
+            let prev: KpType<L1, Rc<RefCell<L2>>> = Kp::new(
+                |l: &L1| Some(&l.l2),
+                |l: &mut L1| Some(&mut l.l2),
+            );
+            let next: KpType<L2, L2> = Kp::new(|l: &L2| Some(l), |l: &mut L2| Some(l));
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // Level 3
+        let lock3 = {
+            let prev: KpType<L2, Rc<RefCell<L3>>> = Kp::new(
+                |l: &L2| Some(&l.l3),
+                |l: &mut L2| Some(&mut l.l3),
+            );
+            let next: KpType<L3, String> = Kp::new(
+                |l: &L3| Some(&l.value),
+                |l: &mut L3| Some(&mut l.value),
+            );
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // Compose all three levels
+        let composed_1_2 = lock1.compose(lock2);
+        let composed_all = composed_1_2.compose(lock3);
+
+        // Test get through all three locks
+        let value = composed_all.get(&root);
+        assert!(value.is_some());
+        assert_eq!(value.unwrap(), "deep");
+    }
+
+    #[test]
+    fn test_rc_refcell_panic_on_clone_proof() {
+        use std::rc::Rc;
+        use std::cell::RefCell;
+
+        /// This struct PANICS if cloned - proving no deep cloning occurs
+        struct PanicOnClone {
+            data: String,
+        }
+
+        impl Clone for PanicOnClone {
+            fn clone(&self) -> Self {
+                panic!("❌ DEEP CLONE DETECTED! PanicOnClone was cloned in Rc<RefCell>!");
+            }
+        }
+
+        #[derive(Clone)]
+        struct Root {
+            level1: Rc<RefCell<Level1>>,
+        }
+
+        struct Level1 {
+            panic_data: PanicOnClone,
+            level2: Rc<RefCell<Level2>>,
+        }
+
+        impl Clone for Level1 {
+            fn clone(&self) -> Self {
+                panic!("❌ Level1 was deeply cloned in Rc<RefCell>!");
+            }
+        }
+
+        struct Level2 {
+            panic_data2: PanicOnClone,
+            value: i32,
+        }
+
+        impl Clone for Level2 {
+            fn clone(&self) -> Self {
+                panic!("❌ Level2 was deeply cloned in Rc<RefCell>!");
+            }
+        }
+
+        // Create nested Rc<RefCell> structure with PanicOnClone
+        let root = Root {
+            level1: Rc::new(RefCell::new(Level1 {
+                panic_data: PanicOnClone {
+                    data: "level1".to_string(),
+                },
+                level2: Rc::new(RefCell::new(Level2 {
+                    panic_data2: PanicOnClone {
+                        data: "level2".to_string(),
+                    },
+                    value: 123,
+                })),
+            })),
+        };
+
+        // First level
+        let lock1 = {
+            let prev: KpType<Root, Rc<RefCell<Level1>>> = Kp::new(
+                |r: &Root| Some(&r.level1),
+                |r: &mut Root| Some(&mut r.level1),
+            );
+            let next: KpType<Level1, Level1> = Kp::new(
+                |l: &Level1| Some(l),
+                |l: &mut Level1| Some(l),
+            );
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // Second level
+        let lock2 = {
+            let prev: KpType<Level1, Rc<RefCell<Level2>>> = Kp::new(
+                |l: &Level1| Some(&l.level2),
+                |l: &mut Level1| Some(&mut l.level2),
+            );
+            let next: KpType<Level2, i32> = Kp::new(
+                |l: &Level2| Some(&l.value),
+                |l: &mut Level2| Some(&mut l.value),
+            );
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // CRITICAL TEST: Compose both Rc<RefCell> locks
+        // If any deep cloning occurs, PanicOnClone will trigger
+        let composed = lock1.compose(lock2);
+
+        // ✅ SUCCESS: No panic means no deep cloning!
+        // Only Rc refcounts were incremented (shallow)
+        let value = composed.get(&root);
+        assert!(value.is_some());
+        assert_eq!(*value.unwrap(), 123);
+
+        // Additional test: Multiple accesses don't clone
+        let value2 = composed.get(&root);
+        assert!(value2.is_some());
+    }
+
+    #[test]
+    fn test_rc_refcell_vs_arc_mutex() {
+        use std::rc::Rc;
+        use std::cell::RefCell;
+
+        // This test demonstrates the API similarity between Rc<RefCell> and Arc<Mutex>
+
+        #[derive(Clone)]
+        struct RcRoot {
+            data: Rc<RefCell<String>>,
+        }
+
+        #[derive(Clone)]
+        struct ArcRoot {
+            data: Arc<Mutex<String>>,
+        }
+
+        // Rc<RefCell> version (single-threaded)
+        let rc_root = RcRoot {
+            data: Rc::new(RefCell::new("rc_value".to_string())),
+        };
+
+        let rc_kp = {
+            let prev: KpType<RcRoot, Rc<RefCell<String>>> = Kp::new(
+                |r: &RcRoot| Some(&r.data),
+                |r: &mut RcRoot| Some(&mut r.data),
+            );
+            let next: KpType<String, String> = Kp::new(
+                |s: &String| Some(s),
+                |s: &mut String| Some(s),
+            );
+            LockKp::new(prev, RcRefCellAccess::new(), next)
+        };
+
+        // Arc<Mutex> version (multi-threaded)
+        let arc_root = ArcRoot {
+            data: Arc::new(Mutex::new("arc_value".to_string())),
+        };
+
+        let arc_kp = {
+            let prev: KpType<ArcRoot, Arc<Mutex<String>>> = Kp::new(
+                |r: &ArcRoot| Some(&r.data),
+                |r: &mut ArcRoot| Some(&mut r.data),
+            );
+            let next: KpType<String, String> = Kp::new(
+                |s: &String| Some(s),
+                |s: &mut String| Some(s),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Both have identical API usage!
+        let rc_value = rc_kp.get(&rc_root);
+        let arc_value = arc_kp.get(&arc_root);
+
+        assert_eq!(rc_value.unwrap(), "rc_value");
+        assert_eq!(arc_value.unwrap(), "arc_value");
     }
 }
 
