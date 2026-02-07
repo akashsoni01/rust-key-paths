@@ -75,8 +75,11 @@ fn test_vec_access() {
         queue: VecDeque::new(),
     };
 
-    // Test first() access
-    let first_kp = Collections::items();
+    // items() returns container; items_at() returns first element
+    let container_kp = Collections::items();
+    assert_eq!(container_kp.get(&collections).map(|v| v.len()), Some(5));
+
+    let first_kp = Collections::items_at();
     assert_eq!(first_kp.get(&collections), Some(&10));
 }
 
@@ -87,10 +90,10 @@ fn test_vec_mutable() {
         queue: VecDeque::new(),
     };
 
-    // Mutate through keypath
-    let items_kp = Collections::items();
-    items_kp.get_mut(&mut collections).map(|v| *v = 200);
-    
+    // Mutate first element through items_at()
+    let items_at_kp = Collections::items_at();
+    items_at_kp.get_mut(&mut collections).map(|v| *v = 200);
+
     assert_eq!(collections.items[0], 200);
 }
 
@@ -106,8 +109,8 @@ fn test_vecdeque_access() {
         queue,
     };
 
-    // Test front() access
-    let front_kp = Collections::queue();
+    // queue() returns container; queue_at() returns front element
+    let front_kp = Collections::queue_at();
     assert_eq!(front_kp.get(&collections), Some(&1.1));
 }
 

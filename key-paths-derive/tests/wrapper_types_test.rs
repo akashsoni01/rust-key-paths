@@ -143,8 +143,11 @@ fn test_vec_type() {
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
     
-    // Test Vec - should access first element
-    let vec_kp = AllWrapperTypes::vec_numbers();
+    // vec_numbers() returns container; vec_numbers_at() returns first element
+    let vec_container_kp = AllWrapperTypes::vec_numbers();
+    assert_eq!(vec_container_kp.get(&data).map(|v| v.len()), Some(3));
+
+    let vec_kp = AllWrapperTypes::vec_numbers_at();
     assert_eq!(vec_kp.get(&data), Some(&1));
 }
 
@@ -331,8 +334,8 @@ fn test_mutable_vec_type() {
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
     
-    // Test mutable access to Vec first element
-    let vec_kp = AllWrapperTypes::vec_numbers();
+    // Test mutable access to Vec first element via vec_numbers_at()
+    let vec_kp = AllWrapperTypes::vec_numbers_at();
     vec_kp.get_mut(&mut data).map(|v| *v = 99);
     assert_eq!(data.vec_numbers[0], 99);
 }

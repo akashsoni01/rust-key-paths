@@ -80,9 +80,13 @@ fn test_keypath_composition() {
     let company_name = company_name_kp.get(&company);
     assert_eq!(company_name, Some(&"Tech Corp".to_string()));
 
-    // Access first employee (Vec<Person> returns first element as Person)
+    // employees() returns container (Vec); employees_at() returns first element
     let employees_kp = Company::employees();
-    let first_employee = employees_kp.get(&company);
+    let employees = employees_kp.get(&company);
+    assert_eq!(employees.as_ref().map(|e| e.len()), Some(2));
+
+    let first_employee_kp = Company::employees_at();
+    let first_employee = first_employee_kp.get(&company);
     assert_eq!(first_employee.map(|e| &e.name), Some(&"Alice".to_string()));
 }
 
