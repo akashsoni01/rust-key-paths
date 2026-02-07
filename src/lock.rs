@@ -390,6 +390,59 @@ where
 
         LockKp::new(self.prev, self.mid, composed_kp)
     }
+
+    // ========================================================================
+    // Interoperability Methods: LockKp => AsyncLockKp
+    // ========================================================================
+
+    /// Chain this LockKp with an AsyncLockKp
+    /// 
+    /// After navigating through the sync lock to get a value,
+    /// that value contains an async lock, navigate through it asynchronously.
+    /// 
+    /// # Example
+    /// ```
+    /// // Root -> Arc<Mutex<Container>> -> Container.async_lock -> Value
+    /// let lock_kp = LockKp::new(...);  // sync lock
+    /// let async_kp = AsyncLockKp::new(...);  // async lock
+    /// let result = lock_kp.then_async_kp_get(&async_kp, &root).await;
+    /// ```
+    #[cfg(feature = "tokio")]
+    pub async fn then_async_kp_get<Lock2, Mid2, V2, LockValue2, MidValue2, Value2, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>(
+        &self,
+        async_kp: &crate::async_lock::AsyncLockKp<V, Lock2, Mid2, V2, Value, LockValue2, MidValue2, Value2, MutValue, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>,
+        root: Root,
+    ) -> Option<Value2>
+    where
+        Lock: Clone,
+        Lock2: Clone,
+        V: 'static,
+        V2: 'static,
+        Value: std::borrow::Borrow<V>,
+        LockValue2: std::borrow::Borrow<Lock2>,
+        MidValue2: std::borrow::Borrow<Mid2>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutLock2: std::borrow::BorrowMut<Lock2>,
+        MutMid2: std::borrow::BorrowMut<Mid2>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        G2_1: Fn(Value) -> Option<LockValue2>,
+        S2_1: Fn(MutValue) -> Option<MutLock2>,
+        L2: crate::async_lock::AsyncLockAccess<Lock2, MidValue2> + crate::async_lock::AsyncLockAccess<Lock2, MutMid2>,
+        G2_2: Fn(MidValue2) -> Option<Value2>,
+        S2_2: Fn(MutMid2) -> Option<MutValue2>,
+    {
+        // First, navigate through sync lock to get mid value
+        let lock_value = (self.prev.get)(root)?;
+        let lock: &Lock = lock_value.borrow();
+        let mid_value = self.mid.lock_read(lock)?;
+        
+        // Navigate from mid to V
+        let value = (self.next.get)(mid_value)?;
+        
+        // Finally, use AsyncLockKp to navigate through the async lock
+        async_kp.get_async(value).await
+    }
 }
 
 // ============================================================================
@@ -2035,6 +2088,63 @@ mod tests {
 
         assert_eq!(rc_value.unwrap(), "rc_value");
         assert_eq!(arc_value.unwrap(), "arc_value");
+    }
+
+    // ========================================================================
+    // Interoperability Tests: LockKp => AsyncLockKp
+    // ========================================================================
+
+    #[cfg(feature = "tokio")]
+    #[tokio::test]
+    async fn test_lock_kp_then_async_kp() {
+        use std::sync::{Arc as StdArc, Mutex as StdMutex};
+        use tokio::sync::Mutex as TokioMutex;
+
+        #[derive(Clone)]
+        struct Root {
+            sync_lock: StdArc<StdMutex<Container>>,
+        }
+
+        #[derive(Clone)]
+        struct Container {
+            async_lock: Arc<TokioMutex<i32>>,
+        }
+
+        let root = Root {
+            sync_lock: StdArc::new(StdMutex::new(Container {
+                async_lock: Arc::new(TokioMutex::new(777)),
+            })),
+        };
+
+        // Create LockKp for sync lock
+        let lock_kp = {
+            let prev: KpType<Root, StdArc<StdMutex<Container>>> = Kp::new(
+                |r: &Root| Some(&r.sync_lock),
+                |r: &mut Root| Some(&mut r.sync_lock),
+            );
+            let next: KpType<Container, Container> = Kp::new(
+                |c: &Container| Some(c),
+                |c: &mut Container| Some(c),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Create AsyncLockKp for async lock
+        let async_kp = {
+            let prev: KpType<Container, Arc<TokioMutex<i32>>> = Kp::new(
+                |c: &Container| Some(&c.async_lock),
+                |c: &mut Container| Some(&mut c.async_lock),
+            );
+            let next: KpType<i32, i32> = Kp::new(
+                |n: &i32| Some(n),
+                |n: &mut i32| Some(n),
+            );
+            crate::async_lock::AsyncLockKp::new(prev, crate::async_lock::TokioMutexAccess::new(), next)
+        };
+
+        // Chain: sync lock -> async lock
+        let result = lock_kp.then_async_kp_get(&async_kp, &root).await;
+        assert_eq!(result, Some(&777));
     }
 }
 

@@ -128,9 +128,14 @@ where
     /// - Only the Arc reference count is incremented (one atomic operation)
     /// - The actual data `T` inside the Mutex is **NEVER** cloned
     /// - This is safe and efficient - the whole point of Arc
-    pub async fn get_async(&self, root: Root) -> Option<Value>
+    pub async fn get_async<'a>(&'a self, root: Root) -> Option<Value>
     where
         Lock: Clone,
+        G1: 'a,
+        S1: 'a,
+        L: 'a,
+        G2: 'a,
+        S2: 'a,
     {
         // SHALLOW CLONE: For Arc<Mutex<T>>, only increments Arc refcount
         // The actual data T is NOT cloned
@@ -146,9 +151,14 @@ where
     }
 
     /// Async get mutable access to the value through the lock
-    pub async fn get_mut_async(&self, root: MutRoot) -> Option<MutValue>
+    pub async fn get_mut_async<'a>(&'a self, root: MutRoot) -> Option<MutValue>
     where
         Lock: Clone,
+        G1: 'a,
+        S1: 'a,
+        L: 'a,
+        G2: 'a,
+        S2: 'a,
     {
         // SHALLOW CLONE: For Arc<Mutex<T>>, only increments Arc refcount
         let mut lock_value = (self.prev.set)(root)?;
@@ -163,10 +173,15 @@ where
     }
 
     /// Async set the value through the lock using an updater function
-    pub async fn set_async<F>(&self, root: Root, updater: F) -> Result<(), String>
+    pub async fn set_async<'a, F>(&'a self, root: Root, updater: F) -> Result<(), String>
     where
         Lock: Clone,
         F: FnOnce(&mut V),
+        G1: 'a,
+        S1: 'a,
+        L: 'a,
+        G2: 'a,
+        S2: 'a,
     {
         // SHALLOW CLONE: For Arc<Mutex<T>>, only increments Arc refcount
         let lock_value = (self.prev.get)(root)
@@ -187,6 +202,185 @@ where
         updater(v);
         
         Ok(())
+    }
+
+    // ========================================================================
+    // Interoperability Methods: AsyncLockKp => LockKp => Kp
+    // ========================================================================
+
+    /// Chain this AsyncLockKp with a regular Kp
+    /// 
+    /// After navigating through the async lock to get Mid value,
+    /// continue navigating with a regular keypath.
+    /// 
+    /// # Example
+    /// ```
+    /// // Root -> Arc<tokio::Mutex<Inner>> -> Inner.field
+    /// let async_kp = AsyncLockKp::new(root_to_lock, TokioMutexAccess::new(), lock_to_inner);
+    /// let field_kp = Kp::new(|inner: &Inner| Some(&inner.field), ...);
+    /// let chained = async_kp.then_kp(field_kp);
+    /// ```
+    pub fn then_kp<V2, Value2, MutValue2, G3, S3>(
+        self,
+        next_kp: crate::Kp<V, V2, Value, Value2, MutValue, MutValue2, G3, S3>,
+    ) -> AsyncLockKp<
+        R,
+        Lock,
+        Mid,
+        V2,
+        Root,
+        LockValue,
+        MidValue,
+        Value2,
+        MutRoot,
+        MutLock,
+        MutMid,
+        MutValue2,
+        G1,
+        S1,
+        L,
+        impl Fn(MidValue) -> Option<Value2> + Clone,
+        impl Fn(MutMid) -> Option<MutValue2> + Clone,
+    >
+    where
+        V: 'static,
+        V2: 'static,
+        Value: std::borrow::Borrow<V>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        G3: Fn(Value) -> Option<Value2> + Clone + 'static,
+        S3: Fn(MutValue) -> Option<MutValue2> + Clone + 'static,
+        G2: Clone,
+        S2: Clone,
+    {
+        let self_next_get = self.next.get.clone();
+        let self_next_set = self.next.set.clone();
+        let next_kp_get = next_kp.get;
+        let next_kp_set = next_kp.set;
+        
+        // Compose: Mid -> V -> V2
+        let composed_kp = crate::Kp::new(
+            move |mid_value: MidValue| {
+                self_next_get(mid_value).and_then(|value| next_kp_get(value))
+            },
+            move |mid_value: MutMid| {
+                self_next_set(mid_value).and_then(|value| next_kp_set(value))
+            },
+        );
+
+        AsyncLockKp::new(self.prev, self.mid, composed_kp)
+    }
+
+    /// Chain this AsyncLockKp with a LockKp (sync lock)
+    /// 
+    /// After navigating through the async lock to get a value,
+    /// that value contains a sync lock, navigate through it.
+    /// 
+    /// # Example
+    /// ```
+    /// // Root -> Arc<tokio::Mutex<Container>> -> Container.sync_lock -> Value
+    /// let async_kp = AsyncLockKp::new(...);
+    /// let lock_kp = LockKp::new(...);  // navigates through Arc<Mutex<T>>
+    /// let chained = async_kp.then_lock_kp(lock_kp);
+    /// ```
+    pub async fn then_lock_kp_get<'a, Lock2, Mid2, V2, LockValue2, MidValue2, Value2, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>(
+        &'a self,
+        lock_kp: &'a crate::lock::LockKp<V, Lock2, Mid2, V2, Value, LockValue2, MidValue2, Value2, MutValue, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>,
+        root: Root,
+    ) -> Option<Value2>
+    where
+        Lock: Clone,
+        V: 'static,
+        V2: 'static,
+        Value: std::borrow::Borrow<V>,
+        LockValue2: std::borrow::Borrow<Lock2>,
+        MidValue2: std::borrow::Borrow<Mid2>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutLock2: std::borrow::BorrowMut<Lock2>,
+        MutMid2: std::borrow::BorrowMut<Mid2>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        G2_1: Fn(Value) -> Option<LockValue2> + 'a,
+        S2_1: Fn(MutValue) -> Option<MutLock2> + 'a,
+        L2: crate::lock::LockAccess<Lock2, MidValue2> + crate::lock::LockAccess<Lock2, MutMid2> + 'a,
+        G2_2: Fn(MidValue2) -> Option<Value2> + 'a,
+        S2_2: Fn(MutMid2) -> Option<MutValue2> + 'a,
+        G1: 'a,
+        S1: 'a,
+        L: 'a,
+        G2: 'a,
+        S2: 'a,
+    {
+        // First, navigate through async lock to get mid value
+        let mid_value = {
+            let lock_value = (self.prev.get)(root)?;
+            let lock: &Lock = lock_value.borrow();
+            let lock_clone = lock.clone();
+            self.mid.lock_read(&lock_clone).await?
+        };
+        
+        // Then navigate from mid to V
+        let value = (self.next.get)(mid_value)?;
+        
+        // Finally, use LockKp to navigate through the sync lock
+        lock_kp.get(value)
+    }
+
+    /// Chain this AsyncLockKp with another AsyncLockKp
+    /// 
+    /// After navigating through the first async lock to get a value,
+    /// that value contains another async lock, navigate through it.
+    /// 
+    /// # Example
+    /// ```
+    /// // Root -> Arc<tokio::Mutex<Container>> -> Container.async_lock -> Value
+    /// let async_kp1 = AsyncLockKp::new(...);
+    /// let async_kp2 = AsyncLockKp::new(...);
+    /// let result = async_kp1.compose_async_get(&async_kp2, root).await;
+    /// ```
+    pub async fn compose_async_get<'a, Lock2, Mid2, V2, LockValue2, MidValue2, Value2, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>(
+        &'a self,
+        other: &'a AsyncLockKp<V, Lock2, Mid2, V2, Value, LockValue2, MidValue2, Value2, MutValue, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>,
+        root: Root,
+    ) -> Option<Value2>
+    where
+        Lock: Clone,
+        Lock2: Clone,
+        V: 'static,
+        V2: 'static,
+        Value: std::borrow::Borrow<V>,
+        LockValue2: std::borrow::Borrow<Lock2>,
+        MidValue2: std::borrow::Borrow<Mid2>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutLock2: std::borrow::BorrowMut<Lock2>,
+        MutMid2: std::borrow::BorrowMut<Mid2>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        G2_1: Fn(Value) -> Option<LockValue2> + 'a,
+        S2_1: Fn(MutValue) -> Option<MutLock2> + 'a,
+        L2: AsyncLockAccess<Lock2, MidValue2> + AsyncLockAccess<Lock2, MutMid2> + 'a,
+        G2_2: Fn(MidValue2) -> Option<Value2> + 'a,
+        S2_2: Fn(MutMid2) -> Option<MutValue2> + 'a,
+        G1: 'a,
+        S1: 'a,
+        L: 'a,
+        G2: 'a,
+        S2: 'a,
+    {
+        // First, navigate through first async lock
+        let mid_value = {
+            let lock_value = (self.prev.get)(root)?;
+            let lock: &Lock = lock_value.borrow();
+            let lock_clone = lock.clone();
+            self.mid.lock_read(&lock_clone).await?
+        };
+        
+        // Navigate from mid to V
+        let value = (self.next.get)(mid_value)?;
+        
+        // Finally, use the second AsyncLockKp to navigate through the second async lock
+        other.get_async(value).await
     }
 }
 
@@ -548,5 +742,154 @@ mod tests {
         let _ = &lock_kp.prev;
         let _ = &lock_kp.mid;
         let _ = &lock_kp.next;
+    }
+
+    // ========================================================================
+    // Interoperability Tests: AsyncLockKp => LockKp => Kp
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_async_kp_then_kp() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            data: Arc<Mutex<Inner>>,
+        }
+
+        #[derive(Clone)]
+        struct Inner {
+            value: i32,
+        }
+
+        let root = Root {
+            data: Arc::new(Mutex::new(Inner { value: 42 })),
+        };
+
+        // Create AsyncLockKp to Inner
+        let async_kp = {
+            let prev: KpType<Root, Arc<Mutex<Inner>>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Inner, Inner> = Kp::new(
+                |i: &Inner| Some(i),
+                |i: &mut Inner| Some(i),
+            );
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Chain with regular Kp to get value field
+        let value_kp = Kp::new(
+            |i: &Inner| Some(&i.value),
+            |i: &mut Inner| Some(&mut i.value),
+        );
+
+        let chained = async_kp.then_kp(value_kp);
+        let result = chained.get_async(&root).await;
+        assert_eq!(result, Some(&42));
+    }
+
+    #[tokio::test]
+    async fn test_async_kp_then_lock_kp() {
+        use tokio::sync::Mutex as TokioMutex;
+        use std::sync::{Arc as StdArc, Mutex as StdMutex};
+
+        #[derive(Clone)]
+        struct Root {
+            async_lock: Arc<TokioMutex<Container>>,
+        }
+
+        #[derive(Clone)]
+        struct Container {
+            sync_lock: StdArc<StdMutex<i32>>,
+        }
+
+        let root = Root {
+            async_lock: Arc::new(TokioMutex::new(Container {
+                sync_lock: StdArc::new(StdMutex::new(123)),
+            })),
+        };
+
+        // Create AsyncLockKp to Container
+        let async_kp = {
+            let prev: KpType<Root, Arc<TokioMutex<Container>>> = Kp::new(
+                |r: &Root| Some(&r.async_lock),
+                |r: &mut Root| Some(&mut r.async_lock),
+            );
+            let next: KpType<Container, Container> = Kp::new(
+                |c: &Container| Some(c),
+                |c: &mut Container| Some(c),
+            );
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Create LockKp for sync lock
+        let lock_kp = {
+            let prev: KpType<Container, StdArc<StdMutex<i32>>> = Kp::new(
+                |c: &Container| Some(&c.sync_lock),
+                |c: &mut Container| Some(&mut c.sync_lock),
+            );
+            let next: KpType<i32, i32> = Kp::new(
+                |n: &i32| Some(n),
+                |n: &mut i32| Some(n),
+            );
+            crate::lock::LockKp::new(prev, crate::lock::ArcMutexAccess::new(), next)
+        };
+
+        // Chain: async lock -> sync lock
+        let result = async_kp.then_lock_kp_get(&lock_kp, &root).await;
+        assert_eq!(result, Some(&123));
+    }
+
+    #[tokio::test]
+    async fn test_async_kp_compose_async() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            lock1: Arc<Mutex<Container>>,
+        }
+
+        #[derive(Clone)]
+        struct Container {
+            lock2: Arc<Mutex<i32>>,
+        }
+
+        let root = Root {
+            lock1: Arc::new(Mutex::new(Container {
+                lock2: Arc::new(Mutex::new(999)),
+            })),
+        };
+
+        // First AsyncLockKp: Root -> Container
+        let async_kp1 = {
+            let prev: KpType<Root, Arc<Mutex<Container>>> = Kp::new(
+                |r: &Root| Some(&r.lock1),
+                |r: &mut Root| Some(&mut r.lock1),
+            );
+            let next: KpType<Container, Container> = Kp::new(
+                |c: &Container| Some(c),
+                |c: &mut Container| Some(c),
+            );
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Second AsyncLockKp: Container -> i32
+        let async_kp2 = {
+            let prev: KpType<Container, Arc<Mutex<i32>>> = Kp::new(
+                |c: &Container| Some(&c.lock2),
+                |c: &mut Container| Some(&mut c.lock2),
+            );
+            let next: KpType<i32, i32> = Kp::new(
+                |n: &i32| Some(n),
+                |n: &mut i32| Some(n),
+            );
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Compose: async lock1 -> async lock2
+        let result = async_kp1.compose_async_get(&async_kp2, &root).await;
+        assert_eq!(result, Some(&999));
     }
 }
