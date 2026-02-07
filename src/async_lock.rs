@@ -188,6 +188,58 @@ where
         
         Ok(())
     }
+
+    // ========================================================================
+    // Interoperability Methods: AsyncLockKp => Kp
+    // ========================================================================
+
+    /// Chain this AsyncLockKp with a regular Kp
+    /// 
+    /// After navigating through the async lock to get Mid value,
+    /// continue navigating with a regular keypath.
+    /// 
+    /// # Example
+    /// ```
+    /// // Root -> Arc<tokio::Mutex<Inner>> -> Inner.field
+    /// let async_kp = AsyncLockKp::new(root_to_lock, TokioMutexAccess::new(), lock_to_inner);
+    /// let field_kp = Kp::new(|inner: &Inner| Some(&inner.field), ...);
+    /// let result = async_kp.then(&field_kp, &root).await;
+    /// ```
+    pub async fn then<'a, V2, Value2, MutValue2, G3, S3>(
+        &'a self,
+        next_kp: &'a crate::Kp<V, V2, Value, Value2, MutValue, MutValue2, G3, S3>,
+        root: Root,
+    ) -> Option<Value2>
+    where
+        Lock: Clone,
+        V: 'static,
+        V2: 'static,
+        Value: std::borrow::Borrow<V>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        G3: Fn(Value) -> Option<Value2> + 'a,
+        S3: Fn(MutValue) -> Option<MutValue2> + 'a,
+        G1: 'a,
+        S1: 'a,
+        L: 'a,
+        G2: 'a,
+        S2: 'a,
+    {
+        // First, navigate through async lock to get mid value
+        let mid_value = {
+            let lock_value = (self.prev.get)(root)?;
+            let lock: &Lock = lock_value.borrow();
+            let lock_clone = lock.clone();
+            self.mid.lock_read(&lock_clone).await?
+        };
+        
+        // Navigate from mid to V
+        let value = (self.next.get)(mid_value)?;
+        
+        // Finally, use the next Kp to navigate further
+        (next_kp.get)(value)
+    }
 }
 
 // ============================================================================
@@ -548,5 +600,46 @@ mod tests {
         let _ = &lock_kp.prev;
         let _ = &lock_kp.mid;
         let _ = &lock_kp.next;
+    }
+
+    #[tokio::test]
+    async fn test_async_kp_then() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            data: Arc<Mutex<Inner>>,
+        }
+
+        #[derive(Clone)]
+        struct Inner {
+            value: i32,
+        }
+
+        let root = Root {
+            data: Arc::new(Mutex::new(Inner { value: 42 })),
+        };
+
+        // Create AsyncLockKp to Inner
+        let async_kp = {
+            let prev: KpType<Root, Arc<Mutex<Inner>>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Inner, Inner> = Kp::new(
+                |i: &Inner| Some(i),
+                |i: &mut Inner| Some(i),
+            );
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Chain with regular Kp to get value field
+        let value_kp: KpType<Inner, i32> = Kp::new(
+            |i: &Inner| Some(&i.value),
+            |i: &mut Inner| Some(&mut i.value),
+        );
+
+        let result = async_kp.then(&value_kp, &root).await;
+        assert_eq!(result, Some(&42));
     }
 }
