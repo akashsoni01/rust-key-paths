@@ -26,7 +26,7 @@ members = [
 default = []
 parking_lot = ["parking_lot/default"]
 tagged_core = ["tagged-core/default"]
-tokio = ["rust-keypaths/tokio", "dep:tokio"]
+tokio = ["dep:tokio"]
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }

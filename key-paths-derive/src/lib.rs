@@ -19,15 +19,6 @@ enum WrapperKind {
     BinaryHeap,
     // Error handling containers
     Result,
-    // Synchronization primitives (std::sync - requires explicit std::sync:: prefix)
-    StdMutex,
-    StdRwLock,
-    // Synchronization primitives (parking_lot - default when no prefix)
-    Mutex,
-    RwLock,
-    // Synchronization primitives (tokio::sync - requires tokio feature)
-    TokioMutex,
-    TokioRwLock,
     // Reference counting with weak references
     Weak,
     // String types (currently unused)
@@ -45,15 +36,34 @@ enum WrapperKind {
     OptionVec,
     HashMapOption,
     OptionHashMap,
-    // Arc with synchronization primitives (std::sync - requires explicit std::sync:: prefix)
+    // Arc with synchronization primitives (default)
     StdArcMutex,
     StdArcRwLock,
-    // Arc with synchronization primitives (parking_lot - default when no prefix)
+    OptionStdArcMutex,
+    OptionStdArcRwLock,
+    // Synchronization primitives default
+    StdMutex,
+    StdRwLock,
+    OptionStdMutex,
+    OptionStdRwLock,
+    // Synchronization primitives (parking_lot)
+    Mutex,
+    RwLock,
+    OptionMutex,
+    OptionRwLock,
+    // Synchronization primitives (tokio::sync - requires tokio feature)
+    TokioMutex,
+    TokioRwLock,
+    // parking_lot
     ArcMutex,
     ArcRwLock,
+    OptionArcMutex,
+    OptionArcRwLock,
     // Arc with synchronization primitives (tokio::sync - requires tokio feature)
     TokioArcMutex,
     TokioArcRwLock,
+    OptionTokioArcMutex,
+    OptionTokioArcRwLock,
     // Tagged types
     Tagged,
 }

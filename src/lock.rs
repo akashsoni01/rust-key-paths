@@ -2,7 +2,7 @@
 //!
 //! This module provides `LockKp` for safely navigating through locked/synchronized data structures.
 //!
-//! # SHALLOW CLONING GUARANTEE
+//! # SHALLOW CLONING GUARANTEE & NO UNNECESSARY CLONES
 //!
 //! **IMPORTANT**: All cloning operations in this module are SHALLOW (reference-counted) clones:
 //!
@@ -11,10 +11,11 @@
 //!    - `mid` field is typically just `PhantomData<T>` (zero-sized, zero-cost)
 //!    - No heap allocations or deep data copies
 //!
-//! 2. **`Lock: Clone` bound** (e.g., `Arc<Mutex<T>>`):
-//!    - For `Arc<T>`: Only increments the atomic reference count (one atomic operation)
-//!    - The actual data `T` inside is **NEVER** cloned
-//!    - This is the whole point of Arc - shared ownership without copying data
+//! 2. **NO `Lock: Clone` required for most operations**:
+//!    - `lock_write` takes `&Lock` (not `&mut Lock`) due to interior mutability
+//!    - For `Arc<Mutex<T>>`: No cloning needed, we just use `&Arc<...>`
+//!    - The actual data `T` inside is **NEVER** cloned during lock operations
+//!    - This eliminates unnecessary Arc reference count increments
 //!
 //! 3. **`L: Clone` bound** (e.g., `ArcMutexAccess<T>`):
 //!    - Only clones `PhantomData<T>` which is zero-sized
@@ -23,13 +24,14 @@
 //! ## Performance Characteristics
 //!
 //! - `LockKp::clone()`: O(1) - copies a few pointers
-//! - `Arc::clone()`: O(1) - one atomic increment
 //! - `ArcMutexAccess::clone()`: O(1) - no-op (zero-sized type)
-//! - **Total**: All clone operations are constant-time with no deep copying
+//! - **Lock operations**: No Arc cloning needed - direct reference use
+//! - **Total**: All operations are constant-time with no deep copying
 //!
 //! ## Memory Safety
 //!
-//! The shallow cloning is safe because:
+//! The design is safe because:
+//! - Locks provide interior mutability (no `&mut` needed for write operations)
 //! - `Arc` provides thread-safe reference counting
 //! - `Mutex` ensures exclusive access when needed
 //! - No dangling pointers or use-after-free possible
@@ -45,7 +47,11 @@ pub trait LockAccess<Lock, Inner> {
     fn lock_read(&self, lock: &Lock) -> Option<Inner>;
     
     /// Get mutable access to the inner value
-    fn lock_write(&self, lock: &mut Lock) -> Option<Inner>;
+    /// 
+    /// Note: Takes `&Lock` not `&mut Lock` because locks like Mutex/RwLock
+    /// provide interior mutability - we don't need exclusive access to the
+    /// lock container itself, just to the data inside.
+    fn lock_write(&self, lock: &Lock) -> Option<Inner>;
 }
 
 /// A keypath that handles locked values (e.g., Arc<Mutex<T>>)
@@ -69,8 +75,8 @@ pub trait LockAccess<Lock, Inner> {
 /// - `LockKp` itself derives `Clone` - this clones the three field references/closures
 /// - `prev` and `next` fields are `Kp` structs containing function pointers (cheap to clone)
 /// - `mid` field implements `LockAccess` trait - typically just `PhantomData` (zero-cost clone)
-/// - When `Lock: Clone` (e.g., `Arc<Mutex<T>>`), cloning is just incrementing reference count
-/// - NO deep data cloning occurs - all clones are pointer/reference increments
+/// - NO `Lock: Clone` needed for lock operations - we use `&Lock` directly via interior mutability
+/// - NO deep data cloning occurs - all clones are pointer/reference copies
 /// 
 /// # Example
 /// ```
@@ -151,13 +157,13 @@ where
     /// 2. Use `mid` to lock and get Inner value
     /// 3. Use `next` to get from Inner to final Value
     /// 
+    /// Get an immutable reference through the lock.
+    /// 
     /// # Cloning Behavior
-    /// Requires `Lock: Clone` but this is typically a SHALLOW clone:
-    /// - For `Arc<Mutex<T>>`: Only increments the Arc reference count (cheap)
-    /// - No deep data cloning occurs
+    /// Only requires `V: Clone` for the final value.
+    /// NO `Lock: Clone` needed because `lock_read` takes `&Lock`.
     pub fn get(&self, root: Root) -> Option<Value>
     where
-        Lock: Clone,  // SHALLOW: Arc clone = reference count increment only
         V: Clone,
     {
         (self.prev.get)(root).and_then(|lock_value| {
@@ -170,14 +176,13 @@ where
 
     /// Get mutable access to the value through the lock
     /// 
-    /// # Cloning Behavior
-    /// Requires `Lock: Clone` but this is a SHALLOW clone for Arc/Rc types
+    /// # NO CLONING Required!
+    /// 
+    /// No longer needs `Lock: Clone` because `lock_write` now takes `&Lock` instead of `&mut Lock`
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue>
-    where
-        Lock: Clone,  // SHALLOW: Arc clone = reference count increment only
     {
         (self.prev.set)(root).and_then(|mut lock_value| {
-            let lock: &mut Lock = lock_value.borrow_mut();
+            let lock: &Lock = lock_value.borrow();
             self.mid.lock_write(lock).and_then(|mid_value| {
                 (self.next.set)(mid_value)
             })
@@ -186,14 +191,14 @@ where
 
     /// Set the value through the lock using an updater function
     /// 
-    /// # Cloning Behavior
-    /// The `lock.clone()` on line 143 is a SHALLOW clone:
-    /// - For `Arc<Mutex<T>>`: Only increments Arc reference count
-    /// - The actual locked data `T` is NOT cloned
-    /// - This is necessary to satisfy Rust's borrow checker while locking
+    /// # NO CLONING Required!
+    /// 
+    /// Unlike the original implementation, we NO LONGER need `Lock: Clone` because:
+    /// - Locks like `Mutex` and `RwLock` provide interior mutability
+    /// - We only need `&Lock`, not `&mut Lock`, to get mutable access to the inner data
+    /// - This eliminates an unnecessary Arc reference count increment
     pub fn set<F>(&self, root: Root, updater: F) -> Result<(), String>
     where
-        Lock: Clone,  // SHALLOW: Arc clone = reference count increment only
         F: FnOnce(&mut V),
         MutValue: std::borrow::BorrowMut<V>,
     {
@@ -201,11 +206,9 @@ where
             .ok_or_else(|| "Failed to get lock container".to_string())
             .and_then(|lock_value| {
                 let lock: &Lock = lock_value.borrow();
-                // SHALLOW CLONE: For Arc<Mutex<T>>, this only increments the reference count
-                // The actual data T inside the Mutex is NOT cloned
-                let mut lock_clone = lock.clone();
+                // NO CLONE NEEDED! lock_write now takes &Lock instead of &mut Lock
                 self.mid
-                    .lock_write(&mut lock_clone)
+                    .lock_write(lock)
                     .ok_or_else(|| "Failed to lock".to_string())
                     .and_then(|mid_value| {
                         (self.next.set)(mid_value)
@@ -436,7 +439,7 @@ impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a T> for ArcMutexAccess<T> {
         })
     }
 
-    fn lock_write(&self, lock: &mut Arc<Mutex<T>>) -> Option<&'a T> {
+    fn lock_write(&self, lock: &Arc<Mutex<T>>) -> Option<&'a T> {
         lock.lock().ok().map(|guard| {
             let ptr = &*guard as *const T;
             unsafe { &*ptr }
@@ -453,7 +456,7 @@ impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a mut T> for ArcMutexAccess<T> 
         })
     }
 
-    fn lock_write(&self, lock: &mut Arc<Mutex<T>>) -> Option<&'a mut T> {
+    fn lock_write(&self, lock: &Arc<Mutex<T>>) -> Option<&'a mut T> {
         lock.lock().ok().map(|mut guard| {
             let ptr = &mut *guard as *mut T;
             unsafe { &mut *ptr }
@@ -514,7 +517,7 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a T> for ArcRwLockA
         })
     }
 
-    fn lock_write(&self, lock: &mut Arc<std::sync::RwLock<T>>) -> Option<&'a T> {
+    fn lock_write(&self, lock: &Arc<std::sync::RwLock<T>>) -> Option<&'a T> {
         // For immutable access, we still use read lock
         lock.read().ok().map(|guard| {
             let ptr = &*guard as *const T;
@@ -533,7 +536,7 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
         })
     }
 
-    fn lock_write(&self, lock: &mut Arc<std::sync::RwLock<T>>) -> Option<&'a mut T> {
+    fn lock_write(&self, lock: &Arc<std::sync::RwLock<T>>) -> Option<&'a mut T> {
         // Acquire write lock - exclusive access
         lock.write().ok().map(|mut guard| {
             let ptr = &mut *guard as *mut T;
@@ -603,7 +606,7 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::Mutex<T>>, &'a T> for ParkingLo
         unsafe { Some(&*ptr) }
     }
 
-    fn lock_write(&self, lock: &mut Arc<parking_lot::Mutex<T>>) -> Option<&'a T> {
+    fn lock_write(&self, lock: &Arc<parking_lot::Mutex<T>>) -> Option<&'a T> {
         let guard = lock.lock();
         let ptr = &*guard as *const T;
         unsafe { Some(&*ptr) }
@@ -619,7 +622,7 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::Mutex<T>>, &'a mut T> for Parki
         unsafe { Some(&mut *ptr) }
     }
 
-    fn lock_write(&self, lock: &mut Arc<parking_lot::Mutex<T>>) -> Option<&'a mut T> {
+    fn lock_write(&self, lock: &Arc<parking_lot::Mutex<T>>) -> Option<&'a mut T> {
         let mut guard = lock.lock();
         let ptr = &mut *guard as *mut T;
         unsafe { Some(&mut *ptr) }
@@ -696,7 +699,7 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a T> for ParkingL
         unsafe { Some(&*ptr) }
     }
 
-    fn lock_write(&self, lock: &mut Arc<parking_lot::RwLock<T>>) -> Option<&'a T> {
+    fn lock_write(&self, lock: &Arc<parking_lot::RwLock<T>>) -> Option<&'a T> {
         // For immutable access, use read lock
         let guard = lock.read();
         let ptr = &*guard as *const T;
@@ -714,7 +717,7 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a mut T> for Park
         unsafe { Some(&mut *ptr) }
     }
 
-    fn lock_write(&self, lock: &mut Arc<parking_lot::RwLock<T>>) -> Option<&'a mut T> {
+    fn lock_write(&self, lock: &Arc<parking_lot::RwLock<T>>) -> Option<&'a mut T> {
         let mut guard = lock.write();
         let ptr = &mut *guard as *mut T;
         unsafe { Some(&mut *ptr) }
@@ -801,7 +804,7 @@ impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a T> for R
         unsafe { Some(&*ptr) }
     }
 
-    fn lock_write(&self, lock: &mut std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a T> {
+    fn lock_write(&self, lock: &std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a T> {
         // For immutable access, we use borrow (not borrow_mut)
         let guard = lock.borrow();
         let ptr = &*guard as *const T;
@@ -819,9 +822,8 @@ impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a mut T> f
         unsafe { Some(&mut *ptr) }
     }
 
-    fn lock_write(&self, lock: &mut std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a mut T> {
+    fn lock_write(&self, lock: &std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a mut T> {
         // Acquire mutable borrow - exclusive access
-        // SHALLOW CLONE: Only Rc refcount is incremented when accessing lock
         let mut guard = lock.borrow_mut();
         let ptr = &mut *guard as *mut T;
         unsafe { Some(&mut *ptr) }
