@@ -4029,4 +4029,432 @@ mod tests {
         assert!(user_value.is_some());
         assert!(user_value.unwrap().is_some());
     }
+
+    // ========================================================================
+    // Advanced Type Examples: Pin, MaybeUninit, Weak
+    // ========================================================================
+
+    #[test]
+    fn test_kp_with_pin() {
+        use std::pin::Pin;
+
+        // Pin ensures a value won't be moved in memory
+        // Useful for self-referential structs and async
+        
+        #[derive(Debug)]
+        struct SelfReferential {
+            value: String,
+            ptr_to_value: *const String, // Points to value field
+        }
+
+        impl SelfReferential {
+            fn new(s: String) -> Self {
+                let mut sr = Self {
+                    value: s,
+                    ptr_to_value: std::ptr::null(),
+                };
+                // Make it self-referential
+                sr.ptr_to_value = &sr.value as *const String;
+                sr
+            }
+
+            fn get_value(&self) -> &str {
+                &self.value
+            }
+        }
+
+        // Create a pinned value
+        let boxed = Box::new(SelfReferential::new("pinned_data".to_string()));
+        let pinned: Pin<Box<SelfReferential>> = Box::into_pin(boxed);
+
+        // Keypath to access the value field through Pin
+        let kp: KpType<Pin<Box<SelfReferential>>, String> = Kp::new(
+            |p: &Pin<Box<SelfReferential>>| {
+                // Pin::as_ref() gives us &SelfReferential
+                Some(&p.as_ref().get_ref().value)
+            },
+            |p: &mut Pin<Box<SelfReferential>>| {
+                // For mutable access, we need to use unsafe get_unchecked_mut
+                // In practice, you'd use Pin::get_mut if T: Unpin
+                unsafe {
+                    let sr = Pin::get_unchecked_mut(p.as_mut());
+                    Some(&mut sr.value)
+                }
+            },
+        );
+
+        // Access through keypath
+        let result = kp.get(&pinned);
+        assert_eq!(result, Some(&"pinned_data".to_string()));
+        
+        // The value is still pinned and hasn't moved
+        assert_eq!(pinned.get_value(), "pinned_data");
+    }
+
+    #[test]
+    fn test_kp_with_pin_arc() {
+        use std::pin::Pin;
+        use std::sync::Arc;
+
+        struct AsyncState {
+            status: String,
+            data: Vec<i32>,
+        }
+
+        // Pin<Arc<T>> is common in async Rust
+        let state = AsyncState {
+            status: "ready".to_string(),
+            data: vec![1, 2, 3, 4, 5],
+        };
+        
+        let pinned_arc: Pin<Arc<AsyncState>> = Arc::pin(state);
+
+        // Keypath to status through Pin<Arc<T>>
+        let status_kp: KpType<Pin<Arc<AsyncState>>, String> = Kp::new(
+            |p: &Pin<Arc<AsyncState>>| Some(&p.as_ref().get_ref().status),
+            |_: &mut Pin<Arc<AsyncState>>| {
+                // Arc is immutable, so mutable access returns None
+                None::<&mut String>
+            },
+        );
+
+        // Keypath to data through Pin<Arc<T>>
+        let data_kp: KpType<Pin<Arc<AsyncState>>, Vec<i32>> = Kp::new(
+            |p: &Pin<Arc<AsyncState>>| Some(&p.as_ref().get_ref().data),
+            |_: &mut Pin<Arc<AsyncState>>| None::<&mut Vec<i32>>,
+        );
+
+        let status = status_kp.get(&pinned_arc);
+        assert_eq!(status, Some(&"ready".to_string()));
+
+        let data = data_kp.get(&pinned_arc);
+        assert_eq!(data, Some(&vec![1, 2, 3, 4, 5]));
+    }
+
+    #[test]
+    fn test_kp_with_maybe_uninit() {
+        use std::mem::MaybeUninit;
+
+        // MaybeUninit<T> represents potentially uninitialized memory
+        // Useful for optimizing initialization or working with FFI
+
+        struct Config {
+            name: MaybeUninit<String>,
+            value: MaybeUninit<i32>,
+            initialized: bool,
+        }
+
+        impl Config {
+            fn new_uninit() -> Self {
+                Self {
+                    name: MaybeUninit::uninit(),
+                    value: MaybeUninit::uninit(),
+                    initialized: false,
+                }
+            }
+
+            fn init(&mut self, name: String, value: i32) {
+                self.name.write(name);
+                self.value.write(value);
+                self.initialized = true;
+            }
+
+            fn get_name(&self) -> Option<&String> {
+                if self.initialized {
+                    unsafe { Some(self.name.assume_init_ref()) }
+                } else {
+                    None
+                }
+            }
+
+            fn get_value(&self) -> Option<&i32> {
+                if self.initialized {
+                    unsafe { Some(self.value.assume_init_ref()) }
+                } else {
+                    None
+                }
+            }
+        }
+
+        // Create keypath that safely accesses potentially uninitialized data
+        let name_kp: KpType<Config, String> = Kp::new(
+            |c: &Config| c.get_name(),
+            |c: &mut Config| {
+                if c.initialized {
+                    unsafe { Some(c.name.assume_init_mut()) }
+                } else {
+                    None
+                }
+            },
+        );
+
+        let value_kp: KpType<Config, i32> = Kp::new(
+            |c: &Config| c.get_value(),
+            |c: &mut Config| {
+                if c.initialized {
+                    unsafe { Some(c.value.assume_init_mut()) }
+                } else {
+                    None
+                }
+            },
+        );
+
+        // Test with uninitialized config
+        let uninit_config = Config::new_uninit();
+        assert_eq!(name_kp.get(&uninit_config), None);
+        assert_eq!(value_kp.get(&uninit_config), None);
+
+        // Test with initialized config
+        let mut init_config = Config::new_uninit();
+        init_config.init("test_config".to_string(), 42);
+        
+        assert_eq!(name_kp.get(&init_config), Some(&"test_config".to_string()));
+        assert_eq!(value_kp.get(&init_config), Some(&42));
+
+        // Modify through keypath
+        if let Some(val) = value_kp.get_mut(&mut init_config) {
+            *val = 100;
+        }
+        
+        assert_eq!(value_kp.get(&init_config), Some(&100));
+    }
+
+    #[test]
+    fn test_kp_with_weak() {
+        use std::sync::{Arc, Weak};
+
+        // Weak references don't prevent deallocation
+        // For keypaths with Weak, we need to store the strong reference
+
+        #[derive(Debug, Clone)]
+        struct Node {
+            value: i32,
+        }
+
+        struct NodeWithParent {
+            value: i32,
+            parent: Option<Arc<Node>>, // Strong reference for demonstration
+        }
+
+        let parent = Arc::new(Node {
+            value: 100,
+        });
+
+        let child = NodeWithParent {
+            value: 42,
+            parent: Some(parent.clone()),
+        };
+
+        // Keypath to access parent value
+        let parent_value_kp: KpType<NodeWithParent, i32> = Kp::new(
+            |n: &NodeWithParent| {
+                n.parent.as_ref().map(|arc| &arc.value)
+            },
+            |_: &mut NodeWithParent| None::<&mut i32>,
+        );
+
+        // Access parent value
+        let parent_val = parent_value_kp.get(&child);
+        assert_eq!(parent_val, Some(&100));
+    }
+
+    #[test]
+    fn test_kp_with_rc_weak() {
+        use std::rc::Rc;
+
+        // Single-threaded version with Rc
+        
+        struct TreeNode {
+            value: String,
+            parent: Option<Rc<TreeNode>>, // Strong ref for keypath access
+        }
+
+        let root = Rc::new(TreeNode {
+            value: "root".to_string(),
+            parent: None,
+        });
+
+        let child1 = TreeNode {
+            value: "child1".to_string(),
+            parent: Some(root.clone()),
+        };
+
+        let child2 = TreeNode {
+            value: "child2".to_string(),
+            parent: Some(root.clone()),
+        };
+
+        // Keypath to access parent's value
+        let parent_name_kp: KpType<TreeNode, String> = Kp::new(
+            |node: &TreeNode| {
+                node.parent.as_ref().map(|rc| &rc.value)
+            },
+            |_: &mut TreeNode| None::<&mut String>,
+        );
+
+        // Access parent
+        assert_eq!(parent_name_kp.get(&child1), Some(&"root".to_string()));
+        assert_eq!(parent_name_kp.get(&child2), Some(&"root".to_string()));
+
+        // Root has no parent
+        assert_eq!(parent_name_kp.get(&root), None);
+    }
+
+    #[test]
+    fn test_kp_with_complex_weak_structure() {
+        use std::sync::Arc;
+
+        // Complex structure demonstrating Arc reference patterns
+        
+        struct Cache {
+            data: String,
+            backup: Option<Arc<Cache>>, // Strong reference
+        }
+
+        let primary = Arc::new(Cache {
+            data: "primary_data".to_string(),
+            backup: None,
+        });
+
+        let backup = Arc::new(Cache {
+            data: "backup_data".to_string(),
+            backup: Some(primary.clone()),
+        });
+
+        // Keypath to access backup's data
+        let backup_data_kp: KpType<Arc<Cache>, String> = Kp::new(
+            |cache_arc: &Arc<Cache>| {
+                cache_arc.backup.as_ref().map(|arc| &arc.data)
+            },
+            |_: &mut Arc<Cache>| None::<&mut String>,
+        );
+
+        // Access primary data through backup's reference
+        let data = backup_data_kp.get(&backup);
+        assert_eq!(data, Some(&"primary_data".to_string()));
+
+        // Primary has no backup
+        let no_backup = backup_data_kp.get(&primary);
+        assert_eq!(no_backup, None);
+    }
+
+    #[test]
+    fn test_kp_chain_with_pin_and_arc() {
+        use std::pin::Pin;
+        use std::sync::Arc;
+
+        // Demonstrate chaining keypaths through Pin and Arc
+        
+        struct Outer {
+            inner: Arc<Inner>,
+        }
+
+        struct Inner {
+            value: String,
+        }
+
+        let outer = Outer {
+            inner: Arc::new(Inner {
+                value: "nested_value".to_string(),
+            }),
+        };
+
+        let pinned_outer = Box::pin(outer);
+
+        // First keypath: Pin<Box<Outer>> -> Arc<Inner>
+        let to_inner: KpType<Pin<Box<Outer>>, Arc<Inner>> = Kp::new(
+            |p: &Pin<Box<Outer>>| Some(&p.as_ref().get_ref().inner),
+            |_: &mut Pin<Box<Outer>>| None::<&mut Arc<Inner>>,
+        );
+
+        // Second keypath: Arc<Inner> -> String
+        let to_value: KpType<Arc<Inner>, String> = Kp::new(
+            |a: &Arc<Inner>| Some(&a.value),
+            |_: &mut Arc<Inner>| None::<&mut String>,
+        );
+
+        // Chain them together
+        let chained = to_inner.then(to_value);
+
+        let result = chained.get(&pinned_outer);
+        assert_eq!(result, Some(&"nested_value".to_string()));
+    }
+
+    #[test]
+    fn test_kp_with_maybe_uninit_array() {
+        use std::mem::MaybeUninit;
+
+        // Working with arrays of MaybeUninit - common pattern for
+        // efficient array initialization
+        
+        struct Buffer {
+            data: [MaybeUninit<u8>; 10],
+            len: usize,
+        }
+
+        impl Buffer {
+            fn new() -> Self {
+                Self {
+                    data: unsafe { MaybeUninit::uninit().assume_init() },
+                    len: 0,
+                }
+            }
+
+            fn push(&mut self, byte: u8) -> Result<(), &'static str> {
+                if self.len >= self.data.len() {
+                    return Err("Buffer full");
+                }
+                self.data[self.len].write(byte);
+                self.len += 1;
+                Ok(())
+            }
+
+            fn get(&self, idx: usize) -> Option<&u8> {
+                if idx < self.len {
+                    unsafe { Some(self.data[idx].assume_init_ref()) }
+                } else {
+                    None
+                }
+            }
+
+            fn get_mut(&mut self, idx: usize) -> Option<&mut u8> {
+                if idx < self.len {
+                    unsafe { Some(self.data[idx].assume_init_mut()) }
+                } else {
+                    None
+                }
+            }
+        }
+
+        // Keypath to access length of initialized data
+        let len_kp: KpType<Buffer, usize> = Kp::new(
+            |b: &Buffer| Some(&b.len),
+            |b: &mut Buffer| Some(&mut b.len),
+        );
+
+        let mut buffer = Buffer::new();
+        
+        // Empty buffer
+        assert_eq!(len_kp.get(&buffer), Some(&0));
+
+        // Add some data
+        buffer.push(1).unwrap();
+        buffer.push(2).unwrap();
+        buffer.push(3).unwrap();
+
+        // Access through keypath
+        assert_eq!(len_kp.get(&buffer), Some(&3));
+        
+        // Access elements directly (not through keypath factory due to type complexity)
+        assert_eq!(buffer.get(0), Some(&1));
+        assert_eq!(buffer.get(1), Some(&2));
+        assert_eq!(buffer.get(2), Some(&3));
+        assert_eq!(buffer.get(10), None); // Out of bounds
+        
+        // Modify through buffer's API
+        if let Some(elem) = buffer.get_mut(1) {
+            *elem = 20;
+        }
+        assert_eq!(buffer.get(1), Some(&20));
+    }
 }
