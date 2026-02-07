@@ -546,6 +546,145 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
 }
 
 // ============================================================================
+// Direct Mutex Access Implementation (without Arc)
+// ============================================================================
+
+/// Lock access implementation for std::sync::Mutex<T> (without Arc wrapper)
+/// 
+/// # When to Use
+/// 
+/// Use this when you have a direct reference to a Mutex, not wrapped in Arc.
+/// Common scenarios:
+/// - Mutex is owned by a struct
+/// - Single-threaded or thread-local usage
+/// - When the Mutex lifetime is managed by other means
+/// 
+/// # Note
+/// 
+/// Since we're working with `&Mutex<T>`, this requires the Mutex to be
+/// stored somewhere with a stable address (e.g., in a struct, Box, or static).
+#[derive(Clone)]
+pub struct StdMutexAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T> StdMutexAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T> Default for StdMutexAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Implementation for immutable access
+impl<'a, T: 'static> LockAccess<Mutex<T>, &'a T> for StdMutexAccess<T> {
+    fn lock_read(&self, lock: &Mutex<T>) -> Option<&'a T> {
+        lock.lock().ok().map(|guard| {
+            let ptr = &*guard as *const T;
+            unsafe { &*ptr }
+        })
+    }
+
+    fn lock_write(&self, lock: &Mutex<T>) -> Option<&'a T> {
+        lock.lock().ok().map(|guard| {
+            let ptr = &*guard as *const T;
+            unsafe { &*ptr }
+        })
+    }
+}
+
+// Implementation for mutable access
+impl<'a, T: 'static> LockAccess<Mutex<T>, &'a mut T> for StdMutexAccess<T> {
+    fn lock_read(&self, lock: &Mutex<T>) -> Option<&'a mut T> {
+        lock.lock().ok().map(|mut guard| {
+            let ptr = &mut *guard as *mut T;
+            unsafe { &mut *ptr }
+        })
+    }
+
+    fn lock_write(&self, lock: &Mutex<T>) -> Option<&'a mut T> {
+        lock.lock().ok().map(|mut guard| {
+            let ptr = &mut *guard as *mut T;
+            unsafe { &mut *ptr }
+        })
+    }
+}
+
+// ============================================================================
+// Direct RwLock Access Implementation (without Arc)
+// ============================================================================
+
+/// Lock access implementation for std::sync::RwLock<T> (without Arc wrapper)
+/// 
+/// # RwLock Semantics
+/// 
+/// - Multiple concurrent readers allowed
+/// - Single exclusive writer
+/// - Better for read-heavy workloads
+/// 
+/// # When to Use
+/// 
+/// Use this when you have a direct reference to an RwLock, not wrapped in Arc.
+#[derive(Clone)]
+pub struct StdRwLockAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T> StdRwLockAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T> Default for StdRwLockAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Implementation for immutable access (read lock)
+impl<'a, T: 'static> LockAccess<std::sync::RwLock<T>, &'a T> for StdRwLockAccess<T> {
+    fn lock_read(&self, lock: &std::sync::RwLock<T>) -> Option<&'a T> {
+        lock.read().ok().map(|guard| {
+            let ptr = &*guard as *const T;
+            unsafe { &*ptr }
+        })
+    }
+
+    fn lock_write(&self, lock: &std::sync::RwLock<T>) -> Option<&'a T> {
+        lock.read().ok().map(|guard| {
+            let ptr = &*guard as *const T;
+            unsafe { &*ptr }
+        })
+    }
+}
+
+// Implementation for mutable access (write lock)
+impl<'a, T: 'static> LockAccess<std::sync::RwLock<T>, &'a mut T> for StdRwLockAccess<T> {
+    fn lock_read(&self, lock: &std::sync::RwLock<T>) -> Option<&'a mut T> {
+        lock.write().ok().map(|mut guard| {
+            let ptr = &mut *guard as *mut T;
+            unsafe { &mut *ptr }
+        })
+    }
+
+    fn lock_write(&self, lock: &std::sync::RwLock<T>) -> Option<&'a mut T> {
+        lock.write().ok().map(|mut guard| {
+            let ptr = &mut *guard as *mut T;
+            unsafe { &mut *ptr }
+        })
+    }
+}
+
+// ============================================================================
 // Parking Lot Mutex Access Implementation
 // ============================================================================
 // cargo test --lib --features "tokio,parking_lot" 2>&1 | grep -E "(test result|running)" | tail -5
@@ -718,6 +857,143 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a mut T> for Park
     }
 
     fn lock_write(&self, lock: &Arc<parking_lot::RwLock<T>>) -> Option<&'a mut T> {
+        let mut guard = lock.write();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+}
+
+// ============================================================================
+// Direct Parking Lot Mutex Access Implementation (without Arc)
+// ============================================================================
+
+#[cfg(feature = "parking_lot")]
+/// Lock access implementation for parking_lot::Mutex<T> (without Arc wrapper)
+/// 
+/// # Parking Lot Advantages
+/// 
+/// - Faster and more compact than std::sync::Mutex
+/// - No lock poisoning
+/// - Fair scheduling (FIFO)
+/// 
+/// # When to Use
+/// 
+/// Use this when you have a direct reference to a parking_lot::Mutex,
+/// not wrapped in Arc.
+#[derive(Clone)]
+pub struct DirectParkingLotMutexAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "parking_lot")]
+impl<T> DirectParkingLotMutexAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<T> Default for DirectParkingLotMutexAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<'a, T: 'static> LockAccess<parking_lot::Mutex<T>, &'a T> for DirectParkingLotMutexAccess<T> {
+    fn lock_read(&self, lock: &parking_lot::Mutex<T>) -> Option<&'a T> {
+        let guard = lock.lock();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+
+    fn lock_write(&self, lock: &parking_lot::Mutex<T>) -> Option<&'a T> {
+        let guard = lock.lock();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<'a, T: 'static> LockAccess<parking_lot::Mutex<T>, &'a mut T> for DirectParkingLotMutexAccess<T> {
+    fn lock_read(&self, lock: &parking_lot::Mutex<T>) -> Option<&'a mut T> {
+        let mut guard = lock.lock();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+
+    fn lock_write(&self, lock: &parking_lot::Mutex<T>) -> Option<&'a mut T> {
+        let mut guard = lock.lock();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+}
+
+// ============================================================================
+// Direct Parking Lot RwLock Access Implementation (without Arc)
+// ============================================================================
+
+#[cfg(feature = "parking_lot")]
+/// Lock access implementation for parking_lot::RwLock<T> (without Arc wrapper)
+/// 
+/// # Parking Lot RwLock Advantages
+/// 
+/// - Faster than std::sync::RwLock
+/// - More compact memory footprint
+/// - Fair scheduling
+/// - Better for read-heavy workloads
+/// 
+/// # When to Use
+/// 
+/// Use this when you have a direct reference to a parking_lot::RwLock,
+/// not wrapped in Arc.
+#[derive(Clone)]
+pub struct DirectParkingLotRwLockAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "parking_lot")]
+impl<T> DirectParkingLotRwLockAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<T> Default for DirectParkingLotRwLockAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a T> for DirectParkingLotRwLockAccess<T> {
+    fn lock_read(&self, lock: &parking_lot::RwLock<T>) -> Option<&'a T> {
+        let guard = lock.read();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+
+    fn lock_write(&self, lock: &parking_lot::RwLock<T>) -> Option<&'a T> {
+        let guard = lock.read();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a mut T> for DirectParkingLotRwLockAccess<T> {
+    fn lock_read(&self, lock: &parking_lot::RwLock<T>) -> Option<&'a mut T> {
+        let mut guard = lock.write();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+
+    fn lock_write(&self, lock: &parking_lot::RwLock<T>) -> Option<&'a mut T> {
         let mut guard = lock.write();
         let ptr = &mut *guard as *mut T;
         unsafe { Some(&mut *ptr) }
@@ -2436,6 +2712,164 @@ mod tests {
         
         // ✅ SUCCESS: No panic means no deep cloning!
         assert_eq!(value.unwrap(), &123);
+    }
+
+    #[test]
+    fn test_std_mutex_direct() {
+        use std::sync::Mutex;
+
+        struct Root {
+            data: Mutex<Inner>,
+        }
+
+        struct Inner {
+            value: i32,
+        }
+
+        let mut root = Root {
+            data: Mutex::new(Inner { value: 42 }),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, Mutex<Inner>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Inner, i32> = Kp::new(
+                |i: &Inner| Some(&i.value),
+                |i: &mut Inner| Some(&mut i.value),
+            );
+            LockKp::new(prev, StdMutexAccess::new(), next)
+        };
+
+        // Test read access
+        let value = lock_kp.get(&root);
+        assert_eq!(value, Some(&42));
+
+        // Test write access
+        lock_kp.get_mut(&mut root).map(|v| *v = 100);
+        let value = lock_kp.get(&root);
+        assert_eq!(value, Some(&100));
+    }
+
+    #[test]
+    fn test_std_rwlock_direct() {
+        use std::sync::RwLock;
+
+        struct Root {
+            data: RwLock<Inner>,
+        }
+
+        struct Inner {
+            value: String,
+        }
+
+        let mut root = Root {
+            data: RwLock::new(Inner {
+                value: "hello".to_string(),
+            }),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, RwLock<Inner>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Inner, String> = Kp::new(
+                |i: &Inner| Some(&i.value),
+                |i: &mut Inner| Some(&mut i.value),
+            );
+            LockKp::new(prev, StdRwLockAccess::new(), next)
+        };
+
+        // Test read access
+        let value = lock_kp.get(&root);
+        assert_eq!(value.as_ref().map(|s| s.as_str()), Some("hello"));
+
+        // Test write access
+        lock_kp.get_mut(&mut root).map(|v| *v = "world".to_string());
+        let value = lock_kp.get(&root);
+        assert_eq!(value.as_ref().map(|s| s.as_str()), Some("world"));
+    }
+
+    #[cfg(feature = "parking_lot")]
+    #[test]
+    fn test_parking_lot_mutex_direct() {
+        use parking_lot::Mutex;
+
+        struct Root {
+            data: Mutex<Inner>,
+        }
+
+        struct Inner {
+            value: i32,
+        }
+
+        let mut root = Root {
+            data: Mutex::new(Inner { value: 42 }),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, Mutex<Inner>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Inner, i32> = Kp::new(
+                |i: &Inner| Some(&i.value),
+                |i: &mut Inner| Some(&mut i.value),
+            );
+            LockKp::new(prev, DirectParkingLotMutexAccess::new(), next)
+        };
+
+        // Test read access
+        let value = lock_kp.get(&root);
+        assert_eq!(value, Some(&42));
+
+        // Test write access
+        lock_kp.get_mut(&mut root).map(|v| *v = 100);
+        let value = lock_kp.get(&root);
+        assert_eq!(value, Some(&100));
+    }
+
+    #[cfg(feature = "parking_lot")]
+    #[test]
+    fn test_parking_lot_rwlock_direct() {
+        use parking_lot::RwLock;
+
+        struct Root {
+            data: RwLock<Inner>,
+        }
+
+        struct Inner {
+            value: String,
+        }
+
+        let mut root = Root {
+            data: RwLock::new(Inner {
+                value: "hello".to_string(),
+            }),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, RwLock<Inner>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Inner, String> = Kp::new(
+                |i: &Inner| Some(&i.value),
+                |i: &mut Inner| Some(&mut i.value),
+            );
+            LockKp::new(prev, DirectParkingLotRwLockAccess::new(), next)
+        };
+
+        // Test read access
+        let value = lock_kp.get(&root);
+        assert_eq!(value.as_ref().map(|s| s.as_str()), Some("hello"));
+
+        // Test write access
+        lock_kp.get_mut(&mut root).map(|v| *v = "world".to_string());
+        let value = lock_kp.get(&root);
+        assert_eq!(value.as_ref().map(|s| s.as_str()), Some("world"));
     }
 }
 
