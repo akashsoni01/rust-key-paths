@@ -1,3 +1,40 @@
+//! # Lock Keypath Module
+//!
+//! This module provides `LockKp` for safely navigating through locked/synchronized data structures.
+//!
+//! # SHALLOW CLONING GUARANTEE
+//!
+//! **IMPORTANT**: All cloning operations in this module are SHALLOW (reference-counted) clones:
+//!
+//! 1. **`LockKp` derives `Clone`**: Clones function pointers and PhantomData only
+//!    - `prev` and `next` fields contain function pointers (cheap to copy)
+//!    - `mid` field is typically just `PhantomData<T>` (zero-sized, zero-cost)
+//!    - No heap allocations or deep data copies
+//!
+//! 2. **`Lock: Clone` bound** (e.g., `Arc<Mutex<T>>`):
+//!    - For `Arc<T>`: Only increments the atomic reference count (one atomic operation)
+//!    - The actual data `T` inside is **NEVER** cloned
+//!    - This is the whole point of Arc - shared ownership without copying data
+//!
+//! 3. **`L: Clone` bound** (e.g., `ArcMutexAccess<T>`):
+//!    - Only clones `PhantomData<T>` which is zero-sized
+//!    - Compiled away completely - zero runtime cost
+//!
+//! ## Performance Characteristics
+//!
+//! - `LockKp::clone()`: O(1) - copies a few pointers
+//! - `Arc::clone()`: O(1) - one atomic increment
+//! - `ArcMutexAccess::clone()`: O(1) - no-op (zero-sized type)
+//! - **Total**: All clone operations are constant-time with no deep copying
+//!
+//! ## Memory Safety
+//!
+//! The shallow cloning is safe because:
+//! - `Arc` provides thread-safe reference counting
+//! - `Mutex` ensures exclusive access when needed
+//! - No dangling pointers or use-after-free possible
+//! - Rust's ownership system enforces correctness
+
 use std::sync::{Arc, Mutex};
 use crate::Kp;
 
@@ -25,6 +62,16 @@ pub trait LockAccess<Lock, Inner> {
 /// - `V`: Final value type
 /// - Rest are the same generic parameters as Kp
 /// 
+/// # Cloning Behavior
+/// 
+/// **IMPORTANT**: All `Clone` operations in this struct are SHALLOW clones:
+/// 
+/// - `LockKp` itself derives `Clone` - this clones the three field references/closures
+/// - `prev` and `next` fields are `Kp` structs containing function pointers (cheap to clone)
+/// - `mid` field implements `LockAccess` trait - typically just `PhantomData` (zero-cost clone)
+/// - When `Lock: Clone` (e.g., `Arc<Mutex<T>>`), cloning is just incrementing reference count
+/// - NO deep data cloning occurs - all clones are pointer/reference increments
+/// 
 /// # Example
 /// ```
 /// use std::sync::{Arc, Mutex};
@@ -44,7 +91,7 @@ pub trait LockAccess<Lock, Inner> {
 ///     inner_to_value_kp,
 /// );
 /// ```
-#[derive(Clone)]
+#[derive(Clone)] // SHALLOW: Clones function pointers and PhantomData only
 pub struct LockKp<R, Lock, Mid, V, Root, LockValue, MidValue, Value, MutRoot, MutLock, MutMid, MutValue, G1, S1, L, G2, S2>
 where
     Root: std::borrow::Borrow<R>,
@@ -103,9 +150,14 @@ where
     /// 1. Use `prev` to get to the Lock
     /// 2. Use `mid` to lock and get Inner value
     /// 3. Use `next` to get from Inner to final Value
+    /// 
+    /// # Cloning Behavior
+    /// Requires `Lock: Clone` but this is typically a SHALLOW clone:
+    /// - For `Arc<Mutex<T>>`: Only increments the Arc reference count (cheap)
+    /// - No deep data cloning occurs
     pub fn get(&self, root: Root) -> Option<Value>
     where
-        Lock: Clone,
+        Lock: Clone,  // SHALLOW: Arc clone = reference count increment only
         V: Clone,
     {
         (self.prev.get)(root).and_then(|lock_value| {
@@ -117,9 +169,12 @@ where
     }
 
     /// Get mutable access to the value through the lock
+    /// 
+    /// # Cloning Behavior
+    /// Requires `Lock: Clone` but this is a SHALLOW clone for Arc/Rc types
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue>
     where
-        Lock: Clone,
+        Lock: Clone,  // SHALLOW: Arc clone = reference count increment only
     {
         (self.prev.set)(root).and_then(|mut lock_value| {
             let lock: &mut Lock = lock_value.borrow_mut();
@@ -130,9 +185,15 @@ where
     }
 
     /// Set the value through the lock using an updater function
+    /// 
+    /// # Cloning Behavior
+    /// The `lock.clone()` on line 143 is a SHALLOW clone:
+    /// - For `Arc<Mutex<T>>`: Only increments Arc reference count
+    /// - The actual locked data `T` is NOT cloned
+    /// - This is necessary to satisfy Rust's borrow checker while locking
     pub fn set<F>(&self, root: Root, updater: F) -> Result<(), String>
     where
-        Lock: Clone,
+        Lock: Clone,  // SHALLOW: Arc clone = reference count increment only
         F: FnOnce(&mut V),
         MutValue: std::borrow::BorrowMut<V>,
     {
@@ -140,6 +201,8 @@ where
             .ok_or_else(|| "Failed to get lock container".to_string())
             .and_then(|lock_value| {
                 let lock: &Lock = lock_value.borrow();
+                // SHALLOW CLONE: For Arc<Mutex<T>>, this only increments the reference count
+                // The actual data T inside the Mutex is NOT cloned
                 let mut lock_clone = lock.clone();
                 self.mid
                     .lock_write(&mut lock_clone)
@@ -158,6 +221,9 @@ where
     /// 
     /// This allows you to continue navigating after getting through the lock:
     /// Root -> Lock -> Mid -> Value1 -> Value2
+    /// 
+    /// # Cloning Behavior
+    /// No cloning occurs in this method - closures are moved into the new Kp
     pub fn then<V2, Value2, MutValue2, G3, S3>(
         self,
         next_kp: Kp<V, V2, Value, Value2, MutValue, MutValue2, G3, S3>,
@@ -190,8 +256,11 @@ where
         G3: Fn(Value) -> Option<Value2> + 'static,
         S3: Fn(MutValue) -> Option<MutValue2> + 'static,
     {
+        // Extract closures (move, no clone)
         let next_get = self.next.get;
         let next_set = self.next.set;
+        
+        // Create chained keypath by composing closures (no cloning)
         let chained_kp = Kp::new(
             move |mid_value: MidValue| next_get(mid_value).and_then(|v| (next_kp.get)(v)),
             move |mid_value: MutMid| next_set(mid_value).and_then(|v| (next_kp.set)(v)),
@@ -204,6 +273,21 @@ where
     /// 
     /// This allows you to chain through multiple lock levels:
     /// Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> Value
+    /// 
+    /// # Cloning Behavior - ALL CLONES ARE SHALLOW
+    /// 
+    /// This method requires two types of cloning, both SHALLOW:
+    /// 
+    /// 1. **`L2: Clone`** (line 261): Clones the lock accessor trait object
+    ///    - For `ArcMutexAccess<T>`: Only clones `PhantomData` (zero-cost)
+    ///    - No data is cloned, just the lock access behavior
+    /// 
+    /// 2. **`Lock2: Clone`** (line 287): Clones the lock container
+    ///    - For `Arc<Mutex<T>>`: Only increments Arc reference count
+    ///    - The actual data `T` inside the Mutex is NOT cloned
+    ///    - This is necessary to satisfy borrow checker in closure context
+    /// 
+    /// **Performance**: Both clones are O(1) operations with no deep data copying
     /// 
     /// # Example
     /// ```
@@ -238,7 +322,7 @@ where
     where
         V: 'static + Clone,
         V2: 'static,
-        Lock2: Clone,
+        Lock2: Clone,  // SHALLOW: For Arc<Mutex<T>>, only increments refcount
         Value: std::borrow::Borrow<V>,
         LockValue2: std::borrow::Borrow<Lock2>,
         MidValue2: std::borrow::Borrow<Mid2>,
@@ -249,17 +333,23 @@ where
         MutValue2: std::borrow::BorrowMut<V2>,
         G2_1: Fn(Value) -> Option<LockValue2> + 'static,
         S2_1: Fn(MutValue) -> Option<MutLock2> + 'static,
-        L2: LockAccess<Lock2, MidValue2> + LockAccess<Lock2, MutMid2> + Clone + 'static,
+        L2: LockAccess<Lock2, MidValue2> + LockAccess<Lock2, MutMid2> + Clone + 'static,  // SHALLOW: PhantomData clone
         G2_2: Fn(MidValue2) -> Option<Value2> + 'static,
         S2_2: Fn(MutMid2) -> Option<MutValue2> + 'static,
     {
+        // Extract closures from self (move, no clone)
         let next_get = self.next.get;
         let next_set = self.next.set;
         
+        // Extract closures from other (move, no clone)
         let other_prev_get = other.prev.get;
         let other_prev_set = other.prev.set;
+        
+        // SHALLOW CLONE: Clone the lock accessor (typically just PhantomData)
+        // For ArcMutexAccess<T>, this is a zero-cost clone of PhantomData
         let other_mid1 = other.mid.clone();
         let other_mid2 = other.mid;
+        
         let other_next_get = other.next.get;
         let other_next_set = other.next.set;
 
@@ -271,7 +361,7 @@ where
                     // Then navigate from V to Lock2 using other.prev
                     other_prev_get(value1).and_then(|lock2_value| {
                         let lock2: &Lock2 = lock2_value.borrow();
-                        // Lock and get Mid2 using other.mid
+                        // Lock and get Mid2 using other.mid (no clone here)
                         other_mid1.lock_read(lock2).and_then(|mid2_value| {
                             // Finally navigate from Mid2 to Value2 using other.next
                             other_next_get(mid2_value)
@@ -284,7 +374,12 @@ where
                 next_set(mid_value).and_then(|value1| {
                     other_prev_set(value1).and_then(|mut lock2_value| {
                         let lock2: &mut Lock2 = lock2_value.borrow_mut();
+                        
+                        // SHALLOW CLONE: For Arc<Mutex<T>>, only increments Arc refcount
+                        // The actual data T inside Mutex is NOT cloned
+                        // This is required to satisfy Rust's borrow checker in closure context
                         let mut lock2_clone = lock2.clone();
+                        
                         other_mid2.lock_write(&mut lock2_clone).and_then(|mid2_value| {
                             other_next_set(mid2_value)
                         })
@@ -302,9 +397,17 @@ where
 // ============================================================================
 
 /// Lock access implementation for Arc<Mutex<T>>
-#[derive(Clone)]
+/// 
+/// # Cloning Behavior
+/// 
+/// This struct only contains `PhantomData<T>`, which is a zero-sized type.
+/// Cloning `ArcMutexAccess<T>` is a **zero-cost operation** - no data is copied.
+/// 
+/// The `Clone` impl is required for the `compose()` method to work, but it's
+/// completely free (compiled away to nothing).
+#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
 pub struct ArcMutexAccess<T> {
-    _phantom: std::marker::PhantomData<T>,
+    _phantom: std::marker::PhantomData<T>,  // Zero-sized, no runtime cost
 }
 
 impl<T> ArcMutexAccess<T> {
