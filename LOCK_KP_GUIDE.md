@@ -51,6 +51,7 @@ let lock_kp = LockKp::new(prev, ArcMutexAccess::new(), next);
 - Multi-threaded environment
 - Simple exclusive access needed
 - Default choice for thread-safe locks
+- Standard library is sufficient
 
 ### ArcRwLockAccess<T> 
 
@@ -69,6 +70,47 @@ let lock_kp = LockKp::new(prev, ArcRwLockAccess::new(), next);
 - Multiple readers can access simultaneously (shared/immutable)
 - Only one writer can access at a time (exclusive/mutable)
 - Readers and writers are mutually exclusive
+
+### ParkingLotMutexAccess<T> (Feature: `parking_lot`)
+
+High-performance implementation for `Arc<parking_lot::Mutex<T>>`:
+```rust
+let lock_kp = LockKp::new(prev, ParkingLotMutexAccess::new(), next);
+```
+
+**Use when:**
+- High-contention scenarios where performance matters
+- Want fair lock acquisition (FIFO, no writer starvation)
+- Don't need lock poisoning semantics
+- Need predictable latency
+
+**Advantages over std::Mutex:**
+- **~2-3x faster** in many scenarios
+- Only 1 byte of overhead vs platform-dependent size
+- Fair locking algorithm (FIFO)
+- No poisoning on panic
+- Better performance under high contention
+
+### ParkingLotRwLockAccess<T> (Feature: `parking_lot`)
+
+High-performance implementation for `Arc<parking_lot::RwLock<T>>`:
+```rust
+let lock_kp = LockKp::new(prev, ParkingLotRwLockAccess::new(), next);
+```
+
+**Use when:**
+- Read-heavy workloads with occasional writes
+- High-performance requirements
+- Need predictable writer scheduling
+- Want writer-preferring behavior to prevent writer starvation
+
+**Advantages over std::RwLock:**
+- **Significantly faster** for both read and write operations
+- More compact memory representation
+- Writer-preferring (prevents writer starvation)
+- No poisoning on panic
+- Optional deadlock detection in debug builds
+- Better scalability with many readers
 
 ### RcRefCellAccess<T> ⭐ NEW
 
@@ -89,15 +131,18 @@ let lock_kp = LockKp::new(prev, RcRefCellAccess::new(), next);
 - Runtime borrow checking (panics on violation)
 - **NOT thread-safe** - use only in single-threaded code
 
-| Feature | Arc<Mutex> | Arc<RwLock> | Rc<RefCell> |
-|---------|------------|-------------|-------------|
-| Multiple readers | ❌ Blocked | ✅ Concurrent | ✅ Concurrent |
-| Write access | ✅ Exclusive | ✅ Exclusive | ✅ Exclusive |
-| Thread-safe | ✅ Yes | ✅ Yes | ❌ No (single-threaded) |
-| Overhead | Low | Moderate | Very Low |
-| Atomic ops | Yes | Yes | No |
-| Best for | Multi-threaded, simple | Multi-threaded, read-heavy | Single-threaded |
-| Use when | Default (threaded) | Many readers | No threads needed |
+| Feature | Arc<Mutex> | Arc<RwLock> | parking_lot::Mutex | parking_lot::RwLock | Rc<RefCell> |
+|---------|------------|-------------|-------------------|---------------------|-------------|
+| Multiple readers | ❌ Blocked | ✅ Concurrent | ❌ Blocked | ✅ Concurrent | ✅ Concurrent |
+| Write access | ✅ Exclusive | ✅ Exclusive | ✅ Exclusive | ✅ Exclusive | ✅ Exclusive |
+| Thread-safe | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No (single-threaded) |
+| Performance | Moderate | Moderate | **High** | **High** | Very Low overhead |
+| Overhead | Platform-dep | Moderate | **1 byte** | Low | Very Low |
+| Atomic ops | Yes | Yes | Yes | Yes | No |
+| Fair scheduling | No | No | **✅ FIFO** | **✅ Writer-pref** | N/A |
+| Poisoning | Yes | Yes | **❌ No** | **❌ No** | Runtime panic |
+| Best for | Multi-threaded | Read-heavy | High-contention | Read-heavy perf | Single-threaded |
+| Use when | Default (threaded) | Many readers | Need speed/fairness | Need speed/no starvation | No threads needed |
 
 ## Usage Examples
 
@@ -324,12 +369,20 @@ The module includes comprehensive tests:
 - `test_rc_refcell_panic_on_clone_proof`: Panic-on-clone proof for Rc<RefCell>
 - `test_rc_refcell_vs_arc_mutex`: API comparison between Rc<RefCell> and Arc<Mutex>
 
+### Parking Lot Tests (Feature: `parking_lot`) ⭐ NEW
+- `test_parking_lot_mutex_basic`: Basic parking_lot::Mutex functionality
+- `test_parking_lot_rwlock_basic`: Basic parking_lot::RwLock functionality
+- `test_parking_lot_mutex_compose`: Two-level parking_lot::Mutex composition
+- `test_parking_lot_rwlock_write`: parking_lot::RwLock write access
+- `test_parking_lot_panic_on_clone_proof`: Panic-on-clone proof for parking_lot::Mutex
+
 ### Shallow Cloning Proof Tests ⭐ CRITICAL
 - **`test_rwlock_panic_on_clone_proof`**: Uses `PanicOnClone` struct in nested RwLocks - **test PASSES** proving NO deep cloning
 - **`test_mutex_panic_on_clone_proof`**: Uses `PanicOnClone` struct (1MB each level) in nested Mutexes - **test PASSES** proving NO deep cloning  
 - **`test_mixed_locks_panic_on_clone_proof`**: Uses `NeverClone` struct in mixed RwLock/Mutex chain - **test PASSES** proving NO deep cloning
+- **`test_parking_lot_panic_on_clone_proof`**: Uses `PanicOnClone` struct with parking_lot::Mutex - **test PASSES** proving NO deep cloning
 
-**These three tests are definitive proof**: Each test contains structs with a `Clone` impl that **PANICS with an error message**. The tests compose multiple lock levels and call `get()` multiple times. If ANY deep cloning occurred, the panic would trigger with a clear error message and tests would fail. 
+**These tests are definitive proof**: Each test contains structs with a `Clone` impl that **PANICS with an error message**. The tests compose multiple lock levels and call `get()` multiple times. If ANY deep cloning occurred, the panic would trigger with a clear error message and tests would fail. 
 
 ✅ **All tests pass = Zero deep cloning confirmed!**
 
@@ -339,8 +392,9 @@ What these tests verify:
 - Mixed RwLock→Mutex composition: No `Mid` or `Inner` cloning
 - Multiple `get()` calls: Consistent shallow behavior
 - Only `Arc` refcounts are incremented (shallow), never the inner data
+- parking_lot locks maintain the same shallow cloning guarantee
 
-**All 76 tests pass** (56 from core library + 20 lock module tests).
+**All 88 tests pass** (63 from core library + 25 lock module tests) with `tokio` and `parking_lot` features enabled.
 
 ## Integration
 

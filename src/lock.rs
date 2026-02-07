@@ -543,6 +543,185 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
 }
 
 // ============================================================================
+// Parking Lot Mutex Access Implementation
+// ============================================================================
+// cargo test --lib --features "tokio,parking_lot" 2>&1 | grep -E "(test result|running)" | tail -5
+#[cfg(feature = "parking_lot")]
+/// Lock access implementation for Arc<parking_lot::Mutex<T>>
+/// 
+/// # Parking Lot Mutex
+/// 
+/// `parking_lot::Mutex` is a faster, more compact alternative to `std::sync::Mutex`:
+/// - **Smaller**: Only 1 byte of overhead vs std's platform-dependent size
+/// - **Faster**: More efficient locking algorithm
+/// - **No poisoning**: Unlike std::Mutex, doesn't panic on poisoned state
+/// - **Fair**: Implements a fair locking algorithm (FIFO)
+/// 
+/// # Cloning Behavior
+/// 
+/// This struct only contains `PhantomData<T>`.
+/// Cloning is a **zero-cost operation** - no data is copied.
+/// 
+/// # Performance
+/// 
+/// - **~2-3x faster** than std::Mutex in many scenarios
+/// - Better for high-contention workloads
+/// - More predictable latency due to fair scheduling
+/// 
+/// # When to Use
+/// 
+/// - High-contention scenarios where performance matters
+/// - When you want fair lock acquisition (no writer starvation)
+/// - When you don't need lock poisoning semantics
+#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+pub struct ParkingLotMutexAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "parking_lot")]
+impl<T> ParkingLotMutexAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<T> Default for ParkingLotMutexAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Implementation for immutable access
+#[cfg(feature = "parking_lot")]
+impl<'a, T: 'static> LockAccess<Arc<parking_lot::Mutex<T>>, &'a T> for ParkingLotMutexAccess<T> {
+    fn lock_read(&self, lock: &Arc<parking_lot::Mutex<T>>) -> Option<&'a T> {
+        let guard = lock.lock();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+
+    fn lock_write(&self, lock: &mut Arc<parking_lot::Mutex<T>>) -> Option<&'a T> {
+        let guard = lock.lock();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+}
+
+// Implementation for mutable access
+#[cfg(feature = "parking_lot")]
+impl<'a, T: 'static> LockAccess<Arc<parking_lot::Mutex<T>>, &'a mut T> for ParkingLotMutexAccess<T> {
+    fn lock_read(&self, lock: &Arc<parking_lot::Mutex<T>>) -> Option<&'a mut T> {
+        let mut guard = lock.lock();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+
+    fn lock_write(&self, lock: &mut Arc<parking_lot::Mutex<T>>) -> Option<&'a mut T> {
+        let mut guard = lock.lock();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+}
+
+// ============================================================================
+// Parking Lot RwLock Access Implementation
+// ============================================================================
+
+#[cfg(feature = "parking_lot")]
+/// Lock access implementation for Arc<parking_lot::RwLock<T>>
+/// 
+/// # Parking Lot RwLock
+/// 
+/// `parking_lot::RwLock` is a faster alternative to `std::sync::RwLock`:
+/// - **Smaller**: More compact memory representation
+/// - **Faster**: More efficient locking and unlocking
+/// - **No poisoning**: Unlike std::RwLock, doesn't panic on poisoned state
+/// - **Writer-preferring**: Writers have priority to prevent writer starvation
+/// - **Deadlock detection**: Optional deadlock detection in debug builds
+/// 
+/// # Cloning Behavior
+/// 
+/// This struct only contains `PhantomData<T>`.
+/// Cloning is a **zero-cost operation** - no data is copied.
+/// 
+/// # Performance
+/// 
+/// - **Significantly faster** than std::RwLock for both read and write operations
+/// - Better scalability with many readers
+/// - Lower overhead per operation
+/// 
+/// # Writer Preference
+/// 
+/// Unlike std::RwLock which can starve writers, parking_lot's RwLock:
+/// - Gives priority to writers when readers are present
+/// - Prevents writer starvation in read-heavy workloads
+/// - Still allows multiple concurrent readers when no writers are waiting
+/// 
+/// # When to Use
+/// 
+/// - Read-heavy workloads with occasional writes
+/// - High-performance requirements
+/// - When you need predictable writer scheduling
+/// - When you don't need lock poisoning semantics
+#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+pub struct ParkingLotRwLockAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "parking_lot")]
+impl<T> ParkingLotRwLockAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "parking_lot")]
+impl<T> Default for ParkingLotRwLockAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Implementation for immutable access (read lock)
+#[cfg(feature = "parking_lot")]
+impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a T> for ParkingLotRwLockAccess<T> {
+    fn lock_read(&self, lock: &Arc<parking_lot::RwLock<T>>) -> Option<&'a T> {
+        let guard = lock.read();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+
+    fn lock_write(&self, lock: &mut Arc<parking_lot::RwLock<T>>) -> Option<&'a T> {
+        // For immutable access, use read lock
+        let guard = lock.read();
+        let ptr = &*guard as *const T;
+        unsafe { Some(&*ptr) }
+    }
+}
+
+// Implementation for mutable access (write lock)
+#[cfg(feature = "parking_lot")]
+impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a mut T> for ParkingLotRwLockAccess<T> {
+    fn lock_read(&self, lock: &Arc<parking_lot::RwLock<T>>) -> Option<&'a mut T> {
+        // For mutable access, use write lock
+        let mut guard = lock.write();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+
+    fn lock_write(&self, lock: &mut Arc<parking_lot::RwLock<T>>) -> Option<&'a mut T> {
+        let mut guard = lock.write();
+        let ptr = &mut *guard as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+}
+
+// ============================================================================
 // RefCell Access Implementation (Single-threaded)
 // ============================================================================
 
@@ -2035,6 +2214,226 @@ mod tests {
 
         assert_eq!(rc_value.unwrap(), "rc_value");
         assert_eq!(arc_value.unwrap(), "arc_value");
+    }
+
+    // ========================================================================
+    // Parking Lot Tests
+    // ========================================================================
+
+    #[cfg(feature = "parking_lot")]
+    #[test]
+    fn test_parking_lot_mutex_basic() {
+        use parking_lot::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            data: Arc<Mutex<String>>,
+        }
+
+        let root = Root {
+            data: Arc::new(Mutex::new("parking_lot_mutex".to_string())),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, Arc<Mutex<String>>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<String, String> = Kp::new(
+                |s: &String| Some(s),
+                |s: &mut String| Some(s),
+            );
+            LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+        };
+
+        let value = lock_kp.get(&root);
+        assert_eq!(value.unwrap(), &"parking_lot_mutex".to_string());
+    }
+
+    #[cfg(feature = "parking_lot")]
+    #[test]
+    fn test_parking_lot_rwlock_basic() {
+        use parking_lot::RwLock;
+
+        #[derive(Clone)]
+        struct Root {
+            data: Arc<RwLock<Vec<i32>>>,
+        }
+
+        let root = Root {
+            data: Arc::new(RwLock::new(vec![1, 2, 3, 4, 5])),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, Arc<RwLock<Vec<i32>>>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Vec<i32>, Vec<i32>> = Kp::new(
+                |v: &Vec<i32>| Some(v),
+                |v: &mut Vec<i32>| Some(v),
+            );
+            LockKp::new(prev, ParkingLotRwLockAccess::new(), next)
+        };
+
+        let value = lock_kp.get(&root);
+        assert_eq!(value.unwrap().len(), 5);
+        assert_eq!(value.unwrap()[2], 3);
+    }
+
+    #[cfg(feature = "parking_lot")]
+    #[test]
+    fn test_parking_lot_mutex_compose() {
+        use parking_lot::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            level1: Arc<Mutex<Level1>>,
+        }
+
+        #[derive(Clone)]
+        struct Level1 {
+            level2: Arc<Mutex<i32>>,
+        }
+
+        let root = Root {
+            level1: Arc::new(Mutex::new(Level1 {
+                level2: Arc::new(Mutex::new(42)),
+            })),
+        };
+
+        // First level: Root -> Level1
+        let lock1 = {
+            let prev: KpType<Root, Arc<Mutex<Level1>>> = Kp::new(
+                |r: &Root| Some(&r.level1),
+                |r: &mut Root| Some(&mut r.level1),
+            );
+            let next: KpType<Level1, Level1> = Kp::new(
+                |l: &Level1| Some(l),
+                |l: &mut Level1| Some(l),
+            );
+            LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+        };
+
+        // Second level: Level1 -> i32
+        let lock2 = {
+            let prev: KpType<Level1, Arc<Mutex<i32>>> = Kp::new(
+                |l: &Level1| Some(&l.level2),
+                |l: &mut Level1| Some(&mut l.level2),
+            );
+            let next: KpType<i32, i32> = Kp::new(
+                |n: &i32| Some(n),
+                |n: &mut i32| Some(n),
+            );
+            LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+        };
+
+        // Compose both levels
+        let composed = lock1.compose(lock2);
+        let value = composed.get(&root);
+        assert_eq!(value.unwrap(), &42);
+    }
+
+    #[cfg(feature = "parking_lot")]
+    #[test]
+    fn test_parking_lot_rwlock_write() {
+        use parking_lot::RwLock;
+
+        #[derive(Clone)]
+        struct Root {
+            data: Arc<RwLock<i32>>,
+        }
+
+        let mut root = Root {
+            data: Arc::new(RwLock::new(100)),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, Arc<RwLock<i32>>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<i32, i32> = Kp::new(
+                |n: &i32| Some(n),
+                |n: &mut i32| Some(n),
+            );
+            LockKp::new(prev, ParkingLotRwLockAccess::new(), next)
+        };
+
+        // Read initial value
+        let value = lock_kp.get(&root);
+        assert_eq!(value.unwrap(), &100);
+
+        // Get mutable access and modify
+        let mut_value = lock_kp.get_mut(&mut root);
+        assert!(mut_value.is_some());
+        if let Some(v) = mut_value {
+            *v = 200;
+        }
+
+        // Verify the change
+        let new_value = lock_kp.get(&root);
+        assert_eq!(new_value.unwrap(), &200);
+    }
+
+    #[cfg(feature = "parking_lot")]
+    #[test]
+    fn test_parking_lot_panic_on_clone_proof() {
+        use parking_lot::Mutex;
+
+        /// This struct PANICS if cloned - proving no deep cloning occurs
+        struct PanicOnClone {
+            data: String,
+        }
+
+        impl Clone for PanicOnClone {
+            fn clone(&self) -> Self {
+                panic!("❌ PARKING_LOT DEEP CLONE DETECTED! PanicOnClone was cloned!");
+            }
+        }
+
+        #[derive(Clone)]
+        struct Root {
+            level1: Arc<Mutex<Level1>>,
+        }
+
+        struct Level1 {
+            panic_data: PanicOnClone,
+            value: i32,
+        }
+
+        impl Clone for Level1 {
+            fn clone(&self) -> Self {
+                panic!("❌ Level1 was deeply cloned in parking_lot context!");
+            }
+        }
+
+        let root = Root {
+            level1: Arc::new(Mutex::new(Level1 {
+                panic_data: PanicOnClone {
+                    data: "test".to_string(),
+                },
+                value: 123,
+            })),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, Arc<Mutex<Level1>>> = Kp::new(
+                |r: &Root| Some(&r.level1),
+                |r: &mut Root| Some(&mut r.level1),
+            );
+            let next: KpType<Level1, i32> = Kp::new(
+                |l: &Level1| Some(&l.value),
+                |l: &mut Level1| Some(&mut l.value),
+            );
+            LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+        };
+
+        // CRITICAL TEST: If any deep cloning occurs, PanicOnClone will trigger
+        let value = lock_kp.get(&root);
+        
+        // ✅ SUCCESS: No panic means no deep cloning!
+        assert_eq!(value.unwrap(), &123);
     }
 }
 

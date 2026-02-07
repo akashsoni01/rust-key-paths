@@ -14,7 +14,14 @@ use std::sync::{Arc, Mutex};
 
 // Export the lock module
 pub mod lock;
-pub use lock::{LockKp, LockAccess, ArcMutexAccess, ArcRwLockAccess, RcRefCellAccess, LockKpType};
+pub use lock::{
+    LockKp, LockAccess, 
+    ArcMutexAccess, ArcRwLockAccess, RcRefCellAccess, 
+    LockKpType
+};
+
+#[cfg(feature = "parking_lot")]
+pub use lock::{ParkingLotMutexAccess, ParkingLotRwLockAccess};
 
 // Export the async_lock module
 pub mod async_lock;
