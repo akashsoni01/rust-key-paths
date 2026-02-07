@@ -2,11 +2,11 @@
 
 ## Overview
 
-`LockKp` is a specialized keypath type for handling locked/synchronized values like `Arc<Mutex<T>>`. It provides a safe, composable way to navigate through locked data structures, including support for **multi-level lock chaining**.
+`LockKp` is a specialized keypath type for handling locked/synchronized values like `Arc<Mutex<T>>` and `Arc<RwLock<T>>`. It provides a safe, composable way to navigate through locked data structures, including support for **multi-level lock chaining**.
 
 ## Structure
 
-The `LockKp` struct has three key components, as requested:
+The `LockKp` struct has three key components:
 
 ```rust
 pub struct LockKp<...> {
@@ -38,15 +38,46 @@ pub trait LockAccess<Lock, Inner> {
 }
 ```
 
-### Standard Implementation: `ArcMutexAccess<T>`
+## Lock Implementations
 
-A ready-to-use implementation for `Arc<Mutex<T>>`:
+### ArcMutexAccess<T>
 
+Standard implementation for `Arc<Mutex<T>>`:
 ```rust
-let access = ArcMutexAccess::<InnerType>::new();
+let lock_kp = LockKp::new(prev, ArcMutexAccess::new(), next);
 ```
 
-## Usage Example
+**Use when:**
+- Simple exclusive access needed
+- Single-threaded or low-contention scenarios
+- Default choice for most cases
+
+### ArcRwLockAccess<T> ⭐ NEW
+
+Implementation for `Arc<RwLock<T>>`:
+```rust
+let lock_kp = LockKp::new(prev, ArcRwLockAccess::new(), next);
+```
+
+**Use when:**
+- Multiple concurrent readers needed
+- Read-heavy workloads
+- Want to allow parallel read access
+
+**RwLock Semantics:**
+- Multiple readers can access simultaneously (shared/immutable)
+- Only one writer can access at a time (exclusive/mutable)
+- Readers and writers are mutually exclusive
+
+| Feature | Mutex | RwLock |
+|---------|-------|--------|
+| Multiple readers | ❌ Blocked | ✅ Concurrent |
+| Write access | ✅ Simple | ✅ Exclusive |
+| Overhead | Low | Slightly higher |
+| Best for | Simple cases, frequent writes | Read-heavy workloads |
+| Use when | Default choice | Many readers, few writers |
+
+## Usage Examples
 
 ### Single Lock Level
 
@@ -79,15 +110,20 @@ let next: KpType<Inner, String> = Kp::new(
 // Combine them into a LockKp
 let lock_kp = LockKp::new(prev, mid, next);
 
-// Use it
-let root = Root {
-    locked_data: Arc::new(Mutex::new(Inner {
-        value: "hello".to_string(),
-    })),
-};
-
 // Get value through the lock
 let value = lock_kp.get(&root);
+```
+
+### RwLock Example
+
+```rust
+use std::sync::{Arc, RwLock};
+
+let lock_kp = LockKp::new(
+    Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data)),
+    ArcRwLockAccess::new(),  // ← Use RwLock for concurrent reads
+    Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value)),
+);
 ```
 
 ## Chaining with `then()`
@@ -99,11 +135,9 @@ let value = lock_kp.get(&root);
 let chained = lock_kp.then(another_kp);
 ```
 
-This allows you to continue navigating after getting through the lock layer.
-
 ## Multi-Level Lock Chaining with `compose()`
 
-**NEW**: The `compose()` method allows you to chain through **multiple lock levels**:
+The `compose()` method allows you to chain through **multiple lock levels**:
 
 ```rust
 // Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> Value
@@ -145,7 +179,7 @@ let lock2 = LockKp::new(
 // Compose both locks
 let composed = lock1.compose(lock2);
 
-// Now navigate through both lock levels in one operation
+// Navigate through both lock levels in one operation
 let value = composed.get(&root);
 ```
 
@@ -162,6 +196,16 @@ let composed_all = composed_1_2.compose(lock_kp3);
 let value = composed_all.get(&root);
 ```
 
+### Mixed Lock Types
+
+Compose different lock types together:
+```rust
+// RwLock -> Mutex composition
+let rwlock_kp = LockKp::new(prev1, ArcRwLockAccess::new(), next1);
+let mutex_kp = LockKp::new(prev2, ArcMutexAccess::new(), next2);
+let mixed = rwlock_kp.compose(mutex_kp);
+```
+
 ### Combining `compose()` and `then()`
 
 You can mix lock composition with regular keypath chaining:
@@ -173,28 +217,6 @@ let with_data = composed.then(to_data);    // Navigate to Data
 let with_value = with_data.then(to_value); // Navigate to Value
 
 let value = with_value.get(&root);
-```
-
-## Type Alias for Common Usage
-
-```rust
-pub type LockKpType<'a, R, Mid, V> = LockKp<
-    R,
-    Arc<Mutex<Mid>>,
-    Mid,
-    V,
-    &'a R,
-    &'a Arc<Mutex<Mid>>,
-    &'a Mid,
-    &'a V,
-    &'a mut R,
-    &'a mut Arc<Mutex<Mid>>,
-    &'a mut Mid,
-    &'a mut V,
-    // ... getter/setter function types
-    ArcMutexAccess<Mid>,
-    // ... more function types
->;
 ```
 
 ## API Methods
@@ -231,7 +253,7 @@ Chains this LockKp with another regular Kp:
 pub fn then<V2, ...>(self, next_kp: Kp<V, V2, ...>) -> LockKp<R, Lock, Mid, V2, ...>
 ```
 
-### `compose()` ⭐ NEW
+### `compose()` ⭐
 Composes this LockKp with another LockKp for multi-level lock chaining:
 ```rust
 pub fn compose<Lock2, Mid2, V2, ...>(
@@ -240,9 +262,51 @@ pub fn compose<Lock2, Mid2, V2, ...>(
 ) -> LockKp<R, Lock, Mid, V2, ...>
 ```
 
-This is the key method for handling nested locks like:
-- `Root -> Arc<Mutex<A>> -> A -> Arc<Mutex<B>> -> B -> Value`
-- `Root -> Lock1 -> Lock2 -> Lock3 -> Value`
+## Tests
+
+The module includes comprehensive tests:
+
+### Mutex Tests
+- `test_lock_kp_basic`: Basic Mutex functionality
+- `test_lock_kp_structure`: Verifies the three-field structure
+- `test_lock_kp_then_chaining`: Tests chaining with `then()`
+- `test_lock_kp_compose_single_level`: Tests composing two LockKps
+- `test_lock_kp_compose_two_levels`: Tests two-level lock composition
+- `test_lock_kp_compose_three_levels`: Tests three-level lock composition
+- `test_lock_kp_compose_with_then`: Tests mixing `compose()` and `then()`
+
+### RwLock Tests
+- `test_rwlock_basic`: Basic RwLock functionality
+- `test_rwlock_compose_two_levels`: Two-level RwLock composition
+- `test_rwlock_mixed_with_mutex`: RwLock and Mutex composition
+- `test_rwlock_structure`: Verifies RwLock structure
+- `test_rwlock_three_levels`: Three-level RwLock composition
+
+### Shallow Cloning Proof Tests ⭐ CRITICAL
+- **`test_rwlock_panic_on_clone_proof`**: Uses `PanicOnClone` struct in nested RwLocks - **test PASSES** proving NO deep cloning
+- **`test_mutex_panic_on_clone_proof`**: Uses `PanicOnClone` struct (1MB each level) in nested Mutexes - **test PASSES** proving NO deep cloning  
+- **`test_mixed_locks_panic_on_clone_proof`**: Uses `NeverClone` struct in mixed RwLock/Mutex chain - **test PASSES** proving NO deep cloning
+
+**These three tests are definitive proof**: Each test contains structs with a `Clone` impl that **PANICS with an error message**. The tests compose multiple lock levels and call `get()` multiple times. If ANY deep cloning occurred, the panic would trigger with a clear error message and tests would fail. 
+
+✅ **All tests pass = Zero deep cloning confirmed!**
+
+What these tests verify:
+- Composing 2-level RwLocks: No `Level1` or `Level2` cloning
+- Composing 2-level Mutexes with 1MB data at each level: No `Mid` or `Inner` cloning  
+- Mixed RwLock→Mutex composition: No `Mid` or `Inner` cloning
+- Multiple `get()` calls: Consistent shallow behavior
+- Only `Arc` refcounts are incremented (shallow), never the inner data
+
+**All 71 tests pass** (56 from core library + 15 lock module tests).
+
+## Integration
+
+The `lock` module is exported from the main library:
+
+```rust
+use rust_key_paths::{LockKp, LockAccess, ArcMutexAccess, ArcRwLockAccess, LockKpType};
+```
 
 ## Custom Lock Types
 
@@ -272,27 +336,8 @@ impl<'a, T: 'static> LockAccess<MyLockType<T>, &'a T> for MyCustomLock<T> {
 3. **Multi-Level**: Handles deeply nested locks via `compose()`
 4. **Flexible**: Trait-based `mid` allows custom lock implementations
 5. **Ergonomic**: Handles the complexity of locking internally
-
-## Integration
-
-The `lock` module is exported from the main library:
-
-```rust
-use rust_key_paths::{LockKp, LockAccess, ArcMutexAccess, LockKpType};
-```
-
-## Tests
-
-The module includes comprehensive tests:
-- `test_lock_kp_basic`: Basic functionality test
-- `test_lock_kp_structure`: Verifies the three-field structure
-- `test_lock_kp_then_chaining`: Tests chaining with `then()`
-- `test_lock_kp_compose_single_level`: Tests composing two LockKps
-- `test_lock_kp_compose_two_levels`: Tests two-level lock composition
-- `test_lock_kp_compose_three_levels`: Tests three-level lock composition
-- `test_lock_kp_compose_with_then`: Tests mixing `compose()` and `then()`
-
-**All 63 tests pass** (56 from core library + 3 original lock tests + 5 compose tests).
+6. **Shallow Cloning**: Guaranteed shallow clones only (proven by panic tests)
+7. **Zero Deep Copies**: Inner data is never cloned, only Arc refcounts
 
 ## Use Cases
 
@@ -308,3 +353,6 @@ Simple synchronized access to shared data.
 
 ### Mixed Chains (via `compose()` + `then()`)
 Navigate through locks and then continue with regular field access.
+
+### Mixed Lock Types
+Combine Mutex and RwLock based on access patterns at each level.

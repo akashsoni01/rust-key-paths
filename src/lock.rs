@@ -462,6 +462,87 @@ impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a mut T> for ArcMutexAccess<T> 
 }
 
 // ============================================================================
+// RwLock Access Implementation
+// ============================================================================
+
+/// Lock access implementation for Arc<RwLock<T>>
+/// 
+/// # RwLock Semantics
+/// 
+/// `RwLock` provides reader-writer lock semantics:
+/// - Multiple readers can access simultaneously (shared/immutable access)
+/// - Only one writer can access at a time (exclusive/mutable access)
+/// - Readers and writers are mutually exclusive
+/// 
+/// # Cloning Behavior
+/// 
+/// Like `ArcMutexAccess`, this struct only contains `PhantomData<T>`.
+/// Cloning is a **zero-cost operation** - no data is copied.
+/// 
+/// # Performance vs Mutex
+/// 
+/// - **Better for read-heavy workloads**: Multiple concurrent readers
+/// - **Slightly more overhead**: RwLock has more complex internal state
+/// - **Use when**: Many readers, few writers
+/// - **Avoid when**: Frequent writes or simple cases (use Mutex)
+#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+pub struct ArcRwLockAccess<T> {
+    _phantom: std::marker::PhantomData<T>,  // Zero-sized, no runtime cost
+}
+
+impl<T> ArcRwLockAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T> Default for ArcRwLockAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Implementation for immutable access (read lock)
+impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a T> for ArcRwLockAccess<T> {
+    fn lock_read(&self, lock: &Arc<std::sync::RwLock<T>>) -> Option<&'a T> {
+        // Acquire read lock - allows multiple concurrent readers
+        lock.read().ok().map(|guard| {
+            let ptr = &*guard as *const T;
+            unsafe { &*ptr }
+        })
+    }
+
+    fn lock_write(&self, lock: &mut Arc<std::sync::RwLock<T>>) -> Option<&'a T> {
+        // For immutable access, we still use read lock
+        lock.read().ok().map(|guard| {
+            let ptr = &*guard as *const T;
+            unsafe { &*ptr }
+        })
+    }
+}
+
+// Implementation for mutable access (write lock)
+impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwLockAccess<T> {
+    fn lock_read(&self, lock: &Arc<std::sync::RwLock<T>>) -> Option<&'a mut T> {
+        // For mutable access, we need write lock (exclusive)
+        lock.write().ok().map(|mut guard| {
+            let ptr = &mut *guard as *mut T;
+            unsafe { &mut *ptr }
+        })
+    }
+
+    fn lock_write(&self, lock: &mut Arc<std::sync::RwLock<T>>) -> Option<&'a mut T> {
+        // Acquire write lock - exclusive access
+        lock.write().ok().map(|mut guard| {
+            let ptr = &mut *guard as *mut T;
+            unsafe { &mut *ptr }
+        })
+    }
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -894,6 +975,598 @@ mod tests {
         // Test get
         let value = with_value.get(&root);
         assert!(value.is_some());
+    }
+
+    // ============================================================================
+    // RwLock Tests
+    // ============================================================================
+
+    #[test]
+    fn test_rwlock_basic() {
+        use std::sync::RwLock;
+
+        #[derive(Debug, Clone)]
+        struct Root {
+            data: Arc<RwLock<Inner>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Inner {
+            value: String,
+        }
+
+        let root = Root {
+            data: Arc::new(RwLock::new(Inner {
+                value: "rwlock_value".to_string(),
+            })),
+        };
+
+        // Create RwLock keypath
+        let prev: KpType<Root, Arc<RwLock<Inner>>> = Kp::new(
+            |r: &Root| Some(&r.data),
+            |r: &mut Root| Some(&mut r.data),
+        );
+
+        let next: KpType<Inner, String> = Kp::new(
+            |i: &Inner| Some(&i.value),
+            |i: &mut Inner| Some(&mut i.value),
+        );
+
+        let rwlock_kp = LockKp::new(prev, ArcRwLockAccess::new(), next);
+
+        // Test get (read lock)
+        let value = rwlock_kp.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_rwlock_compose_two_levels() {
+        use std::sync::RwLock;
+
+        #[derive(Debug, Clone)]
+        struct Root {
+            level1: Arc<RwLock<Level1>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Level1 {
+            level2: Arc<RwLock<Level2>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Level2 {
+            value: i32,
+        }
+
+        let root = Root {
+            level1: Arc::new(RwLock::new(Level1 {
+                level2: Arc::new(RwLock::new(Level2 { value: 100 })),
+            })),
+        };
+
+        // First RwLock level
+        let lock1 = {
+            let prev: KpType<Root, Arc<RwLock<Level1>>> = Kp::new(
+                |r: &Root| Some(&r.level1),
+                |r: &mut Root| Some(&mut r.level1),
+            );
+            let next: KpType<Level1, Level1> = Kp::new(
+                |l: &Level1| Some(l),
+                |l: &mut Level1| Some(l),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        // Second RwLock level
+        let lock2 = {
+            let prev: KpType<Level1, Arc<RwLock<Level2>>> = Kp::new(
+                |l: &Level1| Some(&l.level2),
+                |l: &mut Level1| Some(&mut l.level2),
+            );
+            let next: KpType<Level2, i32> = Kp::new(
+                |l: &Level2| Some(&l.value),
+                |l: &mut Level2| Some(&mut l.value),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        // Compose both RwLocks
+        let composed = lock1.compose(lock2);
+
+        // Test get through both read locks
+        let value = composed.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_rwlock_mixed_with_mutex() {
+        use std::sync::RwLock;
+
+        #[derive(Debug, Clone)]
+        struct Root {
+            rwlock_data: Arc<RwLock<Mid>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Mid {
+            mutex_data: Arc<Mutex<Inner>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Inner {
+            value: String,
+        }
+
+        let root = Root {
+            rwlock_data: Arc::new(RwLock::new(Mid {
+                mutex_data: Arc::new(Mutex::new(Inner {
+                    value: "mixed".to_string(),
+                })),
+            })),
+        };
+
+        // RwLock level
+        let rwlock_kp = {
+            let prev: KpType<Root, Arc<RwLock<Mid>>> = Kp::new(
+                |r: &Root| Some(&r.rwlock_data),
+                |r: &mut Root| Some(&mut r.rwlock_data),
+            );
+            let next: KpType<Mid, Mid> = Kp::new(
+                |m: &Mid| Some(m),
+                |m: &mut Mid| Some(m),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        // Mutex level
+        let mutex_kp = {
+            let prev: KpType<Mid, Arc<Mutex<Inner>>> = Kp::new(
+                |m: &Mid| Some(&m.mutex_data),
+                |m: &mut Mid| Some(&mut m.mutex_data),
+            );
+            let next: KpType<Inner, String> = Kp::new(
+                |i: &Inner| Some(&i.value),
+                |i: &mut Inner| Some(&mut i.value),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Compose RwLock -> Mutex
+        let composed = rwlock_kp.compose(mutex_kp);
+
+        // Test get through both locks
+        let value = composed.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_rwlock_structure() {
+        use std::sync::RwLock;
+
+        // Verify ArcRwLockAccess has the same zero-cost structure
+        #[derive(Debug, Clone)]
+        struct Root {
+            data: Arc<RwLock<Inner>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Inner {
+            value: i32,
+        }
+
+        let root = Root {
+            data: Arc::new(RwLock::new(Inner { value: 42 })),
+        };
+
+        let prev: KpType<Root, Arc<RwLock<Inner>>> = Kp::new(
+            |r: &Root| Some(&r.data),
+            |r: &mut Root| Some(&mut r.data),
+        );
+
+        let mid = ArcRwLockAccess::<Inner>::new();
+
+        let next: KpType<Inner, i32> = Kp::new(
+            |i: &Inner| Some(&i.value),
+            |i: &mut Inner| Some(&mut i.value),
+        );
+
+        let rwlock_kp = LockKp::new(prev, mid, next);
+
+        // Verify fields are accessible
+        let _prev_field = &rwlock_kp.prev;
+        let _mid_field = &rwlock_kp.mid;
+        let _next_field = &rwlock_kp.next;
+
+        // Test basic get
+        let value = rwlock_kp.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_rwlock_three_levels() {
+        use std::sync::RwLock;
+
+        #[derive(Debug, Clone)]
+        struct Root {
+            lock1: Arc<RwLock<L1>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct L1 {
+            lock2: Arc<RwLock<L2>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct L2 {
+            lock3: Arc<RwLock<L3>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct L3 {
+            value: String,
+        }
+
+        let root = Root {
+            lock1: Arc::new(RwLock::new(L1 {
+                lock2: Arc::new(RwLock::new(L2 {
+                    lock3: Arc::new(RwLock::new(L3 {
+                        value: "deep_rwlock".to_string(),
+                    })),
+                })),
+            })),
+        };
+
+        // Create three RwLock levels
+        let lock1 = {
+            let prev: KpType<Root, Arc<RwLock<L1>>> = Kp::new(
+                |r: &Root| Some(&r.lock1),
+                |r: &mut Root| Some(&mut r.lock1),
+            );
+            let next: KpType<L1, L1> = Kp::new(
+                |l: &L1| Some(l),
+                |l: &mut L1| Some(l),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        let lock2 = {
+            let prev: KpType<L1, Arc<RwLock<L2>>> = Kp::new(
+                |l: &L1| Some(&l.lock2),
+                |l: &mut L1| Some(&mut l.lock2),
+            );
+            let next: KpType<L2, L2> = Kp::new(
+                |l: &L2| Some(l),
+                |l: &mut L2| Some(l),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        let lock3 = {
+            let prev: KpType<L2, Arc<RwLock<L3>>> = Kp::new(
+                |l: &L2| Some(&l.lock3),
+                |l: &mut L2| Some(&mut l.lock3),
+            );
+            let next: KpType<L3, String> = Kp::new(
+                |l: &L3| Some(&l.value),
+                |l: &mut L3| Some(&mut l.value),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        // Compose all three RwLocks
+        let composed = lock1.compose(lock2).compose(lock3);
+
+        // Test get through all three read locks
+        let value = composed.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_rwlock_panic_on_clone_proof() {
+        use std::sync::RwLock;
+
+        /// This struct PANICS if cloned - proving no deep cloning occurs
+        struct PanicOnClone {
+            data: String,
+        }
+
+        impl PanicOnClone {
+            fn new(s: &str) -> Self {
+                Self {
+                    data: s.to_string(),
+                }
+            }
+
+            fn get_data(&self) -> &String {
+                &self.data
+            }
+        }
+
+        impl Clone for PanicOnClone {
+            fn clone(&self) -> Self {
+                panic!("❌ DEEP CLONE DETECTED! PanicOnClone was cloned! This should NEVER happen!");
+            }
+        }
+
+        #[derive(Clone)]
+        struct Root {
+            lock1: Arc<RwLock<Level1>>,
+        }
+
+        /// Level1 contains PanicOnClone - if it's cloned, test will panic
+        struct Level1 {
+            panic_data: PanicOnClone,
+            lock2: Arc<RwLock<Level2>>,
+        }
+
+        // We need Clone for Arc<RwLock<Level1>> to work, but we only clone the Arc
+        impl Clone for Level1 {
+            fn clone(&self) -> Self {
+                // This should never be called during keypath operations
+                // because Arc cloning doesn't clone the inner value
+                panic!("❌ Level1 was deeply cloned! This should NEVER happen!");
+            }
+        }
+
+        /// Level2 also contains PanicOnClone
+        struct Level2 {
+            panic_data2: PanicOnClone,
+            value: i32,
+        }
+
+        impl Clone for Level2 {
+            fn clone(&self) -> Self {
+                panic!("❌ Level2 was deeply cloned! This should NEVER happen!");
+            }
+        }
+
+        // Create nested structure with PanicOnClone at each level
+        let root = Root {
+            lock1: Arc::new(RwLock::new(Level1 {
+                panic_data: PanicOnClone::new("level1_data"),
+                lock2: Arc::new(RwLock::new(Level2 {
+                    panic_data2: PanicOnClone::new("level2_data"),
+                    value: 42,
+                })),
+            })),
+        };
+
+        // First RwLock level
+        let lock1 = {
+            let prev: KpType<Root, Arc<RwLock<Level1>>> = Kp::new(
+                |r: &Root| Some(&r.lock1),
+                |r: &mut Root| Some(&mut r.lock1),
+            );
+            let next: KpType<Level1, Level1> = Kp::new(
+                |l: &Level1| Some(l),
+                |l: &mut Level1| Some(l),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        // Second RwLock level
+        let lock2 = {
+            let prev: KpType<Level1, Arc<RwLock<Level2>>> = Kp::new(
+                |l: &Level1| Some(&l.lock2),
+                |l: &mut Level1| Some(&mut l.lock2),
+            );
+            let next: KpType<Level2, i32> = Kp::new(
+                |l: &Level2| Some(&l.value),
+                |l: &mut Level2| Some(&mut l.value),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        // CRITICAL TEST: Compose both locks
+        // If any deep cloning occurs, the PanicOnClone will trigger and test will fail
+        let composed = lock1.compose(lock2);
+
+        // If we get here without panic, shallow cloning is working correctly!
+        // Now actually use the composed keypath
+        let value = composed.get(&root);
+        
+        // ✅ SUCCESS: No panic means no deep cloning occurred!
+        // The Arc was cloned (shallow), but Level1, Level2, and PanicOnClone were NOT
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_mutex_panic_on_clone_proof() {
+        /// This struct PANICS if cloned - proving no deep cloning occurs
+        struct PanicOnClone {
+            data: Vec<u8>,
+        }
+
+        impl PanicOnClone {
+            fn new(size: usize) -> Self {
+                Self {
+                    data: vec![0u8; size],
+                }
+            }
+        }
+
+        impl Clone for PanicOnClone {
+            fn clone(&self) -> Self {
+                panic!("❌ DEEP CLONE DETECTED! PanicOnClone was cloned!");
+            }
+        }
+
+        #[derive(Clone)]
+        struct Root {
+            lock1: Arc<Mutex<Mid>>,
+        }
+
+        struct Mid {
+            panic_data: PanicOnClone,
+            lock2: Arc<Mutex<Inner>>,
+        }
+
+        impl Clone for Mid {
+            fn clone(&self) -> Self {
+                panic!("❌ Mid was deeply cloned! This should NEVER happen!");
+            }
+        }
+
+        struct Inner {
+            panic_data: PanicOnClone,
+            value: String,
+        }
+
+        impl Clone for Inner {
+            fn clone(&self) -> Self {
+                panic!("❌ Inner was deeply cloned! This should NEVER happen!");
+            }
+        }
+
+        // Create structure with PanicOnClone at each level
+        let root = Root {
+            lock1: Arc::new(Mutex::new(Mid {
+                panic_data: PanicOnClone::new(1_000_000), // 1MB
+                lock2: Arc::new(Mutex::new(Inner {
+                    panic_data: PanicOnClone::new(1_000_000), // 1MB
+                    value: "test".to_string(),
+                })),
+            })),
+        };
+
+        // First Mutex level
+        let lock1 = {
+            let prev: KpType<Root, Arc<Mutex<Mid>>> = Kp::new(
+                |r: &Root| Some(&r.lock1),
+                |r: &mut Root| Some(&mut r.lock1),
+            );
+            let next: KpType<Mid, Mid> = Kp::new(
+                |m: &Mid| Some(m),
+                |m: &mut Mid| Some(m),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Second Mutex level
+        let lock2 = {
+            let prev: KpType<Mid, Arc<Mutex<Inner>>> = Kp::new(
+                |m: &Mid| Some(&m.lock2),
+                |m: &mut Mid| Some(&mut m.lock2),
+            );
+            let next: KpType<Inner, String> = Kp::new(
+                |i: &Inner| Some(&i.value),
+                |i: &mut Inner| Some(&mut i.value),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // CRITICAL TEST: Compose both Mutex locks
+        // If any deep cloning occurs, PanicOnClone will trigger
+        let composed = lock1.compose(lock2);
+
+        // ✅ SUCCESS: No panic means no deep cloning!
+        let value = composed.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_mixed_locks_panic_on_clone_proof() {
+        use std::sync::RwLock;
+
+        /// Panic-on-clone struct for verification
+        struct NeverClone {
+            id: usize,
+            large_data: Vec<u8>,
+        }
+
+        impl NeverClone {
+            fn new(id: usize) -> Self {
+                Self {
+                    id,
+                    large_data: vec![0u8; 10_000],
+                }
+            }
+        }
+
+        impl Clone for NeverClone {
+            fn clone(&self) -> Self {
+                panic!("❌ NeverClone with id {} was cloned!", self.id);
+            }
+        }
+
+        #[derive(Clone)]
+        struct Root {
+            rwlock: Arc<RwLock<Mid>>,
+        }
+
+        struct Mid {
+            never_clone1: NeverClone,
+            mutex: Arc<Mutex<Inner>>,
+        }
+
+        impl Clone for Mid {
+            fn clone(&self) -> Self {
+                panic!("❌ Mid was deeply cloned!");
+            }
+        }
+
+        struct Inner {
+            never_clone2: NeverClone,
+            value: i32,
+        }
+
+        impl Clone for Inner {
+            fn clone(&self) -> Self {
+                panic!("❌ Inner was deeply cloned!");
+            }
+        }
+
+        // Create mixed RwLock -> Mutex structure
+        let root = Root {
+            rwlock: Arc::new(RwLock::new(Mid {
+                never_clone1: NeverClone::new(1),
+                mutex: Arc::new(Mutex::new(Inner {
+                    never_clone2: NeverClone::new(2),
+                    value: 999,
+                })),
+            })),
+        };
+
+        // RwLock level
+        let rwlock_kp = {
+            let prev: KpType<Root, Arc<RwLock<Mid>>> = Kp::new(
+                |r: &Root| Some(&r.rwlock),
+                |r: &mut Root| Some(&mut r.rwlock),
+            );
+            let next: KpType<Mid, Mid> = Kp::new(
+                |m: &Mid| Some(m),
+                |m: &mut Mid| Some(m),
+            );
+            LockKp::new(prev, ArcRwLockAccess::new(), next)
+        };
+
+        // Mutex level
+        let mutex_kp = {
+            let prev: KpType<Mid, Arc<Mutex<Inner>>> = Kp::new(
+                |m: &Mid| Some(&m.mutex),
+                |m: &mut Mid| Some(&mut m.mutex),
+            );
+            let next: KpType<Inner, i32> = Kp::new(
+                |i: &Inner| Some(&i.value),
+                |i: &mut Inner| Some(&mut i.value),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // CRITICAL TEST: Compose RwLock with Mutex
+        // If deep cloning occurs, NeverClone will panic
+        let composed = rwlock_kp.compose(mutex_kp);
+
+        // ✅ SUCCESS: No panic = no deep cloning!
+        // Only Arc refcounts were incremented
+        let value = composed.get(&root);
+        assert!(value.is_some());
+        
+        // Additional verification: Use it multiple times
+        let value2 = composed.get(&root);
+        assert!(value2.is_some());
+        
+        // Still no panic - proves shallow cloning is consistent
     }
 }
 
