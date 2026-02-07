@@ -542,24 +542,7 @@ mod tests {
             )
         }
 
-        fn identity_typed<Root, MutRoot>() -> Kp<
-            TestKP2,
-            TestKP2,
-            Root,
-            Root,
-            MutRoot,
-            MutRoot,
-            impl Fn(Root) -> Option<Root>,
-            impl Fn(MutRoot) -> Option<MutRoot>,
-        >
-        where
-            Root: std::borrow::Borrow<TestKP2>,
-            MutRoot: std::borrow::BorrowMut<TestKP2>,
-        {
-            KpType::identity_typed()
-        }
-
-
+        
         // Example for taking ref
 
         fn c<'a>() -> KpType<'a, TestKP, String> {
