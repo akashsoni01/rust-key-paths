@@ -588,8 +588,8 @@ where
     G: Fn(Root) -> Option<Value>,
     S: Fn(MutRoot) -> Option<MutValue>,
 {
-    get: G,
-    set: S,
+    pub get: G,
+    pub set: S,
     _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
 }
 
@@ -610,10 +610,10 @@ where
         }
     }
 
-    fn get(&self, root: Root) -> Option<Value> {
+    pub fn get(&self, root: Root) -> Option<Value> {
         (self.get)(root)
     }
-    fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
+    pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
         (self.set)(root)
     }
 

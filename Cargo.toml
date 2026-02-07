@@ -19,6 +19,7 @@ tokio = { version = "1.38.0", features = ["sync", "rt"], optional = true }
 [workspace]
 resolver = "3" # or "3"
 members = [
+    "key-paths-derive",
 ]
 
 
