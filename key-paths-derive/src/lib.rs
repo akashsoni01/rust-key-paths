@@ -279,6 +279,38 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             Fields::Named(fields_named) => {
                 let mut tokens = proc_macro2::TokenStream::new();
                 
+                // Generate identity methods for the struct
+                tokens.extend(quote! {
+                    /// Returns a generic identity keypath for this type
+                    pub fn identity_typed<Root, MutRoot>() -> rust_key_paths::Kp<
+                        #name,
+                        #name,
+                        Root,
+                        Root,
+                        MutRoot,
+                        MutRoot,
+                        fn(Root) -> Option<Root>,
+                        fn(MutRoot) -> Option<MutRoot>,
+                    >
+                    where
+                        Root: std::borrow::Borrow<#name>,
+                        MutRoot: std::borrow::BorrowMut<#name>,
+                    {
+                        rust_key_paths::Kp::new(
+                            |r: Root| Some(r),
+                            |r: MutRoot| Some(r)
+                        )
+                    }
+
+                    /// Returns a simple identity keypath for this type
+                    pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
+                        rust_key_paths::Kp::new(
+                            |r: &#name| Some(r),
+                            |r: &mut #name| Some(r)
+                        )
+                    }
+                });
+                
                 for field in fields_named.named.iter() {
                     let field_ident = field.ident.as_ref().unwrap();
                     let ty = &field.ty;
@@ -308,7 +340,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
                             // For HashMap<K,V>, return keypath to container
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_key_paths::KpType<'static, #name, #ty> {
@@ -341,13 +373,32 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
-                            // For Rc<T>/Arc<T>, deref to inner type (read-only for mutable)
+                        (WrapperKind::Rc, Some(inner_ty)) => {
+                            // For Rc<T>, deref to inner type
+                            // Rc provides shared ownership but only allows immutable access
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&*root.#field_ident),
-                                        |_root: &mut #name| None, // Arc/Rc are not mutable
+                                        |root: &mut #name| {
+                                            // Try to get mutable access if there's only one strong reference
+                                            std::rc::Rc::get_mut(&mut root.#field_ident)
+                                        },
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::Arc, Some(inner_ty)) => {
+                            // For Arc<T>, deref to inner type
+                            // Arc provides shared ownership but only allows immutable access
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&*root.#field_ident),
+                                        |root: &mut #name| {
+                                            // Try to get mutable access if there's only one strong reference
+                                            std::sync::Arc::get_mut(&mut root.#field_ident)
+                                        },
                                     )
                                 }
                             });
@@ -420,7 +471,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Mutex, Some(_inner_ty)) | 
                         (WrapperKind::StdMutex, Some(_inner_ty)) => {
-                            // For Mutex<T>, return keypath to container (can't access inner due to locks)
+                            // For Mutex<T>, return keypath to container
+                            // Users can compose this with LockKp for lock access
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -482,6 +534,38 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             }
             Fields::Unnamed(unnamed) => {
                 let mut tokens = proc_macro2::TokenStream::new();
+                
+                // Generate identity methods for the tuple struct
+                tokens.extend(quote! {
+                    /// Returns a generic identity keypath for this type
+                    pub fn identity_typed<Root, MutRoot>() -> rust_key_paths::Kp<
+                        #name,
+                        #name,
+                        Root,
+                        Root,
+                        MutRoot,
+                        MutRoot,
+                        fn(Root) -> Option<Root>,
+                        fn(MutRoot) -> Option<MutRoot>,
+                    >
+                    where
+                        Root: std::borrow::Borrow<#name>,
+                        MutRoot: std::borrow::BorrowMut<#name>,
+                    {
+                        rust_key_paths::Kp::new(
+                            |r: Root| Some(r),
+                            |r: MutRoot| Some(r)
+                        )
+                    }
+
+                    /// Returns a simple identity keypath for this type
+                    pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
+                        rust_key_paths::Kp::new(
+                            |r: &#name| Some(r),
+                            |r: &mut #name| Some(r)
+                        )
+                    }
+                });
                 
                 for (idx, field) in unnamed.unnamed.iter().enumerate() {
                     let idx_lit = syn::Index::from(idx);
@@ -679,6 +763,38 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
         },
         Data::Enum(data_enum) => {
             let mut tokens = proc_macro2::TokenStream::new();
+            
+            // Generate identity methods for the enum
+            tokens.extend(quote! {
+                /// Returns a generic identity keypath for this type
+                pub fn identity_typed<Root, MutRoot>() -> rust_key_paths::Kp<
+                    #name,
+                    #name,
+                    Root,
+                    Root,
+                    MutRoot,
+                    MutRoot,
+                    fn(Root) -> Option<Root>,
+                    fn(MutRoot) -> Option<MutRoot>,
+                >
+                where
+                    Root: std::borrow::Borrow<#name>,
+                    MutRoot: std::borrow::BorrowMut<#name>,
+                {
+                    rust_key_paths::Kp::new(
+                        |r: Root| Some(r),
+                        |r: MutRoot| Some(r)
+                    )
+                }
+
+                /// Returns a simple identity keypath for this type
+                pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
+                    rust_key_paths::Kp::new(
+                        |r: &#name| Some(r),
+                        |r: &mut #name| Some(r)
+                    )
+                }
+            });
             
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;

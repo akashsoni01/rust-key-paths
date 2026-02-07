@@ -170,7 +170,7 @@ fn test_box_type() {
     };
     
     // Test Box - should deref to inner value
-    let box_kp = AllWrapperTypes::boxed_value();
+    let box_kp: rust_key_paths::Kp<AllWrapperTypes, Box<i32>, &AllWrapperTypes, &Box<i32>, &mut AllWrapperTypes, &mut Box<i32>, fn(&AllWrapperTypes) -> Option<&Box<i32>>, fn(&mut AllWrapperTypes) -> Option<&mut Box<i32>>> = AllWrapperTypes::boxed_value();
     assert_eq!(box_kp.get(&data), Some(&42));
 }
 
