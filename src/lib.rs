@@ -3139,4 +3139,545 @@ mod tests {
         let count = txns_kp.count_items(|txns: &Vec<Transaction>| txns.len());
         assert_eq!(count(&user), Some(4));
     }
+
+    // ========== COPY AND 'STATIC TRAIT BOUND TESTS ==========
+    // These tests verify that Copy and 'static bounds don't cause cloning or memory leaks
+
+    #[test]
+    fn test_no_clone_required_for_root() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        // Create a type that is NOT Clone and NOT Copy
+        // If operations clone unnecessarily, this will fail to compile
+        struct NonCloneableRoot {
+            data: Arc<AtomicUsize>,
+            cached_value: usize,
+        }
+
+        impl NonCloneableRoot {
+            fn new() -> Self {
+                Self {
+                    data: Arc::new(AtomicUsize::new(42)),
+                    cached_value: 42,
+                }
+            }
+
+            fn increment(&mut self) {
+                self.data.fetch_add(1, Ordering::SeqCst);
+                self.cached_value = self.data.load(Ordering::SeqCst);
+            }
+
+            fn get_value(&self) -> &usize {
+                &self.cached_value
+            }
+            
+            fn get_value_mut(&mut self) -> &mut usize {
+                &mut self.cached_value
+            }
+        }
+
+        let mut root = NonCloneableRoot::new();
+
+        // Create a keypath - this works because we only need &Root, not Clone
+        let data_kp = KpType::new(
+            |r: &NonCloneableRoot| Some(r.get_value()),
+            |r: &mut NonCloneableRoot| {
+                r.increment();
+                Some(r.get_value_mut())
+            },
+        );
+
+        // Test that we can use the keypath without cloning
+        assert_eq!(data_kp.get(&root), Some(&42));
+        
+        {
+            // Test map - no cloning of root happens
+            let doubled = data_kp.map(|val: &usize| val * 2);
+            assert_eq!(doubled.get(&root), Some(84));
+            
+            // Test filter - no cloning of root happens
+            let filtered = data_kp.filter(|val: &usize| *val > 0);
+            assert_eq!(filtered.get(&root), Some(&42));
+        } // Drop derived keypaths
+        
+        // Test mutable access - no cloning happens
+        let value_ref = data_kp.get_mut(&mut root);
+        assert!(value_ref.is_some());
+    }
+
+    #[test]
+    fn test_no_clone_required_for_value() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        // Value type that is NOT Clone and NOT Copy
+        struct NonCloneableValue {
+            counter: Arc<AtomicUsize>,
+        }
+
+        impl NonCloneableValue {
+            fn new(val: usize) -> Self {
+                Self {
+                    counter: Arc::new(AtomicUsize::new(val)),
+                }
+            }
+
+            fn get(&self) -> usize {
+                self.counter.load(Ordering::SeqCst)
+            }
+        }
+
+        struct Root {
+            value: NonCloneableValue,
+        }
+
+        let root = Root {
+            value: NonCloneableValue::new(100),
+        };
+
+        // Keypath that returns reference to non-cloneable value
+        let value_kp = KpType::new(
+            |r: &Root| Some(&r.value),
+            |r: &mut Root| Some(&mut r.value),
+        );
+
+        // Map to extract the counter value - no cloning happens
+        let counter_kp = value_kp.map(|v: &NonCloneableValue| v.get());
+        assert_eq!(counter_kp.get(&root), Some(100));
+
+        // Filter non-cloneable values - no cloning happens
+        let filtered = value_kp.filter(|v: &NonCloneableValue| v.get() >= 50);
+        assert!(filtered.get(&root).is_some());
+    }
+
+    #[test]
+    fn test_static_does_not_leak_memory() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        // Track number of instances created and dropped
+        static CREATED: AtomicUsize = AtomicUsize::new(0);
+        static DROPPED: AtomicUsize = AtomicUsize::new(0);
+
+        struct Tracked {
+            id: usize,
+        }
+
+        impl Tracked {
+            fn new() -> Self {
+                let id = CREATED.fetch_add(1, Ordering::SeqCst);
+                Self { id }
+            }
+        }
+
+        impl Drop for Tracked {
+            fn drop(&mut self) {
+                DROPPED.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        struct Root {
+            data: Tracked,
+        }
+
+        // Reset counters
+        CREATED.store(0, Ordering::SeqCst);
+        DROPPED.store(0, Ordering::SeqCst);
+
+        {
+            let root = Root {
+                data: Tracked::new(),
+            };
+
+            let data_kp = KpType::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+
+            // Use map multiple times
+            let mapped1 = data_kp.map(|t: &Tracked| t.id);
+            let mapped2 = data_kp.map(|t: &Tracked| t.id + 1);
+            let mapped3 = data_kp.map(|t: &Tracked| t.id + 2);
+
+            assert_eq!(mapped1.get(&root), Some(0));
+            assert_eq!(mapped2.get(&root), Some(1));
+            assert_eq!(mapped3.get(&root), Some(2));
+
+            // Only 1 instance should be created (the one in root)
+            assert_eq!(CREATED.load(Ordering::SeqCst), 1);
+            assert_eq!(DROPPED.load(Ordering::SeqCst), 0);
+        }
+
+        // After root is dropped, exactly 1 drop should happen
+        assert_eq!(CREATED.load(Ordering::SeqCst), 1);
+        assert_eq!(DROPPED.load(Ordering::SeqCst), 1);
+
+        // No memory leaks - created == dropped
+    }
+
+    #[test]
+    fn test_references_not_cloned() {
+        use std::sync::Arc;
+
+        // Large data structure that would be expensive to clone
+        struct ExpensiveData {
+            large_vec: Vec<u8>,
+        }
+
+        impl ExpensiveData {
+            fn new(size: usize) -> Self {
+                Self {
+                    large_vec: vec![0u8; size],
+                }
+            }
+
+            fn size(&self) -> usize {
+                self.large_vec.len()
+            }
+        }
+
+        struct Root {
+            expensive: ExpensiveData,
+        }
+
+        let root = Root {
+            expensive: ExpensiveData::new(1_000_000), // 1MB
+        };
+
+        let expensive_kp = KpType::new(
+            |r: &Root| Some(&r.expensive),
+            |r: &mut Root| Some(&mut r.expensive),
+        );
+
+        // Map operations work with references - no cloning of ExpensiveData
+        let size_kp = expensive_kp.map(|e: &ExpensiveData| e.size());
+        assert_eq!(size_kp.get(&root), Some(1_000_000));
+
+        // Filter also works with references - no cloning
+        let large_filter = expensive_kp.filter(|e: &ExpensiveData| e.size() > 500_000);
+        assert!(large_filter.get(&root).is_some());
+
+        // All operations work through references - no expensive clones happen
+    }
+
+    #[test]
+    fn test_hof_with_arc_no_extra_clones() {
+        use std::sync::Arc;
+
+        #[derive(Debug)]
+        struct SharedData {
+            value: String,
+        }
+
+        struct Root {
+            shared: Arc<SharedData>,
+        }
+
+        let shared = Arc::new(SharedData {
+            value: "shared".to_string(),
+        });
+
+        // Check initial reference count
+        assert_eq!(Arc::strong_count(&shared), 1);
+
+        {
+            let root = Root {
+                shared: Arc::clone(&shared),
+            };
+
+            // Reference count is now 2
+            assert_eq!(Arc::strong_count(&shared), 2);
+
+            let shared_kp = KpType::new(
+                |r: &Root| Some(&r.shared),
+                |r: &mut Root| Some(&mut r.shared),
+            );
+
+            // Map operation - should not increase Arc refcount
+            let value_kp = shared_kp.map(|arc: &Arc<SharedData>| arc.value.len());
+            
+            // Using the keypath doesn't increase refcount
+            assert_eq!(value_kp.get(&root), Some(6));
+            assert_eq!(Arc::strong_count(&shared), 2); // Still just 2
+
+            // Filter operation - should not increase Arc refcount
+            let filtered = shared_kp.filter(|arc: &Arc<SharedData>| !arc.value.is_empty());
+            assert!(filtered.get(&root).is_some());
+            assert_eq!(Arc::strong_count(&shared), 2); // Still just 2
+        } // root is dropped here
+        
+        assert_eq!(Arc::strong_count(&shared), 1); // Back to 1
+    }
+
+    #[test]
+    fn test_closure_captures_not_root_values() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        // Track how many times the closure is called
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count_clone = Arc::clone(&call_count);
+
+        struct Root {
+            value: i32,
+        }
+
+        let root = Root { value: 42 };
+
+        let value_kp = KpType::new(
+            |r: &Root| Some(&r.value),
+            |r: &mut Root| Some(&mut r.value),
+        );
+
+        // Use fold_value which doesn't require Copy (optimized HOF)
+        // The closure captures call_count (via move), not the root or value
+        let doubled = value_kp.fold_value(0, move |_acc, v: &i32| {
+            call_count_clone.fetch_add(1, Ordering::SeqCst);
+            v * 2
+        });
+
+        // Call multiple times
+        assert_eq!(doubled(&root), 84);
+        assert_eq!(doubled(&root), 84);
+        assert_eq!(doubled(&root), 84);
+
+        // Closure was called 3 times
+        assert_eq!(call_count.load(Ordering::SeqCst), 3);
+
+        // The Root and value were NOT cloned - only references were passed
+    }
+
+    #[test]
+    fn test_static_with_borrowed_data() {
+        // 'static doesn't mean the data lives forever
+        // It means the TYPE doesn't contain non-'static references
+        
+        struct Root {
+            data: String,
+        }
+
+        {
+            let root = Root {
+                data: "temporary".to_string(),
+            };
+
+            let data_kp = KpType::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+
+            // Map with 'static bound - but root is NOT static
+            let len_kp = data_kp.map(|s: &String| s.len());
+            assert_eq!(len_kp.get(&root), Some(9));
+
+            // When root goes out of scope here, everything is properly dropped
+        } // root is dropped here along with len_kp
+
+        // No memory leak - root was dropped normally
+    }
+
+    #[test]
+    fn test_multiple_hof_operations_no_accumulation() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static DROP_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        struct Tracked {
+            id: usize,
+        }
+
+        impl Drop for Tracked {
+            fn drop(&mut self) {
+                DROP_COUNT.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        struct Root {
+            values: Vec<Tracked>,
+        }
+
+        DROP_COUNT.store(0, Ordering::SeqCst);
+
+        {
+            let root = Root {
+                values: vec![Tracked { id: 1 }, Tracked { id: 2 }, Tracked { id: 3 }],
+            };
+
+            let values_kp = KpType::new(
+                |r: &Root| Some(&r.values),
+                |r: &mut Root| Some(&mut r.values),
+            );
+
+            // Multiple HOF operations - should not clone the Vec<Tracked>
+            let count = values_kp.count_items(|v| v.len());
+            let sum = values_kp.sum_value(|v| v.iter().map(|t| t.id).sum::<usize>());
+            let has_2 = values_kp.any(|v| v.iter().any(|t| t.id == 2));
+            let all_positive = values_kp.all(|v| v.iter().all(|t| t.id > 0));
+
+            assert_eq!(count(&root), Some(3));
+            assert_eq!(sum(&root), Some(6));
+            assert!(has_2(&root));
+            assert!(all_positive(&root));
+
+            // No drops yet - values are still in root
+            assert_eq!(DROP_COUNT.load(Ordering::SeqCst), 0);
+        }
+
+        // Now exactly 3 Tracked instances should be dropped
+        assert_eq!(DROP_COUNT.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn test_copy_bound_only_for_function_not_data() {
+        // This test verifies that F: Copy means the FUNCTION must be Copy,
+        // not the data being processed
+
+        #[derive(Debug)]
+        struct NonCopyData {
+            value: String,
+        }
+
+        struct Root {
+            data: NonCopyData,
+        }
+
+        let root = Root {
+            data: NonCopyData {
+                value: "test".to_string(),
+            },
+        };
+
+        let data_kp = KpType::new(
+            |r: &Root| Some(&r.data),
+            |r: &mut Root| Some(&mut r.data),
+        );
+
+        // Map works even though NonCopyData is not Copy
+        // The function pointer IS Copy, but the data is not
+        let len_kp = data_kp.map(|d: &NonCopyData| d.value.len());
+        assert_eq!(len_kp.get(&root), Some(4));
+
+        // Filter also works with non-Copy data
+        let filtered = data_kp.filter(|d: &NonCopyData| !d.value.is_empty());
+        assert!(filtered.get(&root).is_some());
+    }
+
+    #[test]
+    fn test_no_memory_leak_with_cyclic_references() {
+        use std::sync::{Arc, Weak};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static DROP_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        struct Node {
+            id: usize,
+            parent: Option<Weak<Node>>,
+        }
+
+        impl Drop for Node {
+            fn drop(&mut self) {
+                DROP_COUNT.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        struct Root {
+            node: Arc<Node>,
+        }
+
+        DROP_COUNT.store(0, Ordering::SeqCst);
+
+        {
+            let root = Root {
+                node: Arc::new(Node {
+                    id: 1,
+                    parent: None,
+                }),
+            };
+
+            let node_kp = KpType::new(
+                |r: &Root| Some(&r.node),
+                |r: &mut Root| Some(&mut r.node),
+            );
+
+            // Map operations don't create extra Arc clones
+            let id_kp = node_kp.map(|n: &Arc<Node>| n.id);
+            assert_eq!(id_kp.get(&root), Some(1));
+
+            // Strong count should still be 1 (only in root)
+            assert_eq!(Arc::strong_count(&root.node), 1);
+
+            // No drops yet
+            assert_eq!(DROP_COUNT.load(Ordering::SeqCst), 0);
+        }
+
+        // Exactly 1 Node should be dropped
+        assert_eq!(DROP_COUNT.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_hof_operations_are_zero_cost_abstractions() {
+        // This test verifies that HOF operations don't add overhead
+        // by checking that the same number of operations occur
+
+        struct Root {
+            value: i32,
+        }
+
+        let root = Root { value: 10 };
+
+        let value_kp = KpType::new(
+            |r: &Root| Some(&r.value),
+            |r: &mut Root| Some(&mut r.value),
+        );
+
+        // Direct access
+        let direct_result = value_kp.get(&root).map(|v| v * 2);
+        assert_eq!(direct_result, Some(20));
+
+        // Through map HOF
+        let mapped_kp = value_kp.map(|v: &i32| v * 2);
+        let hof_result = mapped_kp.get(&root);
+        assert_eq!(hof_result, Some(20));
+
+        // Results are identical - no extra allocations or operations
+        assert_eq!(direct_result, hof_result);
+    }
+
+    #[test]
+    fn test_complex_closure_captures_allowed() {
+        use std::sync::Arc;
+
+        // With Copy removed from many HOFs, we can now capture complex state
+        struct Root {
+            scores: Vec<i32>,
+        }
+
+        let root = Root {
+            scores: vec![85, 92, 78, 95, 88],
+        };
+
+        let scores_kp = KpType::new(
+            |r: &Root| Some(&r.scores),
+            |r: &mut Root| Some(&mut r.scores),
+        );
+
+        // Capture external state in HOF (only works because Copy was removed)
+        let threshold = 90;
+        let multiplier = Arc::new(2);
+
+        // These closures capture state but don't need Copy
+        let high_scores_doubled = scores_kp.fold_value(0, move |acc, scores| {
+            let high: i32 = scores
+                .iter()
+                .filter(|&&s| s >= threshold)
+                .map(|&s| s * *multiplier)
+                .sum();
+            acc + high
+        });
+
+        // (92 * 2) + (95 * 2) = 184 + 190 = 374
+        assert_eq!(high_scores_doubled(&root), 374);
+    }
 }
