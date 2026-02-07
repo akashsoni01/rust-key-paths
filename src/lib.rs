@@ -471,18 +471,18 @@ where
     G: Fn(Root) -> Option<Root>,
     S: Fn(MutRoot) -> Option<MutRoot>,
 {
-    // pub fn identity() -> Kp<
-    //     R,
-    //     R,
-    //     Root,
-    //     Root,
-    //     MutRoot,
-    //     MutRoot,
-    //     fn(Root) -> Option<Root>,
-    //     fn(MutRoot) -> Option<MutRoot>,
-    // > {
-    //     Kp::new(|r: Root| Some(r), |r: MutRoot| Some(r))
-    // }
+    pub fn identity_typed() -> Kp<
+        R,
+        R,
+        Root,
+        Root,
+        MutRoot,
+        MutRoot,
+        fn(Root) -> Option<Root>,
+        fn(MutRoot) -> Option<MutRoot>,
+    > {
+        Kp::new(|r: Root| Some(r), |r: MutRoot| Some(r))
+    }
 
     pub fn identity<'a>() -> KpType<'a, R, R> {
         KpType::new(|r| Some(r), |r| Some(r))
