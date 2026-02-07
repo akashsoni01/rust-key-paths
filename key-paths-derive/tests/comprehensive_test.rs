@@ -108,7 +108,6 @@ fn test_vecdeque_access() {
         items: vec![],
         queue,
     };
-
     // queue() returns container; queue_at() returns front element
     let front_kp = Collections::queue_at();
     assert_eq!(front_kp.get(&collections), Some(&1.1));

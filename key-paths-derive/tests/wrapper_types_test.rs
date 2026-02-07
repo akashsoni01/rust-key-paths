@@ -71,6 +71,39 @@ fn test_basic_type() {
 }
 
 #[test]
+fn test_all_wrapper_types_identity() {
+    let data = AllWrapperTypes {
+        basic: "hello".to_string(),
+        opt_string: Some("world".to_string()),
+        vec_numbers: vec![1, 2, 3],
+        boxed_value: Box::new(42),
+        arc_value: Arc::new("arc".to_string()),
+        rc_value: Rc::new("rc".to_string()),
+        hash_map: HashMap::new(),
+        btree_map: BTreeMap::new(),
+        hash_set: HashSet::new(),
+        btree_set: BTreeSet::new(),
+        vec_deque: VecDeque::new(),
+        linked_list: LinkedList::new(),
+        binary_heap: BinaryHeap::new(),
+        result_value: Ok("success".to_string()),
+        mutex_value: StdMutex::new(100),
+        rwlock_value: StdRwLock::new("locked".to_string()),
+    };
+
+    // Identity keypath returns the struct itself
+    let identity_kp = AllWrapperTypes::identity();
+    let result = identity_kp.get(&data);
+    assert!(result.is_some());
+    assert!(std::ptr::eq(result.unwrap(), &data));
+
+    // identity_typed works as well
+    let identity_typed_kp = AllWrapperTypes::identity_typed::<&AllWrapperTypes, &mut AllWrapperTypes>();
+    let result_typed = identity_typed_kp.get(&data);
+    assert!(result_typed.is_some());
+}
+
+#[test]
 fn test_option_type() {
     let data = AllWrapperTypes {
         basic: "hello".to_string(),
