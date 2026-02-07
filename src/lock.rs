@@ -199,6 +199,102 @@ where
 
         LockKp::new(self.prev, self.mid, chained_kp)
     }
+
+    /// Compose this LockKp with another LockKp for multi-level lock chaining
+    /// 
+    /// This allows you to chain through multiple lock levels:
+    /// Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> Value
+    /// 
+    /// # Example
+    /// ```
+    /// // Root -> Arc<Mutex<Mid1>> -> Mid1 -> Arc<Mutex<Mid2>> -> Mid2 -> String
+    /// let lock_kp1 = LockKp::new(root_to_lock1, ArcMutexAccess::new(), lock1_to_mid1);
+    /// let lock_kp2 = LockKp::new(mid1_to_lock2, ArcMutexAccess::new(), mid2_to_value);
+    /// 
+    /// let composed = lock_kp1.compose(lock_kp2);
+    /// ```
+    pub fn compose<Lock2, Mid2, V2, LockValue2, MidValue2, Value2, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>(
+        self,
+        other: LockKp<V, Lock2, Mid2, V2, Value, LockValue2, MidValue2, Value2, MutValue, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>,
+    ) -> LockKp<
+        R,
+        Lock,
+        Mid,
+        V2,
+        Root,
+        LockValue,
+        MidValue,
+        Value2,
+        MutRoot,
+        MutLock,
+        MutMid,
+        MutValue2,
+        G1,
+        S1,
+        L,
+        impl Fn(MidValue) -> Option<Value2>,
+        impl Fn(MutMid) -> Option<MutValue2>,
+    >
+    where
+        V: 'static + Clone,
+        V2: 'static,
+        Lock2: Clone,
+        Value: std::borrow::Borrow<V>,
+        LockValue2: std::borrow::Borrow<Lock2>,
+        MidValue2: std::borrow::Borrow<Mid2>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutLock2: std::borrow::BorrowMut<Lock2>,
+        MutMid2: std::borrow::BorrowMut<Mid2>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        G2_1: Fn(Value) -> Option<LockValue2> + 'static,
+        S2_1: Fn(MutValue) -> Option<MutLock2> + 'static,
+        L2: LockAccess<Lock2, MidValue2> + LockAccess<Lock2, MutMid2> + Clone + 'static,
+        G2_2: Fn(MidValue2) -> Option<Value2> + 'static,
+        S2_2: Fn(MutMid2) -> Option<MutValue2> + 'static,
+    {
+        let next_get = self.next.get;
+        let next_set = self.next.set;
+        
+        let other_prev_get = other.prev.get;
+        let other_prev_set = other.prev.set;
+        let other_mid1 = other.mid.clone();
+        let other_mid2 = other.mid;
+        let other_next_get = other.next.get;
+        let other_next_set = other.next.set;
+
+        // Create a composed keypath: Mid -> Lock2 -> Mid2 -> Value2
+        let composed_kp = Kp::new(
+            move |mid_value: MidValue| {
+                // First, navigate from Mid to V using self.next
+                next_get(mid_value).and_then(|value1| {
+                    // Then navigate from V to Lock2 using other.prev
+                    other_prev_get(value1).and_then(|lock2_value| {
+                        let lock2: &Lock2 = lock2_value.borrow();
+                        // Lock and get Mid2 using other.mid
+                        other_mid1.lock_read(lock2).and_then(|mid2_value| {
+                            // Finally navigate from Mid2 to Value2 using other.next
+                            other_next_get(mid2_value)
+                        })
+                    })
+                })
+            },
+            move |mid_value: MutMid| {
+                // Same flow but for mutable access
+                next_set(mid_value).and_then(|value1| {
+                    other_prev_set(value1).and_then(|mut lock2_value| {
+                        let lock2: &mut Lock2 = lock2_value.borrow_mut();
+                        let mut lock2_clone = lock2.clone();
+                        other_mid2.lock_write(&mut lock2_clone).and_then(|mid2_value| {
+                            other_next_set(mid2_value)
+                        })
+                    })
+                })
+            },
+        );
+
+        LockKp::new(self.prev, self.mid, composed_kp)
+    }
 }
 
 // ============================================================================
@@ -417,4 +513,284 @@ mod tests {
         // Note: Full functional test may require more complex setup due to lifetimes
         let _result = chained;
     }
+
+    #[test]
+    fn test_lock_kp_compose_single_level() {
+        // Test composing two single-level LockKps
+        #[derive(Debug, Clone)]
+        struct Root {
+            data: Arc<Mutex<Mid1>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Mid1 {
+            nested: Arc<Mutex<Mid2>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Mid2 {
+            value: String,
+        }
+
+        let root = Root {
+            data: Arc::new(Mutex::new(Mid1 {
+                nested: Arc::new(Mutex::new(Mid2 {
+                    value: "nested-lock".to_string(),
+                })),
+            })),
+        };
+
+        // First LockKp: Root -> Arc<Mutex<Mid1>> -> Mid1
+        let lock_kp1 = {
+            let prev: KpType<Root, Arc<Mutex<Mid1>>> = Kp::new(
+                |r: &Root| Some(&r.data),
+                |r: &mut Root| Some(&mut r.data),
+            );
+            let next: KpType<Mid1, Mid1> = Kp::new(
+                |m: &Mid1| Some(m),
+                |m: &mut Mid1| Some(m),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Second LockKp: Mid1 -> Arc<Mutex<Mid2>> -> String
+        let lock_kp2 = {
+            let prev: KpType<Mid1, Arc<Mutex<Mid2>>> = Kp::new(
+                |m: &Mid1| Some(&m.nested),
+                |m: &mut Mid1| Some(&mut m.nested),
+            );
+            let next: KpType<Mid2, String> = Kp::new(
+                |m: &Mid2| Some(&m.value),
+                |m: &mut Mid2| Some(&mut m.value),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Compose them: Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> String
+        let composed = lock_kp1.compose(lock_kp2);
+
+        // Verify composition works
+        let value = composed.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_lock_kp_compose_two_levels() {
+        // Test composing at two lock levels
+        #[derive(Debug, Clone)]
+        struct Root {
+            level1: Arc<Mutex<Level1>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Level1 {
+            data: String,
+            level2: Arc<Mutex<Level2>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Level2 {
+            value: i32,
+        }
+
+        let root = Root {
+            level1: Arc::new(Mutex::new(Level1 {
+                data: "level1".to_string(),
+                level2: Arc::new(Mutex::new(Level2 { value: 42 })),
+            })),
+        };
+
+        // First lock level
+        let lock1 = {
+            let prev: KpType<Root, Arc<Mutex<Level1>>> = Kp::new(
+                |r: &Root| Some(&r.level1),
+                |r: &mut Root| Some(&mut r.level1),
+            );
+            let next: KpType<Level1, Level1> = Kp::new(
+                |l: &Level1| Some(l),
+                |l: &mut Level1| Some(l),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Second lock level
+        let lock2 = {
+            let prev: KpType<Level1, Arc<Mutex<Level2>>> = Kp::new(
+                |l: &Level1| Some(&l.level2),
+                |l: &mut Level1| Some(&mut l.level2),
+            );
+            let next: KpType<Level2, i32> = Kp::new(
+                |l: &Level2| Some(&l.value),
+                |l: &mut Level2| Some(&mut l.value),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Compose both locks
+        let composed = lock1.compose(lock2);
+
+        // Test get
+        let value = composed.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_lock_kp_compose_three_levels() {
+        // Test composing three lock levels
+        #[derive(Debug, Clone)]
+        struct Root {
+            lock1: Arc<Mutex<L1>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct L1 {
+            lock2: Arc<Mutex<L2>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct L2 {
+            lock3: Arc<Mutex<L3>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct L3 {
+            final_value: String,
+        }
+
+        let root = Root {
+            lock1: Arc::new(Mutex::new(L1 {
+                lock2: Arc::new(Mutex::new(L2 {
+                    lock3: Arc::new(Mutex::new(L3 {
+                        final_value: "deeply-nested".to_string(),
+                    })),
+                })),
+            })),
+        };
+
+        // Lock level 1: Root -> L1
+        let lock_kp1 = {
+            let prev: KpType<Root, Arc<Mutex<L1>>> = Kp::new(
+                |r: &Root| Some(&r.lock1),
+                |r: &mut Root| Some(&mut r.lock1),
+            );
+            let next: KpType<L1, L1> = Kp::new(
+                |l: &L1| Some(l),
+                |l: &mut L1| Some(l),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Lock level 2: L1 -> L2
+        let lock_kp2 = {
+            let prev: KpType<L1, Arc<Mutex<L2>>> = Kp::new(
+                |l: &L1| Some(&l.lock2),
+                |l: &mut L1| Some(&mut l.lock2),
+            );
+            let next: KpType<L2, L2> = Kp::new(
+                |l: &L2| Some(l),
+                |l: &mut L2| Some(l),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Lock level 3: L2 -> L3 -> String
+        let lock_kp3 = {
+            let prev: KpType<L2, Arc<Mutex<L3>>> = Kp::new(
+                |l: &L2| Some(&l.lock3),
+                |l: &mut L2| Some(&mut l.lock3),
+            );
+            let next: KpType<L3, String> = Kp::new(
+                |l: &L3| Some(&l.final_value),
+                |l: &mut L3| Some(&mut l.final_value),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Compose all three levels
+        let composed_1_2 = lock_kp1.compose(lock_kp2);
+        let composed_all = composed_1_2.compose(lock_kp3);
+
+        // Test get through all three lock levels
+        let value = composed_all.get(&root);
+        assert!(value.is_some());
+    }
+
+    #[test]
+    fn test_lock_kp_compose_with_then() {
+        // Test combining compose and then
+        #[derive(Debug, Clone)]
+        struct Root {
+            lock1: Arc<Mutex<Mid>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Mid {
+            lock2: Arc<Mutex<Inner>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Inner {
+            data: Data,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Data {
+            value: i32,
+        }
+
+        let root = Root {
+            lock1: Arc::new(Mutex::new(Mid {
+                lock2: Arc::new(Mutex::new(Inner {
+                    data: Data { value: 100 },
+                })),
+            })),
+        };
+
+        // First lock
+        let lock1 = {
+            let prev: KpType<Root, Arc<Mutex<Mid>>> = Kp::new(
+                |r: &Root| Some(&r.lock1),
+                |r: &mut Root| Some(&mut r.lock1),
+            );
+            let next: KpType<Mid, Mid> = Kp::new(
+                |m: &Mid| Some(m),
+                |m: &mut Mid| Some(m),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Second lock
+        let lock2 = {
+            let prev: KpType<Mid, Arc<Mutex<Inner>>> = Kp::new(
+                |m: &Mid| Some(&m.lock2),
+                |m: &mut Mid| Some(&mut m.lock2),
+            );
+            let next: KpType<Inner, Inner> = Kp::new(
+                |i: &Inner| Some(i),
+                |i: &mut Inner| Some(i),
+            );
+            LockKp::new(prev, ArcMutexAccess::new(), next)
+        };
+
+        // Regular keypath after locks
+        let to_data: KpType<Inner, Data> = Kp::new(
+            |i: &Inner| Some(&i.data),
+            |i: &mut Inner| Some(&mut i.data),
+        );
+
+        let to_value: KpType<Data, i32> = Kp::new(
+            |d: &Data| Some(&d.value),
+            |d: &mut Data| Some(&mut d.value),
+        );
+
+        // Compose locks, then chain with regular keypaths
+        let composed = lock1.compose(lock2);
+        let with_data = composed.then(to_data);
+        let with_value = with_data.then(to_value);
+
+        // Test get
+        let value = with_value.get(&root);
+        assert!(value.is_some());
+    }
 }
+

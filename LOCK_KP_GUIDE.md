@@ -2,7 +2,7 @@
 
 ## Overview
 
-`LockKp` is a specialized keypath type for handling locked/synchronized values like `Arc<Mutex<T>>`. It provides a safe, composable way to navigate through locked data structures.
+`LockKp` is a specialized keypath type for handling locked/synchronized values like `Arc<Mutex<T>>`. It provides a safe, composable way to navigate through locked data structures, including support for **multi-level lock chaining**.
 
 ## Structure
 
@@ -47,6 +47,8 @@ let access = ArcMutexAccess::<InnerType>::new();
 ```
 
 ## Usage Example
+
+### Single Lock Level
 
 ```rust
 use std::sync::{Arc, Mutex};
@@ -98,6 +100,80 @@ let chained = lock_kp.then(another_kp);
 ```
 
 This allows you to continue navigating after getting through the lock layer.
+
+## Multi-Level Lock Chaining with `compose()`
+
+**NEW**: The `compose()` method allows you to chain through **multiple lock levels**:
+
+```rust
+// Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> Value
+let composed = lock_kp1.compose(lock_kp2);
+```
+
+### Two-Level Example
+
+```rust
+#[derive(Clone)]
+struct Root {
+    level1: Arc<Mutex<Level1>>,
+}
+
+#[derive(Clone)]
+struct Level1 {
+    level2: Arc<Mutex<Level2>>,
+}
+
+#[derive(Clone)]
+struct Level2 {
+    value: String,
+}
+
+// First lock level: Root -> Level1
+let lock1 = LockKp::new(
+    Kp::new(|r: &Root| Some(&r.level1), |r: &mut Root| Some(&mut r.level1)),
+    ArcMutexAccess::new(),
+    Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l)),
+);
+
+// Second lock level: Level1 -> Level2 -> String
+let lock2 = LockKp::new(
+    Kp::new(|l: &Level1| Some(&l.level2), |l: &mut Level1| Some(&mut l.level2)),
+    ArcMutexAccess::new(),
+    Kp::new(|l: &Level2| Some(&l.value), |l: &mut Level2| Some(&mut l.value)),
+);
+
+// Compose both locks
+let composed = lock1.compose(lock2);
+
+// Now navigate through both lock levels in one operation
+let value = composed.get(&root);
+```
+
+### Three-Level Example
+
+You can compose multiple times for deeply nested locks:
+
+```rust
+// Root -> Lock1 -> L1 -> Lock2 -> L2 -> Lock3 -> L3 -> Value
+let composed_1_2 = lock_kp1.compose(lock_kp2);
+let composed_all = composed_1_2.compose(lock_kp3);
+
+// Navigate through all three lock levels
+let value = composed_all.get(&root);
+```
+
+### Combining `compose()` and `then()`
+
+You can mix lock composition with regular keypath chaining:
+
+```rust
+// Root -> Lock1 -> Lock2 -> Inner -> Data -> Value
+let composed = lock1.compose(lock2);       // Handle both locks
+let with_data = composed.then(to_data);    // Navigate to Data
+let with_value = with_data.then(to_value); // Navigate to Value
+
+let value = with_value.get(&root);
+```
 
 ## Type Alias for Common Usage
 
@@ -155,6 +231,19 @@ Chains this LockKp with another regular Kp:
 pub fn then<V2, ...>(self, next_kp: Kp<V, V2, ...>) -> LockKp<R, Lock, Mid, V2, ...>
 ```
 
+### `compose()` ⭐ NEW
+Composes this LockKp with another LockKp for multi-level lock chaining:
+```rust
+pub fn compose<Lock2, Mid2, V2, ...>(
+    self,
+    other: LockKp<V, Lock2, Mid2, V2, ...>
+) -> LockKp<R, Lock, Mid, V2, ...>
+```
+
+This is the key method for handling nested locks like:
+- `Root -> Arc<Mutex<A>> -> A -> Arc<Mutex<B>> -> B -> Value`
+- `Root -> Lock1 -> Lock2 -> Lock3 -> Value`
+
 ## Custom Lock Types
 
 You can create custom lock access implementations for other synchronization primitives:
@@ -180,8 +269,9 @@ impl<'a, T: 'static> LockAccess<MyLockType<T>, &'a T> for MyCustomLock<T> {
 
 1. **Type-Safe**: Maintains type safety throughout the chain
 2. **Composable**: Works seamlessly with regular `Kp` via `then()`
-3. **Flexible**: Trait-based `mid` allows custom lock implementations
-4. **Ergonomic**: Handles the complexity of locking internally
+3. **Multi-Level**: Handles deeply nested locks via `compose()`
+4. **Flexible**: Trait-based `mid` allows custom lock implementations
+5. **Ergonomic**: Handles the complexity of locking internally
 
 ## Integration
 
@@ -197,5 +287,24 @@ The module includes comprehensive tests:
 - `test_lock_kp_basic`: Basic functionality test
 - `test_lock_kp_structure`: Verifies the three-field structure
 - `test_lock_kp_then_chaining`: Tests chaining with `then()`
+- `test_lock_kp_compose_single_level`: Tests composing two LockKps
+- `test_lock_kp_compose_two_levels`: Tests two-level lock composition
+- `test_lock_kp_compose_three_levels`: Tests three-level lock composition
+- `test_lock_kp_compose_with_then`: Tests mixing `compose()` and `then()`
 
-All 59 tests pass (56 from core library + 3 from lock module).
+**All 63 tests pass** (56 from core library + 3 original lock tests + 5 compose tests).
+
+## Use Cases
+
+### Single Lock
+Simple synchronized access to shared data.
+
+### Nested Locks (via `compose()`)
+- Configuration with nested locked sections
+- Hierarchical data structures with locks at each level
+- Multi-threaded systems with layered synchronization
+- Game engines with nested entity locks
+- Database connection pools with nested transaction locks
+
+### Mixed Chains (via `compose()` + `then()`)
+Navigate through locks and then continue with regular field access.
