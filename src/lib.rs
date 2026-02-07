@@ -737,6 +737,345 @@ pub fn kp_rc<'a, T>() -> Kp<
     )
 }
 
+// ========== PARTIAL KEYPATHS (Hide Value Type) ==========
+
+use std::any::{Any, TypeId};
+use std::rc::Rc;
+
+/// PKp (PartialKeyPath) - Hides the Value type but keeps Root visible
+/// Useful for storing keypaths in collections without knowing the exact Value type
+///
+/// # Why PhantomData<Root>?
+///
+/// `PhantomData<Root>` is needed because:
+/// 1. The `Root` type parameter is not actually stored in the struct (only used in the closure)
+/// 2. Rust needs to know the generic type parameter for:
+///    - Type checking at compile time
+///    - Ensuring correct usage (e.g., `PKp<User>` can only be used with `&User`)
+///    - Preventing mixing different Root types
+/// 3. Without `PhantomData`, Rust would complain that `Root` is unused
+/// 4. `PhantomData` is zero-sized - it adds no runtime overhead
+#[derive(Clone)]
+pub struct PKp<Root> {
+    getter: Rc<dyn for<'r> Fn(&'r Root) -> Option<&'r dyn Any>>,
+    value_type_id: TypeId,
+    _phantom: std::marker::PhantomData<Root>,
+}
+
+impl<Root> PKp<Root>
+where
+    Root: 'static,
+{
+    /// Create a new PKp from a KpType (the common reference-based keypath)
+    pub fn new<'a, V>(keypath: KpType<'a, Root, V>) -> Self
+    where
+        V: Any + 'static,
+    {
+        let value_type_id = TypeId::of::<V>();
+        let getter_fn = keypath.get;
+
+        Self {
+            getter: Rc::new(move |root: &Root| {
+                getter_fn(root).map(|val: &V| val as &dyn Any)
+            }),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Create a PKp from a KpType (alias for `new()`)
+    pub fn from<'a, V>(keypath: KpType<'a, Root, V>) -> Self
+    where
+        V: Any + 'static,
+    {
+        Self::new(keypath)
+    }
+
+    /// Get the value as a trait object
+    pub fn get<'r>(&self, root: &'r Root) -> Option<&'r dyn Any> {
+        (self.getter)(root)
+    }
+
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+
+    /// Try to downcast the result to a specific type
+    pub fn get_as<'a, Value: Any>(&self, root: &'a Root) -> Option<&'a Value> {
+        if self.value_type_id == TypeId::of::<Value>() {
+            self.get(root).and_then(|any| any.downcast_ref::<Value>())
+        } else {
+            None
+        }
+    }
+
+    /// Get a human-readable name for the value type
+    pub fn kind_name(&self) -> String {
+        format!("{:?}", self.value_type_id)
+    }
+
+    /// Adapt this keypath to work with Arc<Root> instead of Root
+    pub fn for_arc(&self) -> PKp<Arc<Root>> {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |arc: &Arc<Root>| getter(arc.as_ref())),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adapt this keypath to work with Box<Root> instead of Root
+    pub fn for_box(&self) -> PKp<Box<Root>> {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |boxed: &Box<Root>| getter(boxed.as_ref())),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adapt this keypath to work with Rc<Root> instead of Root
+    pub fn for_rc(&self) -> PKp<Rc<Root>> {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |rc: &Rc<Root>| getter(rc.as_ref())),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    pub fn for_option(&self) -> PKp<Option<Root>> {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |opt: &Option<Root>| {
+                opt.as_ref().and_then(|root| getter(root))
+            }),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    pub fn for_result<E>(&self) -> PKp<Result<Root, E>>
+    where
+        E: 'static,
+    {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |result: &Result<Root, E>| {
+                result.as_ref().ok().and_then(|root| getter(root))
+            }),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+// ========== ANY KEYPATHS (Hide Both Root and Value Types) ==========
+
+/// AKp (AnyKeyPath) - Hides both Root and Value types
+/// Most flexible keypath type for heterogeneous collections
+/// Uses dynamic dispatch and type checking at runtime
+#[derive(Clone)]
+pub struct AKp {
+    getter: Rc<dyn for<'r> Fn(&'r dyn Any) -> Option<&'r dyn Any>>,
+    root_type_id: TypeId,
+    value_type_id: TypeId,
+}
+
+impl AKp {
+    /// Create a new AKp from a KpType (the common reference-based keypath)
+    pub fn new<'a, R, V>(keypath: KpType<'a, R, V>) -> Self
+    where
+        R: Any + 'static,
+        V: Any + 'static,
+    {
+        let root_type_id = TypeId::of::<R>();
+        let value_type_id = TypeId::of::<V>();
+        let getter_fn = keypath.get;
+
+        Self {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(root) = any.downcast_ref::<R>() {
+                    getter_fn(root).map(|value: &V| value as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id,
+            value_type_id,
+        }
+    }
+
+    /// Create an AKp from a KpType (alias for `new()`)
+    pub fn from<'a, R, V>(keypath: KpType<'a, R, V>) -> Self
+    where
+        R: Any + 'static,
+        V: Any + 'static,
+    {
+        Self::new(keypath)
+    }
+
+    /// Get the value as a trait object (with root type checking)
+    pub fn get<'r>(&self, root: &'r dyn Any) -> Option<&'r dyn Any> {
+        (self.getter)(root)
+    }
+
+    /// Get the TypeId of the Root type
+    pub fn root_type_id(&self) -> TypeId {
+        self.root_type_id
+    }
+
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+
+    /// Try to get the value with full type checking
+    pub fn get_as<'a, Root: Any, Value: Any>(&self, root: &'a Root) -> Option<Option<&'a Value>> {
+        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>()
+        {
+            Some(
+                self.get(root as &dyn Any)
+                    .and_then(|any| any.downcast_ref::<Value>()),
+            )
+        } else {
+            None
+        }
+    }
+
+    /// Get a human-readable name for the value type
+    pub fn kind_name(&self) -> String {
+        format!("{:?}", self.value_type_id)
+    }
+
+    /// Get a human-readable name for the root type
+    pub fn root_kind_name(&self) -> String {
+        format!("{:?}", self.root_type_id)
+    }
+
+    /// Adapt this keypath to work with Arc<Root> instead of Root
+    pub fn for_arc<Root>(&self) -> AKp
+    where
+        Root: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(arc) = any.downcast_ref::<Arc<Root>>() {
+                    getter(arc.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Arc<Root>>(),
+            value_type_id,
+        }
+    }
+
+    /// Adapt this keypath to work with Box<Root> instead of Root
+    pub fn for_box<Root>(&self) -> AKp
+    where
+        Root: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(boxed) = any.downcast_ref::<Box<Root>>() {
+                    getter(boxed.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Box<Root>>(),
+            value_type_id,
+        }
+    }
+
+    /// Adapt this keypath to work with Rc<Root> instead of Root
+    pub fn for_rc<Root>(&self) -> AKp
+    where
+        Root: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(rc) = any.downcast_ref::<Rc<Root>>() {
+                    getter(rc.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Rc<Root>>(),
+            value_type_id,
+        }
+    }
+
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    pub fn for_option<Root>(&self) -> AKp
+    where
+        Root: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(opt) = any.downcast_ref::<Option<Root>>() {
+                    opt.as_ref().and_then(|root| getter(root as &dyn Any))
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Option<Root>>(),
+            value_type_id,
+        }
+    }
+
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    pub fn for_result<Root, E>(&self) -> AKp
+    where
+        Root: Any + 'static,
+        E: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(result) = any.downcast_ref::<Result<Root, E>>() {
+                    result
+                        .as_ref()
+                        .ok()
+                        .and_then(|root| getter(root as &dyn Any))
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Result<Root, E>>(),
+            value_type_id,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1138,5 +1477,274 @@ mod tests {
         let composed = ok_kp_base.then(inner_kp);
 
         assert_eq!(composed.get(&result), Some(&"nested".to_string()));
+    }
+
+    #[test]
+    fn test_pkp_basic() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+        }
+
+        let user = User {
+            name: "Alice".to_string(),
+            age: 30,
+        };
+
+        // Create regular keypaths
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+
+        // Convert to partial keypaths
+        let name_pkp = PKp::new(name_kp);
+        let age_pkp = PKp::new(age_kp);
+
+        // Test get_as with correct type
+        assert_eq!(name_pkp.get_as::<String>(&user), Some(&"Alice".to_string()));
+        assert_eq!(age_pkp.get_as::<i32>(&user), Some(&30));
+
+        // Test get_as with wrong type returns None
+        assert_eq!(name_pkp.get_as::<i32>(&user), None);
+        assert_eq!(age_pkp.get_as::<String>(&user), None);
+
+        // Test value_type_id
+        assert_eq!(name_pkp.value_type_id(), TypeId::of::<String>());
+        assert_eq!(age_pkp.value_type_id(), TypeId::of::<i32>());
+    }
+
+    #[test]
+    fn test_pkp_collection() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+        }
+
+        let user = User {
+            name: "Bob".to_string(),
+            age: 25,
+        };
+
+        // Create a collection of partial keypaths
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+
+        let keypaths: Vec<PKp<User>> = vec![PKp::new(name_kp), PKp::new(age_kp)];
+
+        // Access values through the collection
+        let name_value = keypaths[0].get_as::<String>(&user);
+        let age_value = keypaths[1].get_as::<i32>(&user);
+
+        assert_eq!(name_value, Some(&"Bob".to_string()));
+        assert_eq!(age_value, Some(&25));
+    }
+
+    #[test]
+    fn test_pkp_for_arc() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+        }
+
+        let user = Arc::new(User {
+            name: "Charlie".to_string(),
+        });
+
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let name_pkp = PKp::new(name_kp);
+
+        // Adapt for Arc
+        let arc_pkp = name_pkp.for_arc();
+
+        assert_eq!(
+            arc_pkp.get_as::<String>(&user),
+            Some(&"Charlie".to_string())
+        );
+    }
+
+    #[test]
+    fn test_pkp_for_option() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+        }
+
+        let some_user = Some(User {
+            name: "Diana".to_string(),
+        });
+        let none_user: Option<User> = None;
+
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let name_pkp = PKp::new(name_kp);
+
+        // Adapt for Option
+        let opt_pkp = name_pkp.for_option();
+
+        assert_eq!(
+            opt_pkp.get_as::<String>(&some_user),
+            Some(&"Diana".to_string())
+        );
+        assert_eq!(opt_pkp.get_as::<String>(&none_user), None);
+    }
+
+    #[test]
+    fn test_akp_basic() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+        }
+
+        #[derive(Debug)]
+        struct Product {
+            title: String,
+            price: f64,
+        }
+
+        let user = User {
+            name: "Eve".to_string(),
+            age: 28,
+        };
+
+        let product = Product {
+            title: "Book".to_string(),
+            price: 19.99,
+        };
+
+        // Create AnyKeypaths
+        let user_name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let user_name_akp = AKp::new(user_name_kp);
+
+        let product_title_kp = KpType::new(
+            |p: &Product| Some(&p.title),
+            |p: &mut Product| Some(&mut p.title),
+        );
+        let product_title_akp = AKp::new(product_title_kp);
+
+        // Test get_as with correct types
+        assert_eq!(
+            user_name_akp.get_as::<User, String>(&user),
+            Some(Some(&"Eve".to_string()))
+        );
+        assert_eq!(
+            product_title_akp.get_as::<Product, String>(&product),
+            Some(Some(&"Book".to_string()))
+        );
+
+        // Test get_as with wrong root type
+        assert_eq!(user_name_akp.get_as::<Product, String>(&product), None);
+        assert_eq!(product_title_akp.get_as::<User, String>(&user), None);
+
+        // Test TypeIds
+        assert_eq!(user_name_akp.root_type_id(), TypeId::of::<User>());
+        assert_eq!(user_name_akp.value_type_id(), TypeId::of::<String>());
+        assert_eq!(product_title_akp.root_type_id(), TypeId::of::<Product>());
+        assert_eq!(product_title_akp.value_type_id(), TypeId::of::<String>());
+    }
+
+    #[test]
+    fn test_akp_heterogeneous_collection() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+        }
+
+        #[derive(Debug)]
+        struct Product {
+            title: String,
+        }
+
+        let user = User {
+            name: "Frank".to_string(),
+        };
+        let product = Product {
+            title: "Laptop".to_string(),
+        };
+
+        // Create a heterogeneous collection of AnyKeypaths
+        let user_name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let product_title_kp = KpType::new(
+            |p: &Product| Some(&p.title),
+            |p: &mut Product| Some(&mut p.title),
+        );
+
+        let keypaths: Vec<AKp> = vec![AKp::new(user_name_kp), AKp::new(product_title_kp)];
+
+        // Access through trait objects
+        let user_any: &dyn Any = &user;
+        let product_any: &dyn Any = &product;
+
+        let user_value = keypaths[0].get(user_any);
+        let product_value = keypaths[1].get(product_any);
+
+        assert!(user_value.is_some());
+        assert!(product_value.is_some());
+
+        // Downcast to concrete types
+        assert_eq!(
+            user_value.and_then(|v| v.downcast_ref::<String>()),
+            Some(&"Frank".to_string())
+        );
+        assert_eq!(
+            product_value.and_then(|v| v.downcast_ref::<String>()),
+            Some(&"Laptop".to_string())
+        );
+    }
+
+    #[test]
+    fn test_akp_for_option() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+        }
+
+        let some_user = Some(User {
+            name: "Grace".to_string(),
+        });
+        let none_user: Option<User> = None;
+
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let name_akp = AKp::new(name_kp);
+
+        // Adapt for Option
+        let opt_akp = name_akp.for_option::<User>();
+
+        assert_eq!(
+            opt_akp.get_as::<Option<User>, String>(&some_user),
+            Some(Some(&"Grace".to_string()))
+        );
+        assert_eq!(
+            opt_akp.get_as::<Option<User>, String>(&none_user),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn test_akp_for_result() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+        }
+
+        let ok_user: Result<User, String> = Ok(User {
+            name: "Henry".to_string(),
+        });
+        let err_user: Result<User, String> = Err("Not found".to_string());
+
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let name_akp = AKp::new(name_kp);
+
+        // Adapt for Result
+        let result_akp = name_akp.for_result::<User, String>();
+
+        assert_eq!(
+            result_akp.get_as::<Result<User, String>, String>(&ok_user),
+            Some(Some(&"Henry".to_string()))
+        );
+        assert_eq!(
+            result_akp.get_as::<Result<User, String>, String>(&err_user),
+            Some(None)
+        );
     }
 }
