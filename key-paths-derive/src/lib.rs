@@ -363,7 +363,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
-                            // For Box<T>, deref to inner type
+                            // For Box<T>, deref to inner type (returns &T / &mut T, not &Box<T>)
+                            // Matches reference: WritableKeyPath::new(|s: &mut #name| &mut *s.#field_ident)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
@@ -374,31 +375,23 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Rc, Some(inner_ty)) => {
-                            // For Rc<T>, deref to inner type
-                            // Rc provides shared ownership but only allows immutable access
+                            // For Rc<T>, deref to inner type (returns &T; get_mut when uniquely owned)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&*root.#field_ident),
-                                        |root: &mut #name| {
-                                            // Try to get mutable access if there's only one strong reference
-                                            std::rc::Rc::get_mut(&mut root.#field_ident)
-                                        },
+                                        |root: &#name| Some(root.#field_ident.as_ref()),
+                                        |root: &mut #name| std::rc::Rc::get_mut(&mut root.#field_ident),
                                     )
                                 }
                             });
                         }
                         (WrapperKind::Arc, Some(inner_ty)) => {
-                            // For Arc<T>, deref to inner type
-                            // Arc provides shared ownership but only allows immutable access
+                            // For Arc<T>, deref to inner type (returns &T; get_mut when uniquely owned)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&*root.#field_ident),
-                                        |root: &mut #name| {
-                                            // Try to get mutable access if there's only one strong reference
-                                            std::sync::Arc::get_mut(&mut root.#field_ident)
-                                        },
+                                        |root: &#name| Some(root.#field_ident.as_ref()),
+                                        |root: &mut #name| std::sync::Arc::get_mut(&mut root.#field_ident),
                                     )
                                 }
                             });
@@ -616,6 +609,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
+                            // Box: deref to inner (returns &T / &mut T)
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
@@ -625,12 +619,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
+                        (WrapperKind::Rc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&*root.#idx_lit),
-                                        |_root: &mut #name| None,
+                                        |root: &#name| Some(root.#idx_lit.as_ref()),
+                                        |root: &mut #name| std::rc::Rc::get_mut(&mut root.#idx_lit),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::Arc, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(root.#idx_lit.as_ref()),
+                                        |root: &mut #name| std::sync::Arc::get_mut(&mut root.#idx_lit),
                                     )
                                 }
                             });
@@ -858,6 +862,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     });
                                 }
                                 (WrapperKind::Box, Some(inner_ty)) => {
+                                    // Box in enum: deref to inner (&T / &mut T)
                                     tokens.extend(quote! {
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
@@ -873,15 +878,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
+                                (WrapperKind::Rc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
-                                                    #name::#v_ident(inner) => Some(&**inner),
+                                                    #name::#v_ident(inner) => Some(inner.as_ref()),
                                                     _ => None,
                                                 },
-                                                |_root: &mut #name| None,
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => std::rc::Rc::get_mut(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Arc, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner.as_ref()),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => std::sync::Arc::get_mut(inner),
+                                                    _ => None,
+                                                },
                                             )
                                         }
                                     });

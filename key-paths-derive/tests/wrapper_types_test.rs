@@ -169,9 +169,13 @@ fn test_box_type() {
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
     
-    // Test Box - should deref to inner value
-    let box_kp: rust_key_paths::Kp<AllWrapperTypes, Box<i32>, &AllWrapperTypes, &Box<i32>, &mut AllWrapperTypes, &mut Box<i32>, fn(&AllWrapperTypes) -> Option<&Box<i32>>, fn(&mut AllWrapperTypes) -> Option<&mut Box<i32>>> = AllWrapperTypes::boxed_value();
-    assert_eq!(box_kp.get(&data), Some(&42));
+    // Test Box - should deref to inner value (returns &i32, not &Box<i32>)
+    let box_kp = AllWrapperTypes::boxed_value();
+    let value = box_kp.get(&data);
+    assert_eq!(value, Some(&42));
+    
+    // Verify the correct type signature
+    let _typed: rust_key_paths::KpType<'static, AllWrapperTypes, i32> = box_kp;
 }
 
 #[test]
