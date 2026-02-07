@@ -80,7 +80,7 @@ fn main() {
     // Example 3: Option unwrapping
     println!("\n3. Option Unwrapping:");
     let employees_kp = Company::employees();
-    
+
     if let Some(first_employee) = employees_kp.get(&company) {
         let email_kp = Person::email();
         if let Some(email) = email_kp.get(first_employee) {
@@ -93,11 +93,14 @@ fn main() {
     // Example 4: Box dereferencing
     println!("\n4. Box Dereferencing:");
     let employees_kp = Company::employees();
-    
+
     if let Some(first_employee) = employees_kp.get(&company) {
         let address_kp = Person::address();
         if let Some(address) = address_kp.get(first_employee) {
-            println!("   First employee's address: {} {}, {}", address.street, address.city, address.zip);
+            println!(
+                "   First employee's address: {} {}, {}",
+                address.street, address.city, address.zip
+            );
         }
     }
 
@@ -129,31 +132,33 @@ fn main() {
     };
 
     println!("   Before: age = {}", mutable_person.age);
-    
+
     let age_kp = Person::age();
     age_kp.get_mut(&mut mutable_person).map(|age| *age = 36);
-    
+
     println!("   After:  age = {}", mutable_person.age);
 
     // Example 8: Modifying Option inner value
     println!("\n8. Modifying Option Inner Value:");
     println!("   Before: email = {:?}", mutable_person.email);
-    
+
     let email_kp = Person::email();
-    email_kp.get_mut(&mut mutable_person).map(|email| *email = "newemail@example.com".to_string());
-    
+    email_kp
+        .get_mut(&mut mutable_person)
+        .map(|email| *email = "newemail@example.com".to_string());
+
     println!("   After:  email = {:?}", mutable_person.email);
 
     // Example 9: Modifying Box inner value
     println!("\n9. Modifying Box Inner Value:");
-    
+
     println!("   Before: city = {}", mutable_person.address.city);
-    
+
     let address_kp = Person::address();
     if let Some(address) = address_kp.get_mut(&mut mutable_person) {
         address.city = "Portland".to_string();
     }
-    
+
     println!("   After:  city = {}", mutable_person.address.city);
 
     println!("\n=== All Examples Complete ===");

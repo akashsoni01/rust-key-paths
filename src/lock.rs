@@ -37,17 +37,17 @@
 //! - No dangling pointers or use-after-free possible
 //! - Rust's ownership system enforces correctness
 
-use std::sync::{Arc, Mutex};
 use crate::Kp;
+use std::sync::{Arc, Mutex};
 
 /// Trait for types that can provide lock/unlock behavior
 /// Converts from a Lock type to Inner or InnerMut value
 pub trait LockAccess<Lock, Inner> {
     /// Get immutable access to the inner value
     fn lock_read(&self, lock: &Lock) -> Option<Inner>;
-    
+
     /// Get mutable access to the inner value
-    /// 
+    ///
     /// Note: Takes `&Lock` not `&mut Lock` because locks like Mutex/RwLock
     /// provide interior mutability - we don't need exclusive access to the
     /// lock container itself, just to the data inside.
@@ -55,41 +55,41 @@ pub trait LockAccess<Lock, Inner> {
 }
 
 /// A keypath that handles locked values (e.g., Arc<Mutex<T>>)
-/// 
+///
 /// Structure:
 /// - `prev`: Keypath from Root to Lock container (e.g., Arc<Mutex<Mid>>)
 /// - `mid`: Lock access handler that goes from Lock to Inner value
 /// - `next`: Keypath from Inner value to final Value
-/// 
+///
 /// # Type Parameters
 /// - `R`: Root type (base)
 /// - `Lock`: Lock container type (e.g., Arc<Mutex<Mid>>)
 /// - `Mid`: The type inside the lock
 /// - `V`: Final value type
 /// - Rest are the same generic parameters as Kp
-/// 
+///
 /// # Cloning Behavior
-/// 
+///
 /// **IMPORTANT**: All `Clone` operations in this struct are SHALLOW clones:
-/// 
+///
 /// - `LockKp` itself derives `Clone` - this clones the three field references/closures
 /// - `prev` and `next` fields are `Kp` structs containing function pointers (cheap to clone)
 /// - `mid` field implements `LockAccess` trait - typically just `PhantomData` (zero-cost clone)
 /// - NO `Lock: Clone` needed for lock operations - we use `&Lock` directly via interior mutability
 /// - NO deep data cloning occurs - all clones are pointer/reference copies
-/// 
+///
 /// # Example
 /// ```
 /// use std::sync::{Arc, Mutex};
-/// 
+///
 /// struct Root {
 ///     data: Arc<Mutex<Inner>>,
 /// }
-/// 
+///
 /// struct Inner {
 ///     value: String,
 /// }
-/// 
+///
 /// // Create a LockKp that goes: Root -> Arc<Mutex<Inner>> -> String
 /// let lock_kp = LockKp::new(
 ///     root_to_lock_kp,
@@ -98,8 +98,25 @@ pub trait LockAccess<Lock, Inner> {
 /// );
 /// ```
 #[derive(Clone)] // SHALLOW: Clones function pointers and PhantomData only
-pub struct LockKp<R, Lock, Mid, V, Root, LockValue, MidValue, Value, MutRoot, MutLock, MutMid, MutValue, G1, S1, L, G2, S2>
-where
+pub struct LockKp<
+    R,
+    Lock,
+    Mid,
+    V,
+    Root,
+    LockValue,
+    MidValue,
+    Value,
+    MutRoot,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+> where
     Root: std::borrow::Borrow<R>,
     LockValue: std::borrow::Borrow<Lock>,
     MidValue: std::borrow::Borrow<Mid>,
@@ -116,16 +133,52 @@ where
 {
     /// Keypath from Root to Lock container
     pub prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
-    
+
     /// Lock access handler (converts Lock -> Inner)
     pub mid: L,
-    
+
     /// Keypath from Inner to final Value
     pub next: Kp<Mid, V, MidValue, Value, MutMid, MutValue, G2, S2>,
 }
 
-impl<R, Lock, Mid, V, Root, LockValue, MidValue, Value, MutRoot, MutLock, MutMid, MutValue, G1, S1, L, G2, S2>
-    LockKp<R, Lock, Mid, V, Root, LockValue, MidValue, Value, MutRoot, MutLock, MutMid, MutValue, G1, S1, L, G2, S2>
+impl<
+    R,
+    Lock,
+    Mid,
+    V,
+    Root,
+    LockValue,
+    MidValue,
+    Value,
+    MutRoot,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+>
+    LockKp<
+        R,
+        Lock,
+        Mid,
+        V,
+        Root,
+        LockValue,
+        MidValue,
+        Value,
+        MutRoot,
+        MutLock,
+        MutMid,
+        MutValue,
+        G1,
+        S1,
+        L,
+        G2,
+        S2,
+    >
 where
     Root: std::borrow::Borrow<R>,
     LockValue: std::borrow::Borrow<Lock>,
@@ -151,14 +204,14 @@ where
     }
 
     /// Get the value through the lock
-    /// 
+    ///
     /// This will:
     /// 1. Use `prev` to get to the Lock
     /// 2. Use `mid` to lock and get Inner value
     /// 3. Use `next` to get from Inner to final Value
-    /// 
+    ///
     /// Get an immutable reference through the lock.
-    /// 
+    ///
     /// # Cloning Behavior
     /// Only requires `V: Clone` for the final value.
     /// NO `Lock: Clone` needed because `lock_read` takes `&Lock`.
@@ -168,31 +221,30 @@ where
     {
         (self.prev.get)(root).and_then(|lock_value| {
             let lock: &Lock = lock_value.borrow();
-            self.mid.lock_read(lock).and_then(|mid_value| {
-                (self.next.get)(mid_value)
-            })
+            self.mid
+                .lock_read(lock)
+                .and_then(|mid_value| (self.next.get)(mid_value))
         })
     }
 
     /// Get mutable access to the value through the lock
-    /// 
+    ///
     /// # NO CLONING Required!
-    /// 
+    ///
     /// No longer needs `Lock: Clone` because `lock_write` now takes `&Lock` instead of `&mut Lock`
-    pub fn get_mut(&self, root: MutRoot) -> Option<MutValue>
-    {
+    pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
         (self.prev.set)(root).and_then(|mut lock_value| {
             let lock: &Lock = lock_value.borrow();
-            self.mid.lock_write(lock).and_then(|mid_value| {
-                (self.next.set)(mid_value)
-            })
+            self.mid
+                .lock_write(lock)
+                .and_then(|mid_value| (self.next.set)(mid_value))
         })
     }
 
     /// Set the value through the lock using an updater function
-    /// 
+    ///
     /// # NO CLONING Required!
-    /// 
+    ///
     /// Unlike the original implementation, we NO LONGER need `Lock: Clone` because:
     /// - Locks like `Mutex` and `RwLock` provide interior mutability
     /// - We only need `&Lock`, not `&mut Lock`, to get mutable access to the inner data
@@ -221,10 +273,10 @@ where
     }
 
     /// Chain this LockKp with another regular Kp
-    /// 
+    ///
     /// This allows you to continue navigating after getting through the lock:
     /// Root -> Lock -> Mid -> Value1 -> Value2
-    /// 
+    ///
     /// # Cloning Behavior
     /// No cloning occurs in this method - closures are moved into the new Kp
     pub fn then<V2, Value2, MutValue2, G3, S3>(
@@ -262,7 +314,7 @@ where
         // Extract closures (move, no clone)
         let next_get = self.next.get;
         let next_set = self.next.set;
-        
+
         // Create chained keypath by composing closures (no cloning)
         let chained_kp = Kp::new(
             move |mid_value: MidValue| next_get(mid_value).and_then(|v| (next_kp.get)(v)),
@@ -273,36 +325,69 @@ where
     }
 
     /// Compose this LockKp with another LockKp for multi-level lock chaining
-    /// 
+    ///
     /// This allows you to chain through multiple lock levels:
     /// Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> Value
-    /// 
+    ///
     /// # Cloning Behavior - ALL CLONES ARE SHALLOW
-    /// 
+    ///
     /// This method requires two types of cloning, both SHALLOW:
-    /// 
+    ///
     /// 1. **`L2: Clone`** (line 261): Clones the lock accessor trait object
     ///    - For `ArcMutexAccess<T>`: Only clones `PhantomData` (zero-cost)
     ///    - No data is cloned, just the lock access behavior
-    /// 
+    ///
     /// 2. **`Lock2: Clone`** (line 287): Clones the lock container
     ///    - For `Arc<Mutex<T>>`: Only increments Arc reference count
     ///    - The actual data `T` inside the Mutex is NOT cloned
     ///    - This is necessary to satisfy borrow checker in closure context
-    /// 
+    ///
     /// **Performance**: Both clones are O(1) operations with no deep data copying
-    /// 
+    ///
     /// # Example
     /// ```
     /// // Root -> Arc<Mutex<Mid1>> -> Mid1 -> Arc<Mutex<Mid2>> -> Mid2 -> String
     /// let lock_kp1 = LockKp::new(root_to_lock1, ArcMutexAccess::new(), lock1_to_mid1);
     /// let lock_kp2 = LockKp::new(mid1_to_lock2, ArcMutexAccess::new(), mid2_to_value);
-    /// 
+    ///
     /// let composed = lock_kp1.compose(lock_kp2);
     /// ```
-    pub fn compose<Lock2, Mid2, V2, LockValue2, MidValue2, Value2, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>(
+    pub fn compose<
+        Lock2,
+        Mid2,
+        V2,
+        LockValue2,
+        MidValue2,
+        Value2,
+        MutLock2,
+        MutMid2,
+        MutValue2,
+        G2_1,
+        S2_1,
+        L2,
+        G2_2,
+        S2_2,
+    >(
         self,
-        other: LockKp<V, Lock2, Mid2, V2, Value, LockValue2, MidValue2, Value2, MutValue, MutLock2, MutMid2, MutValue2, G2_1, S2_1, L2, G2_2, S2_2>,
+        other: LockKp<
+            V,
+            Lock2,
+            Mid2,
+            V2,
+            Value,
+            LockValue2,
+            MidValue2,
+            Value2,
+            MutValue,
+            MutLock2,
+            MutMid2,
+            MutValue2,
+            G2_1,
+            S2_1,
+            L2,
+            G2_2,
+            S2_2,
+        >,
     ) -> LockKp<
         R,
         Lock,
@@ -325,7 +410,7 @@ where
     where
         V: 'static + Clone,
         V2: 'static,
-        Lock2: Clone,  // SHALLOW: For Arc<Mutex<T>>, only increments refcount
+        Lock2: Clone, // SHALLOW: For Arc<Mutex<T>>, only increments refcount
         Value: std::borrow::Borrow<V>,
         LockValue2: std::borrow::Borrow<Lock2>,
         MidValue2: std::borrow::Borrow<Mid2>,
@@ -336,23 +421,23 @@ where
         MutValue2: std::borrow::BorrowMut<V2>,
         G2_1: Fn(Value) -> Option<LockValue2> + 'static,
         S2_1: Fn(MutValue) -> Option<MutLock2> + 'static,
-        L2: LockAccess<Lock2, MidValue2> + LockAccess<Lock2, MutMid2> + Clone + 'static,  // SHALLOW: PhantomData clone
+        L2: LockAccess<Lock2, MidValue2> + LockAccess<Lock2, MutMid2> + Clone + 'static, // SHALLOW: PhantomData clone
         G2_2: Fn(MidValue2) -> Option<Value2> + 'static,
         S2_2: Fn(MutMid2) -> Option<MutValue2> + 'static,
     {
         // Extract closures from self (move, no clone)
         let next_get = self.next.get;
         let next_set = self.next.set;
-        
+
         // Extract closures from other (move, no clone)
         let other_prev_get = other.prev.get;
         let other_prev_set = other.prev.set;
-        
+
         // SHALLOW CLONE: Clone the lock accessor (typically just PhantomData)
         // For ArcMutexAccess<T>, this is a zero-cost clone of PhantomData
         let other_mid1 = other.mid.clone();
         let other_mid2 = other.mid;
-        
+
         let other_next_get = other.next.get;
         let other_next_set = other.next.set;
 
@@ -377,15 +462,15 @@ where
                 next_set(mid_value).and_then(|value1| {
                     other_prev_set(value1).and_then(|mut lock2_value| {
                         let lock2: &mut Lock2 = lock2_value.borrow_mut();
-                        
+
                         // SHALLOW CLONE: For Arc<Mutex<T>>, only increments Arc refcount
                         // The actual data T inside Mutex is NOT cloned
                         // This is required to satisfy Rust's borrow checker in closure context
                         let mut lock2_clone = lock2.clone();
-                        
-                        other_mid2.lock_write(&mut lock2_clone).and_then(|mid2_value| {
-                            other_next_set(mid2_value)
-                        })
+
+                        other_mid2
+                            .lock_write(&mut lock2_clone)
+                            .and_then(|mid2_value| other_next_set(mid2_value))
                     })
                 })
             },
@@ -400,17 +485,17 @@ where
 // ============================================================================
 
 /// Lock access implementation for Arc<Mutex<T>>
-/// 
+///
 /// # Cloning Behavior
-/// 
+///
 /// This struct only contains `PhantomData<T>`, which is a zero-sized type.
 /// Cloning `ArcMutexAccess<T>` is a **zero-cost operation** - no data is copied.
-/// 
+///
 /// The `Clone` impl is required for the `compose()` method to work, but it's
 /// completely free (compiled away to nothing).
-#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+#[derive(Clone)] // ZERO-COST: Only clones PhantomData (zero-sized type)
 pub struct ArcMutexAccess<T> {
-    _phantom: std::marker::PhantomData<T>,  // Zero-sized, no runtime cost
+    _phantom: std::marker::PhantomData<T>, // Zero-sized, no runtime cost
 }
 
 impl<T> ArcMutexAccess<T> {
@@ -469,28 +554,28 @@ impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a mut T> for ArcMutexAccess<T> 
 // ============================================================================
 
 /// Lock access implementation for Arc<RwLock<T>>
-/// 
+///
 /// # RwLock Semantics
-/// 
+///
 /// `RwLock` provides reader-writer lock semantics:
 /// - Multiple readers can access simultaneously (shared/immutable access)
 /// - Only one writer can access at a time (exclusive/mutable access)
 /// - Readers and writers are mutually exclusive
-/// 
+///
 /// # Cloning Behavior
-/// 
+///
 /// Like `ArcMutexAccess`, this struct only contains `PhantomData<T>`.
 /// Cloning is a **zero-cost operation** - no data is copied.
-/// 
+///
 /// # Performance vs Mutex
-/// 
+///
 /// - **Better for read-heavy workloads**: Multiple concurrent readers
 /// - **Slightly more overhead**: RwLock has more complex internal state
 /// - **Use when**: Many readers, few writers
 /// - **Avoid when**: Frequent writes or simple cases (use Mutex)
-#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+#[derive(Clone)] // ZERO-COST: Only clones PhantomData (zero-sized type)
 pub struct ArcRwLockAccess<T> {
-    _phantom: std::marker::PhantomData<T>,  // Zero-sized, no runtime cost
+    _phantom: std::marker::PhantomData<T>, // Zero-sized, no runtime cost
 }
 
 impl<T> ArcRwLockAccess<T> {
@@ -550,17 +635,17 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
 // ============================================================================
 
 /// Lock access implementation for std::sync::Mutex<T> (without Arc wrapper)
-/// 
+///
 /// # When to Use
-/// 
+///
 /// Use this when you have a direct reference to a Mutex, not wrapped in Arc.
 /// Common scenarios:
 /// - Mutex is owned by a struct
 /// - Single-threaded or thread-local usage
 /// - When the Mutex lifetime is managed by other means
-/// 
+///
 /// # Note
-/// 
+///
 /// Since we're working with `&Mutex<T>`, this requires the Mutex to be
 /// stored somewhere with a stable address (e.g., in a struct, Box, or static).
 #[derive(Clone)]
@@ -621,15 +706,15 @@ impl<'a, T: 'static> LockAccess<Mutex<T>, &'a mut T> for StdMutexAccess<T> {
 // ============================================================================
 
 /// Lock access implementation for std::sync::RwLock<T> (without Arc wrapper)
-/// 
+///
 /// # RwLock Semantics
-/// 
+///
 /// - Multiple concurrent readers allowed
 /// - Single exclusive writer
 /// - Better for read-heavy workloads
-/// 
+///
 /// # When to Use
-/// 
+///
 /// Use this when you have a direct reference to an RwLock, not wrapped in Arc.
 #[derive(Clone)]
 pub struct StdRwLockAccess<T> {
@@ -690,32 +775,32 @@ impl<'a, T: 'static> LockAccess<std::sync::RwLock<T>, &'a mut T> for StdRwLockAc
 // cargo test --lib --features "tokio,parking_lot" 2>&1 | grep -E "(test result|running)" | tail -5
 #[cfg(feature = "parking_lot")]
 /// Lock access implementation for Arc<parking_lot::Mutex<T>>
-/// 
+///
 /// # Parking Lot Mutex
-/// 
+///
 /// `parking_lot::Mutex` is a faster, more compact alternative to `std::sync::Mutex`:
 /// - **Smaller**: Only 1 byte of overhead vs std's platform-dependent size
 /// - **Faster**: More efficient locking algorithm
 /// - **No poisoning**: Unlike std::Mutex, doesn't panic on poisoned state
 /// - **Fair**: Implements a fair locking algorithm (FIFO)
-/// 
+///
 /// # Cloning Behavior
-/// 
+///
 /// This struct only contains `PhantomData<T>`.
 /// Cloning is a **zero-cost operation** - no data is copied.
-/// 
+///
 /// # Performance
-/// 
+///
 /// - **~2-3x faster** than std::Mutex in many scenarios
 /// - Better for high-contention workloads
 /// - More predictable latency due to fair scheduling
-/// 
+///
 /// # When to Use
-/// 
+///
 /// - High-contention scenarios where performance matters
 /// - When you want fair lock acquisition (no writer starvation)
 /// - When you don't need lock poisoning semantics
-#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+#[derive(Clone)] // ZERO-COST: Only clones PhantomData (zero-sized type)
 pub struct ParkingLotMutexAccess<T> {
     _phantom: std::marker::PhantomData<T>,
 }
@@ -754,7 +839,9 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::Mutex<T>>, &'a T> for ParkingLo
 
 // Implementation for mutable access
 #[cfg(feature = "parking_lot")]
-impl<'a, T: 'static> LockAccess<Arc<parking_lot::Mutex<T>>, &'a mut T> for ParkingLotMutexAccess<T> {
+impl<'a, T: 'static> LockAccess<Arc<parking_lot::Mutex<T>>, &'a mut T>
+    for ParkingLotMutexAccess<T>
+{
     fn lock_read(&self, lock: &Arc<parking_lot::Mutex<T>>) -> Option<&'a mut T> {
         let mut guard = lock.lock();
         let ptr = &mut *guard as *mut T;
@@ -774,41 +861,41 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::Mutex<T>>, &'a mut T> for Parki
 
 #[cfg(feature = "parking_lot")]
 /// Lock access implementation for Arc<parking_lot::RwLock<T>>
-/// 
+///
 /// # Parking Lot RwLock
-/// 
+///
 /// `parking_lot::RwLock` is a faster alternative to `std::sync::RwLock`:
 /// - **Smaller**: More compact memory representation
 /// - **Faster**: More efficient locking and unlocking
 /// - **No poisoning**: Unlike std::RwLock, doesn't panic on poisoned state
 /// - **Writer-preferring**: Writers have priority to prevent writer starvation
 /// - **Deadlock detection**: Optional deadlock detection in debug builds
-/// 
+///
 /// # Cloning Behavior
-/// 
+///
 /// This struct only contains `PhantomData<T>`.
 /// Cloning is a **zero-cost operation** - no data is copied.
-/// 
+///
 /// # Performance
-/// 
+///
 /// - **Significantly faster** than std::RwLock for both read and write operations
 /// - Better scalability with many readers
 /// - Lower overhead per operation
-/// 
+///
 /// # Writer Preference
-/// 
+///
 /// Unlike std::RwLock which can starve writers, parking_lot's RwLock:
 /// - Gives priority to writers when readers are present
 /// - Prevents writer starvation in read-heavy workloads
 /// - Still allows multiple concurrent readers when no writers are waiting
-/// 
+///
 /// # When to Use
-/// 
+///
 /// - Read-heavy workloads with occasional writes
 /// - High-performance requirements
 /// - When you need predictable writer scheduling
 /// - When you don't need lock poisoning semantics
-#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+#[derive(Clone)] // ZERO-COST: Only clones PhantomData (zero-sized type)
 pub struct ParkingLotRwLockAccess<T> {
     _phantom: std::marker::PhantomData<T>,
 }
@@ -848,7 +935,9 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a T> for ParkingL
 
 // Implementation for mutable access (write lock)
 #[cfg(feature = "parking_lot")]
-impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a mut T> for ParkingLotRwLockAccess<T> {
+impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a mut T>
+    for ParkingLotRwLockAccess<T>
+{
     fn lock_read(&self, lock: &Arc<parking_lot::RwLock<T>>) -> Option<&'a mut T> {
         // For mutable access, use write lock
         let mut guard = lock.write();
@@ -869,15 +958,15 @@ impl<'a, T: 'static> LockAccess<Arc<parking_lot::RwLock<T>>, &'a mut T> for Park
 
 #[cfg(feature = "parking_lot")]
 /// Lock access implementation for parking_lot::Mutex<T> (without Arc wrapper)
-/// 
+///
 /// # Parking Lot Advantages
-/// 
+///
 /// - Faster and more compact than std::sync::Mutex
 /// - No lock poisoning
 /// - Fair scheduling (FIFO)
-/// 
+///
 /// # When to Use
-/// 
+///
 /// Use this when you have a direct reference to a parking_lot::Mutex,
 /// not wrapped in Arc.
 #[derive(Clone)]
@@ -917,7 +1006,9 @@ impl<'a, T: 'static> LockAccess<parking_lot::Mutex<T>, &'a T> for DirectParkingL
 }
 
 #[cfg(feature = "parking_lot")]
-impl<'a, T: 'static> LockAccess<parking_lot::Mutex<T>, &'a mut T> for DirectParkingLotMutexAccess<T> {
+impl<'a, T: 'static> LockAccess<parking_lot::Mutex<T>, &'a mut T>
+    for DirectParkingLotMutexAccess<T>
+{
     fn lock_read(&self, lock: &parking_lot::Mutex<T>) -> Option<&'a mut T> {
         let mut guard = lock.lock();
         let ptr = &mut *guard as *mut T;
@@ -937,16 +1028,16 @@ impl<'a, T: 'static> LockAccess<parking_lot::Mutex<T>, &'a mut T> for DirectPark
 
 #[cfg(feature = "parking_lot")]
 /// Lock access implementation for parking_lot::RwLock<T> (without Arc wrapper)
-/// 
+///
 /// # Parking Lot RwLock Advantages
-/// 
+///
 /// - Faster than std::sync::RwLock
 /// - More compact memory footprint
 /// - Fair scheduling
 /// - Better for read-heavy workloads
-/// 
+///
 /// # When to Use
-/// 
+///
 /// Use this when you have a direct reference to a parking_lot::RwLock,
 /// not wrapped in Arc.
 #[derive(Clone)]
@@ -986,7 +1077,9 @@ impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a T> for DirectParking
 }
 
 #[cfg(feature = "parking_lot")]
-impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a mut T> for DirectParkingLotRwLockAccess<T> {
+impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a mut T>
+    for DirectParkingLotRwLockAccess<T>
+{
     fn lock_read(&self, lock: &parking_lot::RwLock<T>) -> Option<&'a mut T> {
         let mut guard = lock.write();
         let ptr = &mut *guard as *mut T;
@@ -1005,54 +1098,54 @@ impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a mut T> for DirectPar
 // ============================================================================
 
 /// Lock access implementation for Rc<RefCell<T>>
-/// 
+///
 /// # RefCell Semantics
-/// 
+///
 /// `RefCell<T>` provides interior mutability with runtime borrow checking:
 /// - Multiple immutable borrows are allowed simultaneously
 /// - Only one mutable borrow is allowed at a time
 /// - Borrows are checked at runtime (will panic if violated)
 /// - **NOT thread-safe** - use only in single-threaded contexts
-/// 
+///
 /// # Cloning Behavior
-/// 
+///
 /// Like `ArcMutexAccess` and `ArcRwLockAccess`, this struct only contains `PhantomData<T>`.
 /// Cloning is a **zero-cost operation** - no data is copied.
-/// 
+///
 /// # Rc vs Arc
-/// 
+///
 /// - **`Rc<RefCell<T>>`**: Single-threaded, lower overhead, no atomic operations
 /// - **`Arc<Mutex<T>>`**: Multi-threaded, thread-safe, atomic reference counting
-/// 
+///
 /// Use `RcRefCellAccess` when:
 /// - Working in single-threaded context
 /// - Want lower overhead than Arc/Mutex
 /// - Don't need thread safety
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use std::rc::Rc;
 /// use std::cell::RefCell;
-/// 
+///
 /// #[derive(Clone)]
 /// struct Root {
 ///     data: Rc<RefCell<Inner>>,
 /// }
-/// 
+///
 /// struct Inner {
 ///     value: String,
 /// }
-/// 
+///
 /// let lock_kp = LockKp::new(
 ///     Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data)),
 ///     RcRefCellAccess::new(),
 ///     Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value)),
 /// );
 /// ```
-#[derive(Clone)]  // ZERO-COST: Only clones PhantomData (zero-sized type)
+#[derive(Clone)] // ZERO-COST: Only clones PhantomData (zero-sized type)
 pub struct RcRefCellAccess<T> {
-    _phantom: std::marker::PhantomData<T>,  // Zero-sized, no runtime cost
+    _phantom: std::marker::PhantomData<T>, // Zero-sized, no runtime cost
 }
 
 impl<T> RcRefCellAccess<T> {
@@ -1089,7 +1182,9 @@ impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a T> for R
 }
 
 // Implementation for mutable access (borrow_mut)
-impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a mut T> for RcRefCellAccess<T> {
+impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a mut T>
+    for RcRefCellAccess<T>
+{
     fn lock_read(&self, lock: &std::rc::Rc<std::cell::RefCell<T>>) -> Option<&'a mut T> {
         // For mutable access, we need exclusive borrow
         // Note: borrow_mut() panics on borrow violation (not thread-safe, runtime check)
@@ -1188,17 +1283,13 @@ mod tests {
             value: i32,
         }
 
-        let prev: KpType<Root, Arc<Mutex<Mid>>> = Kp::new(
-            |r: &Root| Some(&r.data),
-            |r: &mut Root| Some(&mut r.data),
-        );
+        let prev: KpType<Root, Arc<Mutex<Mid>>> =
+            Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
 
         let mid = ArcMutexAccess::<Mid>::new();
 
-        let next: KpType<Mid, i32> = Kp::new(
-            |m: &Mid| Some(&m.value),
-            |m: &mut Mid| Some(&mut m.value),
-        );
+        let next: KpType<Mid, i32> =
+            Kp::new(|m: &Mid| Some(&m.value), |m: &mut Mid| Some(&mut m.value));
 
         let lock_kp = LockKp::new(prev, mid, next);
 
@@ -1234,16 +1325,12 @@ mod tests {
         };
 
         // Root -> Arc<Mutex<Mid>>
-        let prev: KpType<Root, Arc<Mutex<Mid>>> = Kp::new(
-            |r: &Root| Some(&r.data),
-            |r: &mut Root| Some(&mut r.data),
-        );
+        let prev: KpType<Root, Arc<Mutex<Mid>>> =
+            Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
 
         // Mid -> Inner2
-        let to_inner: KpType<Mid, Inner2> = Kp::new(
-            |m: &Mid| Some(&m.inner),
-            |m: &mut Mid| Some(&mut m.inner),
-        );
+        let to_inner: KpType<Mid, Inner2> =
+            Kp::new(|m: &Mid| Some(&m.inner), |m: &mut Mid| Some(&mut m.inner));
 
         // Inner2 -> String
         let to_value: KpType<Inner2, String> = Kp::new(
@@ -1290,14 +1377,9 @@ mod tests {
 
         // First LockKp: Root -> Arc<Mutex<Mid1>> -> Mid1
         let lock_kp1 = {
-            let prev: KpType<Root, Arc<Mutex<Mid1>>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
-            let next: KpType<Mid1, Mid1> = Kp::new(
-                |m: &Mid1| Some(m),
-                |m: &mut Mid1| Some(m),
-            );
+            let prev: KpType<Root, Arc<Mutex<Mid1>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<Mid1, Mid1> = Kp::new(|m: &Mid1| Some(m), |m: &mut Mid1| Some(m));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
@@ -1307,10 +1389,8 @@ mod tests {
                 |m: &Mid1| Some(&m.nested),
                 |m: &mut Mid1| Some(&mut m.nested),
             );
-            let next: KpType<Mid2, String> = Kp::new(
-                |m: &Mid2| Some(&m.value),
-                |m: &mut Mid2| Some(&mut m.value),
-            );
+            let next: KpType<Mid2, String> =
+                Kp::new(|m: &Mid2| Some(&m.value), |m: &mut Mid2| Some(&mut m.value));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
@@ -1354,10 +1434,8 @@ mod tests {
                 |r: &Root| Some(&r.level1),
                 |r: &mut Root| Some(&mut r.level1),
             );
-            let next: KpType<Level1, Level1> = Kp::new(
-                |l: &Level1| Some(l),
-                |l: &mut Level1| Some(l),
-            );
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
@@ -1417,36 +1495,24 @@ mod tests {
 
         // Lock level 1: Root -> L1
         let lock_kp1 = {
-            let prev: KpType<Root, Arc<Mutex<L1>>> = Kp::new(
-                |r: &Root| Some(&r.lock1),
-                |r: &mut Root| Some(&mut r.lock1),
-            );
-            let next: KpType<L1, L1> = Kp::new(
-                |l: &L1| Some(l),
-                |l: &mut L1| Some(l),
-            );
+            let prev: KpType<Root, Arc<Mutex<L1>>> =
+                Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
+            let next: KpType<L1, L1> = Kp::new(|l: &L1| Some(l), |l: &mut L1| Some(l));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Lock level 2: L1 -> L2
         let lock_kp2 = {
-            let prev: KpType<L1, Arc<Mutex<L2>>> = Kp::new(
-                |l: &L1| Some(&l.lock2),
-                |l: &mut L1| Some(&mut l.lock2),
-            );
-            let next: KpType<L2, L2> = Kp::new(
-                |l: &L2| Some(l),
-                |l: &mut L2| Some(l),
-            );
+            let prev: KpType<L1, Arc<Mutex<L2>>> =
+                Kp::new(|l: &L1| Some(&l.lock2), |l: &mut L1| Some(&mut l.lock2));
+            let next: KpType<L2, L2> = Kp::new(|l: &L2| Some(l), |l: &mut L2| Some(l));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Lock level 3: L2 -> L3 -> String
         let lock_kp3 = {
-            let prev: KpType<L2, Arc<Mutex<L3>>> = Kp::new(
-                |l: &L2| Some(&l.lock3),
-                |l: &mut L2| Some(&mut l.lock3),
-            );
+            let prev: KpType<L2, Arc<Mutex<L3>>> =
+                Kp::new(|l: &L2| Some(&l.lock3), |l: &mut L2| Some(&mut l.lock3));
             let next: KpType<L3, String> = Kp::new(
                 |l: &L3| Some(&l.final_value),
                 |l: &mut L3| Some(&mut l.final_value),
@@ -1496,40 +1562,26 @@ mod tests {
 
         // First lock
         let lock1 = {
-            let prev: KpType<Root, Arc<Mutex<Mid>>> = Kp::new(
-                |r: &Root| Some(&r.lock1),
-                |r: &mut Root| Some(&mut r.lock1),
-            );
-            let next: KpType<Mid, Mid> = Kp::new(
-                |m: &Mid| Some(m),
-                |m: &mut Mid| Some(m),
-            );
+            let prev: KpType<Root, Arc<Mutex<Mid>>> =
+                Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
+            let next: KpType<Mid, Mid> = Kp::new(|m: &Mid| Some(m), |m: &mut Mid| Some(m));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Second lock
         let lock2 = {
-            let prev: KpType<Mid, Arc<Mutex<Inner>>> = Kp::new(
-                |m: &Mid| Some(&m.lock2),
-                |m: &mut Mid| Some(&mut m.lock2),
-            );
-            let next: KpType<Inner, Inner> = Kp::new(
-                |i: &Inner| Some(i),
-                |i: &mut Inner| Some(i),
-            );
+            let prev: KpType<Mid, Arc<Mutex<Inner>>> =
+                Kp::new(|m: &Mid| Some(&m.lock2), |m: &mut Mid| Some(&mut m.lock2));
+            let next: KpType<Inner, Inner> = Kp::new(|i: &Inner| Some(i), |i: &mut Inner| Some(i));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Regular keypath after locks
-        let to_data: KpType<Inner, Data> = Kp::new(
-            |i: &Inner| Some(&i.data),
-            |i: &mut Inner| Some(&mut i.data),
-        );
+        let to_data: KpType<Inner, Data> =
+            Kp::new(|i: &Inner| Some(&i.data), |i: &mut Inner| Some(&mut i.data));
 
-        let to_value: KpType<Data, i32> = Kp::new(
-            |d: &Data| Some(&d.value),
-            |d: &mut Data| Some(&mut d.value),
-        );
+        let to_value: KpType<Data, i32> =
+            Kp::new(|d: &Data| Some(&d.value), |d: &mut Data| Some(&mut d.value));
 
         // Compose locks, then chain with regular keypaths
         let composed = lock1.compose(lock2);
@@ -1566,10 +1618,8 @@ mod tests {
         };
 
         // Create RwLock keypath
-        let prev: KpType<Root, Arc<RwLock<Inner>>> = Kp::new(
-            |r: &Root| Some(&r.data),
-            |r: &mut Root| Some(&mut r.data),
-        );
+        let prev: KpType<Root, Arc<RwLock<Inner>>> =
+            Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
 
         let next: KpType<Inner, String> = Kp::new(
             |i: &Inner| Some(&i.value),
@@ -1614,10 +1664,8 @@ mod tests {
                 |r: &Root| Some(&r.level1),
                 |r: &mut Root| Some(&mut r.level1),
             );
-            let next: KpType<Level1, Level1> = Kp::new(
-                |l: &Level1| Some(l),
-                |l: &mut Level1| Some(l),
-            );
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
             LockKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
@@ -1675,10 +1723,7 @@ mod tests {
                 |r: &Root| Some(&r.rwlock_data),
                 |r: &mut Root| Some(&mut r.rwlock_data),
             );
-            let next: KpType<Mid, Mid> = Kp::new(
-                |m: &Mid| Some(m),
-                |m: &mut Mid| Some(m),
-            );
+            let next: KpType<Mid, Mid> = Kp::new(|m: &Mid| Some(m), |m: &mut Mid| Some(m));
             LockKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
@@ -1722,10 +1767,8 @@ mod tests {
             data: Arc::new(RwLock::new(Inner { value: 42 })),
         };
 
-        let prev: KpType<Root, Arc<RwLock<Inner>>> = Kp::new(
-            |r: &Root| Some(&r.data),
-            |r: &mut Root| Some(&mut r.data),
-        );
+        let prev: KpType<Root, Arc<RwLock<Inner>>> =
+            Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
 
         let mid = ArcRwLockAccess::<Inner>::new();
 
@@ -1782,38 +1825,24 @@ mod tests {
 
         // Create three RwLock levels
         let lock1 = {
-            let prev: KpType<Root, Arc<RwLock<L1>>> = Kp::new(
-                |r: &Root| Some(&r.lock1),
-                |r: &mut Root| Some(&mut r.lock1),
-            );
-            let next: KpType<L1, L1> = Kp::new(
-                |l: &L1| Some(l),
-                |l: &mut L1| Some(l),
-            );
+            let prev: KpType<Root, Arc<RwLock<L1>>> =
+                Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
+            let next: KpType<L1, L1> = Kp::new(|l: &L1| Some(l), |l: &mut L1| Some(l));
             LockKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         let lock2 = {
-            let prev: KpType<L1, Arc<RwLock<L2>>> = Kp::new(
-                |l: &L1| Some(&l.lock2),
-                |l: &mut L1| Some(&mut l.lock2),
-            );
-            let next: KpType<L2, L2> = Kp::new(
-                |l: &L2| Some(l),
-                |l: &mut L2| Some(l),
-            );
+            let prev: KpType<L1, Arc<RwLock<L2>>> =
+                Kp::new(|l: &L1| Some(&l.lock2), |l: &mut L1| Some(&mut l.lock2));
+            let next: KpType<L2, L2> = Kp::new(|l: &L2| Some(l), |l: &mut L2| Some(l));
             LockKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         let lock3 = {
-            let prev: KpType<L2, Arc<RwLock<L3>>> = Kp::new(
-                |l: &L2| Some(&l.lock3),
-                |l: &mut L2| Some(&mut l.lock3),
-            );
-            let next: KpType<L3, String> = Kp::new(
-                |l: &L3| Some(&l.value),
-                |l: &mut L3| Some(&mut l.value),
-            );
+            let prev: KpType<L2, Arc<RwLock<L3>>> =
+                Kp::new(|l: &L2| Some(&l.lock3), |l: &mut L2| Some(&mut l.lock3));
+            let next: KpType<L3, String> =
+                Kp::new(|l: &L3| Some(&l.value), |l: &mut L3| Some(&mut l.value));
             LockKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
@@ -1848,7 +1877,9 @@ mod tests {
 
         impl Clone for PanicOnClone {
             fn clone(&self) -> Self {
-                panic!("❌ DEEP CLONE DETECTED! PanicOnClone was cloned! This should NEVER happen!");
+                panic!(
+                    "❌ DEEP CLONE DETECTED! PanicOnClone was cloned! This should NEVER happen!"
+                );
             }
         }
 
@@ -1897,14 +1928,10 @@ mod tests {
 
         // First RwLock level
         let lock1 = {
-            let prev: KpType<Root, Arc<RwLock<Level1>>> = Kp::new(
-                |r: &Root| Some(&r.lock1),
-                |r: &mut Root| Some(&mut r.lock1),
-            );
-            let next: KpType<Level1, Level1> = Kp::new(
-                |l: &Level1| Some(l),
-                |l: &mut Level1| Some(l),
-            );
+            let prev: KpType<Root, Arc<RwLock<Level1>>> =
+                Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
             LockKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
@@ -1928,7 +1955,7 @@ mod tests {
         // If we get here without panic, shallow cloning is working correctly!
         // Now actually use the composed keypath
         let value = composed.get(&root);
-        
+
         // ✅ SUCCESS: No panic means no deep cloning occurred!
         // The Arc was cloned (shallow), but Level1, Level2, and PanicOnClone were NOT
         assert!(value.is_some());
@@ -1995,23 +2022,16 @@ mod tests {
 
         // First Mutex level
         let lock1 = {
-            let prev: KpType<Root, Arc<Mutex<Mid>>> = Kp::new(
-                |r: &Root| Some(&r.lock1),
-                |r: &mut Root| Some(&mut r.lock1),
-            );
-            let next: KpType<Mid, Mid> = Kp::new(
-                |m: &Mid| Some(m),
-                |m: &mut Mid| Some(m),
-            );
+            let prev: KpType<Root, Arc<Mutex<Mid>>> =
+                Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
+            let next: KpType<Mid, Mid> = Kp::new(|m: &Mid| Some(m), |m: &mut Mid| Some(m));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Second Mutex level
         let lock2 = {
-            let prev: KpType<Mid, Arc<Mutex<Inner>>> = Kp::new(
-                |m: &Mid| Some(&m.lock2),
-                |m: &mut Mid| Some(&mut m.lock2),
-            );
+            let prev: KpType<Mid, Arc<Mutex<Inner>>> =
+                Kp::new(|m: &Mid| Some(&m.lock2), |m: &mut Mid| Some(&mut m.lock2));
             let next: KpType<Inner, String> = Kp::new(
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
@@ -2097,19 +2117,14 @@ mod tests {
                 |r: &Root| Some(&r.rwlock),
                 |r: &mut Root| Some(&mut r.rwlock),
             );
-            let next: KpType<Mid, Mid> = Kp::new(
-                |m: &Mid| Some(m),
-                |m: &mut Mid| Some(m),
-            );
+            let next: KpType<Mid, Mid> = Kp::new(|m: &Mid| Some(m), |m: &mut Mid| Some(m));
             LockKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         // Mutex level
         let mutex_kp = {
-            let prev: KpType<Mid, Arc<Mutex<Inner>>> = Kp::new(
-                |m: &Mid| Some(&m.mutex),
-                |m: &mut Mid| Some(&mut m.mutex),
-            );
+            let prev: KpType<Mid, Arc<Mutex<Inner>>> =
+                Kp::new(|m: &Mid| Some(&m.mutex), |m: &mut Mid| Some(&mut m.mutex));
             let next: KpType<Inner, i32> = Kp::new(
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
@@ -2125,11 +2140,11 @@ mod tests {
         // Only Arc refcounts were incremented
         let value = composed.get(&root);
         assert!(value.is_some());
-        
+
         // Additional verification: Use it multiple times
         let value2 = composed.get(&root);
         assert!(value2.is_some());
-        
+
         // Still no panic - proves shallow cloning is consistent
     }
 
@@ -2139,8 +2154,8 @@ mod tests {
 
     #[test]
     fn test_rc_refcell_basic() {
-        use std::rc::Rc;
         use std::cell::RefCell;
+        use std::rc::Rc;
 
         #[derive(Clone)]
         struct Root {
@@ -2160,10 +2175,8 @@ mod tests {
 
         // Create LockKp for Rc<RefCell<T>>
         let lock_kp = {
-            let prev: KpType<Root, Rc<RefCell<Inner>>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
+            let prev: KpType<Root, Rc<RefCell<Inner>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<Inner, String> = Kp::new(
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
@@ -2189,8 +2202,8 @@ mod tests {
 
     #[test]
     fn test_rc_refcell_compose_two_levels() {
-        use std::rc::Rc;
         use std::cell::RefCell;
+        use std::rc::Rc;
 
         #[derive(Clone)]
         struct Root {
@@ -2219,10 +2232,8 @@ mod tests {
                 |r: &Root| Some(&r.level1),
                 |r: &mut Root| Some(&mut r.level1),
             );
-            let next: KpType<Level1, Level1> = Kp::new(
-                |l: &Level1| Some(l),
-                |l: &mut Level1| Some(l),
-            );
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
             LockKp::new(prev, RcRefCellAccess::new(), next)
         };
 
@@ -2260,8 +2271,8 @@ mod tests {
 
     #[test]
     fn test_rc_refcell_three_levels() {
-        use std::rc::Rc;
         use std::cell::RefCell;
+        use std::rc::Rc;
 
         #[derive(Clone)]
         struct Root {
@@ -2295,34 +2306,26 @@ mod tests {
 
         // Level 1
         let lock1 = {
-            let prev: KpType<Root, Rc<RefCell<L1>>> = Kp::new(
-                |r: &Root| Some(&r.l1),
-                |r: &mut Root| Some(&mut r.l1),
-            );
+            let prev: KpType<Root, Rc<RefCell<L1>>> =
+                Kp::new(|r: &Root| Some(&r.l1), |r: &mut Root| Some(&mut r.l1));
             let next: KpType<L1, L1> = Kp::new(|l: &L1| Some(l), |l: &mut L1| Some(l));
             LockKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Level 2
         let lock2 = {
-            let prev: KpType<L1, Rc<RefCell<L2>>> = Kp::new(
-                |l: &L1| Some(&l.l2),
-                |l: &mut L1| Some(&mut l.l2),
-            );
+            let prev: KpType<L1, Rc<RefCell<L2>>> =
+                Kp::new(|l: &L1| Some(&l.l2), |l: &mut L1| Some(&mut l.l2));
             let next: KpType<L2, L2> = Kp::new(|l: &L2| Some(l), |l: &mut L2| Some(l));
             LockKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Level 3
         let lock3 = {
-            let prev: KpType<L2, Rc<RefCell<L3>>> = Kp::new(
-                |l: &L2| Some(&l.l3),
-                |l: &mut L2| Some(&mut l.l3),
-            );
-            let next: KpType<L3, String> = Kp::new(
-                |l: &L3| Some(&l.value),
-                |l: &mut L3| Some(&mut l.value),
-            );
+            let prev: KpType<L2, Rc<RefCell<L3>>> =
+                Kp::new(|l: &L2| Some(&l.l3), |l: &mut L2| Some(&mut l.l3));
+            let next: KpType<L3, String> =
+                Kp::new(|l: &L3| Some(&l.value), |l: &mut L3| Some(&mut l.value));
             LockKp::new(prev, RcRefCellAccess::new(), next)
         };
 
@@ -2338,8 +2341,8 @@ mod tests {
 
     #[test]
     fn test_rc_refcell_panic_on_clone_proof() {
-        use std::rc::Rc;
         use std::cell::RefCell;
+        use std::rc::Rc;
 
         /// This struct PANICS if cloned - proving no deep cloning occurs
         struct PanicOnClone {
@@ -2400,10 +2403,8 @@ mod tests {
                 |r: &Root| Some(&r.level1),
                 |r: &mut Root| Some(&mut r.level1),
             );
-            let next: KpType<Level1, Level1> = Kp::new(
-                |l: &Level1| Some(l),
-                |l: &mut Level1| Some(l),
-            );
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
             LockKp::new(prev, RcRefCellAccess::new(), next)
         };
 
@@ -2437,8 +2438,8 @@ mod tests {
 
     #[test]
     fn test_rc_refcell_vs_arc_mutex() {
-        use std::rc::Rc;
         use std::cell::RefCell;
+        use std::rc::Rc;
 
         // This test demonstrates the API similarity between Rc<RefCell> and Arc<Mutex>
 
@@ -2462,10 +2463,8 @@ mod tests {
                 |r: &RcRoot| Some(&r.data),
                 |r: &mut RcRoot| Some(&mut r.data),
             );
-            let next: KpType<String, String> = Kp::new(
-                |s: &String| Some(s),
-                |s: &mut String| Some(s),
-            );
+            let next: KpType<String, String> =
+                Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
             LockKp::new(prev, RcRefCellAccess::new(), next)
         };
 
@@ -2479,10 +2478,8 @@ mod tests {
                 |r: &ArcRoot| Some(&r.data),
                 |r: &mut ArcRoot| Some(&mut r.data),
             );
-            let next: KpType<String, String> = Kp::new(
-                |s: &String| Some(s),
-                |s: &mut String| Some(s),
-            );
+            let next: KpType<String, String> =
+                Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
             LockKp::new(prev, ArcMutexAccess::new(), next)
         };
 
@@ -2513,14 +2510,10 @@ mod tests {
         };
 
         let lock_kp = {
-            let prev: KpType<Root, Arc<Mutex<String>>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
-            let next: KpType<String, String> = Kp::new(
-                |s: &String| Some(s),
-                |s: &mut String| Some(s),
-            );
+            let prev: KpType<Root, Arc<Mutex<String>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<String, String> =
+                Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
             LockKp::new(prev, ParkingLotMutexAccess::new(), next)
         };
 
@@ -2543,14 +2536,10 @@ mod tests {
         };
 
         let lock_kp = {
-            let prev: KpType<Root, Arc<RwLock<Vec<i32>>>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
-            let next: KpType<Vec<i32>, Vec<i32>> = Kp::new(
-                |v: &Vec<i32>| Some(v),
-                |v: &mut Vec<i32>| Some(v),
-            );
+            let prev: KpType<Root, Arc<RwLock<Vec<i32>>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<Vec<i32>, Vec<i32>> =
+                Kp::new(|v: &Vec<i32>| Some(v), |v: &mut Vec<i32>| Some(v));
             LockKp::new(prev, ParkingLotRwLockAccess::new(), next)
         };
 
@@ -2586,10 +2575,8 @@ mod tests {
                 |r: &Root| Some(&r.level1),
                 |r: &mut Root| Some(&mut r.level1),
             );
-            let next: KpType<Level1, Level1> = Kp::new(
-                |l: &Level1| Some(l),
-                |l: &mut Level1| Some(l),
-            );
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
             LockKp::new(prev, ParkingLotMutexAccess::new(), next)
         };
 
@@ -2599,10 +2586,7 @@ mod tests {
                 |l: &Level1| Some(&l.level2),
                 |l: &mut Level1| Some(&mut l.level2),
             );
-            let next: KpType<i32, i32> = Kp::new(
-                |n: &i32| Some(n),
-                |n: &mut i32| Some(n),
-            );
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
             LockKp::new(prev, ParkingLotMutexAccess::new(), next)
         };
 
@@ -2627,14 +2611,9 @@ mod tests {
         };
 
         let lock_kp = {
-            let prev: KpType<Root, Arc<RwLock<i32>>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
-            let next: KpType<i32, i32> = Kp::new(
-                |n: &i32| Some(n),
-                |n: &mut i32| Some(n),
-            );
+            let prev: KpType<Root, Arc<RwLock<i32>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
             LockKp::new(prev, ParkingLotRwLockAccess::new(), next)
         };
 
@@ -2709,7 +2688,7 @@ mod tests {
 
         // CRITICAL TEST: If any deep cloning occurs, PanicOnClone will trigger
         let value = lock_kp.get(&root);
-        
+
         // ✅ SUCCESS: No panic means no deep cloning!
         assert_eq!(value.unwrap(), &123);
     }
@@ -2731,10 +2710,8 @@ mod tests {
         };
 
         let lock_kp = {
-            let prev: KpType<Root, Mutex<Inner>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
+            let prev: KpType<Root, Mutex<Inner>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<Inner, i32> = Kp::new(
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
@@ -2771,10 +2748,8 @@ mod tests {
         };
 
         let lock_kp = {
-            let prev: KpType<Root, RwLock<Inner>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
+            let prev: KpType<Root, RwLock<Inner>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<Inner, String> = Kp::new(
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
@@ -2810,10 +2785,8 @@ mod tests {
         };
 
         let lock_kp = {
-            let prev: KpType<Root, Mutex<Inner>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
+            let prev: KpType<Root, Mutex<Inner>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<Inner, i32> = Kp::new(
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
@@ -2851,10 +2824,8 @@ mod tests {
         };
 
         let lock_kp = {
-            let prev: KpType<Root, RwLock<Inner>> = Kp::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
+            let prev: KpType<Root, RwLock<Inner>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<Inner, String> = Kp::new(
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
@@ -2872,4 +2843,3 @@ mod tests {
         assert_eq!(value.as_ref().map(|s| s.as_str()), Some("world"));
     }
 }
-

@@ -50,7 +50,7 @@ fn test_identity_mutable() {
     identity_kp.get_mut(&mut collections).map(|c| {
         c.items.push(4);
     });
-    
+
     assert_eq!(collections.items.len(), 4);
 }
 
@@ -122,7 +122,10 @@ fn test_box_access() {
     };
 
     let boxed_kp = SmartPointers::boxed();
-    assert_eq!(boxed_kp.get(&smart).map(|s| s.as_str()), Some("boxed_value"));
+    assert_eq!(
+        boxed_kp.get(&smart).map(|s| s.as_str()),
+        Some("boxed_value")
+    );
 }
 
 #[test]
@@ -134,8 +137,10 @@ fn test_box_mutable() {
     };
 
     let boxed_kp = SmartPointers::boxed();
-    boxed_kp.get_mut(&mut smart).map(|s| *s = "modified".to_string());
-    
+    boxed_kp
+        .get_mut(&mut smart)
+        .map(|s| *s = "modified".to_string());
+
     assert_eq!(smart.boxed.as_str(), "modified");
 }
 
@@ -167,7 +172,9 @@ fn test_arc_access() {
     assert_eq!(arc_kp.get(&smart).map(|s| s.as_str()), Some("original"));
 
     // Test mutable access when Arc has only one reference
-    arc_kp.get_mut(&mut smart).map(|v| *v = "modified".to_string());
+    arc_kp
+        .get_mut(&mut smart)
+        .map(|v| *v = "modified".to_string());
     assert_eq!(smart.arc.as_str(), "modified");
 }
 
@@ -183,10 +190,10 @@ fn test_rc_no_mut_with_multiple_refs() {
     };
 
     let rc_kp = SmartPointers::rc();
-    
+
     // Should return None because there are multiple references
     assert_eq!(rc_kp.get_mut(&mut smart), None);
-    
+
     // Cleanup
     drop(rc_clone);
 }
@@ -203,10 +210,10 @@ fn test_arc_no_mut_with_multiple_refs() {
     };
 
     let arc_kp = SmartPointers::arc();
-    
+
     // Should return None because there are multiple references
     assert_eq!(arc_kp.get_mut(&mut smart), None);
-    
+
     // Cleanup
     drop(arc_clone);
 }
@@ -214,7 +221,7 @@ fn test_arc_no_mut_with_multiple_refs() {
 #[test]
 fn test_std_mutex_with_lockkp() {
     use std::sync::Mutex;
-    
+
     let locks = WithLocks {
         std_mutex: Mutex::new(99),
         std_rwlock: std::sync::RwLock::new("test".to_string()),
@@ -222,18 +229,11 @@ fn test_std_mutex_with_lockkp() {
 
     // Get keypath to mutex
     let mutex_kp = WithLocks::std_mutex();
-    
+
     // Create LockKp for accessing the inner value
-    let next: KpType<i32, i32> = rust_key_paths::Kp::new(
-        |i: &i32| Some(i),
-        |i: &mut i32| Some(i),
-    );
-    
-    let lock_kp = LockKp::new(
-        mutex_kp,
-        rust_key_paths::StdMutexAccess::new(),
-        next,
-    );
+    let next: KpType<i32, i32> = rust_key_paths::Kp::new(|i: &i32| Some(i), |i: &mut i32| Some(i));
+
+    let lock_kp = LockKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
 
     // Access through lock
     let value = lock_kp.get(&locks);

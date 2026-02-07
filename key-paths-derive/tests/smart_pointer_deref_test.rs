@@ -20,7 +20,7 @@ fn test_box_returns_inner_type() {
     let box_kp = AllWrapperTypes::boxed_value();
     let value: Option<&i32> = box_kp.get(&data);
     assert_eq!(value, Some(&42));
-    
+
     // Verify the type is indeed KpType<'static, AllWrapperTypes, i32>
     let _typed: KpType<'static, AllWrapperTypes, i32> = box_kp;
 }
@@ -37,7 +37,7 @@ fn test_rc_returns_inner_type() {
     let rc_kp = AllWrapperTypes::rc_value();
     let value: Option<&String> = rc_kp.get(&data);
     assert_eq!(value.map(|s| s.as_str()), Some("hello"));
-    
+
     // Verify the type
     let _typed: KpType<'static, AllWrapperTypes, String> = rc_kp;
 }
@@ -54,7 +54,7 @@ fn test_arc_returns_inner_type() {
     let arc_kp = AllWrapperTypes::arc_value();
     let value: Option<&f64> = arc_kp.get(&data);
     assert_eq!(value, Some(&2.71));
-    
+
     // Verify the type
     let _typed: KpType<'static, AllWrapperTypes, f64> = arc_kp;
 }
@@ -72,6 +72,6 @@ fn test_box_mutable_returns_inner_type() {
     let value: Option<&mut i32> = box_kp.get_mut(&mut data);
     assert!(value.is_some());
     *value.unwrap() = 100;
-    
+
     assert_eq!(*data.boxed_value, 100);
 }

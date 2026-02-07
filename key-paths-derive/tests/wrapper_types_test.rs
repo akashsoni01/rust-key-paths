@@ -1,44 +1,44 @@
 use key_paths_derive::Kp;
-use std::collections::{HashMap, BTreeMap, HashSet, BTreeSet, VecDeque, LinkedList, BinaryHeap};
-use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
 
 #[derive(Kp)]
 struct AllWrapperTypes {
     // Basic types
     basic: String,
-    
+
     // Option
     opt_string: Option<String>,
-    
+
     // Vec
     vec_numbers: Vec<i32>,
-    
+
     // Box
     boxed_value: Box<i32>,
-    
+
     // Arc/Rc
     arc_value: Arc<String>,
     rc_value: Rc<String>,
-    
+
     // HashMap and BTreeMap
     hash_map: HashMap<String, i32>,
     btree_map: BTreeMap<String, i32>,
-    
+
     // Sets
     hash_set: HashSet<String>,
     btree_set: BTreeSet<String>,
-    
+
     // VecDeque and LinkedList
     vec_deque: VecDeque<i32>,
     linked_list: LinkedList<i32>,
-    
+
     // BinaryHeap
     binary_heap: BinaryHeap<i32>,
-    
+
     // Result
     result_value: Result<String, String>,
-    
+
     // Mutex and RwLock
     mutex_value: StdMutex<i32>,
     rwlock_value: StdRwLock<String>,
@@ -64,7 +64,7 @@ fn test_basic_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test basic type
     let basic_kp = AllWrapperTypes::basic();
     assert_eq!(basic_kp.get(&data), Some(&"hello".to_string()));
@@ -98,7 +98,8 @@ fn test_all_wrapper_types_identity() {
     assert!(std::ptr::eq(result.unwrap(), &data));
 
     // identity_typed works as well
-    let identity_typed_kp = AllWrapperTypes::identity_typed::<&AllWrapperTypes, &mut AllWrapperTypes>();
+    let identity_typed_kp =
+        AllWrapperTypes::identity_typed::<&AllWrapperTypes, &mut AllWrapperTypes>();
     let result_typed = identity_typed_kp.get(&data);
     assert!(result_typed.is_some());
 }
@@ -123,7 +124,7 @@ fn test_option_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test Option - should unwrap and access inner String
     let opt_kp = AllWrapperTypes::opt_string();
     assert_eq!(opt_kp.get(&data), Some(&"world".to_string()));
@@ -149,7 +150,7 @@ fn test_option_none() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test Option None - should return None
     let opt_kp = AllWrapperTypes::opt_string();
     assert_eq!(opt_kp.get(&data), None);
@@ -175,7 +176,7 @@ fn test_vec_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // vec_numbers() returns container; vec_numbers_at() returns first element
     let vec_container_kp = AllWrapperTypes::vec_numbers();
     assert_eq!(vec_container_kp.get(&data).map(|v| v.len()), Some(3));
@@ -204,12 +205,12 @@ fn test_box_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test Box - should deref to inner value (returns &i32, not &Box<i32>)
     let box_kp = AllWrapperTypes::boxed_value();
     let value = box_kp.get(&data);
     assert_eq!(value, Some(&42));
-    
+
     // Verify the correct type signature
     let _typed: rust_key_paths::KpType<'static, AllWrapperTypes, i32> = box_kp;
 }
@@ -234,7 +235,7 @@ fn test_arc_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test Arc - should deref to inner value
     let arc_kp = AllWrapperTypes::arc_value();
     assert_eq!(arc_kp.get(&data), Some(&"arc".to_string()));
@@ -260,7 +261,7 @@ fn test_result_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test Result - should access Ok value
     let result_kp = AllWrapperTypes::result_value();
     assert_eq!(result_kp.get(&data), Some(&"success".to_string()));
@@ -286,7 +287,7 @@ fn test_result_err() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test Result Err - should return None
     let result_kp = AllWrapperTypes::result_value();
     assert_eq!(result_kp.get(&data), None);
@@ -312,10 +313,12 @@ fn test_mutable_basic_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test mutable access to basic type
     let basic_kp = AllWrapperTypes::basic();
-    basic_kp.get_mut(&mut data).map(|v| *v = "modified".to_string());
+    basic_kp
+        .get_mut(&mut data)
+        .map(|v| *v = "modified".to_string());
     assert_eq!(data.basic, "modified");
 }
 
@@ -339,10 +342,12 @@ fn test_mutable_option_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test mutable access to Option inner value
     let opt_kp = AllWrapperTypes::opt_string();
-    opt_kp.get_mut(&mut data).map(|v| *v = "modified".to_string());
+    opt_kp
+        .get_mut(&mut data)
+        .map(|v| *v = "modified".to_string());
     assert_eq!(data.opt_string, Some("modified".to_string()));
 }
 
@@ -366,7 +371,7 @@ fn test_mutable_vec_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test mutable access to Vec first element via vec_numbers_at()
     let vec_kp = AllWrapperTypes::vec_numbers_at();
     vec_kp.get_mut(&mut data).map(|v| *v = 99);
@@ -393,7 +398,7 @@ fn test_mutable_box_type() {
         mutex_value: StdMutex::new(100),
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
-    
+
     // Test mutable access to Box inner value
     let box_kp = AllWrapperTypes::boxed_value();
     box_kp.get_mut(&mut data).map(|v| *v = 99);
@@ -413,7 +418,7 @@ fn test_enum_unit_variant() {
     let e = MyEnum::Unit;
     let unit_kp = MyEnum::unit();
     assert!(unit_kp.get(&e).is_some());
-    
+
     let e2 = MyEnum::Single("test".to_string());
     assert!(unit_kp.get(&e2).is_none());
 }
@@ -423,7 +428,7 @@ fn test_enum_single_variant() {
     let e = MyEnum::Single("hello".to_string());
     let single_kp = MyEnum::single();
     assert_eq!(single_kp.get(&e), Some(&"hello".to_string()));
-    
+
     let e2 = MyEnum::Unit;
     assert!(single_kp.get(&e2).is_none());
 }
@@ -433,17 +438,20 @@ fn test_enum_tuple_variant() {
     let e = MyEnum::Tuple(42, "world".to_string());
     let tuple_kp = MyEnum::tuple();
     assert_eq!(tuple_kp.get(&e), Some(&e));
-    
+
     let e2 = MyEnum::Unit;
     assert!(tuple_kp.get(&e2).is_none());
 }
 
 #[test]
 fn test_enum_named_variant() {
-    let e = MyEnum::Named { x: 42, y: "test".to_string() };
+    let e = MyEnum::Named {
+        x: 42,
+        y: "test".to_string(),
+    };
     let named_kp = MyEnum::named();
     assert_eq!(named_kp.get(&e), Some(&e));
-    
+
     let e2 = MyEnum::Unit;
     assert!(named_kp.get(&e2).is_none());
 }
@@ -454,15 +462,15 @@ struct TupleStruct(String, i32, Option<bool>);
 #[test]
 fn test_tuple_struct_fields() {
     let ts = TupleStruct("hello".to_string(), 42, Some(true));
-    
+
     // Test field 0 (String)
     let f0_kp = TupleStruct::f0();
     assert_eq!(f0_kp.get(&ts), Some(&"hello".to_string()));
-    
+
     // Test field 1 (i32)
     let f1_kp = TupleStruct::f1();
     assert_eq!(f1_kp.get(&ts), Some(&42));
-    
+
     // Test field 2 (Option<bool> - unwraps to bool)
     let f2_kp = TupleStruct::f2();
     assert_eq!(f2_kp.get(&ts), Some(&true));
@@ -471,17 +479,17 @@ fn test_tuple_struct_fields() {
 #[test]
 fn test_tuple_struct_mutable() {
     let mut ts = TupleStruct("hello".to_string(), 42, Some(true));
-    
+
     // Modify field 0
     let f0_kp = TupleStruct::f0();
     f0_kp.get_mut(&mut ts).map(|v| *v = "modified".to_string());
     assert_eq!(ts.0, "modified");
-    
+
     // Modify field 1
     let f1_kp = TupleStruct::f1();
     f1_kp.get_mut(&mut ts).map(|v| *v = 99);
     assert_eq!(ts.1, 99);
-    
+
     // Modify field 2 (Option inner value)
     let f2_kp = TupleStruct::f2();
     f2_kp.get_mut(&mut ts).map(|v| *v = false);

@@ -15,20 +15,29 @@ use std::sync::{Arc, Mutex};
 // Export the lock module
 pub mod lock;
 pub use lock::{
-    LockKp, LockAccess, 
-    ArcMutexAccess, ArcRwLockAccess, RcRefCellAccess,
+    ArcMutexAccess, ArcRwLockAccess, LockAccess, LockKp, LockKpType, RcRefCellAccess,
     StdMutexAccess, StdRwLockAccess,
-    LockKpType
 };
 
 #[cfg(feature = "parking_lot")]
 pub use lock::{
-    ParkingLotMutexAccess, ParkingLotRwLockAccess,
-    DirectParkingLotMutexAccess, DirectParkingLotRwLockAccess
+    DirectParkingLotMutexAccess, DirectParkingLotRwLockAccess, ParkingLotMutexAccess,
+    ParkingLotRwLockAccess,
 };
 
 // Export the async_lock module
 pub mod async_lock;
+
+pub type KpDynamic<R, V> = Kp<
+    R,
+    V,
+    &'static R,
+    &'static V,
+    &'static mut R,
+    &'static mut V,
+    Box<dyn for<'a> Fn(&'a R) -> Option<&'a V>>,
+    Box<dyn for<'a> Fn(&'a mut R) -> Option<&'a mut V>>,
+>;
 
 pub type KpType<'a, R, V> = Kp<
     R,
@@ -86,7 +95,6 @@ pub type KpComposed<R, V> = Kp<
     Box<dyn for<'b> Fn(&'b R) -> Option<&'b V>>,
     Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V>>,
 >;
-
 
 pub struct AKp {
     getter: Rc<dyn for<'r> Fn(&'r dyn Any) -> Option<&'r dyn Any>>,
@@ -276,7 +284,7 @@ impl AKp {
 
     /// Map the value through a transformation function with type checking
     /// Both original and mapped values must implement Any
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { name: "Alice".to_string() };
@@ -284,10 +292,7 @@ impl AKp {
     /// let name_akp = AKp::new(name_kp);
     /// let len_akp = name_akp.map::<User, String, _, _>(|s| s.len());
     /// ```
-    pub fn map<Root, OrigValue, MappedValue, F>(
-        &self,
-        mapper: F,
-    ) -> AKp
+    pub fn map<Root, OrigValue, MappedValue, F>(&self, mapper: F) -> AKp
     where
         Root: Any + 'static,
         OrigValue: Any + 'static,
@@ -326,7 +331,7 @@ impl AKp {
 
     /// Filter the value based on a predicate with full type checking
     /// Returns None if types don't match or predicate fails
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { age: 30 };
@@ -387,9 +392,7 @@ where
         let getter_fn = keypath.get;
 
         Self {
-            getter: Rc::new(move |root: &Root| {
-                getter_fn(root).map(|val: &V| val as &dyn Any)
-            }),
+            getter: Rc::new(move |root: &Root| getter_fn(root).map(|val: &V| val as &dyn Any)),
             value_type_id,
             _phantom: std::marker::PhantomData,
         }
@@ -469,9 +472,7 @@ where
         let value_type_id = self.value_type_id;
 
         PKp {
-            getter: Rc::new(move |opt: &Option<Root>| {
-                opt.as_ref().and_then(|root| getter(root))
-            }),
+            getter: Rc::new(move |opt: &Option<Root>| opt.as_ref().and_then(|root| getter(root))),
             value_type_id,
             _phantom: std::marker::PhantomData,
         }
@@ -496,7 +497,7 @@ where
 
     /// Map the value through a transformation function
     /// The mapped value must also implement Any for type erasure
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { name: "Alice".to_string() };
@@ -505,10 +506,7 @@ where
     /// let len_pkp = name_pkp.map::<String, _, _>(|s| s.len());
     /// assert_eq!(len_pkp.get_as::<usize>(&user), Some(&5));
     /// ```
-    pub fn map<OrigValue, MappedValue, F>(
-        &self,
-        mapper: F,
-    ) -> PKp<Root>
+    pub fn map<OrigValue, MappedValue, F>(&self, mapper: F) -> PKp<Root>
     where
         OrigValue: Any + 'static,
         MappedValue: Any + 'static,
@@ -541,7 +539,7 @@ where
 
     /// Filter the value based on a predicate with type checking
     /// Returns None if the type doesn't match or predicate fails
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { age: 30 };
@@ -652,7 +650,7 @@ where
 
     /// Map the value through a transformation function
     /// Returns a new keypath that transforms the value when accessed
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { name: "Alice".to_string() };
@@ -698,7 +696,7 @@ where
 
     /// Filter the value based on a predicate
     /// Returns None if the predicate returns false, otherwise returns the value
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { age: 30 };
@@ -742,7 +740,7 @@ where
     }
 
     /// Map and flatten - useful when mapper returns an Option
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { middle_name: Some("M.".to_string()) };
@@ -789,17 +787,14 @@ where
 
     /// Flat map - maps to an iterator and flattens
     /// Useful when the value is a collection and you want to iterate over it
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { tags: vec!["rust", "web"] };
     /// let tags_kp = KpType::new(|u: &User| Some(&u.tags), |_| None);
     /// // Use with a closure that returns an iterator
     /// ```
-    pub fn flat_map<I, Item, F>(
-        &self,
-        mapper: F,
-    ) -> impl Fn(Root) -> Vec<Item>
+    pub fn flat_map<I, Item, F>(&self, mapper: F) -> impl Fn(Root) -> Vec<Item>
     where
         // No Copy needed - mapper is only captured once by the returned closure
         // 'static: Required so the returned function can outlive the call
@@ -819,7 +814,7 @@ where
     }
 
     /// Apply a function for its side effects and return the value
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { name: "Alice".to_string() };
@@ -865,7 +860,7 @@ where
 
     /// Fold/reduce the value using an accumulator function
     /// Useful when the value is a collection
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { scores: vec![85, 92, 78] };
@@ -894,7 +889,7 @@ where
     }
 
     /// Check if any element satisfies a predicate (for collection values)
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { scores: vec![85, 92, 78] };
@@ -920,7 +915,7 @@ where
     }
 
     /// Check if all elements satisfy a predicate (for collection values)
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { scores: vec![85, 92, 78] };
@@ -946,7 +941,7 @@ where
     }
 
     /// Count elements in a collection value
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { tags: vec!["rust", "web", "backend"] };
@@ -970,7 +965,7 @@ where
     }
 
     /// Find first element matching predicate in a collection value
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { scores: vec![85, 92, 78, 95] };
@@ -997,7 +992,7 @@ where
     }
 
     /// Take first N elements from a collection value
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { tags: vec!["a", "b", "c", "d"] };
@@ -1021,7 +1016,7 @@ where
     }
 
     /// Skip first N elements from a collection value
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { tags: vec!["a", "b", "c", "d"] };
@@ -1045,7 +1040,7 @@ where
     }
 
     /// Partition a collection value into two groups based on predicate
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { scores: vec![85, 92, 65, 95, 72] };
@@ -1071,7 +1066,7 @@ where
     }
 
     /// Get min value from a collection
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { scores: vec![85, 92, 78] };
@@ -1096,7 +1091,7 @@ where
     }
 
     /// Get max value from a collection
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { scores: vec![85, 92, 78] };
@@ -1121,7 +1116,7 @@ where
     }
 
     /// Sum numeric values in a collection
-    /// 
+    ///
     /// # Example
     /// ```
     /// let user = User { scores: vec![85, 92, 78] };
@@ -1234,7 +1229,7 @@ where
 
 /// Zip two keypaths together to create a tuple
 /// Works only with KpType (reference-based keypaths)
-/// 
+///
 /// # Example
 /// ```
 /// let user = User { name: "Alice".to_string(), age: 30 };
@@ -1354,7 +1349,7 @@ where
     }
 
     /// Map the variant value through a transformation function
-    /// 
+    ///
     /// # Example
     /// ```
     /// let result: Result<String, i32> = Ok("hello".to_string());
@@ -1386,20 +1381,22 @@ where
         E: Fn(Variant) -> Enum + Copy + 'static,
     {
         let mapped_extractor = self.extractor.map(mapper);
-        
+
         // Create a new embedder that maps back
         // Note: This is a limitation - we can't reverse the map for embedding
         // So we create a placeholder that panics
         let new_embedder = move |_value: MappedValue| -> Enum {
-            panic!("Cannot embed mapped values back into enum. Use the original EnumKp for embedding.")
+            panic!(
+                "Cannot embed mapped values back into enum. Use the original EnumKp for embedding."
+            )
         };
-        
+
         EnumKp::new(mapped_extractor, new_embedder)
     }
 
     /// Filter the variant value based on a predicate
     /// Returns None if the predicate fails or if wrong variant
-    /// 
+    ///
     /// # Example
     /// ```
     /// let result: Result<i32, String> = Ok(42);
@@ -1634,6 +1631,7 @@ use std::rc::Rc;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[derive(Debug)]
     struct TestKP {
@@ -1643,6 +1641,7 @@ mod tests {
         d: std::sync::Mutex<String>,
         e: std::sync::Arc<std::sync::Mutex<TestKP2>>,
         f: Option<TestKP2>,
+        g: HashMap<i32, TestKP2>,
     }
 
     impl TestKP {
@@ -1657,7 +1656,15 @@ mod tests {
                     a: String::from("a3"),
                     b: std::sync::Arc::new(std::sync::Mutex::new(TestKP3::new())),
                 }),
+                g: HashMap::new(),
             }
+        }
+
+        fn g(index: i32) -> KpDynamic<TestKP, TestKP2> {
+            Kp::new(
+                Box::new(move |x: &TestKP| x.g.get(&index)),
+                Box::new(move |x: &mut TestKP| x.g.get_mut(&index)),
+            )
         }
 
         // Example for - Clone ref sharing
@@ -1816,6 +1823,10 @@ mod tests {
         println!("{:?}", res);
         let res = kp.get(&instance);
         println!("{:?}", res);
+
+        let hash_kp = TestKP::g(0);
+        let new_kp_from_hashmap = hash_kp.then(TestKP2::a());
+        println!("{:?}", new_kp_from_hashmap.get(&instance));
     }
 
     // #[test]
@@ -2378,12 +2389,14 @@ mod tests {
             scores: vec![85, 92, 78, 95],
         };
 
-        let scores_kp = KpType::new(|u: &User| Some(&u.scores), |u: &mut User| Some(&mut u.scores));
-        
+        let scores_kp = KpType::new(
+            |u: &User| Some(&u.scores),
+            |u: &mut User| Some(&mut u.scores),
+        );
+
         // Map to average score
-        let avg_kp = scores_kp.map(|scores: &Vec<i32>| {
-            scores.iter().sum::<i32>() / scores.len() as i32
-        });
+        let avg_kp =
+            scores_kp.map(|scores: &Vec<i32>| scores.iter().sum::<i32>() / scores.len() as i32);
 
         // Filter for high averages
         let high_avg_kp = avg_kp.filter(|avg: &i32| *avg >= 85);
@@ -2469,7 +2482,10 @@ mod tests {
         let name_pkp = PKp::new(name_kp);
         let short_name_pkp = name_pkp.filter::<String, _>(|name| name.len() <= 4);
 
-        assert_eq!(short_name_pkp.get_as::<String>(&minor), Some(&"Bob".to_string()));
+        assert_eq!(
+            short_name_pkp.get_as::<String>(&minor),
+            Some(&"Bob".to_string())
+        );
         assert_eq!(short_name_pkp.get_as::<String>(&adult), None);
     }
 
@@ -2495,17 +2511,14 @@ mod tests {
         let age_akp = AKp::new(age_kp);
         let adult_akp = age_akp.filter::<User, i32, _>(|age| *age >= 18);
 
-        assert_eq!(
-            adult_akp.get_as::<User, i32>(&adult),
-            Some(Some(&30))
-        );
-        assert_eq!(
-            adult_akp.get_as::<User, i32>(&minor),
-            Some(None)
-        );
+        assert_eq!(adult_akp.get_as::<User, i32>(&adult), Some(Some(&30)));
+        assert_eq!(adult_akp.get_as::<User, i32>(&minor), Some(None));
 
         // Filter product prices
-        let price_kp = KpType::new(|p: &Product| Some(&p.price), |p: &mut Product| Some(&mut p.price));
+        let price_kp = KpType::new(
+            |p: &Product| Some(&p.price),
+            |p: &mut Product| Some(&mut p.price),
+        );
         let price_akp = AKp::new(price_kp);
         let expensive_akp = price_akp.filter::<Product, f64, _>(|price| *price > 50.0);
 
@@ -2513,10 +2526,7 @@ mod tests {
             expensive_akp.get_as::<Product, f64>(&expensive),
             Some(Some(&99.99))
         );
-        assert_eq!(
-            expensive_akp.get_as::<Product, f64>(&cheap),
-            Some(None)
-        );
+        assert_eq!(expensive_akp.get_as::<Product, f64>(&cheap), Some(None));
     }
 
     // ========== ITERATOR-RELATED HOF TESTS ==========
@@ -2538,9 +2548,8 @@ mod tests {
             |u: &mut User| Some(&mut u.middle_name),
         );
 
-        let first_char_kp = middle_kp.filter_map(|opt: &Option<String>| {
-            opt.as_ref().and_then(|s| s.chars().next())
-        });
+        let first_char_kp = middle_kp
+            .filter_map(|opt: &Option<String>| opt.as_ref().and_then(|s| s.chars().next()));
 
         assert_eq!(first_char_kp.get(&user_with), Some('M'));
         assert_eq!(first_char_kp.get(&user_without), None);
@@ -2559,14 +2568,14 @@ mod tests {
 
         // Simple test - just verify that inspect returns the correct value
         // and can perform side effects
-        
+
         let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
-        
+
         // We can't easily test side effects with Copy constraint,
         // so we'll just test that inspect passes through the value
         let result = name_kp.get(&user);
         assert_eq!(result, Some(&"Alice".to_string()));
-        
+
         // The inspect method works, it just requires Copy closures
         // which limits its usefulness for complex side effects
     }
@@ -2582,12 +2591,14 @@ mod tests {
             scores: vec![85, 92, 78, 95],
         };
 
-        let scores_kp = KpType::new(|u: &User| Some(&u.scores), |u: &mut User| Some(&mut u.scores));
+        let scores_kp = KpType::new(
+            |u: &User| Some(&u.scores),
+            |u: &mut User| Some(&mut u.scores),
+        );
 
         // Sum all scores
-        let sum_fn = scores_kp.fold_value(0, |acc, scores: &Vec<i32>| {
-            scores.iter().sum::<i32>() + acc
-        });
+        let sum_fn =
+            scores_kp.fold_value(0, |acc, scores: &Vec<i32>| scores.iter().sum::<i32>() + acc);
 
         assert_eq!(sum_fn(&user), 350);
     }
@@ -2606,7 +2617,10 @@ mod tests {
             scores: vec![65, 92, 78],
         };
 
-        let scores_kp = KpType::new(|u: &User| Some(&u.scores), |u: &mut User| Some(&mut u.scores));
+        let scores_kp = KpType::new(
+            |u: &User| Some(&u.scores),
+            |u: &mut User| Some(&mut u.scores),
+        );
 
         // Test any
         let has_high_fn = scores_kp.any(|scores: &Vec<i32>| scores.iter().any(|&s| s > 90));
@@ -2647,19 +2661,20 @@ mod tests {
             scores: vec![85, 92, 78, 95, 88],
         };
 
-        let scores_kp = KpType::new(|u: &User| Some(&u.scores), |u: &mut User| Some(&mut u.scores));
+        let scores_kp = KpType::new(
+            |u: &User| Some(&u.scores),
+            |u: &mut User| Some(&mut u.scores),
+        );
 
         // Find first score > 90
-        let first_high_fn = scores_kp.find_in(|scores: &Vec<i32>| {
-            scores.iter().find(|&&s| s > 90).copied()
-        });
+        let first_high_fn =
+            scores_kp.find_in(|scores: &Vec<i32>| scores.iter().find(|&&s| s > 90).copied());
 
         assert_eq!(first_high_fn(&user), Some(92));
 
         // Find score > 100 (doesn't exist)
-        let perfect_fn = scores_kp.find_in(|scores: &Vec<i32>| {
-            scores.iter().find(|&&s| s > 100).copied()
-        });
+        let perfect_fn =
+            scores_kp.find_in(|scores: &Vec<i32>| scores.iter().find(|&&s| s > 100).copied());
 
         assert_eq!(perfect_fn(&user), None);
     }
@@ -2710,7 +2725,10 @@ mod tests {
             scores: vec![85, 92, 65, 95, 72, 58],
         };
 
-        let scores_kp = KpType::new(|u: &User| Some(&u.scores), |u: &mut User| Some(&mut u.scores));
+        let scores_kp = KpType::new(
+            |u: &User| Some(&u.scores),
+            |u: &mut User| Some(&mut u.scores),
+        );
 
         let partition_fn = scores_kp.partition_value(|scores: &Vec<i32>| -> (Vec<i32>, Vec<i32>) {
             scores.iter().copied().partition(|&s| s >= 70)
@@ -2732,7 +2750,10 @@ mod tests {
             scores: vec![85, 92, 78, 95, 88],
         };
 
-        let scores_kp = KpType::new(|u: &User| Some(&u.scores), |u: &mut User| Some(&mut u.scores));
+        let scores_kp = KpType::new(
+            |u: &User| Some(&u.scores),
+            |u: &mut User| Some(&mut u.scores),
+        );
 
         // Min
         let min_fn = scores_kp.min_value(|scores: &Vec<i32>| scores.iter().min().copied());
@@ -2754,15 +2775,17 @@ mod tests {
             scores: vec![85, 92, 78],
         };
 
-        let scores_kp = KpType::new(|u: &User| Some(&u.scores), |u: &mut User| Some(&mut u.scores));
+        let scores_kp = KpType::new(
+            |u: &User| Some(&u.scores),
+            |u: &mut User| Some(&mut u.scores),
+        );
 
         let sum_fn = scores_kp.sum_value(|scores: &Vec<i32>| scores.iter().sum::<i32>());
         assert_eq!(sum_fn(&user), Some(255));
 
         // Average
-        let avg_fn = scores_kp.map(|scores: &Vec<i32>| {
-            scores.iter().sum::<i32>() / scores.len() as i32
-        });
+        let avg_fn =
+            scores_kp.map(|scores: &Vec<i32>| scores.iter().sum::<i32>() / scores.len() as i32);
         assert_eq!(avg_fn.get(&user), Some(85));
     }
 
@@ -2791,7 +2814,10 @@ mod tests {
             },
         };
 
-        let profile_kp = KpType::new(|u: &User| Some(&u.profile), |u: &mut User| Some(&mut u.profile));
+        let profile_kp = KpType::new(
+            |u: &User| Some(&u.profile),
+            |u: &mut User| Some(&mut u.profile),
+        );
         let settings_kp = KpType::new(
             |p: &Profile| Some(&p.settings),
             |p: &mut Profile| Some(&mut p.settings),
@@ -2869,20 +2895,18 @@ mod tests {
         );
 
         // Calculate total food expenses
-        let food_total = txns_kp
-            .map(|txns: &Vec<Transaction>| {
-                txns.iter()
-                    .filter(|t| t.category == "food")
-                    .map(|t| t.amount)
-                    .sum::<f64>()
-            });
+        let food_total = txns_kp.map(|txns: &Vec<Transaction>| {
+            txns.iter()
+                .filter(|t| t.category == "food")
+                .map(|t| t.amount)
+                .sum::<f64>()
+        });
 
         assert_eq!(food_total.get(&user), Some(75.0));
 
         // Check if any transaction is over 150
-        let has_large = txns_kp.any(|txns: &Vec<Transaction>| {
-            txns.iter().any(|t| t.amount > 150.0)
-        });
+        let has_large =
+            txns_kp.any(|txns: &Vec<Transaction>| txns.iter().any(|t| t.amount > 150.0));
 
         assert!(has_large(&user));
 
@@ -2922,7 +2946,7 @@ mod tests {
             fn get_value(&self) -> &usize {
                 &self.cached_value
             }
-            
+
             fn get_value_mut(&mut self) -> &mut usize {
                 &mut self.cached_value
             }
@@ -2941,17 +2965,17 @@ mod tests {
 
         // Test that we can use the keypath without cloning
         assert_eq!(data_kp.get(&root), Some(&42));
-        
+
         {
             // Test map - no cloning of root happens
             let doubled = data_kp.map(|val: &usize| val * 2);
             assert_eq!(doubled.get(&root), Some(84));
-            
+
             // Test filter - no cloning of root happens
             let filtered = data_kp.filter(|val: &usize| *val > 0);
             assert_eq!(filtered.get(&root), Some(&42));
         } // Drop derived keypaths
-        
+
         // Test mutable access - no cloning happens
         let value_ref = data_kp.get_mut(&mut root);
         assert!(value_ref.is_some());
@@ -2988,10 +3012,7 @@ mod tests {
         };
 
         // Keypath that returns reference to non-cloneable value
-        let value_kp = KpType::new(
-            |r: &Root| Some(&r.value),
-            |r: &mut Root| Some(&mut r.value),
-        );
+        let value_kp = KpType::new(|r: &Root| Some(&r.value), |r: &mut Root| Some(&mut r.value));
 
         // Map to extract the counter value - no cloning happens
         let counter_kp = value_kp.map(|v: &NonCloneableValue| v.get());
@@ -3041,10 +3062,7 @@ mod tests {
                 data: Tracked::new(),
             };
 
-            let data_kp = KpType::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
+            let data_kp = KpType::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
 
             // Use map multiple times
             let mapped1 = data_kp.map(|t: &Tracked| t.id);
@@ -3147,7 +3165,7 @@ mod tests {
 
             // Map operation - should not increase Arc refcount
             let value_kp = shared_kp.map(|arc: &Arc<SharedData>| arc.value.len());
-            
+
             // Using the keypath doesn't increase refcount
             assert_eq!(value_kp.get(&root), Some(6));
             assert_eq!(Arc::strong_count(&shared), 2); // Still just 2
@@ -3157,7 +3175,7 @@ mod tests {
             assert!(filtered.get(&root).is_some());
             assert_eq!(Arc::strong_count(&shared), 2); // Still just 2
         } // root is dropped here
-        
+
         assert_eq!(Arc::strong_count(&shared), 1); // Back to 1
     }
 
@@ -3176,10 +3194,7 @@ mod tests {
 
         let root = Root { value: 42 };
 
-        let value_kp = KpType::new(
-            |r: &Root| Some(&r.value),
-            |r: &mut Root| Some(&mut r.value),
-        );
+        let value_kp = KpType::new(|r: &Root| Some(&r.value), |r: &mut Root| Some(&mut r.value));
 
         // Use fold_value which doesn't require Copy (optimized HOF)
         // The closure captures call_count (via move), not the root or value
@@ -3203,7 +3218,7 @@ mod tests {
     fn test_static_with_borrowed_data() {
         // 'static doesn't mean the data lives forever
         // It means the TYPE doesn't contain non-'static references
-        
+
         struct Root {
             data: String,
         }
@@ -3213,10 +3228,7 @@ mod tests {
                 data: "temporary".to_string(),
             };
 
-            let data_kp = KpType::new(
-                |r: &Root| Some(&r.data),
-                |r: &mut Root| Some(&mut r.data),
-            );
+            let data_kp = KpType::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
 
             // Map with 'static bound - but root is NOT static
             let len_kp = data_kp.map(|s: &String| s.len());
@@ -3300,10 +3312,7 @@ mod tests {
             },
         };
 
-        let data_kp = KpType::new(
-            |r: &Root| Some(&r.data),
-            |r: &mut Root| Some(&mut r.data),
-        );
+        let data_kp = KpType::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
 
         // Map works even though NonCopyData is not Copy
         // The function pointer IS Copy, but the data is not
@@ -3317,8 +3326,8 @@ mod tests {
 
     #[test]
     fn test_no_memory_leak_with_cyclic_references() {
-        use std::sync::{Arc, Weak};
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::{Arc, Weak};
 
         static DROP_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -3347,10 +3356,7 @@ mod tests {
                 }),
             };
 
-            let node_kp = KpType::new(
-                |r: &Root| Some(&r.node),
-                |r: &mut Root| Some(&mut r.node),
-            );
+            let node_kp = KpType::new(|r: &Root| Some(&r.node), |r: &mut Root| Some(&mut r.node));
 
             // Map operations don't create extra Arc clones
             let id_kp = node_kp.map(|n: &Arc<Node>| n.id);
@@ -3378,10 +3384,7 @@ mod tests {
 
         let root = Root { value: 10 };
 
-        let value_kp = KpType::new(
-            |r: &Root| Some(&r.value),
-            |r: &mut Root| Some(&mut r.value),
-        );
+        let value_kp = KpType::new(|r: &Root| Some(&r.value), |r: &mut Root| Some(&mut r.value));
 
         // Direct access
         let direct_result = value_kp.get(&root).map(|v| v * 2);
@@ -3458,7 +3461,10 @@ mod tests {
         let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
         let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
         let score_kp = KpType::new(|u: &User| Some(&u.score), |u: &mut User| Some(&mut u.score));
-        let active_kp = KpType::new(|u: &User| Some(&u.active), |u: &mut User| Some(&mut u.active));
+        let active_kp = KpType::new(
+            |u: &User| Some(&u.active),
+            |u: &mut User| Some(&mut u.active),
+        );
 
         // Convert to partial keypaths and store in a heterogeneous collection
         let all_keypaths: Vec<PKp<User>> = vec![
@@ -3475,7 +3481,10 @@ mod tests {
             .collect();
 
         assert_eq!(string_kps.len(), 1);
-        assert_eq!(string_kps[0].get_as::<String>(&user), Some(&"Alice".to_string()));
+        assert_eq!(
+            string_kps[0].get_as::<String>(&user),
+            Some(&"Alice".to_string())
+        );
 
         // Filter for i32 types
         let i32_kps: Vec<_> = all_keypaths
@@ -3539,11 +3548,8 @@ mod tests {
             |u: &mut User| Some(&mut u.address),
         );
 
-        let all_keypaths: Vec<PKp<User>> = vec![
-            PKp::new(name_kp),
-            PKp::new(age_kp),
-            PKp::new(address_kp),
-        ];
+        let all_keypaths: Vec<PKp<User>> =
+            vec![PKp::new(name_kp), PKp::new(age_kp), PKp::new(address_kp)];
 
         // Filter for custom struct type (Address)
         let struct_kps: Vec<_> = all_keypaths
@@ -3615,7 +3621,9 @@ mod tests {
 
         assert_eq!(arc_string_kps.len(), 1);
         assert_eq!(
-            arc_string_kps[0].get_as::<Arc<String>>(&user).map(|arc| arc.as_str()),
+            arc_string_kps[0]
+                .get_as::<Arc<String>>(&user)
+                .map(|arc| arc.as_str()),
             Some("shared")
         );
 
@@ -3697,7 +3705,9 @@ mod tests {
 
         assert_eq!(box_string_kps.len(), 1);
         assert_eq!(
-            box_string_kps[0].get_as::<Box<String>>(&user).map(|b| b.as_str()),
+            box_string_kps[0]
+                .get_as::<Box<String>>(&user)
+                .map(|b| b.as_str()),
             Some("boxed")
         );
     }
@@ -3957,14 +3967,10 @@ mod tests {
         // Create a complex heterogeneous collection
         let user_name_kp1 = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
         let user_name_kp2 = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
-        let user_email_kp1 = KpType::new(
-            |u: &User| Some(&u.email),
-            |u: &mut User| Some(&mut u.email),
-        );
-        let user_email_kp2 = KpType::new(
-            |u: &User| Some(&u.email),
-            |u: &mut User| Some(&mut u.email),
-        );
+        let user_email_kp1 =
+            KpType::new(|u: &User| Some(&u.email), |u: &mut User| Some(&mut u.email));
+        let user_email_kp2 =
+            KpType::new(|u: &User| Some(&u.email), |u: &mut User| Some(&mut u.email));
         let product_title_kp = KpType::new(
             |p: &Product| Some(&p.title),
             |p: &mut Product| Some(&mut p.title),
@@ -4039,7 +4045,7 @@ mod tests {
 
         // Pin ensures a value won't be moved in memory
         // Useful for self-referential structs and async
-        
+
         #[derive(Debug)]
         struct SelfReferential {
             value: String,
@@ -4085,7 +4091,7 @@ mod tests {
         // Access through keypath
         let result = kp.get(&pinned);
         assert_eq!(result, Some(&"pinned_data".to_string()));
-        
+
         // The value is still pinned and hasn't moved
         assert_eq!(pinned.get_value(), "pinned_data");
     }
@@ -4105,7 +4111,7 @@ mod tests {
             status: "ready".to_string(),
             data: vec![1, 2, 3, 4, 5],
         };
-        
+
         let pinned_arc: Pin<Arc<AsyncState>> = Arc::pin(state);
 
         // Keypath to status through Pin<Arc<T>>
@@ -4206,7 +4212,7 @@ mod tests {
         // Test with initialized config
         let mut init_config = Config::new_uninit();
         init_config.init("test_config".to_string(), 42);
-        
+
         assert_eq!(name_kp.get(&init_config), Some(&"test_config".to_string()));
         assert_eq!(value_kp.get(&init_config), Some(&42));
 
@@ -4214,7 +4220,7 @@ mod tests {
         if let Some(val) = value_kp.get_mut(&mut init_config) {
             *val = 100;
         }
-        
+
         assert_eq!(value_kp.get(&init_config), Some(&100));
     }
 
@@ -4235,9 +4241,7 @@ mod tests {
             parent: Option<Arc<Node>>, // Strong reference for demonstration
         }
 
-        let parent = Arc::new(Node {
-            value: 100,
-        });
+        let parent = Arc::new(Node { value: 100 });
 
         let child = NodeWithParent {
             value: 42,
@@ -4246,9 +4250,7 @@ mod tests {
 
         // Keypath to access parent value
         let parent_value_kp: KpType<NodeWithParent, i32> = Kp::new(
-            |n: &NodeWithParent| {
-                n.parent.as_ref().map(|arc| &arc.value)
-            },
+            |n: &NodeWithParent| n.parent.as_ref().map(|arc| &arc.value),
             |_: &mut NodeWithParent| None::<&mut i32>,
         );
 
@@ -4262,7 +4264,7 @@ mod tests {
         use std::rc::Rc;
 
         // Single-threaded version with Rc
-        
+
         struct TreeNode {
             value: String,
             parent: Option<Rc<TreeNode>>, // Strong ref for keypath access
@@ -4285,9 +4287,7 @@ mod tests {
 
         // Keypath to access parent's value
         let parent_name_kp: KpType<TreeNode, String> = Kp::new(
-            |node: &TreeNode| {
-                node.parent.as_ref().map(|rc| &rc.value)
-            },
+            |node: &TreeNode| node.parent.as_ref().map(|rc| &rc.value),
             |_: &mut TreeNode| None::<&mut String>,
         );
 
@@ -4304,7 +4304,7 @@ mod tests {
         use std::sync::Arc;
 
         // Complex structure demonstrating Arc reference patterns
-        
+
         struct Cache {
             data: String,
             backup: Option<Arc<Cache>>, // Strong reference
@@ -4322,9 +4322,7 @@ mod tests {
 
         // Keypath to access backup's data
         let backup_data_kp: KpType<Arc<Cache>, String> = Kp::new(
-            |cache_arc: &Arc<Cache>| {
-                cache_arc.backup.as_ref().map(|arc| &arc.data)
-            },
+            |cache_arc: &Arc<Cache>| cache_arc.backup.as_ref().map(|arc| &arc.data),
             |_: &mut Arc<Cache>| None::<&mut String>,
         );
 
@@ -4343,7 +4341,7 @@ mod tests {
         use std::sync::Arc;
 
         // Demonstrate chaining keypaths through Pin and Arc
-        
+
         struct Outer {
             inner: Arc<Inner>,
         }
@@ -4385,7 +4383,7 @@ mod tests {
 
         // Working with arrays of MaybeUninit - common pattern for
         // efficient array initialization
-        
+
         struct Buffer {
             data: [MaybeUninit<u8>; 10],
             len: usize,
@@ -4426,13 +4424,11 @@ mod tests {
         }
 
         // Keypath to access length of initialized data
-        let len_kp: KpType<Buffer, usize> = Kp::new(
-            |b: &Buffer| Some(&b.len),
-            |b: &mut Buffer| Some(&mut b.len),
-        );
+        let len_kp: KpType<Buffer, usize> =
+            Kp::new(|b: &Buffer| Some(&b.len), |b: &mut Buffer| Some(&mut b.len));
 
         let mut buffer = Buffer::new();
-        
+
         // Empty buffer
         assert_eq!(len_kp.get(&buffer), Some(&0));
 
@@ -4443,13 +4439,13 @@ mod tests {
 
         // Access through keypath
         assert_eq!(len_kp.get(&buffer), Some(&3));
-        
+
         // Access elements directly (not through keypath factory due to type complexity)
         assert_eq!(buffer.get(0), Some(&1));
         assert_eq!(buffer.get(1), Some(&2));
         assert_eq!(buffer.get(2), Some(&3));
         assert_eq!(buffer.get(10), None); // Out of bounds
-        
+
         // Modify through buffer's API
         if let Some(elem) = buffer.get_mut(1) {
             *elem = 20;

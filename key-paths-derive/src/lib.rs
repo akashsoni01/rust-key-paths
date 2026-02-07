@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
-use quote::{quote, format_ident};
-use syn::{Data, DeriveInput, Fields, parse_macro_input, spanned::Spanned, Type};
+use quote::{format_ident, quote};
+use syn::{Data, DeriveInput, Fields, Type, parse_macro_input, spanned::Spanned};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WrapperKind {
@@ -271,12 +271,12 @@ fn to_snake_case(name: &str) -> String {
 }
 
 /// Derive macro for generating simple keypath methods.
-/// 
+///
 /// Generates one method per field: `StructName::field_name()` that returns a `Kp`.
 /// Intelligently handles wrapper types (Option, Vec, Box, Arc, etc.) to generate appropriate keypaths.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```ignore
 /// #[derive(Kp)]
 /// struct Person {
@@ -285,7 +285,7 @@ fn to_snake_case(name: &str) -> String {
 ///     email: Option<String>,
 ///     addresses: Vec<String>,
 /// }
-/// 
+///
 /// // Generates:
 /// // impl Person {
 /// //     pub fn name() -> Kp<...> { ... }
@@ -304,7 +304,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
         Data::Struct(data_struct) => match data_struct.fields {
             Fields::Named(fields_named) => {
                 let mut tokens = proc_macro2::TokenStream::new();
-                
+
                 // Generate identity methods for the struct
                 tokens.extend(quote! {
                     /// Returns a generic identity keypath for this type
@@ -336,7 +336,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         )
                     }
                 });
-                
+
                 for field in fields_named.named.iter() {
                     let field_ident = field.ident.as_ref().unwrap();
                     let ty = &field.ty;
@@ -525,8 +525,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) | 
-                        (WrapperKind::StdMutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(_inner_ty))
+                        | (WrapperKind::StdMutex, Some(_inner_ty)) => {
                             // For Mutex<T>, return keypath to container
                             // Users can compose this with LockKp for lock access
                             tokens.extend(quote! {
@@ -538,8 +538,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) | 
-                        (WrapperKind::StdRwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(_inner_ty))
+                        | (WrapperKind::StdRwLock, Some(_inner_ty)) => {
                             // For RwLock<T>, return keypath to container
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
@@ -585,12 +585,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                     }
                 }
-                
+
                 tokens
             }
             Fields::Unnamed(unnamed) => {
                 let mut tokens = proc_macro2::TokenStream::new();
-                
+
                 // Generate identity methods for the tuple struct
                 tokens.extend(quote! {
                     /// Returns a generic identity keypath for this type
@@ -622,7 +622,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         )
                     }
                 });
-                
+
                 for (idx, field) in unnamed.unnamed.iter().enumerate() {
                     let idx_lit = syn::Index::from(idx);
                     let ty = &field.ty;
@@ -800,8 +800,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::Mutex, Some(_inner_ty)) | 
-                        (WrapperKind::StdMutex, Some(_inner_ty)) => {
+                        (WrapperKind::Mutex, Some(_inner_ty))
+                        | (WrapperKind::StdMutex, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -811,8 +811,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::RwLock, Some(_inner_ty)) | 
-                        (WrapperKind::StdRwLock, Some(_inner_ty)) => {
+                        (WrapperKind::RwLock, Some(_inner_ty))
+                        | (WrapperKind::StdRwLock, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -854,21 +854,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                     }
                 }
-                
+
                 tokens
             }
             Fields::Unit => {
-                return syn::Error::new(
-                    input_span,
-                    "Kp derive does not support unit structs"
-                )
-                .to_compile_error()
-                .into();
+                return syn::Error::new(input_span, "Kp derive does not support unit structs")
+                    .to_compile_error()
+                    .into();
             }
         },
         Data::Enum(data_enum) => {
             let mut tokens = proc_macro2::TokenStream::new();
-            
+
             // Generate identity methods for the enum
             tokens.extend(quote! {
                 /// Returns a generic identity keypath for this type
@@ -900,7 +897,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     )
                 }
             });
-            
+
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
@@ -1083,16 +1080,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     }
                 }
             }
-            
+
             tokens
         }
         Data::Union(_) => {
-            return syn::Error::new(
-                input_span,
-                "Kp derive does not support unions"
-            )
-            .to_compile_error()
-            .into();
+            return syn::Error::new(input_span, "Kp derive does not support unions")
+                .to_compile_error()
+                .into();
         }
     };
 

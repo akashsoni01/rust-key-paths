@@ -53,7 +53,9 @@ fn test_mutable_access() {
 
     // Test setting name field
     let name_kp = Person::name();
-    name_kp.get_mut(&mut person).map(|name| *name = "Robert".to_string());
+    name_kp
+        .get_mut(&mut person)
+        .map(|name| *name = "Robert".to_string());
     assert_eq!(person.name, "Robert");
 }
 
