@@ -402,6 +402,93 @@ where
         )
     }
 
+    /// Map the value through a transformation function
+    /// Returns a new keypath that transforms the value when accessed
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { name: "Alice".to_string() };
+    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+    /// let len_kp = name_kp.map(|name: &String| name.len());
+    /// assert_eq!(len_kp.get(&user), Some(5));
+    /// ```
+    pub fn map<MappedValue, F>(
+        &self,
+        mapper: F,
+    ) -> Kp<
+        R,
+        MappedValue,
+        Root,
+        MappedValue,
+        MutRoot,
+        MappedValue,
+        impl Fn(Root) -> Option<MappedValue>,
+        impl Fn(MutRoot) -> Option<MappedValue>,
+    >
+    where
+        F: Fn(&V) -> MappedValue + Copy + 'static,
+        V: 'static,
+        MappedValue: 'static,
+    {
+        Kp::new(
+            move |root: Root| {
+                (&self.get)(root).map(|value| {
+                    let v: &V = value.borrow();
+                    mapper(v)
+                })
+            },
+            move |root: MutRoot| {
+                (&self.set)(root).map(|value| {
+                    let v: &V = value.borrow();
+                    mapper(v)
+                })
+            },
+        )
+    }
+
+    /// Filter the value based on a predicate
+    /// Returns None if the predicate returns false, otherwise returns the value
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { age: 30 };
+    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+    /// let adult_kp = age_kp.filter(|age: &i32| *age >= 18);
+    /// assert_eq!(adult_kp.get(&user), Some(&30));
+    /// ```
+    pub fn filter<F>(
+        &self,
+        predicate: F,
+    ) -> Kp<
+        R,
+        V,
+        Root,
+        Value,
+        MutRoot,
+        MutValue,
+        impl Fn(Root) -> Option<Value>,
+        impl Fn(MutRoot) -> Option<MutValue>,
+    >
+    where
+        F: Fn(&V) -> bool + Copy + 'static,
+        V: 'static,
+    {
+        Kp::new(
+            move |root: Root| {
+                (&self.get)(root).filter(|value| {
+                    let v: &V = value.borrow();
+                    predicate(v)
+                })
+            },
+            move |root: MutRoot| {
+                (&self.set)(root).filter(|value| {
+                    let v: &V = value.borrow();
+                    predicate(v)
+                })
+            },
+        )
+    }
+
     pub fn for_arc<'b>(
         &self,
     ) -> Kp<
@@ -556,6 +643,81 @@ where
     /// Convert to Kp (loses embedding capability but gains composition)
     pub fn into_kp(self) -> Kp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S> {
         self.extractor
+    }
+
+    /// Map the variant value through a transformation function
+    /// 
+    /// # Example
+    /// ```
+    /// let result: Result<String, i32> = Ok("hello".to_string());
+    /// let ok_kp = enum_ok();
+    /// let len_kp = ok_kp.map(|s: &String| s.len());
+    /// assert_eq!(len_kp.get(&result), Some(5));
+    /// ```
+    pub fn map<MappedValue, F>(
+        &self,
+        mapper: F,
+    ) -> EnumKp<
+        Enum,
+        MappedValue,
+        Root,
+        MappedValue,
+        MutRoot,
+        MappedValue,
+        impl Fn(Root) -> Option<MappedValue>,
+        impl Fn(MutRoot) -> Option<MappedValue>,
+        impl Fn(MappedValue) -> Enum,
+    >
+    where
+        F: Fn(&Variant) -> MappedValue + Copy + 'static,
+        Variant: 'static,
+        MappedValue: 'static,
+        E: Fn(Variant) -> Enum + Copy + 'static,
+    {
+        let mapped_extractor = self.extractor.map(mapper);
+        let embedder = self.embedder;
+        
+        // Create a new embedder that maps back
+        // Note: This is a limitation - we can't reverse the map for embedding
+        // So we create a placeholder that panics
+        let new_embedder = move |_value: MappedValue| -> Enum {
+            panic!("Cannot embed mapped values back into enum. Use the original EnumKp for embedding.")
+        };
+        
+        EnumKp::new(mapped_extractor, new_embedder)
+    }
+
+    /// Filter the variant value based on a predicate
+    /// Returns None if the predicate fails or if wrong variant
+    /// 
+    /// # Example
+    /// ```
+    /// let result: Result<i32, String> = Ok(42);
+    /// let ok_kp = enum_ok();
+    /// let positive_kp = ok_kp.filter(|x: &i32| *x > 0);
+    /// assert_eq!(positive_kp.get(&result), Some(&42));
+    /// ```
+    pub fn filter<F>(
+        &self,
+        predicate: F,
+    ) -> EnumKp<
+        Enum,
+        Variant,
+        Root,
+        Value,
+        MutRoot,
+        MutValue,
+        impl Fn(Root) -> Option<Value>,
+        impl Fn(MutRoot) -> Option<MutValue>,
+        E,
+    >
+    where
+        F: Fn(&Variant) -> bool + Copy + 'static,
+        Variant: 'static,
+        E: Copy,
+    {
+        let filtered_extractor = self.extractor.filter(predicate);
+        EnumKp::new(filtered_extractor, self.embedder)
     }
 }
 
@@ -881,6 +1043,89 @@ where
             _phantom: std::marker::PhantomData,
         }
     }
+
+    /// Map the value through a transformation function
+    /// The mapped value must also implement Any for type erasure
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { name: "Alice".to_string() };
+    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
+    /// let name_pkp = PKp::new(name_kp);
+    /// let len_pkp = name_pkp.map::<String, _, _>(|s| s.len());
+    /// assert_eq!(len_pkp.get_as::<usize>(&user), Some(&5));
+    /// ```
+    pub fn map<OrigValue, MappedValue, F>(
+        &self,
+        mapper: F,
+    ) -> PKp<Root>
+    where
+        OrigValue: Any + 'static,
+        MappedValue: Any + 'static,
+        F: Fn(&OrigValue) -> MappedValue + 'static,
+    {
+        let orig_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        let mapped_type_id = TypeId::of::<MappedValue>();
+
+        PKp {
+            getter: Rc::new(move |root: &Root| {
+                getter(root).and_then(|any_value| {
+                    // Verify the original type matches
+                    if orig_type_id == TypeId::of::<OrigValue>() {
+                        any_value.downcast_ref::<OrigValue>().map(|orig_val| {
+                            let mapped = mapper(orig_val);
+                            // Box the mapped value and return as &dyn Any
+                            // Note: This creates a new allocation
+                            Box::leak(Box::new(mapped)) as &dyn Any
+                        })
+                    } else {
+                        None
+                    }
+                })
+            }),
+            value_type_id: mapped_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Filter the value based on a predicate with type checking
+    /// Returns None if the type doesn't match or predicate fails
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { age: 30 };
+    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
+    /// let age_pkp = PKp::new(age_kp);
+    /// let adult_pkp = age_pkp.filter::<i32, _>(|age| *age >= 18);
+    /// assert_eq!(adult_pkp.get_as::<i32>(&user), Some(&30));
+    /// ```
+    pub fn filter<Value, F>(&self, predicate: F) -> PKp<Root>
+    where
+        Value: Any + 'static,
+        F: Fn(&Value) -> bool + 'static,
+    {
+        let orig_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        PKp {
+            getter: Rc::new(move |root: &Root| {
+                getter(root).filter(|any_value| {
+                    // Type check and apply predicate
+                    if orig_type_id == TypeId::of::<Value>() {
+                        any_value
+                            .downcast_ref::<Value>()
+                            .map(|val| predicate(val))
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                })
+            }),
+            value_type_id: orig_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
 }
 
 // ========== ANY KEYPATHS (Hide Both Root and Value Types) ==========
@@ -1072,6 +1317,100 @@ impl AKp {
             }),
             root_type_id: TypeId::of::<Result<Root, E>>(),
             value_type_id,
+        }
+    }
+
+    /// Map the value through a transformation function with type checking
+    /// Both original and mapped values must implement Any
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { name: "Alice".to_string() };
+    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
+    /// let name_akp = AKp::new(name_kp);
+    /// let len_akp = name_akp.map::<User, String, _, _>(|s| s.len());
+    /// ```
+    pub fn map<Root, OrigValue, MappedValue, F>(
+        &self,
+        mapper: F,
+    ) -> AKp
+    where
+        Root: Any + 'static,
+        OrigValue: Any + 'static,
+        MappedValue: Any + 'static,
+        F: Fn(&OrigValue) -> MappedValue + 'static,
+    {
+        let orig_root_type_id = self.root_type_id;
+        let orig_value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        let mapped_type_id = TypeId::of::<MappedValue>();
+
+        AKp {
+            getter: Rc::new(move |any_root: &dyn Any| {
+                // Check root type matches
+                if any_root.type_id() == orig_root_type_id {
+                    getter(any_root).and_then(|any_value| {
+                        // Verify the original value type matches
+                        if orig_value_type_id == TypeId::of::<OrigValue>() {
+                            any_value.downcast_ref::<OrigValue>().map(|orig_val| {
+                                let mapped = mapper(orig_val);
+                                // Box the mapped value and return as &dyn Any
+                                Box::leak(Box::new(mapped)) as &dyn Any
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
+            }),
+            root_type_id: orig_root_type_id,
+            value_type_id: mapped_type_id,
+        }
+    }
+
+    /// Filter the value based on a predicate with full type checking
+    /// Returns None if types don't match or predicate fails
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { age: 30 };
+    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
+    /// let age_akp = AKp::new(age_kp);
+    /// let adult_akp = age_akp.filter::<User, i32, _>(|age| *age >= 18);
+    /// ```
+    pub fn filter<Root, Value, F>(&self, predicate: F) -> AKp
+    where
+        Root: Any + 'static,
+        Value: Any + 'static,
+        F: Fn(&Value) -> bool + 'static,
+    {
+        let orig_root_type_id = self.root_type_id;
+        let orig_value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any_root: &dyn Any| {
+                // Check root type matches
+                if any_root.type_id() == orig_root_type_id {
+                    getter(any_root).filter(|any_value| {
+                        // Type check value and apply predicate
+                        if orig_value_type_id == TypeId::of::<Value>() {
+                            any_value
+                                .downcast_ref::<Value>()
+                                .map(|val| predicate(val))
+                                .unwrap_or(false)
+                        } else {
+                            false
+                        }
+                    })
+                } else {
+                    None
+                }
+            }),
+            root_type_id: orig_root_type_id,
+            value_type_id: orig_value_type_id,
         }
     }
 }
@@ -1744,6 +2083,222 @@ mod tests {
         );
         assert_eq!(
             result_akp.get_as::<Result<User, String>, String>(&err_user),
+            Some(None)
+        );
+    }
+
+    // ========== MAP TESTS ==========
+
+    #[test]
+    fn test_kp_map() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+        }
+
+        let user = User {
+            name: "Alice".to_string(),
+            age: 30,
+        };
+
+        // Map string to its length
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let len_kp = name_kp.map(|name: &String| name.len());
+
+        assert_eq!(len_kp.get(&user), Some(5));
+
+        // Map age to double
+        let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+        let double_age_kp = age_kp.map(|age: &i32| age * 2);
+
+        assert_eq!(double_age_kp.get(&user), Some(60));
+
+        // Map to boolean
+        let is_adult_kp = age_kp.map(|age: &i32| *age >= 18);
+        assert_eq!(is_adult_kp.get(&user), Some(true));
+    }
+
+    #[test]
+    fn test_kp_filter() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+        }
+
+        let adult = User {
+            name: "Alice".to_string(),
+            age: 30,
+        };
+
+        let minor = User {
+            name: "Bob".to_string(),
+            age: 15,
+        };
+
+        let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+        let adult_age_kp = age_kp.filter(|age: &i32| *age >= 18);
+
+        assert_eq!(adult_age_kp.get(&adult), Some(&30));
+        assert_eq!(adult_age_kp.get(&minor), None);
+
+        // Filter names by length
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let short_name_kp = name_kp.filter(|name: &String| name.len() <= 4);
+
+        assert_eq!(short_name_kp.get(&minor), Some(&"Bob".to_string()));
+        assert_eq!(short_name_kp.get(&adult), None);
+    }
+
+    #[test]
+    fn test_kp_map_and_filter() {
+        #[derive(Debug)]
+        struct User {
+            scores: Vec<i32>,
+        }
+
+        let user = User {
+            scores: vec![85, 92, 78, 95],
+        };
+
+        let scores_kp = KpType::new(|u: &User| Some(&u.scores), |u: &mut User| Some(&mut u.scores));
+        
+        // Map to average score
+        let avg_kp = scores_kp.map(|scores: &Vec<i32>| {
+            scores.iter().sum::<i32>() / scores.len() as i32
+        });
+
+        // Filter for high averages
+        let high_avg_kp = avg_kp.filter(|avg: &i32| *avg >= 85);
+
+        assert_eq!(high_avg_kp.get(&user), Some(87)); // (85+92+78+95)/4 = 87.5 -> 87
+    }
+
+    #[test]
+    fn test_enum_kp_map() {
+        let ok_result: Result<String, i32> = Ok("hello".to_string());
+        let err_result: Result<String, i32> = Err(42);
+
+        let ok_kp = enum_ok::<String, i32>();
+        let len_kp = ok_kp.map(|s: &String| s.len());
+
+        assert_eq!(len_kp.get(&ok_result), Some(5));
+        assert_eq!(len_kp.get(&err_result), None);
+
+        // Map Option
+        let some_opt = Some(vec![1, 2, 3, 4, 5]);
+        let none_opt: Option<Vec<i32>> = None;
+
+        let some_kp = enum_some::<Vec<i32>>();
+        let count_kp = some_kp.map(|vec: &Vec<i32>| vec.len());
+
+        assert_eq!(count_kp.get(&some_opt), Some(5));
+        assert_eq!(count_kp.get(&none_opt), None);
+    }
+
+    #[test]
+    fn test_enum_kp_filter() {
+        let ok_result1: Result<i32, String> = Ok(42);
+        let ok_result2: Result<i32, String> = Ok(-5);
+        let err_result: Result<i32, String> = Err("error".to_string());
+
+        let ok_kp = enum_ok::<i32, String>();
+        let positive_kp = ok_kp.filter(|x: &i32| *x > 0);
+
+        assert_eq!(positive_kp.get(&ok_result1), Some(&42));
+        assert_eq!(positive_kp.get(&ok_result2), None); // Negative number filtered out
+        assert_eq!(positive_kp.get(&err_result), None); // Err variant
+
+        // Filter Option strings by length
+        let long_str = Some("hello world".to_string());
+        let short_str = Some("hi".to_string());
+
+        let some_kp = enum_some::<String>();
+        let long_kp = some_kp.filter(|s: &String| s.len() > 5);
+
+        assert_eq!(long_kp.get(&long_str), Some(&"hello world".to_string()));
+        assert_eq!(long_kp.get(&short_str), None);
+    }
+
+    #[test]
+    fn test_pkp_filter() {
+        #[derive(Debug)]
+        struct User {
+            name: String,
+            age: i32,
+        }
+
+        let adult = User {
+            name: "Alice".to_string(),
+            age: 30,
+        };
+
+        let minor = User {
+            name: "Bob".to_string(),
+            age: 15,
+        };
+
+        let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+        let age_pkp = PKp::new(age_kp);
+
+        // Filter for adults
+        let adult_pkp = age_pkp.filter::<i32, _>(|age| *age >= 18);
+
+        assert_eq!(adult_pkp.get_as::<i32>(&adult), Some(&30));
+        assert_eq!(adult_pkp.get_as::<i32>(&minor), None);
+
+        // Filter names
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+        let name_pkp = PKp::new(name_kp);
+        let short_name_pkp = name_pkp.filter::<String, _>(|name| name.len() <= 4);
+
+        assert_eq!(short_name_pkp.get_as::<String>(&minor), Some(&"Bob".to_string()));
+        assert_eq!(short_name_pkp.get_as::<String>(&adult), None);
+    }
+
+    #[test]
+    fn test_akp_filter() {
+        #[derive(Debug)]
+        struct User {
+            age: i32,
+        }
+
+        #[derive(Debug)]
+        struct Product {
+            price: f64,
+        }
+
+        let adult = User { age: 30 };
+        let minor = User { age: 15 };
+        let expensive = Product { price: 99.99 };
+        let cheap = Product { price: 5.0 };
+
+        // Filter user ages
+        let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+        let age_akp = AKp::new(age_kp);
+        let adult_akp = age_akp.filter::<User, i32, _>(|age| *age >= 18);
+
+        assert_eq!(
+            adult_akp.get_as::<User, i32>(&adult),
+            Some(Some(&30))
+        );
+        assert_eq!(
+            adult_akp.get_as::<User, i32>(&minor),
+            Some(None)
+        );
+
+        // Filter product prices
+        let price_kp = KpType::new(|p: &Product| Some(&p.price), |p: &mut Product| Some(&mut p.price));
+        let price_akp = AKp::new(price_kp);
+        let expensive_akp = price_akp.filter::<Product, f64, _>(|price| *price > 50.0);
+
+        assert_eq!(
+            expensive_akp.get_as::<Product, f64>(&expensive),
+            Some(Some(&99.99))
+        );
+        assert_eq!(
+            expensive_akp.get_as::<Product, f64>(&cheap),
             Some(None)
         );
     }
