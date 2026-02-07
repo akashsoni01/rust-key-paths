@@ -336,6 +336,502 @@ impl E {
     }
 }
 
+pub struct AKp {
+    getter: Rc<dyn for<'r> Fn(&'r dyn Any) -> Option<&'r dyn Any>>,
+    root_type_id: TypeId,
+    value_type_id: TypeId,
+}
+
+impl AKp {
+    /// Create a new AKp from a KpType (the common reference-based keypath)
+    pub fn new<'a, R, V>(keypath: KpType<'a, R, V>) -> Self
+    where
+        R: Any + 'static,
+        V: Any + 'static,
+    {
+        let root_type_id = TypeId::of::<R>();
+        let value_type_id = TypeId::of::<V>();
+        let getter_fn = keypath.get;
+
+        Self {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(root) = any.downcast_ref::<R>() {
+                    getter_fn(root).map(|value: &V| value as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id,
+            value_type_id,
+        }
+    }
+
+    /// Create an AKp from a KpType (alias for `new()`)
+    pub fn from<'a, R, V>(keypath: KpType<'a, R, V>) -> Self
+    where
+        R: Any + 'static,
+        V: Any + 'static,
+    {
+        Self::new(keypath)
+    }
+
+    /// Get the value as a trait object (with root type checking)
+    pub fn get<'r>(&self, root: &'r dyn Any) -> Option<&'r dyn Any> {
+        (self.getter)(root)
+    }
+
+    /// Get the TypeId of the Root type
+    pub fn root_type_id(&self) -> TypeId {
+        self.root_type_id
+    }
+
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+
+    /// Try to get the value with full type checking
+    pub fn get_as<'a, Root: Any, Value: Any>(&self, root: &'a Root) -> Option<Option<&'a Value>> {
+        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>()
+        {
+            Some(
+                self.get(root as &dyn Any)
+                    .and_then(|any| any.downcast_ref::<Value>()),
+            )
+        } else {
+            None
+        }
+    }
+
+    /// Get a human-readable name for the value type
+    pub fn kind_name(&self) -> String {
+        format!("{:?}", self.value_type_id)
+    }
+
+    /// Get a human-readable name for the root type
+    pub fn root_kind_name(&self) -> String {
+        format!("{:?}", self.root_type_id)
+    }
+
+    /// Adapt this keypath to work with Arc<Root> instead of Root
+    pub fn for_arc<Root>(&self) -> AKp
+    where
+        Root: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(arc) = any.downcast_ref::<Arc<Root>>() {
+                    getter(arc.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Arc<Root>>(),
+            value_type_id,
+        }
+    }
+
+    /// Adapt this keypath to work with Box<Root> instead of Root
+    pub fn for_box<Root>(&self) -> AKp
+    where
+        Root: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(boxed) = any.downcast_ref::<Box<Root>>() {
+                    getter(boxed.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Box<Root>>(),
+            value_type_id,
+        }
+    }
+
+    /// Adapt this keypath to work with Rc<Root> instead of Root
+    pub fn for_rc<Root>(&self) -> AKp
+    where
+        Root: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(rc) = any.downcast_ref::<Rc<Root>>() {
+                    getter(rc.as_ref() as &dyn Any)
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Rc<Root>>(),
+            value_type_id,
+        }
+    }
+
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    pub fn for_option<Root>(&self) -> AKp
+    where
+        Root: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(opt) = any.downcast_ref::<Option<Root>>() {
+                    opt.as_ref().and_then(|root| getter(root as &dyn Any))
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Option<Root>>(),
+            value_type_id,
+        }
+    }
+
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    pub fn for_result<Root, E>(&self) -> AKp
+    where
+        Root: Any + 'static,
+        E: Any + 'static,
+    {
+        let value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any: &dyn Any| {
+                if let Some(result) = any.downcast_ref::<Result<Root, E>>() {
+                    result
+                        .as_ref()
+                        .ok()
+                        .and_then(|root| getter(root as &dyn Any))
+                } else {
+                    None
+                }
+            }),
+            root_type_id: TypeId::of::<Result<Root, E>>(),
+            value_type_id,
+        }
+    }
+
+    /// Map the value through a transformation function with type checking
+    /// Both original and mapped values must implement Any
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { name: "Alice".to_string() };
+    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
+    /// let name_akp = AKp::new(name_kp);
+    /// let len_akp = name_akp.map::<User, String, _, _>(|s| s.len());
+    /// ```
+    pub fn map<Root, OrigValue, MappedValue, F>(
+        &self,
+        mapper: F,
+    ) -> AKp
+    where
+        Root: Any + 'static,
+        OrigValue: Any + 'static,
+        MappedValue: Any + 'static,
+        F: Fn(&OrigValue) -> MappedValue + 'static,
+    {
+        let orig_root_type_id = self.root_type_id;
+        let orig_value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        let mapped_type_id = TypeId::of::<MappedValue>();
+
+        AKp {
+            getter: Rc::new(move |any_root: &dyn Any| {
+                // Check root type matches
+                if any_root.type_id() == orig_root_type_id {
+                    getter(any_root).and_then(|any_value| {
+                        // Verify the original value type matches
+                        if orig_value_type_id == TypeId::of::<OrigValue>() {
+                            any_value.downcast_ref::<OrigValue>().map(|orig_val| {
+                                let mapped = mapper(orig_val);
+                                // Box the mapped value and return as &dyn Any
+                                Box::leak(Box::new(mapped)) as &dyn Any
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
+            }),
+            root_type_id: orig_root_type_id,
+            value_type_id: mapped_type_id,
+        }
+    }
+
+    /// Filter the value based on a predicate with full type checking
+    /// Returns None if types don't match or predicate fails
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { age: 30 };
+    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
+    /// let age_akp = AKp::new(age_kp);
+    /// let adult_akp = age_akp.filter::<User, i32, _>(|age| *age >= 18);
+    /// ```
+    pub fn filter<Root, Value, F>(&self, predicate: F) -> AKp
+    where
+        Root: Any + 'static,
+        Value: Any + 'static,
+        F: Fn(&Value) -> bool + 'static,
+    {
+        let orig_root_type_id = self.root_type_id;
+        let orig_value_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        AKp {
+            getter: Rc::new(move |any_root: &dyn Any| {
+                // Check root type matches
+                if any_root.type_id() == orig_root_type_id {
+                    getter(any_root).filter(|any_value| {
+                        // Type check value and apply predicate
+                        if orig_value_type_id == TypeId::of::<Value>() {
+                            any_value
+                                .downcast_ref::<Value>()
+                                .map(|val| predicate(val))
+                                .unwrap_or(false)
+                        } else {
+                            false
+                        }
+                    })
+                } else {
+                    None
+                }
+            }),
+            root_type_id: orig_root_type_id,
+            value_type_id: orig_value_type_id,
+        }
+    }
+}
+pub struct PKp<Root> {
+    getter: Rc<dyn for<'r> Fn(&'r Root) -> Option<&'r dyn Any>>,
+    value_type_id: TypeId,
+    _phantom: std::marker::PhantomData<Root>,
+}
+
+impl<Root> PKp<Root>
+where
+    Root: 'static,
+{
+    /// Create a new PKp from a KpType (the common reference-based keypath)
+    pub fn new<'a, V>(keypath: KpType<'a, Root, V>) -> Self
+    where
+        V: Any + 'static,
+    {
+        let value_type_id = TypeId::of::<V>();
+        let getter_fn = keypath.get;
+
+        Self {
+            getter: Rc::new(move |root: &Root| {
+                getter_fn(root).map(|val: &V| val as &dyn Any)
+            }),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Create a PKp from a KpType (alias for `new()`)
+    pub fn from<'a, V>(keypath: KpType<'a, Root, V>) -> Self
+    where
+        V: Any + 'static,
+    {
+        Self::new(keypath)
+    }
+
+    /// Get the value as a trait object
+    pub fn get<'r>(&self, root: &'r Root) -> Option<&'r dyn Any> {
+        (self.getter)(root)
+    }
+
+    /// Get the TypeId of the Value type
+    pub fn value_type_id(&self) -> TypeId {
+        self.value_type_id
+    }
+
+    /// Try to downcast the result to a specific type
+    pub fn get_as<'a, Value: Any>(&self, root: &'a Root) -> Option<&'a Value> {
+        if self.value_type_id == TypeId::of::<Value>() {
+            self.get(root).and_then(|any| any.downcast_ref::<Value>())
+        } else {
+            None
+        }
+    }
+
+    /// Get a human-readable name for the value type
+    pub fn kind_name(&self) -> String {
+        format!("{:?}", self.value_type_id)
+    }
+
+    /// Adapt this keypath to work with Arc<Root> instead of Root
+    pub fn for_arc(&self) -> PKp<Arc<Root>> {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |arc: &Arc<Root>| getter(arc.as_ref())),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adapt this keypath to work with Box<Root> instead of Root
+    pub fn for_box(&self) -> PKp<Box<Root>> {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |boxed: &Box<Root>| getter(boxed.as_ref())),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adapt this keypath to work with Rc<Root> instead of Root
+    pub fn for_rc(&self) -> PKp<Rc<Root>> {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |rc: &Rc<Root>| getter(rc.as_ref())),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adapt this keypath to work with Option<Root> instead of Root
+    pub fn for_option(&self) -> PKp<Option<Root>> {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |opt: &Option<Root>| {
+                opt.as_ref().and_then(|root| getter(root))
+            }),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adapt this keypath to work with Result<Root, E> instead of Root
+    pub fn for_result<E>(&self) -> PKp<Result<Root, E>>
+    where
+        E: 'static,
+    {
+        let getter = self.getter.clone();
+        let value_type_id = self.value_type_id;
+
+        PKp {
+            getter: Rc::new(move |result: &Result<Root, E>| {
+                result.as_ref().ok().and_then(|root| getter(root))
+            }),
+            value_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Map the value through a transformation function
+    /// The mapped value must also implement Any for type erasure
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { name: "Alice".to_string() };
+    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
+    /// let name_pkp = PKp::new(name_kp);
+    /// let len_pkp = name_pkp.map::<String, _, _>(|s| s.len());
+    /// assert_eq!(len_pkp.get_as::<usize>(&user), Some(&5));
+    /// ```
+    pub fn map<OrigValue, MappedValue, F>(
+        &self,
+        mapper: F,
+    ) -> PKp<Root>
+    where
+        OrigValue: Any + 'static,
+        MappedValue: Any + 'static,
+        F: Fn(&OrigValue) -> MappedValue + 'static,
+    {
+        let orig_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+        let mapped_type_id = TypeId::of::<MappedValue>();
+
+        PKp {
+            getter: Rc::new(move |root: &Root| {
+                getter(root).and_then(|any_value| {
+                    // Verify the original type matches
+                    if orig_type_id == TypeId::of::<OrigValue>() {
+                        any_value.downcast_ref::<OrigValue>().map(|orig_val| {
+                            let mapped = mapper(orig_val);
+                            // Box the mapped value and return as &dyn Any
+                            // Note: This creates a new allocation
+                            Box::leak(Box::new(mapped)) as &dyn Any
+                        })
+                    } else {
+                        None
+                    }
+                })
+            }),
+            value_type_id: mapped_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Filter the value based on a predicate with type checking
+    /// Returns None if the type doesn't match or predicate fails
+    /// 
+    /// # Example
+    /// ```
+    /// let user = User { age: 30 };
+    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
+    /// let age_pkp = PKp::new(age_kp);
+    /// let adult_pkp = age_pkp.filter::<i32, _>(|age| *age >= 18);
+    /// assert_eq!(adult_pkp.get_as::<i32>(&user), Some(&30));
+    /// ```
+    pub fn filter<Value, F>(&self, predicate: F) -> PKp<Root>
+    where
+        Value: Any + 'static,
+        F: Fn(&Value) -> bool + 'static,
+    {
+        let orig_type_id = self.value_type_id;
+        let getter = self.getter.clone();
+
+        PKp {
+            getter: Rc::new(move |root: &Root| {
+                getter(root).filter(|any_value| {
+                    // Type check and apply predicate
+                    if orig_type_id == TypeId::of::<Value>() {
+                        any_value
+                            .downcast_ref::<Value>()
+                            .map(|val| predicate(val))
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                })
+            }),
+            value_type_id: orig_type_id,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+// ========== ANY KEYPATHS (Hide Both Root and Value Types) ==========
+
+/// AKp (AnyKeyPath) - Hides both Root and Value types
+/// Most flexible keypath type for heterogeneous collections
+/// Uses dynamic dispatch and type checking at runtime
+#[derive(Clone)]
 pub struct Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,
@@ -1382,503 +1878,6 @@ use std::rc::Rc;
 ///    - Preventing mixing different Root types
 /// 3. Without `PhantomData`, Rust would complain that `Root` is unused
 /// 4. `PhantomData` is zero-sized - it adds no runtime overhead
-#[derive(Clone)]
-pub struct PKp<Root> {
-    getter: Rc<dyn for<'r> Fn(&'r Root) -> Option<&'r dyn Any>>,
-    value_type_id: TypeId,
-    _phantom: std::marker::PhantomData<Root>,
-}
-
-impl<Root> PKp<Root>
-where
-    Root: 'static,
-{
-    /// Create a new PKp from a KpType (the common reference-based keypath)
-    pub fn new<'a, V>(keypath: KpType<'a, Root, V>) -> Self
-    where
-        V: Any + 'static,
-    {
-        let value_type_id = TypeId::of::<V>();
-        let getter_fn = keypath.get;
-
-        Self {
-            getter: Rc::new(move |root: &Root| {
-                getter_fn(root).map(|val: &V| val as &dyn Any)
-            }),
-            value_type_id,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Create a PKp from a KpType (alias for `new()`)
-    pub fn from<'a, V>(keypath: KpType<'a, Root, V>) -> Self
-    where
-        V: Any + 'static,
-    {
-        Self::new(keypath)
-    }
-
-    /// Get the value as a trait object
-    pub fn get<'r>(&self, root: &'r Root) -> Option<&'r dyn Any> {
-        (self.getter)(root)
-    }
-
-    /// Get the TypeId of the Value type
-    pub fn value_type_id(&self) -> TypeId {
-        self.value_type_id
-    }
-
-    /// Try to downcast the result to a specific type
-    pub fn get_as<'a, Value: Any>(&self, root: &'a Root) -> Option<&'a Value> {
-        if self.value_type_id == TypeId::of::<Value>() {
-            self.get(root).and_then(|any| any.downcast_ref::<Value>())
-        } else {
-            None
-        }
-    }
-
-    /// Get a human-readable name for the value type
-    pub fn kind_name(&self) -> String {
-        format!("{:?}", self.value_type_id)
-    }
-
-    /// Adapt this keypath to work with Arc<Root> instead of Root
-    pub fn for_arc(&self) -> PKp<Arc<Root>> {
-        let getter = self.getter.clone();
-        let value_type_id = self.value_type_id;
-
-        PKp {
-            getter: Rc::new(move |arc: &Arc<Root>| getter(arc.as_ref())),
-            value_type_id,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Adapt this keypath to work with Box<Root> instead of Root
-    pub fn for_box(&self) -> PKp<Box<Root>> {
-        let getter = self.getter.clone();
-        let value_type_id = self.value_type_id;
-
-        PKp {
-            getter: Rc::new(move |boxed: &Box<Root>| getter(boxed.as_ref())),
-            value_type_id,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Adapt this keypath to work with Rc<Root> instead of Root
-    pub fn for_rc(&self) -> PKp<Rc<Root>> {
-        let getter = self.getter.clone();
-        let value_type_id = self.value_type_id;
-
-        PKp {
-            getter: Rc::new(move |rc: &Rc<Root>| getter(rc.as_ref())),
-            value_type_id,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Adapt this keypath to work with Option<Root> instead of Root
-    pub fn for_option(&self) -> PKp<Option<Root>> {
-        let getter = self.getter.clone();
-        let value_type_id = self.value_type_id;
-
-        PKp {
-            getter: Rc::new(move |opt: &Option<Root>| {
-                opt.as_ref().and_then(|root| getter(root))
-            }),
-            value_type_id,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Adapt this keypath to work with Result<Root, E> instead of Root
-    pub fn for_result<E>(&self) -> PKp<Result<Root, E>>
-    where
-        E: 'static,
-    {
-        let getter = self.getter.clone();
-        let value_type_id = self.value_type_id;
-
-        PKp {
-            getter: Rc::new(move |result: &Result<Root, E>| {
-                result.as_ref().ok().and_then(|root| getter(root))
-            }),
-            value_type_id,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Map the value through a transformation function
-    /// The mapped value must also implement Any for type erasure
-    /// 
-    /// # Example
-    /// ```
-    /// let user = User { name: "Alice".to_string() };
-    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
-    /// let name_pkp = PKp::new(name_kp);
-    /// let len_pkp = name_pkp.map::<String, _, _>(|s| s.len());
-    /// assert_eq!(len_pkp.get_as::<usize>(&user), Some(&5));
-    /// ```
-    pub fn map<OrigValue, MappedValue, F>(
-        &self,
-        mapper: F,
-    ) -> PKp<Root>
-    where
-        OrigValue: Any + 'static,
-        MappedValue: Any + 'static,
-        F: Fn(&OrigValue) -> MappedValue + 'static,
-    {
-        let orig_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-        let mapped_type_id = TypeId::of::<MappedValue>();
-
-        PKp {
-            getter: Rc::new(move |root: &Root| {
-                getter(root).and_then(|any_value| {
-                    // Verify the original type matches
-                    if orig_type_id == TypeId::of::<OrigValue>() {
-                        any_value.downcast_ref::<OrigValue>().map(|orig_val| {
-                            let mapped = mapper(orig_val);
-                            // Box the mapped value and return as &dyn Any
-                            // Note: This creates a new allocation
-                            Box::leak(Box::new(mapped)) as &dyn Any
-                        })
-                    } else {
-                        None
-                    }
-                })
-            }),
-            value_type_id: mapped_type_id,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Filter the value based on a predicate with type checking
-    /// Returns None if the type doesn't match or predicate fails
-    /// 
-    /// # Example
-    /// ```
-    /// let user = User { age: 30 };
-    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
-    /// let age_pkp = PKp::new(age_kp);
-    /// let adult_pkp = age_pkp.filter::<i32, _>(|age| *age >= 18);
-    /// assert_eq!(adult_pkp.get_as::<i32>(&user), Some(&30));
-    /// ```
-    pub fn filter<Value, F>(&self, predicate: F) -> PKp<Root>
-    where
-        Value: Any + 'static,
-        F: Fn(&Value) -> bool + 'static,
-    {
-        let orig_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-
-        PKp {
-            getter: Rc::new(move |root: &Root| {
-                getter(root).filter(|any_value| {
-                    // Type check and apply predicate
-                    if orig_type_id == TypeId::of::<Value>() {
-                        any_value
-                            .downcast_ref::<Value>()
-                            .map(|val| predicate(val))
-                            .unwrap_or(false)
-                    } else {
-                        false
-                    }
-                })
-            }),
-            value_type_id: orig_type_id,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-
-// ========== ANY KEYPATHS (Hide Both Root and Value Types) ==========
-
-/// AKp (AnyKeyPath) - Hides both Root and Value types
-/// Most flexible keypath type for heterogeneous collections
-/// Uses dynamic dispatch and type checking at runtime
-#[derive(Clone)]
-pub struct AKp {
-    getter: Rc<dyn for<'r> Fn(&'r dyn Any) -> Option<&'r dyn Any>>,
-    root_type_id: TypeId,
-    value_type_id: TypeId,
-}
-
-impl AKp {
-    /// Create a new AKp from a KpType (the common reference-based keypath)
-    pub fn new<'a, R, V>(keypath: KpType<'a, R, V>) -> Self
-    where
-        R: Any + 'static,
-        V: Any + 'static,
-    {
-        let root_type_id = TypeId::of::<R>();
-        let value_type_id = TypeId::of::<V>();
-        let getter_fn = keypath.get;
-
-        Self {
-            getter: Rc::new(move |any: &dyn Any| {
-                if let Some(root) = any.downcast_ref::<R>() {
-                    getter_fn(root).map(|value: &V| value as &dyn Any)
-                } else {
-                    None
-                }
-            }),
-            root_type_id,
-            value_type_id,
-        }
-    }
-
-    /// Create an AKp from a KpType (alias for `new()`)
-    pub fn from<'a, R, V>(keypath: KpType<'a, R, V>) -> Self
-    where
-        R: Any + 'static,
-        V: Any + 'static,
-    {
-        Self::new(keypath)
-    }
-
-    /// Get the value as a trait object (with root type checking)
-    pub fn get<'r>(&self, root: &'r dyn Any) -> Option<&'r dyn Any> {
-        (self.getter)(root)
-    }
-
-    /// Get the TypeId of the Root type
-    pub fn root_type_id(&self) -> TypeId {
-        self.root_type_id
-    }
-
-    /// Get the TypeId of the Value type
-    pub fn value_type_id(&self) -> TypeId {
-        self.value_type_id
-    }
-
-    /// Try to get the value with full type checking
-    pub fn get_as<'a, Root: Any, Value: Any>(&self, root: &'a Root) -> Option<Option<&'a Value>> {
-        if self.root_type_id == TypeId::of::<Root>() && self.value_type_id == TypeId::of::<Value>()
-        {
-            Some(
-                self.get(root as &dyn Any)
-                    .and_then(|any| any.downcast_ref::<Value>()),
-            )
-        } else {
-            None
-        }
-    }
-
-    /// Get a human-readable name for the value type
-    pub fn kind_name(&self) -> String {
-        format!("{:?}", self.value_type_id)
-    }
-
-    /// Get a human-readable name for the root type
-    pub fn root_kind_name(&self) -> String {
-        format!("{:?}", self.root_type_id)
-    }
-
-    /// Adapt this keypath to work with Arc<Root> instead of Root
-    pub fn for_arc<Root>(&self) -> AKp
-    where
-        Root: Any + 'static,
-    {
-        let value_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-
-        AKp {
-            getter: Rc::new(move |any: &dyn Any| {
-                if let Some(arc) = any.downcast_ref::<Arc<Root>>() {
-                    getter(arc.as_ref() as &dyn Any)
-                } else {
-                    None
-                }
-            }),
-            root_type_id: TypeId::of::<Arc<Root>>(),
-            value_type_id,
-        }
-    }
-
-    /// Adapt this keypath to work with Box<Root> instead of Root
-    pub fn for_box<Root>(&self) -> AKp
-    where
-        Root: Any + 'static,
-    {
-        let value_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-
-        AKp {
-            getter: Rc::new(move |any: &dyn Any| {
-                if let Some(boxed) = any.downcast_ref::<Box<Root>>() {
-                    getter(boxed.as_ref() as &dyn Any)
-                } else {
-                    None
-                }
-            }),
-            root_type_id: TypeId::of::<Box<Root>>(),
-            value_type_id,
-        }
-    }
-
-    /// Adapt this keypath to work with Rc<Root> instead of Root
-    pub fn for_rc<Root>(&self) -> AKp
-    where
-        Root: Any + 'static,
-    {
-        let value_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-
-        AKp {
-            getter: Rc::new(move |any: &dyn Any| {
-                if let Some(rc) = any.downcast_ref::<Rc<Root>>() {
-                    getter(rc.as_ref() as &dyn Any)
-                } else {
-                    None
-                }
-            }),
-            root_type_id: TypeId::of::<Rc<Root>>(),
-            value_type_id,
-        }
-    }
-
-    /// Adapt this keypath to work with Option<Root> instead of Root
-    pub fn for_option<Root>(&self) -> AKp
-    where
-        Root: Any + 'static,
-    {
-        let value_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-
-        AKp {
-            getter: Rc::new(move |any: &dyn Any| {
-                if let Some(opt) = any.downcast_ref::<Option<Root>>() {
-                    opt.as_ref().and_then(|root| getter(root as &dyn Any))
-                } else {
-                    None
-                }
-            }),
-            root_type_id: TypeId::of::<Option<Root>>(),
-            value_type_id,
-        }
-    }
-
-    /// Adapt this keypath to work with Result<Root, E> instead of Root
-    pub fn for_result<Root, E>(&self) -> AKp
-    where
-        Root: Any + 'static,
-        E: Any + 'static,
-    {
-        let value_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-
-        AKp {
-            getter: Rc::new(move |any: &dyn Any| {
-                if let Some(result) = any.downcast_ref::<Result<Root, E>>() {
-                    result
-                        .as_ref()
-                        .ok()
-                        .and_then(|root| getter(root as &dyn Any))
-                } else {
-                    None
-                }
-            }),
-            root_type_id: TypeId::of::<Result<Root, E>>(),
-            value_type_id,
-        }
-    }
-
-    /// Map the value through a transformation function with type checking
-    /// Both original and mapped values must implement Any
-    /// 
-    /// # Example
-    /// ```
-    /// let user = User { name: "Alice".to_string() };
-    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
-    /// let name_akp = AKp::new(name_kp);
-    /// let len_akp = name_akp.map::<User, String, _, _>(|s| s.len());
-    /// ```
-    pub fn map<Root, OrigValue, MappedValue, F>(
-        &self,
-        mapper: F,
-    ) -> AKp
-    where
-        Root: Any + 'static,
-        OrigValue: Any + 'static,
-        MappedValue: Any + 'static,
-        F: Fn(&OrigValue) -> MappedValue + 'static,
-    {
-        let orig_root_type_id = self.root_type_id;
-        let orig_value_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-        let mapped_type_id = TypeId::of::<MappedValue>();
-
-        AKp {
-            getter: Rc::new(move |any_root: &dyn Any| {
-                // Check root type matches
-                if any_root.type_id() == orig_root_type_id {
-                    getter(any_root).and_then(|any_value| {
-                        // Verify the original value type matches
-                        if orig_value_type_id == TypeId::of::<OrigValue>() {
-                            any_value.downcast_ref::<OrigValue>().map(|orig_val| {
-                                let mapped = mapper(orig_val);
-                                // Box the mapped value and return as &dyn Any
-                                Box::leak(Box::new(mapped)) as &dyn Any
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                } else {
-                    None
-                }
-            }),
-            root_type_id: orig_root_type_id,
-            value_type_id: mapped_type_id,
-        }
-    }
-
-    /// Filter the value based on a predicate with full type checking
-    /// Returns None if types don't match or predicate fails
-    /// 
-    /// # Example
-    /// ```
-    /// let user = User { age: 30 };
-    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
-    /// let age_akp = AKp::new(age_kp);
-    /// let adult_akp = age_akp.filter::<User, i32, _>(|age| *age >= 18);
-    /// ```
-    pub fn filter<Root, Value, F>(&self, predicate: F) -> AKp
-    where
-        Root: Any + 'static,
-        Value: Any + 'static,
-        F: Fn(&Value) -> bool + 'static,
-    {
-        let orig_root_type_id = self.root_type_id;
-        let orig_value_type_id = self.value_type_id;
-        let getter = self.getter.clone();
-
-        AKp {
-            getter: Rc::new(move |any_root: &dyn Any| {
-                // Check root type matches
-                if any_root.type_id() == orig_root_type_id {
-                    getter(any_root).filter(|any_value| {
-                        // Type check value and apply predicate
-                        if orig_value_type_id == TypeId::of::<Value>() {
-                            any_value
-                                .downcast_ref::<Value>()
-                                .map(|val| predicate(val))
-                                .unwrap_or(false)
-                        } else {
-                            false
-                        }
-                    })
-                } else {
-                    None
-                }
-            }),
-            root_type_id: orig_root_type_id,
-            value_type_id: orig_value_type_id,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
