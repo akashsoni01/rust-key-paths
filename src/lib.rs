@@ -16,6 +16,14 @@ use std::sync::{Arc, Mutex};
 pub mod lock;
 pub use lock::{LockKp, LockAccess, ArcMutexAccess, ArcRwLockAccess, RcRefCellAccess, LockKpType};
 
+// Export the async_lock module
+pub mod async_lock;
+pub use async_lock::{
+    AsyncLockKp, AsyncLockAccess,
+    TokioMutexAccess as AsyncTokioMutexAccess,
+    TokioRwLockAccess as AsyncTokioRwLockAccess,
+};
+
 pub type KpType<'a, R, V> = Kp<
     R,
     V,
