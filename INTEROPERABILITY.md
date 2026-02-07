@@ -64,6 +64,59 @@ let result = async_kp.then(&value_kp, &root).await;
 // result == Some(&42)
 ```
 
+#### `later_then()` - Compose with another `AsyncLockKp`
+
+Navigate through multiple nested async locks.
+
+**Note**: Due to Rust's closure `Clone` constraints, this method takes the components of the second `AsyncLockKp` (prev, mid, next) separately rather than the struct itself.
+
+```rust
+pub async fn later_then<'a, Lock2, Mid2, V2, ...>(
+    &'a self,
+    other_prev: crate::Kp<V, Lock2, ...>,
+    other_mid: L2,
+    other_next: crate::Kp<Mid2, V2, ...>,
+    root: Root,
+) -> Option<Value2>
+```
+
+**Example:**
+```rust
+use tokio::sync::Mutex;
+
+struct Root {
+    lock1: Arc<Mutex<Container>>,
+}
+
+struct Container {
+    lock2: Arc<Mutex<i32>>,
+}
+
+// First AsyncLockKp: Root -> Container
+let async_kp1 = AsyncLockKp::new(
+    Kp::new(|r: &Root| Some(&r.lock1), ...),
+    TokioMutexAccess::new(),
+    Kp::new(|c: &Container| Some(c), ...),
+);
+
+// Second AsyncLockKp: Container -> i32
+let async_kp2 = AsyncLockKp::new(
+    Kp::new(|c: &Container| Some(&c.lock2), ...),
+    TokioMutexAccess::new(),
+    Kp::new(|n: &i32| Some(n), ...),
+);
+
+// Compose: async lock1 -> async lock2
+// Pass components separately to avoid Clone bounds on closures
+let result = async_kp1.later_then(
+    async_kp2.prev,
+    async_kp2.mid,
+    async_kp2.next,
+    &root
+).await;
+// result == Some(&999)
+```
+
 #### `then_lock_kp_get()` - Chain with `LockKp`
 
 Navigate through an async lock, then through a sync lock.
@@ -291,8 +344,9 @@ async fn main() {
 | From | To | Method Name | Description |
 |------|-----|-------------|-------------|
 | AsyncLockKp | Kp | `then()` | Chain to regular field |
+| AsyncLockKp | AsyncLockKp | `later_then()` | Compose with another async lock |
 | AsyncLockKp | LockKp | `then_lock_kp_get()` | Chain to sync lock |
-| AsyncLockKp | AsyncLockKp | `compose_async_get()` | Chain to another async lock |
+| AsyncLockKp | AsyncLockKp | `compose_async_get()` | Chain to another async lock (alternative) |
 | LockKp | AsyncLockKp | `then_async_kp_get()` | Chain to async lock |
 | Kp | LockKp | `then_lock_kp_get()` | Chain to sync lock |
 | Kp | AsyncLockKp | `then_async_kp_get()` | Chain to async lock |
