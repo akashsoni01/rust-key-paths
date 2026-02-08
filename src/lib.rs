@@ -683,11 +683,8 @@ where
         SubValue,
         MutRoot,
         MutSubValue,
-        // wrong syntax - expected fn pointer, found closure
-        // fn(Root) -> Option<SubValue>,
-        // fn(MutRoot) -> Option<MutSubValue>,
-        impl Fn(Root) -> Option<SubValue>,
-        impl Fn(MutRoot) -> Option<MutSubValue>,
+        impl Fn(Root) -> Option<SubValue> + use<'_, SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
+        impl Fn(MutRoot) -> Option<MutSubValue> + use<'_, SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
     >
     where
         SubValue: std::borrow::Borrow<SV>,
