@@ -176,7 +176,7 @@ async fn all_nine_nesting_combinations() {
         let next: KpType<C3, i32> = Kp::new(|c: &C3| Some(&c.y), |c: &mut C3| Some(&mut c.y));
         AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
     };
-    let chain3 = kp_rt.then_async::<_, i32>(async_cy);
+    let chain3 = kp_rt.then_async(async_cy);
     assert_eq!(chain3.get(&root3).await, Some(&3));
 
     // 4. LockKp → Kp
@@ -234,7 +234,7 @@ async fn all_nine_nesting_combinations() {
         let next: KpType<I6, i32> = Kp::new(|i: &I6| Some(&i.w), |i: &mut I6| Some(&mut i.w));
         AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
     };
-    let chain6 = lock_rh.then_async::<_, i32>(async_hi);
+    let chain6 = lock_rh.then_async(async_hi);
     assert_eq!(chain6.get(&root6).await, Some(&6));
 
     // 7. AsyncKp → Kp

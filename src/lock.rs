@@ -485,14 +485,14 @@ where
     }
 
     /// Chain with an async keypath. Use `.get(&root).await` on the returned keypath.
-    /// If inference fails for `V2`, specify the final value type: `then_async::<_, i32>(async_kp)`.
-    pub fn then_async<AsyncKp, V2>(
+    /// When `AsyncKp::Value` is a reference type (`&T` / `&mut T`), `V2` is inferred as `T` via [crate::KeyPathValueTarget].
+    pub fn then_async<AsyncKp>(
         self,
         async_kp: AsyncKp,
     ) -> crate::async_lock::KpThenAsyncKeyPath<
         R,
         V,
-        V2,
+        <AsyncKp::Value as crate::KeyPathValueTarget>::Target,
         Root,
         Value,
         AsyncKp::Value,
@@ -504,12 +504,13 @@ where
     >
     where
         V: 'static + Clone,
-        V2: 'static,
         Value: std::borrow::Borrow<V>,
         MutValue: std::borrow::BorrowMut<V>,
         AsyncKp: crate::async_lock::AsyncKeyPathLike<Value, MutValue>,
-        AsyncKp::Value: std::borrow::Borrow<V2>,
-        AsyncKp::MutValue: std::borrow::BorrowMut<V2>,
+        AsyncKp::Value: crate::KeyPathValueTarget
+            + std::borrow::Borrow<<AsyncKp::Value as crate::KeyPathValueTarget>::Target>,
+        AsyncKp::MutValue: std::borrow::BorrowMut<<AsyncKp::Value as crate::KeyPathValueTarget>::Target>,
+        <AsyncKp::Value as crate::KeyPathValueTarget>::Target: 'static,
     {
         crate::async_lock::KpThenAsyncKeyPath {
             first: self,

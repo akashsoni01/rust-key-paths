@@ -745,14 +745,14 @@ where
     }
 
     /// Chain with an async keypath (e.g. [crate::async_lock::AsyncLockKp]). Use `.get(&root).await` on the returned keypath.
-    /// If inference fails for `V2`, specify the final value type: `then_async::<_, i32>(async_kp)`.
-    pub fn then_async<AsyncKp, V2>(
+    /// When `AsyncKp::Value` is a reference type (`&T` / `&mut T`), `V2` is inferred as `T` via [KeyPathValueTarget].
+    pub fn then_async<AsyncKp>(
         self,
         async_kp: AsyncKp,
     ) -> crate::async_lock::KpThenAsyncKeyPath<
         R,
         V,
-        V2,
+        <AsyncKp::Value as KeyPathValueTarget>::Target,
         Root,
         Value,
         AsyncKp::Value,
@@ -764,12 +764,13 @@ where
     >
     where
         V: 'static,
-        V2: 'static,
         Value: std::borrow::Borrow<V>,
         MutValue: std::borrow::BorrowMut<V>,
         AsyncKp: crate::async_lock::AsyncKeyPathLike<Value, MutValue>,
-        AsyncKp::Value: std::borrow::Borrow<V2>,
-        AsyncKp::MutValue: std::borrow::BorrowMut<V2>,
+        AsyncKp::Value: KeyPathValueTarget
+            + std::borrow::Borrow<<AsyncKp::Value as KeyPathValueTarget>::Target>,
+        AsyncKp::MutValue: std::borrow::BorrowMut<<AsyncKp::Value as KeyPathValueTarget>::Target>,
+        <AsyncKp::Value as KeyPathValueTarget>::Target: 'static,
     {
         crate::async_lock::KpThenAsyncKeyPath {
             first: self,
@@ -4711,7 +4712,7 @@ mod tests {
             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
         };
 
-        let chained = kp_to_guard.then_async::<_, Level1>(async_kp);
+        let chained = kp_to_guard.then_async(async_kp);
         let level1 = chained.get(&root).await;
         assert!(level1.is_some());
         assert_eq!(level1.unwrap().value, 7);
@@ -4788,7 +4789,7 @@ mod tests {
         // Build chain: LockKp(Root->L1) . then(L1->L2) . then(L2->tokio) . then_async(tokio->L3) . then(L3->leaf)
         let step1 = lock_root_to_l1.then(kp_l1_inner);
         let step2 = step1.then(kp_l2_tokio);
-        let step3 = step2.then_async::<_, Level3>(async_l3);
+        let step3 = step2.then_async(async_l3);
         let deep_chain = step3.then(kp_l3_leaf);
 
         // Read leaf through full chain (async)
