@@ -641,9 +641,9 @@ where
     S: Fn(MutRoot) -> Option<MutValue>,
 {
     /// Getter closure: used by [Kp::get] for read-only access.
-    pub get: G,
+    pub(crate) get: G,
     /// Setter closure: used by [Kp::get_mut] for mutation.
-    pub set: S,
+    pub(crate) set: S,
     _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
 }
 

@@ -137,13 +137,13 @@ pub struct LockKp<
     S2: Fn(MutMid) -> Option<MutValue>,
 {
     /// Keypath from Root to Lock container
-    pub prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
+    pub(crate) prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
 
     /// Lock access handler (converts Lock -> Inner)
-    pub mid: L,
+    pub(crate) mid: L,
 
     /// Keypath from Inner to final Value
-    pub next: Kp<Mid, V, MidValue, Value, MutMid, MutValue, G2, S2>,
+    pub(crate) next: Kp<Mid, V, MidValue, Value, MutMid, MutValue, G2, S2>,
 }
 
 impl<
