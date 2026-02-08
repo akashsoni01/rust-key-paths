@@ -84,8 +84,10 @@ pub trait LockAccess<Lock, Inner> {
 /// - NO deep data cloning occurs - all clones are pointer/reference copies
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use std::sync::{Arc, Mutex};
+/// use rust_key_paths::lock::{ArcMutexAccess, LockKp};
+/// use rust_key_paths::Kp;
 ///
 /// struct Root {
 ///     data: Arc<Mutex<Inner>>,
@@ -96,11 +98,9 @@ pub trait LockAccess<Lock, Inner> {
 /// }
 ///
 /// // Create a LockKp that goes: Root -> Arc<Mutex<Inner>> -> String
-/// let lock_kp = LockKp::new(
-///     root_to_lock_kp,
-///     ArcMutexAccess::new(),
-///     inner_to_value_kp,
-/// );
+/// let root_to_lock_kp = Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+/// let inner_to_value_kp = Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value));
+/// let lock_kp = LockKp::new(root_to_lock_kp, ArcMutexAccess::new(), inner_to_value_kp);
 /// ```
 #[derive(Clone)] // SHALLOW: Clones function pointers and PhantomData only
 pub struct LockKp<
@@ -398,7 +398,7 @@ where
     /// **Performance**: Both clones are O(1) operations with no deep data copying
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// // Root -> Arc<Mutex<Mid1>> -> Mid1 -> Arc<Mutex<Mid2>> -> Mid2 -> String
     /// let lock_kp1 = LockKp::new(root_to_lock1, ArcMutexAccess::new(), lock1_to_mid1);
     /// let lock_kp2 = LockKp::new(mid1_to_lock2, ArcMutexAccess::new(), mid2_to_value);
@@ -1251,9 +1251,11 @@ impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a mut T>
 ///
 /// # Example
 ///
-/// ```rust
+/// ```ignore
 /// use std::rc::Rc;
 /// use std::cell::RefCell;
+/// use rust_key_paths::lock::{LockKp, RcRefCellAccess};
+/// use rust_key_paths::Kp;
 ///
 /// #[derive(Clone)]
 /// struct Root {

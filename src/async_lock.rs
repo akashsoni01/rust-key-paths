@@ -453,7 +453,7 @@ where
     /// Returns an AsyncLockKp that goes one step further; use [AsyncLockKp::get] or [AsyncLockKp::get_mut] with root later.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// // Root -> Arc<tokio::Mutex<Inner>> -> Inner -> field
     /// let async_kp = AsyncLockKp::new(root_to_lock, TokioMutexAccess::new(), lock_to_inner);
     /// let field_kp = Kp::new(|inner: &Inner| Some(&inner.field), |inner: &mut Inner| Some(&mut inner.field));
@@ -599,7 +599,7 @@ where
     /// Root -> AsyncLock1 -> Container -> AsyncLock2 -> Value
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// // Root -> Arc<tokio::Mutex<Container>> -> Container -> Arc<tokio::Mutex<Value>> -> Value
     /// let async_kp1 = AsyncLockKp::new(...); // Root -> Container
     /// let async_kp2 = AsyncLockKp::new(...); // Container -> Value

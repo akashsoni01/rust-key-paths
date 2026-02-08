@@ -321,6 +321,8 @@ impl AKp {
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{AKp, Kp, KpType};
+    /// struct User { name: String }
     /// let user = User { name: "Alice".to_string() };
     /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
     /// let name_akp = AKp::new(name_kp);
@@ -368,6 +370,8 @@ impl AKp {
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{AKp, Kp, KpType};
+    /// struct User { age: i32 }
     /// let user = User { age: 30 };
     /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
     /// let age_akp = AKp::new(age_kp);
@@ -534,6 +538,8 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType, PKp};
+    /// struct User { name: String }
     /// let user = User { name: "Alice".to_string() };
     /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
     /// let name_pkp = PKp::new(name_kp);
@@ -576,6 +582,8 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType, PKp};
+    /// struct User { age: i32 }
     /// let user = User { age: 30 };
     /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
     /// let age_pkp = PKp::new(age_kp);
@@ -796,6 +804,8 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { name: String }
     /// let user = User { name: "Alice".to_string() };
     /// let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
     /// let len_kp = name_kp.map(|name: &String| name.len());
@@ -842,6 +852,8 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { age: i32 }
     /// let user = User { age: 30 };
     /// let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
     /// let adult_kp = age_kp.filter(|age: &i32| *age >= 18);
@@ -886,6 +898,8 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { middle_name: Option<String> }
     /// let user = User { middle_name: Some("M.".to_string()) };
     /// let middle_kp = KpType::new(|u: &User| Some(&u.middle_name), |_| None);
     /// let first_char_kp = middle_kp.filter_map(|opt: &Option<String>| {
@@ -933,6 +947,8 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { tags: Vec<&'static str> }
     /// let user = User { tags: vec!["rust", "web"] };
     /// let tags_kp = KpType::new(|u: &User| Some(&u.tags), |_| None);
     /// // Use with a closure that returns an iterator
@@ -960,6 +976,8 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { name: String }
     /// let user = User { name: "Alice".to_string() };
     /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
     /// name_kp.inspect(|name| println!("Name: {}", name)).get(&user);
@@ -1006,11 +1024,13 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { scores: Vec<i32> }
     /// let user = User { scores: vec![85, 92, 78] };
     /// let scores_kp = KpType::new(|u: &User| Some(&u.scores), |_| None);
     /// let sum = scores_kp.fold_value(0, |acc, scores| {
     ///     scores.iter().sum::<i32>() + acc
-    /// }).get(&user);
+    /// })(&user);
     /// ```
     pub fn fold_value<Acc, F>(&self, init: Acc, folder: F) -> impl Fn(Root) -> Acc
     where
@@ -1035,10 +1055,12 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { scores: Vec<i32> }
     /// let user = User { scores: vec![85, 92, 78] };
     /// let scores_kp = KpType::new(|u: &User| Some(&u.scores), |_| None);
     /// let has_high = scores_kp.any(|scores| scores.iter().any(|&s| s > 90));
-    /// assert!(has_high.get(&user).unwrap());
+    /// assert!(has_high(&user));
     /// ```
     pub fn any<F>(&self, predicate: F) -> impl Fn(Root) -> bool
     where
@@ -1061,10 +1083,12 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { scores: Vec<i32> }
     /// let user = User { scores: vec![85, 92, 78] };
     /// let scores_kp = KpType::new(|u: &User| Some(&u.scores), |_| None);
     /// let all_passing = scores_kp.all(|scores| scores.iter().all(|&s| s >= 70));
-    /// assert!(all_passing.get(&user).unwrap());
+    /// assert!(all_passing(&user));
     /// ```
     pub fn all<F>(&self, predicate: F) -> impl Fn(Root) -> bool
     where
@@ -1087,10 +1111,12 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { tags: Vec<&'static str> }
     /// let user = User { tags: vec!["rust", "web", "backend"] };
     /// let tags_kp = KpType::new(|u: &User| Some(&u.tags), |_| None);
     /// let count = tags_kp.count_items(|tags| tags.len());
-    /// assert_eq!(count.get(&user), Some(3));
+    /// assert_eq!(count(&user), Some(3));
     /// ```
     pub fn count_items<F>(&self, counter: F) -> impl Fn(Root) -> Option<usize>
     where
@@ -1111,12 +1137,14 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { scores: Vec<i32> }
     /// let user = User { scores: vec![85, 92, 78, 95] };
     /// let scores_kp = KpType::new(|u: &User| Some(&u.scores), |_| None);
     /// let first_high = scores_kp.find_in(|scores| {
     ///     scores.iter().find(|&&s| s > 90).copied()
     /// });
-    /// assert_eq!(first_high.get(&user), Some(Some(92)));
+    /// assert_eq!(first_high(&user), Some(92));
     /// ```
     pub fn find_in<Item, F>(&self, finder: F) -> impl Fn(Root) -> Option<Item>
     where
@@ -1138,9 +1166,11 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { tags: Vec<&'static str> }
     /// let user = User { tags: vec!["a", "b", "c", "d"] };
     /// let tags_kp = KpType::new(|u: &User| Some(&u.tags), |_| None);
-    /// let first_two = tags_kp.take(2, |tags| tags.iter().take(2).cloned().collect());
+    /// let first_two = tags_kp.take(2, |tags, n| tags.iter().take(n).cloned().collect::<Vec<_>>());
     /// ```
     pub fn take<Output, F>(&self, n: usize, taker: F) -> impl Fn(Root) -> Option<Output>
     where
@@ -1162,9 +1192,11 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { tags: Vec<&'static str> }
     /// let user = User { tags: vec!["a", "b", "c", "d"] };
     /// let tags_kp = KpType::new(|u: &User| Some(&u.tags), |_| None);
-    /// let after_two = tags_kp.skip(2, |tags| tags.iter().skip(2).cloned().collect());
+    /// let after_two = tags_kp.skip(2, |tags, n| tags.iter().skip(n).cloned().collect::<Vec<_>>());
     /// ```
     pub fn skip<Output, F>(&self, n: usize, skipper: F) -> impl Fn(Root) -> Option<Output>
     where
@@ -1186,11 +1218,13 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { scores: Vec<i32> }
     /// let user = User { scores: vec![85, 92, 65, 95, 72] };
     /// let scores_kp = KpType::new(|u: &User| Some(&u.scores), |_| None);
-    /// let (passing, failing) = scores_kp.partition_value(|scores| {
-    ///     scores.iter().partition(|&&s| s >= 70)
-    /// }).get(&user).unwrap();
+    /// let (passing, failing): (Vec<i32>, Vec<i32>) = scores_kp.partition_value(|scores| {
+    ///     scores.iter().copied().partition(|&s| s >= 70)
+    /// })(&user).unwrap();
     /// ```
     pub fn partition_value<Output, F>(&self, partitioner: F) -> impl Fn(Root) -> Option<Output>
     where
@@ -1212,10 +1246,12 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { scores: Vec<i32> }
     /// let user = User { scores: vec![85, 92, 78] };
     /// let scores_kp = KpType::new(|u: &User| Some(&u.scores), |_| None);
     /// let min = scores_kp.min_value(|scores| scores.iter().min().copied());
-    /// assert_eq!(min.get(&user), Some(Some(78)));
+    /// assert_eq!(min(&user), Some(78));
     /// ```
     pub fn min_value<Item, F>(&self, min_fn: F) -> impl Fn(Root) -> Option<Item>
     where
@@ -1237,10 +1273,12 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { scores: Vec<i32> }
     /// let user = User { scores: vec![85, 92, 78] };
     /// let scores_kp = KpType::new(|u: &User| Some(&u.scores), |_| None);
     /// let max = scores_kp.max_value(|scores| scores.iter().max().copied());
-    /// assert_eq!(max.get(&user), Some(Some(92)));
+    /// assert_eq!(max(&user), Some(92));
     /// ```
     pub fn max_value<Item, F>(&self, max_fn: F) -> impl Fn(Root) -> Option<Item>
     where
@@ -1262,10 +1300,12 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { scores: Vec<i32> }
     /// let user = User { scores: vec![85, 92, 78] };
     /// let scores_kp = KpType::new(|u: &User| Some(&u.scores), |_| None);
     /// let sum = scores_kp.sum_value(|scores: &Vec<i32>| scores.iter().sum());
-    /// assert_eq!(sum.get(&user), Some(255));
+    /// assert_eq!(sum(&user), Some(255));
     /// ```
     pub fn sum_value<Sum, F>(&self, sum_fn: F) -> impl Fn(Root) -> Option<Sum>
     where
@@ -1375,6 +1415,8 @@ where
 ///
 /// # Example
 /// ```
+/// use rust_key_paths::{KpType, zip_kps};
+/// struct User { name: String, age: i32 }
 /// let user = User { name: "Alice".to_string(), age: 30 };
 /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
 /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
@@ -1495,6 +1537,7 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::enum_ok;
     /// let result: Result<String, i32> = Ok("hello".to_string());
     /// let ok_kp = enum_ok();
     /// let len_kp = ok_kp.map(|s: &String| s.len());
@@ -1542,6 +1585,7 @@ where
     ///
     /// # Example
     /// ```
+    /// use rust_key_paths::enum_ok;
     /// let result: Result<i32, String> = Ok(42);
     /// let ok_kp = enum_ok();
     /// let positive_kp = ok_kp.filter(|x: &i32| *x > 0);
@@ -1592,6 +1636,7 @@ pub type EnumKpType<'a, Enum, Variant> = EnumKp<
 ///
 /// # Example
 /// ```
+/// use rust_key_paths::enum_variant;
 /// enum MyEnum {
 ///     A(String),
 ///     B(i32),
@@ -1615,6 +1660,7 @@ pub fn enum_variant<'a, Enum, Variant>(
 ///
 /// # Example
 /// ```
+/// use rust_key_paths::enum_ok;
 /// let result: Result<String, i32> = Ok("success".to_string());
 /// let ok_kp = enum_ok();
 /// assert_eq!(ok_kp.get(&result), Some(&"success".to_string()));
@@ -1633,6 +1679,7 @@ pub fn enum_ok<'a, T, E>() -> EnumKpType<'a, Result<T, E>, T> {
 ///
 /// # Example
 /// ```
+/// use rust_key_paths::enum_err;
 /// let result: Result<String, i32> = Err(42);
 /// let err_kp = enum_err();
 /// assert_eq!(err_kp.get(&result), Some(&42));
@@ -1651,6 +1698,7 @@ pub fn enum_err<'a, T, E>() -> EnumKpType<'a, Result<T, E>, E> {
 ///
 /// # Example
 /// ```
+/// use rust_key_paths::enum_some;
 /// let opt = Some("value".to_string());
 /// let some_kp = enum_some();
 /// assert_eq!(some_kp.get(&opt), Some(&"value".to_string()));
@@ -1667,6 +1715,7 @@ pub fn enum_some<'a, T>() -> EnumKpType<'a, Option<T>, T> {
 ///
 /// # Example
 /// ```
+/// use rust_key_paths::variant_of;
 /// enum MyEnum {
 ///     A(String),
 ///     B(i32),
@@ -1693,6 +1742,7 @@ pub fn variant_of<'a, Enum, Variant>(
 ///
 /// # Example
 /// ```
+/// use rust_key_paths::kp_box;
 /// let boxed = Box::new("value".to_string());
 /// let kp = kp_box();
 /// assert_eq!(kp.get(&boxed), Some(&"value".to_string()));
@@ -1708,6 +1758,8 @@ pub fn kp_box<'a, T>() -> KpType<'a, Box<T>, T> {
 ///
 /// # Example
 /// ```
+/// use std::sync::Arc;
+/// use rust_key_paths::kp_arc;
 /// let arc = Arc::new("value".to_string());
 /// let kp = kp_arc();
 /// assert_eq!(kp.get(&arc), Some(&"value".to_string()));
@@ -1732,6 +1784,8 @@ pub fn kp_arc<'a, T>() -> Kp<
 ///
 /// # Example
 /// ```
+/// use std::rc::Rc;
+/// use rust_key_paths::kp_rc;
 /// let rc = Rc::new("value".to_string());
 /// let kp = kp_rc();
 /// assert_eq!(kp.get(&rc), Some(&"value".to_string()));
