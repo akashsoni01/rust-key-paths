@@ -1324,6 +1324,92 @@ impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a mut T>
 // Helper Functions
 // ============================================================================
 
+/// Type alias for LockKp over Arc<std::sync::Mutex<T>>. Use with derive macro's `_lock()` methods.
+pub type LockKpArcMutexFor<Root, Lock, Inner> = LockKp<
+    Root,
+    Lock,
+    Inner,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Inner,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Inner,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    ArcMutexAccess<Inner>,
+    for<'b> fn(&'b Inner) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
+>;
+
+/// Type alias for LockKp over Arc<std::sync::RwLock<T>>. Use with derive macro's `_lock()` methods.
+pub type LockKpArcRwLockFor<Root, Lock, Inner> = LockKp<
+    Root,
+    Lock,
+    Inner,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Inner,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Inner,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    ArcRwLockAccess<Inner>,
+    for<'b> fn(&'b Inner) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
+>;
+
+#[cfg(feature = "parking_lot")]
+/// Type alias for LockKp over Arc<parking_lot::Mutex<T>>. Use with derive macro's `_lock()` methods.
+pub type LockKpParkingLotMutexFor<Root, Lock, Inner> = LockKp<
+    Root,
+    Lock,
+    Inner,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Inner,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Inner,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    ParkingLotMutexAccess<Inner>,
+    for<'b> fn(&'b Inner) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
+>;
+
+#[cfg(feature = "parking_lot")]
+/// Type alias for LockKp over Arc<parking_lot::RwLock<T>>. Use with derive macro's `_lock()` methods.
+pub type LockKpParkingLotRwLockFor<Root, Lock, Inner> = LockKp<
+    Root,
+    Lock,
+    Inner,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Inner,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Inner,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    ParkingLotRwLockAccess<Inner>,
+    for<'b> fn(&'b Inner) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
+>;
+
 /// Type alias for common LockKp usage with Arc<Mutex<T>>
 pub type LockKpType<'a, R, Mid, V> = LockKp<
     R,

@@ -565,10 +565,59 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::StdArcMutex, Some(inner_ty)) => {
+                            // For Arc<std::sync::Mutex<T>>
+                            let kp_lock_fn = format_ident!("{}_lock", field_ident);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpArcMutexFor<#name, #ty, #inner_ty> {
+                                    rust_key_paths::lock::LockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#field_ident),
+                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                        ),
+                                        rust_key_paths::lock::ArcMutexAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::StdArcRwLock, Some(inner_ty)) => {
+                            // For Arc<std::sync::RwLock<T>>
+                            let kp_lock_fn = format_ident!("{}_lock", field_ident);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpArcRwLockFor<#name, #ty, #inner_ty> {
+                                    rust_key_paths::lock::LockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#field_ident),
+                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                        ),
+                                        rust_key_paths::lock::ArcRwLockAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::Mutex, Some(_inner_ty))
                         | (WrapperKind::StdMutex, Some(_inner_ty)) => {
                             // For Mutex<T>, return keypath to container
-                            // Users can compose this with LockKp for lock access
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -689,6 +738,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionStdArcMutex, Some(inner_ty))
                         | (WrapperKind::OptionArcMutex, Some(inner_ty)) => {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
+                            let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -702,11 +752,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| root.#field_ident.as_mut(),
                                     )
                                 }
+                                pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpArcMutexFor<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, #inner_ty> {
+                                    rust_key_paths::lock::LockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| root.#field_ident.as_ref(),
+                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                        ),
+                                        rust_key_paths::lock::ArcMutexAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
                             });
                         }
                         (WrapperKind::OptionStdArcRwLock, Some(inner_ty))
                         | (WrapperKind::OptionArcRwLock, Some(inner_ty)) => {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
+                            let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -718,6 +782,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#field_ident.as_ref(),
                                         |root: &mut #name| root.#field_ident.as_mut(),
+                                    )
+                                }
+                                pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpArcRwLockFor<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, #inner_ty> {
+                                    rust_key_paths::lock::LockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| root.#field_ident.as_ref(),
+                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                        ),
+                                        rust_key_paths::lock::ArcRwLockAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
                                     )
                                 }
                             });
