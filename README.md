@@ -3,6 +3,29 @@
 Key paths provide a **safe, composable way to access and modify nested data** in Rust.
 Inspired by **KeyPath and Functional Lenses** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
 
+## Supported containers
+
+The `#[derive(Kp)]` macro (from `key-paths-derive`) generates keypath accessors for these wrapper types:
+
+| Container | Access | Notes |
+|-----------|--------|-------|
+| `Option<T>` | `field()` | Unwraps to inner type |
+| `Box<T>` | `field()` | Derefs to inner |
+| `Rc<T>`, `Arc<T>` | `field()` | Derefs; mut when unique ref |
+| `Vec<T>` | `field()`, `field_at(i)` | Container + index access |
+| `HashMap<K,V>`, `BTreeMap<K,V>` | `field_at(k)` | Key-based access |
+| `HashSet<T>`, `BTreeSet<T>` | `field()` | Container identity |
+| `VecDeque<T>`, `LinkedList<T>`, `BinaryHeap<T>` | `field()`, `field_at(i)` | Index where applicable |
+| `Result<T,E>` | `field()` | Unwraps `Ok` |
+| `Cow<'_, T>` | `field()` | `as_ref` / `to_mut` |
+| `Option<Cow<'_, T>>` | `field()` | Optional Cow unwrap |
+| `std::sync::Mutex<T>`, `std::sync::RwLock<T>` | `field()` | Container (use `LockKp` for lock-through) |
+| `Arc<Mutex<T>>`, `Arc<RwLock<T>>` | `field()`, `field_lock()` | Lock-through via `LockKp` |
+| `tokio::sync::Mutex`, `tokio::sync::RwLock` | `field_async()` | Async lock-through (tokio feature) |
+| `parking_lot::Mutex`, `parking_lot::RwLock` | `field()`, `field_lock()` | parking_lot feature |
+
+Nested combinations (e.g. `Option<Box<T>>`, `Option<Vec<T>>`, `Vec<Option<T>>`) are supported.
+
 ## Performance: Kp vs direct unwrap
 
 Benchmark: nested `Option` chains and enum case paths (`cargo bench --bench keypath_vs_unwrap`).
@@ -14,6 +37,7 @@ Benchmark: nested `Option` chains and enum case paths (`cargo bench --bench keyp
 | Read 5-level Option | ~3.54 ns | ~383 ps | ~9.2x |
 | Read 5-level with enum | ~3.52 ns | ~392 ps | ~9x |
 | 100× reuse (3-level) | ~36.6 ns | ~36.7 ns | ~1x |
+| 100× reuse (5-level) | ~52.3 ns | ~52.5 ns | ~1x |
 
 Access overhead comes from closure indirection in the composed chain. **Reusing a keypath** (build once, use many times) matches direct unwrap; building the chain each time adds ~1–2 ns.
 

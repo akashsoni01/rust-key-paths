@@ -313,6 +313,52 @@ fn bench_keypath_reuse(c: &mut Criterion) {
     group.finish();
 }
 
+// Benchmark: 5-level keypath reuse (build keypath once per iter, 100 accesses)
+fn bench_keypath_reuse_5_level(c: &mut Criterion) {
+    let mut group = c.benchmark_group("keypath_reuse_5_level");
+
+    let mut instances: Vec<_> = (0..100).map(|_| Level1Struct::new()).collect();
+
+    group.bench_function("keypath_reused_5_level", |b| {
+        b.iter(|| {
+            let keypath = Level1Struct::level1_field()
+                .then(Level2Struct::level2_field())
+                .then(Level3Struct::level3_deep_field())
+                .then(Level4Struct::level4_field())
+                .then(Level5Struct::level5_field());
+            let mut sum = 0;
+            for instance in &mut instances {
+                if let Some(value) = keypath.get_mut(instance) {
+                    sum += value.len();
+                }
+            }
+            black_box(sum)
+        })
+    });
+
+    group.bench_function("direct_unwrap_repeated_5_level", |b| {
+        b.iter(|| {
+            let mut sum = 0;
+            for instance in &instances {
+                if let Some(l2) = instance.level1_field.as_ref() {
+                    if let Some(l3) = l2.level2_field.as_ref() {
+                        if let Some(l4) = l3.level3_deep_field.as_ref() {
+                            if let Some(l5) = l4.level4_field.as_ref() {
+                                if let Some(s) = l5.level5_field.as_ref() {
+                                    sum += s.len();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            black_box(sum)
+        })
+    });
+
+    group.finish();
+}
+
 // Benchmark: Composition overhead
 fn bench_composition_overhead(c: &mut Criterion) {
     let mut group = c.benchmark_group("composition_overhead");
@@ -524,6 +570,7 @@ criterion_group!(
     bench_write_deep_nested_with_enum,
     bench_keypath_creation,
     bench_keypath_reuse,
+    bench_keypath_reuse_5_level,
     bench_composition_overhead,
     bench_ten_level
 );

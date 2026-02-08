@@ -528,6 +528,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        
                         (WrapperKind::OptionCow, Some(inner_ty)) => {
                             // For Option<Cow<'_, B>>
                             tokens.extend(quote! {
@@ -1078,6 +1079,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        
                         (WrapperKind::Cow, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
@@ -1088,6 +1090,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        
                         (WrapperKind::OptionCow, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
