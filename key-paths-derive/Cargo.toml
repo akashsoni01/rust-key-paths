@@ -22,4 +22,5 @@ syn = { version = "2", features = ["full"] }
 
 
 [dev-dependencies]
-rust-key-paths = { path = "../", version = "1.7.0" }
+rust-key-paths = { path = "../", version = "1.7.0", features = ["tokio"] }
+tokio = { version = "1.38", features = ["sync", "rt", "macros"] }

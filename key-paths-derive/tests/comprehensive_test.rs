@@ -1,6 +1,8 @@
 use key_paths_derive::Kp;
+use rust_key_paths::async_lock::AsyncKeyPathLike;
 use rust_key_paths::{KpType, LockKp};
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 // Test collections
 #[derive(Kp)]
@@ -22,6 +24,12 @@ struct SmartPointers {
 struct WithLocks {
     std_mutex: std::sync::Mutex<i32>,
     std_rwlock: std::sync::RwLock<String>,
+}
+
+// Test tokio async locks (requires rust-key-paths tokio feature)
+#[derive(Kp)]
+struct WithTokioLocks {
+    data: Arc<tokio::sync::RwLock<Vec<i32>>>,
 }
 
 #[test]
@@ -238,4 +246,23 @@ fn test_std_mutex_with_lockkp() {
     // Access through lock
     let value = lock_kp.get(&locks);
     assert_eq!(value, Some(&99));
+}
+
+#[tokio::test]
+async fn test_tokio_rwlock_async_kp() {
+    let root = WithTokioLocks {
+        data: Arc::new(tokio::sync::RwLock::new(vec![1, 2, 3, 4, 5])),
+    };
+
+    // data() returns KpType to container
+    let container_kp = WithTokioLocks::data();
+    let arc_ref = container_kp.get(&root);
+    assert!(arc_ref.is_some());
+
+    // data_async() returns AsyncLockKp - use .get(&root).await for async access
+    let async_kp = WithTokioLocks::data_async();
+    let value = async_kp.get(&root).await;
+    assert!(value.is_some());
+    // Value is &Vec<i32>; dereference to call len()
+    assert_eq!(value.as_ref().map(|v| (**v).len()), Some(5));
 }
