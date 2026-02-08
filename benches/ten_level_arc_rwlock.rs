@@ -8,54 +8,54 @@
 #![cfg(feature = "parking_lot")]
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use key_paths_derive::Kp;
 use rust_key_paths::lock::{LockKp, ParkingLotRwLockAccess};
-use rust_key_paths::Kp;
 use std::sync::Arc;
 
 use parking_lot::RwLock;
 
 // 10-level deep: L0 -> Arc<RwLock<L1>> -> L1 -> ... -> L10 { leaf: i32 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L0 {
     inner: Arc<RwLock<L1>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L1 {
     inner: Arc<RwLock<L2>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L2 {
     inner: Arc<RwLock<L3>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L3 {
     inner: Arc<RwLock<L4>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L4 {
     inner: Arc<RwLock<L5>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L5 {
     inner: Arc<RwLock<L6>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L6 {
     inner: Arc<RwLock<L7>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L7 {
     inner: Arc<RwLock<L8>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L8 {
     inner: Arc<RwLock<L9>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L9 {
     inner: Arc<RwLock<L10>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Kp)]
 struct L10 {
     leaf: i32,
 }
@@ -96,78 +96,17 @@ fn make_root() -> L0 {
 
 /// Build the 10-level LockKp chain (read path)
 fn build_read_chain() -> impl Fn(&L0) -> Option<&i32> {
-    let kp_leaf: rust_key_paths::KpType<L10, i32> =
-        Kp::new(|t: &L10| Some(&t.leaf), |t: &mut L10| Some(&mut t.leaf));
-
-    // L0 -> Arc<RwLock<L1>>
-    let kp0: rust_key_paths::KpType<L0, Arc<RwLock<L1>>> =
-        Kp::new(|r: &L0| Some(&r.inner), |r: &mut L0| Some(&mut r.inner));
-    let id1: rust_key_paths::KpType<L1, L1> =
-        Kp::new(|l: &L1| Some(l), |l: &mut L1| Some(l));
-    let lock0 = LockKp::new(kp0, ParkingLotRwLockAccess::new(), id1);
-
-    // L1 -> Arc<RwLock<L2>>
-    let kp1: rust_key_paths::KpType<L1, Arc<RwLock<L2>>> =
-        Kp::new(|r: &L1| Some(&r.inner), |r: &mut L1| Some(&mut r.inner));
-    let id2: rust_key_paths::KpType<L2, L2> =
-        Kp::new(|l: &L2| Some(l), |l: &mut L2| Some(l));
-    let lock1 = LockKp::new(kp1, ParkingLotRwLockAccess::new(), id2);
-
-    // L2 -> L3
-    let kp2: rust_key_paths::KpType<L2, Arc<RwLock<L3>>> =
-        Kp::new(|r: &L2| Some(&r.inner), |r: &mut L2| Some(&mut r.inner));
-    let id3: rust_key_paths::KpType<L3, L3> =
-        Kp::new(|l: &L3| Some(l), |l: &mut L3| Some(l));
-    let lock2 = LockKp::new(kp2, ParkingLotRwLockAccess::new(), id3);
-
-    // L3 -> L4
-    let kp3: rust_key_paths::KpType<L3, Arc<RwLock<L4>>> =
-        Kp::new(|r: &L3| Some(&r.inner), |r: &mut L3| Some(&mut r.inner));
-    let id4: rust_key_paths::KpType<L4, L4> =
-        Kp::new(|l: &L4| Some(l), |l: &mut L4| Some(l));
-    let lock3 = LockKp::new(kp3, ParkingLotRwLockAccess::new(), id4);
-
-    // L4 -> L5
-    let kp4: rust_key_paths::KpType<L4, Arc<RwLock<L5>>> =
-        Kp::new(|r: &L4| Some(&r.inner), |r: &mut L4| Some(&mut r.inner));
-    let id5: rust_key_paths::KpType<L5, L5> =
-        Kp::new(|l: &L5| Some(l), |l: &mut L5| Some(l));
-    let lock4 = LockKp::new(kp4, ParkingLotRwLockAccess::new(), id5);
-
-    // L5 -> L6
-    let kp5: rust_key_paths::KpType<L5, Arc<RwLock<L6>>> =
-        Kp::new(|r: &L5| Some(&r.inner), |r: &mut L5| Some(&mut r.inner));
-    let id6: rust_key_paths::KpType<L6, L6> =
-        Kp::new(|l: &L6| Some(l), |l: &mut L6| Some(l));
-    let lock5 = LockKp::new(kp5, ParkingLotRwLockAccess::new(), id6);
-
-    // L6 -> L7
-    let kp6: rust_key_paths::KpType<L6, Arc<RwLock<L7>>> =
-        Kp::new(|r: &L6| Some(&r.inner), |r: &mut L6| Some(&mut r.inner));
-    let id7: rust_key_paths::KpType<L7, L7> =
-        Kp::new(|l: &L7| Some(l), |l: &mut L7| Some(l));
-    let lock6 = LockKp::new(kp6, ParkingLotRwLockAccess::new(), id7);
-
-    // L7 -> L8
-    let kp7: rust_key_paths::KpType<L7, Arc<RwLock<L8>>> =
-        Kp::new(|r: &L7| Some(&r.inner), |r: &mut L7| Some(&mut r.inner));
-    let id8: rust_key_paths::KpType<L8, L8> =
-        Kp::new(|l: &L8| Some(l), |l: &mut L8| Some(l));
-    let lock7 = LockKp::new(kp7, ParkingLotRwLockAccess::new(), id8);
-
-    // L8 -> L9
-    let kp8: rust_key_paths::KpType<L8, Arc<RwLock<L9>>> =
-        Kp::new(|r: &L8| Some(&r.inner), |r: &mut L8| Some(&mut r.inner));
-    let id9: rust_key_paths::KpType<L9, L9> =
-        Kp::new(|l: &L9| Some(l), |l: &mut L9| Some(l));
-    let lock8 = LockKp::new(kp8, ParkingLotRwLockAccess::new(), id9);
-
-    // L9 -> L10
-    let kp9: rust_key_paths::KpType<L9, Arc<RwLock<L10>>> =
-        Kp::new(|r: &L9| Some(&r.inner), |r: &mut L9| Some(&mut r.inner));
-    let id10: rust_key_paths::KpType<L10, L10> =
-        Kp::new(|l: &L10| Some(l), |l: &mut L10| Some(l));
-    let lock9 = LockKp::new(kp9, ParkingLotRwLockAccess::new(), id10);
+    // Use derive-generated keypaths: inner(), identity(), leaf()
+    let lock0 = LockKp::new(L0::inner(), ParkingLotRwLockAccess::new(), L1::identity());
+    let lock1 = LockKp::new(L1::inner(), ParkingLotRwLockAccess::new(), L2::identity());
+    let lock2 = LockKp::new(L2::inner(), ParkingLotRwLockAccess::new(), L3::identity());
+    let lock3 = LockKp::new(L3::inner(), ParkingLotRwLockAccess::new(), L4::identity());
+    let lock4 = LockKp::new(L4::inner(), ParkingLotRwLockAccess::new(), L5::identity());
+    let lock5 = LockKp::new(L5::inner(), ParkingLotRwLockAccess::new(), L6::identity());
+    let lock6 = LockKp::new(L6::inner(), ParkingLotRwLockAccess::new(), L7::identity());
+    let lock7 = LockKp::new(L7::inner(), ParkingLotRwLockAccess::new(), L8::identity());
+    let lock8 = LockKp::new(L8::inner(), ParkingLotRwLockAccess::new(), L9::identity());
+    let lock9 = LockKp::new(L9::inner(), ParkingLotRwLockAccess::new(), L10::identity());
 
     let chain = lock0
         .then_lock(lock1)
@@ -179,7 +118,7 @@ fn build_read_chain() -> impl Fn(&L0) -> Option<&i32> {
         .then_lock(lock7)
         .then_lock(lock8)
         .then_lock(lock9)
-        .then(kp_leaf);
+        .then(L10::leaf());
 
     move |root: &L0| chain.get(root)
 }
