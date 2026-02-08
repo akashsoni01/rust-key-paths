@@ -208,14 +208,36 @@ where
         Self { prev, mid, next }
     }
 
-    /// Get the value through the lock
+    /// Get an immutable reference through the lock (sync, blocking).
     ///
     /// This will:
     /// 1. Use `prev` to get to the Lock
     /// 2. Use `mid` to lock and get Inner value
     /// 3. Use `next` to get from Inner to final Value
     ///
-    /// Get an immutable reference through the lock.
+    /// # Example
+    /// ```
+    /// use rust_key_paths::{KpType, LockKp};
+    /// use std::sync::Mutex;
+    ///
+    /// #[derive(key_paths_derive::Kp)]
+    /// struct WithLocks {
+    ///     std_mutex: std::sync::Mutex<i32>,
+    ///     std_rwlock: std::sync::RwLock<String>,
+    /// }
+    ///
+    /// let locks = WithLocks {
+    ///     std_mutex: Mutex::new(99),
+    ///     std_rwlock: std::sync::RwLock::new("test".to_string()),
+    /// };
+    /// let mutex_kp = WithLocks::std_mutex();
+    /// let rwlock_kp = WithLocks::std_rwlock();
+    /// let next: KpType<i32, i32> = rust_key_paths::Kp::new(|i: &i32| Some(i), |i: &mut i32| Some(i));
+    /// let lock_kp = LockKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
+    ///
+    /// let value = lock_kp.get(&locks);
+    /// assert_eq!(value, Some(&99));
+    /// ```
     ///
     /// # Cloning Behavior
     /// Only requires `V: Clone` for the final value.
@@ -233,7 +255,31 @@ where
         })
     }
 
-    /// Get mutable access to the value through the lock
+    /// Get mutable access to the value through the lock (sync, blocking).
+    ///
+    /// # Example
+    /// ```
+    /// use rust_key_paths::{KpType, LockKp};
+    /// use std::sync::Mutex;
+    ///
+    /// #[derive(key_paths_derive::Kp)]
+    /// struct WithLocks {
+    ///     std_mutex: std::sync::Mutex<i32>,
+    ///     std_rwlock: std::sync::RwLock<String>,
+    /// }
+    ///
+    /// let mut locks = WithLocks {
+    ///     std_mutex: Mutex::new(99),
+    ///     std_rwlock: std::sync::RwLock::new("test".to_string()),
+    /// };
+    /// let mutex_kp = WithLocks::std_mutex();
+    /// let next: KpType<i32, i32> = rust_key_paths::Kp::new(|i: &i32| Some(i), |i: &mut i32| Some(i));
+    /// let lock_kp = LockKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
+    ///
+    /// let value = lock_kp.get_mut(&mut locks).unwrap();
+    /// *value = 42;
+    /// assert_eq!(*locks.std_mutex.lock().unwrap(), 42);
+    /// ```
     ///
     /// # NO CLONING Required!
     ///

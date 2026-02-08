@@ -65,7 +65,68 @@ pub trait AsyncLockLike<Lock, Inner>: Send + Sync {
 /// Sync keypath that can be used as the "second" in [AsyncLockKpThenLockKp] for blanket impls.
 /// Also implemented for [crate::Kp] so [crate::Kp::then_lock] and [crate::Kp::then_async] can chain.
 pub trait SyncKeyPathLike<Root, Value, MutRoot, MutValue> {
+    /// Get an immutable reference through the keypath (sync, non-blocking).
+    ///
+    /// For [crate::lock::LockKp], this acquires a read/write lock and returns the value.
+    /// For plain [crate::Kp], this navigates to the field directly.
+    ///
+    /// # Example
+    /// ```
+    /// use rust_key_paths::async_lock::SyncKeyPathLike;
+    /// use rust_key_paths::{KpType, LockKp};
+    /// use std::sync::Mutex;
+    ///
+    /// #[derive(key_paths_derive::Kp)]
+    /// struct WithLocks {
+    ///     std_mutex: std::sync::Mutex<i32>,
+    ///     std_rwlock: std::sync::RwLock<String>,
+    /// }
+    ///
+    /// let locks = WithLocks {
+    ///     std_mutex: Mutex::new(99),
+    ///     std_rwlock: std::sync::RwLock::new("hello".to_string()),
+    /// };
+    /// let mutex_kp = WithLocks::std_mutex();
+    /// let rwlock_kp = WithLocks::std_rwlock();
+    /// let next: KpType<i32, i32> = rust_key_paths::Kp::new(|i: &i32| Some(i), |i: &mut i32| Some(i));
+    /// let lock_kp = LockKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
+    ///
+    /// // sync_get works with LockKp (same as .get())
+    /// let value = lock_kp.sync_get(&locks).unwrap();
+    /// assert_eq!(*value, 99);
+    /// ```
     fn sync_get(&self, root: Root) -> Option<Value>;
+
+    /// Get a mutable reference through the keypath (sync, non-blocking).
+    ///
+    /// For [crate::lock::LockKp], this acquires a write lock and returns a mutable reference.
+    /// For plain [crate::Kp], this navigates to the field mutably.
+    ///
+    /// # Example
+    /// ```
+    /// use rust_key_paths::async_lock::SyncKeyPathLike;
+    /// use rust_key_paths::{KpType, LockKp};
+    /// use std::sync::Mutex;
+    ///
+    /// #[derive(key_paths_derive::Kp)]
+    /// struct WithLocks {
+    ///     std_mutex: std::sync::Mutex<i32>,
+    ///     std_rwlock: std::sync::RwLock<String>,
+    /// }
+    ///
+    /// let mut locks = WithLocks {
+    ///     std_mutex: Mutex::new(99),
+    ///     std_rwlock: std::sync::RwLock::new("hello".to_string()),
+    /// };
+    /// let mutex_kp = WithLocks::std_mutex();
+    /// let next: KpType<i32, i32> = rust_key_paths::Kp::new(|i: &i32| Some(i), |i: &mut i32| Some(i));
+    /// let lock_kp = LockKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
+    ///
+    /// // sync_get_mut works with LockKp (same as .get_mut())
+    /// let value = lock_kp.sync_get_mut(&mut locks).unwrap();
+    /// *value = 42;
+    /// assert_eq!(*locks.std_mutex.lock().unwrap(), 42);
+    /// ```
     fn sync_get_mut(&self, root: MutRoot) -> Option<MutValue>;
 }
 
