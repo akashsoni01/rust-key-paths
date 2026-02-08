@@ -56,11 +56,11 @@ struct L9 {
 }
 #[derive(Clone, Kp)]
 struct L10 {
-    leaf: i32,
+    leaf: f64,
 }
 
 fn make_root() -> L0 {
-    let leaf = L10 { leaf: 42 };
+    let leaf = L10 { leaf: 42.0 };
     let l9 = L9 {
         inner: Arc::new(RwLock::new(leaf)),
     };
@@ -94,7 +94,7 @@ fn make_root() -> L0 {
 }
 
 /// Build the 10-level LockKp chain (read path)
-fn build_read_chain() -> impl Fn(&L0) -> Option<&i32> {
+fn build_read_chain() -> impl Fn(&L0) -> Option<&f64> {
     let chain = L0::inner_lock()
         .then_lock(L1::inner_lock())
         .then_lock(L2::inner_lock())
