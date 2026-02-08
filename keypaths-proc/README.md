@@ -38,6 +38,98 @@ keypaths-proc = "1.7.0"
 
 ## 🚀 Examples
 
+### Deep Nested Composition with Option, Arc<RwLock>, and Enum Casepaths
+
+This example demonstrates fluent keypath chains through `Option<T>`, `Arc<std::sync::RwLock<T>>`, and enum variants. Use `rust-key-paths` + `key-paths-derive`:
+
+```toml
+[dependencies]
+rust-key-paths = "1.28"
+key-paths-derive = "1.1"
+```
+
+```rust
+use std::sync::Arc;
+use key_paths_derive::Kp;
+
+#[derive(Debug, Kp)]
+struct SomeComplexStruct {
+    scsf: Option<SomeOtherStruct>,
+    scfs2: Arc<std::sync::RwLock<SomeOtherStruct>>,
+}
+
+#[derive(Debug, Kp)]
+struct SomeOtherStruct {
+    sosf: Option<OneMoreStruct>,
+}
+
+#[derive(Debug, Kp)]
+enum SomeEnum {
+    A(String),
+    B(Box<DarkStruct>),
+}
+
+#[derive(Debug, Kp)]
+struct OneMoreStruct {
+    omsf: Option<String>,
+    omse: Option<SomeEnum>,
+}
+
+#[derive(Debug, Kp)]
+struct DarkStruct {
+    dsf: Option<String>,
+}
+
+fn main() {
+    let mut instance = SomeComplexStruct::new();
+
+    // Option chain: use scsf() -> .then() for nested access
+    if let Some(omsf) = SomeComplexStruct::scsf()
+        .then(SomeOtherStruct::sosf())
+        .then(OneMoreStruct::omse())
+        .then(SomeEnum::b())  // Enum variant accessor from Kp derive
+        .then(DarkStruct::dsf())
+        .get_mut(&mut instance)
+    {
+        *omsf = String::from("Updated via Option chain");
+    }
+
+    // Arc<RwLock> chain: use scfs2_lock() -> .then() for lock-through access
+    if let Some(omsf) = SomeComplexStruct::scfs2_lock()
+        .then(SomeOtherStruct::sosf())
+        .then(OneMoreStruct::omse())
+        .then(SomeEnum::b())
+        .then(DarkStruct::dsf())
+        .get_mut(&mut instance)
+    {
+        *omsf = String::from("Updated via RwLock chain");
+    }
+
+    println!("instance = {:?}", instance);
+}
+```
+
+**Generated methods:**
+
+| Field Type | Generated Methods | Usage |
+|------------|-------------------|-------|
+| `Option<T>` | `field()` | Kp that unwraps; chain with `.then()` |
+| `Arc<std::sync::RwLock<T>>` | `field()` | Kp to container |
+| `Arc<std::sync::RwLock<T>>` | `field_lock()` | LockKp; chain with `.then()` through lock |
+| `Arc<std::sync::Mutex<T>>` | `field_lock()` | Same pattern for Mutex |
+
+**Key patterns:**
+- **Option fields**: `scsf()` returns a Kp; use `.then()` to chain into nested `Option` values.
+- **Arc<RwLock> fields**: `scfs2_lock()` returns a LockKp that acquires the lock and chains with `.then()`.
+- **Enum variants**: `SomeEnum::b()` (from Kp derive on enums) acts as a prism into the `B(Box<DarkStruct>)` variant.
+
+**Running the example:**
+```bash
+cargo run --example basics_casepath
+```
+
+---
+
 ### Deep Nested Composition with Box and Enums
 
 This example demonstrates keypath composition through deeply nested structures with `Box<T>` and enum variants:

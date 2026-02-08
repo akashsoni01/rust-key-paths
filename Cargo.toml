@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "1.28.0"
+version = "2.0.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
