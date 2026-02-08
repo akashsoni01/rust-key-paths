@@ -899,6 +899,34 @@ where
     }
 }
 
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    KpThenAsyncKeyPath<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+where
+    First: SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    /// Chain with a [crate::Kp]. Use `.get(&root).await` later.
+    pub fn then<V3, Value3, MutValue3, G3, S3>(
+        self,
+        next_kp: crate::Kp<V2, V3, Value2, Value3, MutValue2, MutValue3, G3, S3>,
+    ) -> AsyncKeyPathThenKp<R, V3, Root, Value3, MutRoot, MutValue3, Self, crate::Kp<V2, V3, Value2, Value3, MutValue2, MutValue3, G3, S3>>
+    where
+        V3: 'static,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        Value3: std::borrow::Borrow<V3>,
+        MutValue3: std::borrow::BorrowMut<V3>,
+        G3: Fn(Value2) -> Option<Value3> + Clone,
+        S3: Fn(MutValue2) -> Option<MutValue3> + Clone,
+    {
+        AsyncKeyPathThenKp {
+            first: self,
+            second: next_kp,
+            _p: std::marker::PhantomData,
+        }
+    }
+}
+
 /// Keypath that chains an [AsyncKeyPathLike] (async get) with a [crate::Kp] (sync step). Use `.get(&root).await` to run.
 #[derive(Clone)]
 pub struct AsyncKeyPathThenKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> {
@@ -907,16 +935,17 @@ pub struct AsyncKeyPathThenKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Se
     _p: std::marker::PhantomData<(R, V2, Root, Value2, MutRoot, MutValue2)>,
 }
 
-impl<R, V2, Root, Value2, MutRoot, MutValue2, Value, MutValue, First, G, S>
-    AsyncKeyPathThenKp<R, V2, Root, Value2, MutRoot, MutValue2, First, crate::Kp<Value, V2, Value, Value2, MutValue, MutValue2, G, S>>
+/// Impl when Second is a Kp whose input type is First::Value (covers both Kp<First::Value, V2, ...> and Kp<RKp, V2, First::Value, ...>).
+impl<R, V2, Root, Value2, MutRoot, MutValue2, First, RKp, G, S>
+    AsyncKeyPathThenKp<R, V2, Root, Value2, MutRoot, MutValue2, First, crate::Kp<RKp, V2, First::Value, Value2, First::MutValue, MutValue2, G, S>>
 where
-    First: AsyncKeyPathLike<Root, MutRoot, Value = Value, MutValue = MutValue>,
-    Value: std::borrow::Borrow<Value>,
+    First: AsyncKeyPathLike<Root, MutRoot>,
+    First::Value: std::borrow::Borrow<RKp>,
+    First::MutValue: std::borrow::BorrowMut<RKp>,
     Value2: std::borrow::Borrow<V2>,
-    MutValue: std::borrow::BorrowMut<Value>,
     MutValue2: std::borrow::BorrowMut<V2>,
-    G: Fn(Value) -> Option<Value2>,
-    S: Fn(MutValue) -> Option<MutValue2>,
+    G: Fn(First::Value) -> Option<Value2>,
+    S: Fn(First::MutValue) -> Option<MutValue2>,
 {
     /// Get through async keypath then Kp (root is passed here).
     pub async fn get(&self, root: Root) -> Option<Value2> {

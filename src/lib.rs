@@ -4716,4 +4716,93 @@ mod tests {
         assert!(level1.is_some());
         assert_eq!(level1.unwrap().value, 7);
     }
+
+    /// Deeply nested struct: Root -> sync lock -> L1 -> L2 -> tokio lock -> L3 -> leaf i32.
+    /// Chain: LockKp(Root->L1) . then(L1->L2) . then(L2->tokio) . then_async(tokio->L3) . then(L3->leaf)
+    #[cfg(all(feature = "tokio", feature = "parking_lot"))]
+    #[tokio::test]
+    async fn test_deep_nested_chain_kp_lock_async_lock_kp() {
+        use std::sync::{Arc, Mutex};
+        use crate::async_lock::{AsyncLockKp, TokioMutexAccess};
+        use crate::lock::{LockKp, ArcMutexAccess};
+
+        // Root -> Arc<Mutex<L1>>
+        #[derive(Clone)]
+        struct Root {
+            sync_mutex: Arc<Mutex<Level1>>,
+        }
+        // L1 -> Level2 (plain)
+        #[derive(Clone)]
+        struct Level1 {
+            inner: Level2,
+        }
+        // L2 -> Arc<TokioMutex<Level3>>
+        #[derive(Clone)]
+        struct Level2 {
+            tokio_mutex: Arc<tokio::sync::Mutex<Level3>>,
+        }
+        // L3 -> leaf i32
+        #[derive(Clone)]
+        struct Level3 {
+            leaf: i32,
+        }
+
+        let root = Root {
+            sync_mutex: Arc::new(Mutex::new(Level1 {
+                inner: Level2 {
+                    tokio_mutex: Arc::new(tokio::sync::Mutex::new(Level3 { leaf: 42 })),
+                },
+            })),
+        };
+
+        // LockKp from Root -> Level1
+        let identity_l1: KpType<Level1, Level1> =
+            Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
+        let kp_sync: KpType<Root, Arc<Mutex<Level1>>> =
+            Kp::new(|r: &Root| Some(&r.sync_mutex), |r: &mut Root| Some(&mut r.sync_mutex));
+        let lock_root_to_l1 = LockKp::new(kp_sync, ArcMutexAccess::new(), identity_l1);
+
+        // Kp: Level1 -> Level2
+        let kp_l1_inner: KpType<Level1, Level2> =
+            Kp::new(|l: &Level1| Some(&l.inner), |l: &mut Level1| Some(&mut l.inner));
+
+        // Kp: Level2 -> Arc<TokioMutex<Level3>>
+        let kp_l2_tokio: KpType<Level2, Arc<tokio::sync::Mutex<Level3>>> = Kp::new(
+            |l: &Level2| Some(&l.tokio_mutex),
+            |l: &mut Level2| Some(&mut l.tokio_mutex),
+        );
+
+        // AsyncKp: Arc<TokioMutex<Level3>> -> Level3
+        let async_l3 = {
+            let prev: KpType<Arc<tokio::sync::Mutex<Level3>>, Arc<tokio::sync::Mutex<Level3>>> =
+                Kp::new(|t: &_| Some(t), |t: &mut _| Some(t));
+            let next: KpType<Level3, Level3> =
+                Kp::new(|l: &Level3| Some(l), |l: &mut Level3| Some(l));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Kp: Level3 -> i32
+        let kp_l3_leaf: KpType<Level3, i32> =
+            Kp::new(|l: &Level3| Some(&l.leaf), |l: &mut Level3| Some(&mut l.leaf));
+
+        // Build chain: LockKp(Root->L1) . then(L1->L2) . then(L2->tokio) . then_async(tokio->L3) . then(L3->leaf)
+        let step1 = lock_root_to_l1.then(kp_l1_inner);
+        let step2 = step1.then(kp_l2_tokio);
+        let step3 = step2.then_async::<_, Level3>(async_l3);
+        let deep_chain = step3.then(kp_l3_leaf);
+
+        // Read leaf through full chain (async)
+        let leaf = deep_chain.get(&root).await;
+        assert_eq!(leaf, Some(&42));
+
+        // Mutate leaf through full chain
+        let mut root_mut = root.clone();
+        let leaf_mut = deep_chain.get_mut(&mut root_mut).await;
+        assert!(leaf_mut.is_some());
+        *leaf_mut.unwrap() = 99;
+
+        // Read back
+        let leaf_after = deep_chain.get(&root_mut).await;
+        assert_eq!(leaf_after, Some(&99));
+    }
 }

@@ -271,12 +271,12 @@ fn to_snake_case(name: &str) -> String {
 }
 
 /// Derive macro for generating simple keypath methods.
-///
+/// 
 /// Generates one method per field: `StructName::field_name()` that returns a `Kp`.
 /// Intelligently handles wrapper types (Option, Vec, Box, Arc, etc.) to generate appropriate keypaths.
-///
+/// 
 /// # Example
-///
+/// 
 /// ```ignore
 /// #[derive(Kp)]
 /// struct Person {
@@ -285,7 +285,7 @@ fn to_snake_case(name: &str) -> String {
 ///     email: Option<String>,
 ///     addresses: Vec<String>,
 /// }
-///
+/// 
 /// // Generates:
 /// // impl Person {
 /// //     pub fn name() -> Kp<...> { ... }
@@ -336,7 +336,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         )
                     }
                 });
-
+                
                 for field in fields_named.named.iter() {
                     let field_ident = field.ident.as_ref().unwrap();
                     let ty = &field.ty;
@@ -576,16 +576,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For unknown/complex nested types, return keypath to field itself
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
-                                }
+                            rust_key_paths::Kp::new(
+                                |root: &#name| Some(&root.#field_ident),
+                                |root: &mut #name| Some(&mut root.#field_ident),
+                            )
+                        }
                             });
                         }
                     }
                 }
-
+                
                 tokens
             }
             Fields::Unnamed(unnamed) => {
@@ -859,8 +859,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             }
             Fields::Unit => {
                 return syn::Error::new(input_span, "Kp derive does not support unit structs")
-                    .to_compile_error()
-                    .into();
+                .to_compile_error()
+                .into();
             }
         },
         Data::Enum(data_enum) => {
@@ -1085,8 +1085,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
         }
         Data::Union(_) => {
             return syn::Error::new(input_span, "Kp derive does not support unions")
-                .to_compile_error()
-                .into();
+            .to_compile_error()
+            .into();
         }
     };
 
