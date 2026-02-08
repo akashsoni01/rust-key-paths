@@ -39,6 +39,19 @@ pub trait AsyncLockAccess<Lock, Inner>: Send + Sync {
     async fn lock_write(&self, lock: &mut Lock) -> Option<Inner>;
 }
 
+/// Trait for async keypaths (both [AsyncLockKp] and [ComposedAsyncLockKp]) so composition can be any depth.
+#[async_trait(?Send)]
+pub trait AsyncLockAccess<Root, MutRoot> {
+    /// Value type at the end of the keypath.
+    type Value;
+    /// Mutable value type at the end of the keypath.
+    type MutValue;
+    /// Get the value at the end of the keypath.
+    async fn get(&self, root: Root) -> Option<Self::Value>;
+    /// Get mutable access to the value at the end of the keypath.
+    async fn get_mut(&self, root: MutRoot) -> Option<Self::MutValue>;
+}
+
 /// An async keypath that handles async locked values (e.g., Arc<tokio::sync::Mutex<T>>)
 ///
 /// Structure:
@@ -168,7 +181,7 @@ where
         Self { prev, mid, next }
     }
 
-    /// Async get the value through the lock
+    /// Get the value through the lock
     ///
     /// This will:
     /// 1. Use `prev` to get to the Lock
@@ -181,7 +194,7 @@ where
     /// - Only the Arc reference count is incremented (one atomic operation)
     /// - The actual data `T` inside the Mutex is **NEVER** cloned
     /// - This is safe and efficient - the whole point of Arc
-    pub async fn get_async(&self, root: Root) -> Option<Value>
+    pub async fn get(&self, root: Root) -> Option<Value>
     where
         Lock: Clone,
     {
@@ -198,8 +211,8 @@ where
         (self.next.get)(mid_value)
     }
 
-    /// Async get mutable access to the value through the lock
-    pub async fn get_mut_async(&self, root: MutRoot) -> Option<MutValue>
+    /// Get mutable access to the value through the lock
+    pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue>
     where
         Lock: Clone,
     {
@@ -215,8 +228,8 @@ where
         (self.next.set)(mid_value)
     }
 
-    /// Async set the value through the lock using an updater function
-    pub async fn set_async<F>(&self, root: Root, updater: F) -> Result<(), String>
+    /// Set the value through the lock using an updater function
+    pub async fn set<F>(&self, root: Root, updater: F) -> Result<(), String>
     where
         Lock: Clone,
         F: FnOnce(&mut V),
@@ -295,28 +308,22 @@ where
         (next_kp.get)(value)
     }
 
-    /// Compose this AsyncLockKp with another AsyncLockKp (later_then)
+    /// Compose this AsyncLockKp with another AsyncLockKp (like [crate::lock::LockKp::compose]).
     ///
-    /// After navigating through the first async lock to get a value,
-    /// that value contains another async lock, navigate through it.
+    /// Does not take root: returns a composed keypath that you use with [ComposedAsyncLockKp::get] or
+    /// [ComposedAsyncLockKp::get_mut] and pass root there.
     ///
-    /// This is useful for chaining through multiple nested async locks:
     /// Root -> AsyncLock1 -> Container -> AsyncLock2 -> Value
     ///
     /// # Example
     /// ```
-    /// // Root -> Arc<tokio::Mutex<Container>> -> Container.async_lock -> Value
+    /// // Root -> Arc<tokio::Mutex<Container>> -> Container -> Arc<tokio::Mutex<Value>> -> Value
     /// let async_kp1 = AsyncLockKp::new(...); // Root -> Container
     /// let async_kp2 = AsyncLockKp::new(...); // Container -> Value
-    /// let result = async_kp1.later_then(
-    ///     async_kp2.prev,
-    ///     async_kp2.mid,
-    ///     async_kp2.next,
-    ///     &root
-    /// ).await;
+    /// let composed = async_kp1.compose(async_kp2);
+    /// let result = composed.get(&root).await;
     /// ```
-    pub async fn later_then<
-        'a,
+    pub fn compose<
         Lock2,
         Mid2,
         V2,
@@ -332,12 +339,54 @@ where
         G2_2,
         S2_2,
     >(
-        &'a self,
-        other_prev: crate::Kp<V, Lock2, Value, LockValue2, MutValue, MutLock2, G2_1, S2_1>,
-        other_mid: L2,
-        other_next: crate::Kp<Mid2, V2, MidValue2, Value2, MutMid2, MutValue2, G2_2, S2_2>,
-        root: Root,
-    ) -> Option<Value2>
+        self,
+        other: AsyncLockKp<
+            V,
+            Lock2,
+            Mid2,
+            V2,
+            Value,
+            LockValue2,
+            MidValue2,
+            Value2,
+            MutValue,
+            MutLock2,
+            MutMid2,
+            MutValue2,
+            G2_1,
+            S2_1,
+            L2,
+            G2_2,
+            S2_2,
+        >,
+    ) -> ComposedAsyncLockKp<
+        R,
+        V2,
+        Root,
+        Value2,
+        MutRoot,
+        MutValue2,
+        Self,
+        AsyncLockKp<
+            V,
+            Lock2,
+            Mid2,
+            V2,
+            Value,
+            LockValue2,
+            MidValue2,
+            Value2,
+            MutValue,
+            MutLock2,
+            MutMid2,
+            MutValue2,
+            G2_1,
+            S2_1,
+            L2,
+            G2_2,
+            S2_2,
+        >,
+    >
     where
         Lock: Clone,
         Lock2: Clone,
@@ -351,34 +400,204 @@ where
         MutLock2: std::borrow::BorrowMut<Lock2>,
         MutMid2: std::borrow::BorrowMut<Mid2>,
         MutValue2: std::borrow::BorrowMut<V2>,
-        G2_1: Fn(Value) -> Option<LockValue2> + 'a,
-        S2_1: Fn(MutValue) -> Option<MutLock2> + 'a,
-        L2: AsyncLockAccess<Lock2, MidValue2> + AsyncLockAccess<Lock2, MutMid2> + 'a,
-        G2_2: Fn(MidValue2) -> Option<Value2> + 'a,
-        S2_2: Fn(MutMid2) -> Option<MutValue2> + 'a,
-        G1: 'a,
-        S1: 'a,
-        L: 'a,
-        G2: 'a,
-        S2: 'a,
+        G2_1: Fn(Value) -> Option<LockValue2> + Clone,
+        S2_1: Fn(MutValue) -> Option<MutLock2> + Clone,
+        L2: AsyncLockAccess<Lock2, MidValue2> + AsyncLockAccess<Lock2, MutMid2> + Clone,
+        G2_2: Fn(MidValue2) -> Option<Value2> + Clone,
+        S2_2: Fn(MutMid2) -> Option<MutValue2> + Clone,
     {
-        // First, navigate through first async lock to get mid value
-        let mid_value = {
-            let lock_value = (self.prev.get)(root)?;
-            let lock: &Lock = lock_value.borrow();
-            let lock_clone = lock.clone();
-            self.mid.lock_read(&lock_clone).await?
-        };
+        ComposedAsyncLockKp {
+            first: self,
+            second: other,
+            _p: std::marker::PhantomData,
+        }
+    }
+}
 
-        // Navigate from mid to V
-        let value = (self.next.get)(mid_value)?;
+// Implement AsyncLockAccess for AsyncLockKp so it can be used in composition at any depth.
+#[async_trait(?Send)]
+impl<
+    R,
+    Lock,
+    Mid,
+    V,
+    Root,
+    LockValue,
+    MidValue,
+    Value,
+    MutRoot,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+> AsyncLockAccess<Root, MutRoot>
+    for AsyncLockKp<R, Lock, Mid, V, Root, LockValue, MidValue, Value, MutRoot, MutLock, MutMid, MutValue, G1, S1, L, G2, S2>
+where
+    Root: std::borrow::Borrow<R>,
+    LockValue: std::borrow::Borrow<Lock>,
+    MidValue: std::borrow::Borrow<Mid>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutLock: std::borrow::BorrowMut<Lock>,
+    MutMid: std::borrow::BorrowMut<Mid>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G1: Fn(Root) -> Option<LockValue> + Clone,
+    S1: Fn(MutRoot) -> Option<MutLock> + Clone,
+    L: AsyncLockAccess<Lock, MidValue> + AsyncLockAccess<Lock, MutMid> + Clone,
+    G2: Fn(MidValue) -> Option<Value> + Clone,
+    S2: Fn(MutMid) -> Option<MutValue> + Clone,
+    Lock: Clone,
+{
+    type Value = Value;
+    type MutValue = MutValue;
+    async fn get(&self, root: Root) -> Option<Value> {
+        AsyncLockKp::get(self, root).await
+    }
+    async fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
+        AsyncLockKp::get_mut(self, root).await
+    }
+}
 
-        // Finally, navigate through the second async lock
-        let lock_value2 = (other_prev.get)(value)?;
-        let lock2: &Lock2 = lock_value2.borrow();
-        let lock2_clone = lock2.clone();
-        let mid_value2 = other_mid.lock_read(&lock2_clone).await?;
-        (other_next.get)(mid_value2)
+/// Composed async lock keypath: chains two or more AsyncLockKps (Root -> V -> V2 -> ...) without taking root at compose time.
+///
+/// Use [AsyncLockKp::compose] to create (or [ComposedAsyncLockKp::compose] for more levels). Then call [ComposedAsyncLockKp::get] or
+/// [ComposedAsyncLockKp::get_mut] with root when you need the value.
+///
+/// Composing any depth: `kp1.compose(kp2).compose(kp3).compose(kp4)...` then `.get(&root).await`.
+#[derive(Clone)]
+pub struct ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> {
+    pub(crate) first: First,
+    pub(crate) second: Second,
+    _p: std::marker::PhantomData<(R, V2, Root, Value2, MutRoot, MutValue2)>,
+}
+
+impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+    ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+where
+    First: AsyncLockAccess<Root, MutRoot>,
+    Second: AsyncLockAccess<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    /// Get through all composed locks (root is passed here, not at compose time).
+    pub async fn get(&self, root: Root) -> Option<Value2> {
+        let value = self.first.get(root).await?;
+        self.second.get(value).await
+    }
+
+    /// Get mutable through all composed locks (root is passed here).
+    pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
+        let mut_value = self.first.get_mut(root).await?;
+        self.second.get_mut(mut_value).await
+    }
+
+    /// Compose with another AsyncLockKp for arbitrary depth: `a.compose(b).compose(c).get(&root).await`.
+    pub fn compose<
+        Lock3,
+        Mid3,
+        V3,
+        LockValue3,
+        MidValue3,
+        Value3,
+        MutLock3,
+        MutMid3,
+        MutValue3,
+        G3_1,
+        S3_1,
+        L3,
+        G3_2,
+        S3_2,
+    >(
+        self,
+        other: AsyncLockKp<
+            V2,
+            Lock3,
+            Mid3,
+            V3,
+            Value2,
+            LockValue3,
+            MidValue3,
+            Value3,
+            MutValue2,
+            MutLock3,
+            MutMid3,
+            MutValue3,
+            G3_1,
+            S3_1,
+            L3,
+            G3_2,
+            S3_2,
+        >,
+    ) -> ComposedAsyncLockKp<
+        R,
+        V3,
+        Root,
+        Value3,
+        MutRoot,
+        MutValue3,
+        Self,
+        AsyncLockKp<
+            V2,
+            Lock3,
+            Mid3,
+            V3,
+            Value2,
+            LockValue3,
+            MidValue3,
+            Value3,
+            MutValue2,
+            MutLock3,
+            MutMid3,
+            MutValue3,
+            G3_1,
+            S3_1,
+            L3,
+            G3_2,
+            S3_2,
+        >,
+    >
+    where
+        V2: 'static,
+        V3: 'static,
+        Value2: std::borrow::Borrow<V2>,
+        Value3: std::borrow::Borrow<V3>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        MutValue3: std::borrow::BorrowMut<V3>,
+        LockValue3: std::borrow::Borrow<Lock3>,
+        MidValue3: std::borrow::Borrow<Mid3>,
+        MutLock3: std::borrow::BorrowMut<Lock3>,
+        MutMid3: std::borrow::BorrowMut<Mid3>,
+        G3_1: Fn(Value2) -> Option<LockValue3> + Clone,
+        S3_1: Fn(MutValue2) -> Option<MutLock3> + Clone,
+        L3: AsyncLockAccess<Lock3, MidValue3> + AsyncLockAccess<Lock3, MutMid3> + Clone,
+        G3_2: Fn(MidValue3) -> Option<Value3> + Clone,
+        S3_2: Fn(MutMid3) -> Option<MutValue3> + Clone,
+        Lock3: Clone,
+    {
+        ComposedAsyncLockKp {
+            first: self,
+            second: other,
+            _p: std::marker::PhantomData,
+        }
+    }
+}
+
+#[async_trait(?Send)]
+impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+    AsyncLockAccess<Root, MutRoot> for ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+where
+    First: AsyncLockAccess<Root, MutRoot>,
+    Second: AsyncLockAccess<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    type Value = Value2;
+    type MutValue = MutValue2;
+    async fn get(&self, root: Root) -> Option<Value2> {
+        ComposedAsyncLockKp::get(self, root).await
+    }
+    async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
+        ComposedAsyncLockKp::get_mut(self, root).await
     }
 }
 
@@ -560,7 +779,7 @@ mod tests {
         };
 
         // Test async get
-        let value = lock_kp.get_async(&root).await;
+        let value = lock_kp.get(&root).await;
         assert!(value.is_some());
         assert_eq!(value.unwrap(), &"hello".to_string());
     }
@@ -588,7 +807,7 @@ mod tests {
         };
 
         // Test async get with RwLock (read lock)
-        let value = lock_kp.get_async(&root).await;
+        let value = lock_kp.get(&root).await;
         assert!(value.is_some());
         assert_eq!(value.unwrap().len(), 5);
     }
@@ -627,7 +846,7 @@ mod tests {
                 AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
             };
 
-            let handle = tokio::spawn(async move { lock_kp_for_task.get_async(&root_clone).await });
+            let handle = tokio::spawn(async move { lock_kp_for_task.get(&root_clone).await });
             handles.push(handle);
         }
 
@@ -638,7 +857,7 @@ mod tests {
         }
 
         // Test the original lock_kp as well
-        let value = lock_kp.get_async(&root).await;
+        let value = lock_kp.get(&root).await;
         assert_eq!(value, Some(&42));
     }
 
@@ -697,7 +916,7 @@ mod tests {
         };
 
         // CRITICAL TEST: If any deep cloning occurs, PanicOnClone will trigger
-        let value = lock_kp.get_async(&root).await;
+        let value = lock_kp.get(&root).await;
 
         // ✅ SUCCESS: No panic means no deep cloning!
         assert_eq!(value, Some(&123));
@@ -801,10 +1020,60 @@ mod tests {
             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
         };
 
-        // Compose: async lock1 -> async lock2
-        let result = async_kp1
-            .later_then(async_kp2.prev, async_kp2.mid, async_kp2.next, &root)
-            .await;
+        // Compose (no root): then get with root
+        let composed = async_kp1.compose(async_kp2);
+        let result = composed.get(&root).await;
         assert_eq!(result, Some(&999));
+    }
+
+    #[tokio::test]
+    async fn test_async_kp_compose_three_levels() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            a: Arc<Mutex<Level1>>,
+        }
+        #[derive(Clone)]
+        struct Level1 {
+            b: Arc<Mutex<Level2>>,
+        }
+        #[derive(Clone)]
+        struct Level2 {
+            c: Arc<Mutex<i32>>,
+        }
+
+        let root = Root {
+            a: Arc::new(Mutex::new(Level1 {
+                b: Arc::new(Mutex::new(Level2 {
+                    c: Arc::new(Mutex::new(42)),
+                })),
+            })),
+        };
+
+        let kp1 = {
+            let prev: KpType<Root, Arc<Mutex<Level1>>> =
+                Kp::new(|r: &Root| Some(&r.a), |r: &mut Root| Some(&mut r.a));
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+        let kp2 = {
+            let prev: KpType<Level1, Arc<Mutex<Level2>>> =
+                Kp::new(|l: &Level1| Some(&l.b), |l: &mut Level1| Some(&mut l.b));
+            let next: KpType<Level2, Level2> =
+                Kp::new(|l: &Level2| Some(l), |l: &mut Level2| Some(l));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+        let kp3 = {
+            let prev: KpType<Level2, Arc<Mutex<i32>>> =
+                Kp::new(|l: &Level2| Some(&l.c), |l: &mut Level2| Some(&mut l.c));
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        let composed = kp1.compose(kp2).compose(kp3);
+        let result = composed.get(&root).await;
+        assert_eq!(result, Some(&42));
     }
 }
