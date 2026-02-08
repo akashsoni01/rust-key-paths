@@ -9,7 +9,6 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use key_paths_derive::Kp;
-use rust_key_paths::lock::{LockKp, ParkingLotRwLockAccess};
 use std::sync::Arc;
 
 use parking_lot::RwLock;
@@ -96,28 +95,16 @@ fn make_root() -> L0 {
 
 /// Build the 10-level LockKp chain (read path)
 fn build_read_chain() -> impl Fn(&L0) -> Option<&i32> {
-    // Use derive-generated keypaths: inner(), identity(), leaf()
-    let lock0 = LockKp::new(L0::inner(), ParkingLotRwLockAccess::new(), L1::identity());
-    let lock1 = LockKp::new(L1::inner(), ParkingLotRwLockAccess::new(), L2::identity());
-    let lock2 = LockKp::new(L2::inner(), ParkingLotRwLockAccess::new(), L3::identity());
-    let lock3 = LockKp::new(L3::inner(), ParkingLotRwLockAccess::new(), L4::identity());
-    let lock4 = LockKp::new(L4::inner(), ParkingLotRwLockAccess::new(), L5::identity());
-    let lock5 = LockKp::new(L5::inner(), ParkingLotRwLockAccess::new(), L6::identity());
-    let lock6 = LockKp::new(L6::inner(), ParkingLotRwLockAccess::new(), L7::identity());
-    let lock7 = LockKp::new(L7::inner(), ParkingLotRwLockAccess::new(), L8::identity());
-    let lock8 = LockKp::new(L8::inner(), ParkingLotRwLockAccess::new(), L9::identity());
-    let lock9 = LockKp::new(L9::inner(), ParkingLotRwLockAccess::new(), L10::identity());
-
-    let chain = lock0
-        .then_lock(lock1)
-        .then_lock(lock2)
-        .then_lock(lock3)
-        .then_lock(lock4)
-        .then_lock(lock5)
-        .then_lock(lock6)
-        .then_lock(lock7)
-        .then_lock(lock8)
-        .then_lock(lock9)
+    let chain = L0::inner_lock()
+        .then_lock(L1::inner_lock())
+        .then_lock(L2::inner_lock())
+        .then_lock(L3::inner_lock())
+        .then_lock(L4::inner_lock())
+        .then_lock(L5::inner_lock())
+        .then_lock(L6::inner_lock())
+        .then_lock(L7::inner_lock())
+        .then_lock(L8::inner_lock())
+        .then_lock(L9::inner_lock())
         .then(L10::leaf());
 
     move |root: &L0| chain.get(root)

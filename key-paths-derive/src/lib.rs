@@ -694,6 +694,58 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::ArcRwLock, Some(inner_ty)) => {
+                            // For Arc<parking_lot::RwLock<T>> (requires rust-key-paths "parking_lot" feature)
+                            let kp_lock_fn = format_ident!("{}_lock", field_ident);
+                            tokens.extend(quote! {
+                                #[inline]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpParkingLotRwLockFor<#name, #ty, #inner_ty> {
+                                    rust_key_paths::lock::LockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#field_ident),
+                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                        ),
+                                        rust_key_paths::lock::ParkingLotRwLockAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::ArcMutex, Some(inner_ty)) => {
+                            // For Arc<parking_lot::Mutex<T>> (requires rust-key-paths "parking_lot" feature)
+                            let kp_lock_fn = format_ident!("{}_lock", field_ident);
+                            tokens.extend(quote! {
+                                #[inline]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpParkingLotMutexFor<#name, #ty, #inner_ty> {
+                                    rust_key_paths::lock::LockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#field_ident),
+                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                        ),
+                                        rust_key_paths::lock::ParkingLotMutexAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::Mutex, Some(_inner_ty))
                         | (WrapperKind::StdMutex, Some(_inner_ty)) => {
                             // For Mutex<T>, return keypath to container
