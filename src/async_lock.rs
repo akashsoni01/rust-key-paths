@@ -1120,6 +1120,97 @@ impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> AsyncLockKpThenLock
 where
     First: AsyncKeyPathLike<Root, MutRoot>,
 {
+    /// Compose with an async keypath (e.g. tokio RwLock) so chain becomes: ... -> Value2 -> async lock -> Value3.
+    /// Use `.get(&root).await` or `.get_mut(...).await` on the returned [ComposedAsyncLockKp].
+    pub fn compose<
+        Lock3,
+        Mid3,
+        V3,
+        LockValue3,
+        MidValue3,
+        Value3,
+        MutLock3,
+        MutMid3,
+        MutValue3,
+        G3_1,
+        S3_1,
+        L3,
+        G3_2,
+        S3_2,
+    >(
+        self,
+        other: AsyncLockKp<
+            Value2,
+            Lock3,
+            Mid3,
+            V3,
+            Value2,
+            LockValue3,
+            MidValue3,
+            Value3,
+            MutValue2,
+            MutLock3,
+            MutMid3,
+            MutValue3,
+            G3_1,
+            S3_1,
+            L3,
+            G3_2,
+            S3_2,
+        >,
+    ) -> ComposedAsyncLockKp<
+        Root,
+        V3,
+        Root,
+        Value3,
+        MutRoot,
+        MutValue3,
+        Self,
+        AsyncLockKp<
+            Value2,
+            Lock3,
+            Mid3,
+            V3,
+            Value2,
+            LockValue3,
+            MidValue3,
+            Value3,
+            MutValue2,
+            MutLock3,
+            MutMid3,
+            MutValue3,
+            G3_1,
+            S3_1,
+            L3,
+            G3_2,
+            S3_2,
+        >,
+    >
+    where
+        V2: 'static,
+        V3: 'static,
+        Value2: std::borrow::Borrow<V2>,
+        Value3: std::borrow::Borrow<V3>,
+        MutValue2: std::borrow::BorrowMut<V2> + std::borrow::BorrowMut<Value2>,
+        MutValue3: std::borrow::BorrowMut<V3>,
+        LockValue3: std::borrow::Borrow<Lock3>,
+        MidValue3: std::borrow::Borrow<Mid3>,
+        MutLock3: std::borrow::BorrowMut<Lock3>,
+        MutMid3: std::borrow::BorrowMut<Mid3>,
+        G3_1: Fn(Value2) -> Option<LockValue3> + Clone,
+        S3_1: Fn(MutValue2) -> Option<MutLock3> + Clone,
+        L3: AsyncLockLike<Lock3, MidValue3> + AsyncLockLike<Lock3, MutMid3> + Clone,
+        G3_2: Fn(MidValue3) -> Option<Value3> + Clone,
+        S3_2: Fn(MutMid3) -> Option<MutValue3> + Clone,
+        Lock3: Clone,
+    {
+        ComposedAsyncLockKp {
+            first: self,
+            second: other,
+            _p: std::marker::PhantomData,
+        }
+    }
+
     /// Chain with another sync [crate::lock::LockKp]. Use `.get(&root).await` later.
     pub fn then_lock<
         Lock3,
@@ -1268,7 +1359,7 @@ impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::Mutex<T>>, &'a
 ///
 /// This struct only contains `PhantomData<T>`.
 /// Cloning is a **zero-cost operation** - no data is copied.
-#[derive(Clone)] // ZERO-COST: Only clones PhantomData (zero-sized type)
+/// Manual Clone impl so `T: Clone` is not required (e.g. for `Level3` with `RwLock<i32>`).
 pub struct TokioRwLockAccess<T> {
     _phantom: std::marker::PhantomData<T>,
 }
@@ -1286,6 +1377,15 @@ impl<T> TokioRwLockAccess<T> {
 impl<T> Default for TokioRwLockAccess<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<T> Clone for TokioRwLockAccess<T> {
+    fn clone(&self) -> Self {
+        Self {
+            _phantom: self._phantom,
+        }
     }
 }
 
