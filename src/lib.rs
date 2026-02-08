@@ -28,6 +28,19 @@ pub use lock::{
 // Export the async_lock module
 pub mod async_lock;
 
+/// Used so that `then_async` can infer `V2` from `AsyncKp::Value` without ambiguity
+/// (e.g. `&i32` has both `Borrow<i32>` and `Borrow<&i32>`; this picks the referent).
+/// Implemented only for reference types so there is no overlap with the blanket impl.
+pub trait KeyPathValueTarget {
+    type Target: Sized;
+}
+impl<T> KeyPathValueTarget for &T {
+    type Target = T;
+}
+impl<T> KeyPathValueTarget for &mut T {
+    type Target = T;
+}
+
 pub type KpDynamic<R, V> = Kp<
     R,
     V,
@@ -732,18 +745,31 @@ where
     }
 
     /// Chain with an async keypath (e.g. [crate::async_lock::AsyncLockKp]). Use `.get(&root).await` on the returned keypath.
-    pub fn then_async<AsyncKp, V2, Value2, MutValue2>(
+    /// If inference fails for `V2`, specify the final value type: `then_async::<_, i32>(async_kp)`.
+    pub fn then_async<AsyncKp, V2>(
         self,
         async_kp: AsyncKp,
-    ) -> crate::async_lock::KpThenAsyncKeyPath<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, Self, AsyncKp>
+    ) -> crate::async_lock::KpThenAsyncKeyPath<
+        R,
+        V,
+        V2,
+        Root,
+        Value,
+        AsyncKp::Value,
+        MutRoot,
+        MutValue,
+        AsyncKp::MutValue,
+        Self,
+        AsyncKp,
+    >
     where
         V: 'static,
         V2: 'static,
         Value: std::borrow::Borrow<V>,
-        Value2: std::borrow::Borrow<V2>,
         MutValue: std::borrow::BorrowMut<V>,
-        MutValue2: std::borrow::BorrowMut<V2>,
-        AsyncKp: crate::async_lock::AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
+        AsyncKp: crate::async_lock::AsyncKeyPathLike<Value, MutValue>,
+        AsyncKp::Value: std::borrow::Borrow<V2>,
+        AsyncKp::MutValue: std::borrow::BorrowMut<V2>,
     {
         crate::async_lock::KpThenAsyncKeyPath {
             first: self,
@@ -4685,7 +4711,7 @@ mod tests {
             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
         };
 
-        let chained = kp_to_guard.then_async::<_, Level1, &Level1, &mut Level1>(async_kp);
+        let chained = kp_to_guard.then_async::<_, Level1>(async_kp);
         let level1 = chained.get(&root).await;
         assert!(level1.is_some());
         assert_eq!(level1.unwrap().value, 7);
