@@ -1853,8 +1853,11 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Derive macro that generates `partial_kps() -> Vec<PKp<Self>>` returning all field keypaths.
-/// Must be used together with `#[derive(Kp)]` so the field accessor methods exist.
+/// Derive macro that generates `partial_kps() -> Vec<PKp<Self>>` returning all field/variant keypaths.
+/// **Requires `#[derive(Kp)]`** so the keypath accessor methods exist.
+///
+/// For structs: returns keypaths for each field. For enums: returns keypaths for each variant
+/// (using the same methods Kp generates, e.g. `some_variant()`).
 ///
 /// # Example
 /// ```
@@ -1899,13 +1902,17 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
             }
             Fields::Unit => quote! {},
         },
-        Data::Enum(_) => {
-            return syn::Error::new(
-                input.ident.span(),
-                "Pkp derive does not support enums; use structs only",
-            )
-            .to_compile_error()
-            .into();
+        Data::Enum(data_enum) => {
+            let calls: Vec<_> = data_enum
+                .variants
+                .iter()
+                .map(|variant| {
+                    let v_ident = &variant.ident;
+                    let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
+                    quote! { rust_key_paths::PKp::new(Self::#snake()) }
+                })
+                .collect();
+            quote! { #(#calls),* }
         }
         Data::Union(_) => {
             return syn::Error::new(
@@ -1930,9 +1937,12 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Derive macro that generates `any_kps() -> Vec<AKp>` returning all field keypaths as any keypaths.
-/// Must be used together with `#[derive(Kp)]` so the field accessor methods exist.
+/// Derive macro that generates `any_kps() -> Vec<AKp>` returning all field/variant keypaths as any keypaths.
+/// **Requires `#[derive(Kp)]`** so the keypath accessor methods exist.
 /// AKp type-erases both Root and Value, enabling heterogeneous collections of keypaths.
+///
+/// For structs: returns keypaths for each field. For enums: returns keypaths for each variant
+/// (using the same methods Kp generates, e.g. `some_variant()`).
 ///
 /// # Example
 /// ```
@@ -1980,13 +1990,17 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
             }
             Fields::Unit => quote! {},
         },
-        Data::Enum(_) => {
-            return syn::Error::new(
-                input.ident.span(),
-                "Akp derive does not support enums; use structs only",
-            )
-            .to_compile_error()
-            .into();
+        Data::Enum(data_enum) => {
+            let calls: Vec<_> = data_enum
+                .variants
+                .iter()
+                .map(|variant| {
+                    let v_ident = &variant.ident;
+                    let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
+                    quote! { rust_key_paths::AKp::new(Self::#snake()) }
+                })
+                .collect();
+            quote! { #(#calls),* }
         }
         Data::Union(_) => {
             return syn::Error::new(

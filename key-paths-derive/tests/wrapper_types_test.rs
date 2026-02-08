@@ -1,4 +1,4 @@
-use key_paths_derive::Kp;
+use key_paths_derive::{Akp, Kp, Pkp};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
@@ -405,7 +405,7 @@ fn test_mutable_box_type() {
     assert_eq!(*data.boxed_value, 99);
 }
 
-#[derive(Kp, Debug, PartialEq)]
+#[derive(Kp, Pkp, Akp, Debug, PartialEq)]
 enum MyEnum {
     Unit,
     Single(String),
@@ -454,6 +454,18 @@ fn test_enum_named_variant() {
 
     let e2 = MyEnum::Unit;
     assert!(named_kp.get(&e2).is_none());
+}
+
+#[test]
+fn test_enum_partial_kps() {
+    let kps = MyEnum::partial_kps();
+    assert_eq!(kps.len(), 4); // unit, single, tuple, named
+}
+
+#[test]
+fn test_enum_any_kps() {
+    let kps = MyEnum::any_kps();
+    assert_eq!(kps.len(), 4); // unit, single, tuple, named
 }
 
 #[derive(Kp)]
