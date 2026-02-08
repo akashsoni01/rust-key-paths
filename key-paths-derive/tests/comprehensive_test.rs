@@ -1,8 +1,8 @@
 use key_paths_derive::Kp;
 use rust_key_paths::{KpType, LockKp};
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
-use rust_key_paths::async_lock::SyncKeyPathLike;
 
 // Test collections
 #[derive(Kp)]
@@ -36,6 +36,14 @@ struct WithTokioLocks {
 #[derive(Kp)]
 struct WithOptionTokioLocks {
     data: Option<Arc<tokio::sync::RwLock<i32>>>,
+}
+
+// Test Cow and Option<Cow>
+#[derive(Kp)]
+struct WithCow {
+    cow_owned: Cow<'static, String>,
+    cow_borrowed: Cow<'static, String>,
+    opt_cow: Option<Cow<'static, String>>,
 }
 
 // Test HashMap and BTreeMap _at(key)
@@ -132,6 +140,53 @@ fn test_vecdeque_access() {
     // queue() returns container; queue_at(index) returns element at index
     let front_kp = Collections::queue_at(0);
     assert_eq!(front_kp.get(&collections), Some(&1.1));
+}
+
+#[test]
+fn test_cow_access() {
+    let data = WithCow {
+        cow_owned: Cow::Owned("owned".to_string()),
+        cow_borrowed: Cow::Owned("borrowed".to_string()),
+        opt_cow: Some(Cow::Owned("optional".to_string())),
+    };
+
+    let cow_owned_kp = WithCow::cow_owned();
+    assert_eq!(cow_owned_kp.get(&data).map(|s| s.as_str()), Some("owned"));
+
+    let cow_borrowed_kp = WithCow::cow_borrowed();
+    assert_eq!(cow_borrowed_kp.get(&data).map(|s| s.as_str()), Some("borrowed"));
+
+    let opt_cow_kp = WithCow::opt_cow();
+    assert_eq!(opt_cow_kp.get(&data).map(|s| s.as_str()), Some("optional"));
+}
+
+#[test]
+fn test_cow_mutable() {
+    let mut data = WithCow {
+        cow_owned: Cow::Owned("original".to_string()),
+        cow_borrowed: Cow::Owned("borrowed".to_string()),
+        opt_cow: Some(Cow::Owned("opt_original".to_string())),
+    };
+
+    let cow_owned_kp = WithCow::cow_owned();
+    cow_owned_kp.get_mut(&mut data).map(|s| s.make_ascii_uppercase());
+    assert_eq!(data.cow_owned.as_str(), "ORIGINAL");
+
+    let opt_cow_kp = WithCow::opt_cow();
+    opt_cow_kp.get_mut(&mut data).map(|s| s.make_ascii_uppercase());
+    assert_eq!(data.opt_cow.as_ref().map(|c| c.as_str()), Some("OPT_ORIGINAL"));
+}
+
+#[test]
+fn test_cow_option_none() {
+    let data = WithCow {
+        cow_owned: Cow::Owned("x".to_string()),
+        cow_borrowed: Cow::Owned("y".to_string()),
+        opt_cow: None,
+    };
+
+    let opt_cow_kp = WithCow::opt_cow();
+    assert_eq!(opt_cow_kp.get(&data), None);
 }
 
 #[test]

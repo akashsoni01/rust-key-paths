@@ -66,6 +66,9 @@ enum WrapperKind {
     OptionTokioArcRwLock,
     // Tagged types
     Tagged,
+    // Clone-on-write (std::borrow::Cow)
+    Cow,
+    OptionCow,
 }
 
 /// Helper function to check if a type path includes std::sync module
@@ -122,6 +125,18 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                         }
                     }
                 }
+                // Handle Cow<'a, B> - has lifetime then type parameter
+                else if ident_str == "Cow" {
+                    if let Some(inner) = args.iter().find_map(|arg| {
+                        if let GenericArgument::Type(t) = arg {
+                            Some(t.clone())
+                        } else {
+                            None
+                        }
+                    }) {
+                        return (WrapperKind::Cow, Some(inner));
+                    }
+                }
                 // Handle single-parameter container types
                 else if let Some(arg) = args.get(0) {
                     if let GenericArgument::Type(inner) = arg {
@@ -174,6 +189,9 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             }
                             ("Option", WrapperKind::TokioArcRwLock) => {
                                 return (WrapperKind::OptionTokioArcRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::Cow) => {
+                                return (WrapperKind::OptionCow, inner_inner);
                             }
                             ("Box", WrapperKind::Option) => {
                                 return (WrapperKind::BoxOption, inner_inner);
@@ -247,6 +265,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     "RwLock" => (WrapperKind::RwLock, Some(inner.clone())),
                                     "Weak" => (WrapperKind::Weak, Some(inner.clone())),
                                     "Tagged" => (WrapperKind::Tagged, Some(inner.clone())),
+                                    "Cow" => (WrapperKind::Cow, Some(inner.clone())),
                                     _ => (WrapperKind::None, None),
                                 };
                             }
@@ -494,6 +513,28 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(root.#field_ident.as_ref()),
                                         |root: &mut #name| std::sync::Arc::get_mut(&mut root.#field_ident),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::Cow, Some(inner_ty)) => {
+                            // For Cow<'_, B>, deref to inner type (as_ref/to_mut)
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(root.#field_ident.as_ref()),
+                                        |root: &mut #name| Some(root.#field_ident.to_mut()),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionCow, Some(inner_ty)) => {
+                            // For Option<Cow<'_, B>>
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref().map(|c| c.as_ref()),
+                                        |root: &mut #name| root.#field_ident.as_mut().map(|c| c.to_mut()),
                                     )
                                 }
                             });
@@ -1037,6 +1078,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::Cow, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(root.#idx_lit.as_ref()),
+                                        |root: &mut #name| Some(root.#idx_lit.to_mut()),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionCow, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref().map(|c| c.as_ref()),
+                                        |root: &mut #name| root.#idx_lit.as_mut().map(|c| c.to_mut()),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::HashSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
@@ -1473,6 +1534,38 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                                 |root: &mut #name| match root {
                                                     #name::#v_ident(inner) => std::sync::Arc::get_mut(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Cow, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner.as_ref()),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner.to_mut()),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionCow, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_ref().map(|c| c.as_ref()),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => inner.as_mut().map(|c| c.to_mut()),
                                                     _ => None,
                                                 },
                                             )
