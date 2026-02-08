@@ -483,6 +483,27 @@ where
 
         LockKp::new(self.prev, self.mid, composed_kp)
     }
+
+    /// Chain with an async keypath. Use `.get(&root).await` on the returned keypath.
+    pub fn then_async<AsyncKp, V2, Value2, MutValue2>(
+        self,
+        async_kp: AsyncKp,
+    ) -> crate::async_lock::KpThenAsyncKeyPath<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, Self, AsyncKp>
+    where
+        V: 'static + Clone,
+        V2: 'static,
+        Value: std::borrow::Borrow<V>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        AsyncKp: crate::async_lock::AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
+    {
+        crate::async_lock::KpThenAsyncKeyPath {
+            first: self,
+            second: async_kp,
+            _p: std::marker::PhantomData,
+        }
+    }
 }
 
 // ============================================================================
