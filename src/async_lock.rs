@@ -28,10 +28,25 @@ use std::sync::Arc;
 #[cfg(feature = "tokio")]
 pub use tokio::sync::{Mutex as TokioMutex, RwLock as TokioRwLock};
 
+// =============================================================================
+// Why two traits: AsyncLockLike and AsyncKeyPathLike
+// =============================================================================
+//
+// - AsyncLockLike<Lock, Inner>: One "step" through a lock. Given a Lock (e.g.
+//   Arc<Mutex<T>>), it async yields Inner (e.g. &T). Used by the `mid` field of
+//   AsyncLockKp to go from "container" to "value inside the lock". Implemented
+//   by TokioMutexAccess, TokioRwLockAccess, etc.
+//
+// - AsyncKeyPathLike<Root, MutRoot>: A full keypath from Root to a value. Used
+//   so we can compose at any depth: both AsyncLockKp and ComposedAsyncLockKp
+//   implement it, so we can write `kp1.compose(kp2).compose(kp3).get(&root)`.
+//   Without this trait we could not express "first and second can be either a
+//   single AsyncLockKp or another ComposedAsyncLockKp" in the type system.
+
 /// Async trait for types that can provide async lock/unlock behavior
 /// Converts from a Lock type to Inner or InnerMut value asynchronously
 #[async_trait]
-pub trait AsyncLockAccess<Lock, Inner>: Send + Sync {
+pub trait AsyncLockLike<Lock, Inner>: Send + Sync {
     /// Get immutable access to the inner value asynchronously
     async fn lock_read(&self, lock: &Lock) -> Option<Inner>;
 
@@ -41,7 +56,7 @@ pub trait AsyncLockAccess<Lock, Inner>: Send + Sync {
 
 /// Trait for async keypaths (both [AsyncLockKp] and [ComposedAsyncLockKp]) so composition can be any depth.
 #[async_trait(?Send)]
-pub trait AsyncLockAccess<Root, MutRoot> {
+pub trait AsyncKeyPathLike<Root, MutRoot> {
     /// Value type at the end of the keypath.
     type Value;
     /// Mutable value type at the end of the keypath.
@@ -72,7 +87,7 @@ pub trait AsyncLockAccess<Root, MutRoot> {
 ///
 /// - `AsyncLockKp` itself derives `Clone` - this clones the three field references/closures
 /// - `prev` and `next` fields are `Kp` structs containing function pointers (cheap to clone)
-/// - `mid` field implements `AsyncLockAccess` trait - typically just `PhantomData` (zero-cost clone)
+/// - `mid` field implements `AsyncLockLike` trait - typically just `PhantomData` (zero-cost clone)
 /// - When `Lock: Clone` (e.g., `Arc<tokio::sync::Mutex<T>>`), cloning is just incrementing reference count
 /// - NO deep data cloning occurs - all clones are pointer/reference increments
 #[derive(Clone)] // SHALLOW: Clones function pointers and PhantomData only
@@ -105,7 +120,7 @@ pub struct AsyncLockKp<
     MutValue: std::borrow::BorrowMut<V>,
     G1: Fn(Root) -> Option<LockValue> + Clone,
     S1: Fn(MutRoot) -> Option<MutLock> + Clone,
-    L: AsyncLockAccess<Lock, MidValue> + AsyncLockAccess<Lock, MutMid> + Clone,
+    L: AsyncLockLike<Lock, MidValue> + AsyncLockLike<Lock, MutMid> + Clone,
     G2: Fn(MidValue) -> Option<Value> + Clone,
     S2: Fn(MutMid) -> Option<MutValue> + Clone,
 {
@@ -168,7 +183,7 @@ where
     MutValue: std::borrow::BorrowMut<V>,
     G1: Fn(Root) -> Option<LockValue> + Clone,
     S1: Fn(MutRoot) -> Option<MutLock> + Clone,
-    L: AsyncLockAccess<Lock, MidValue> + AsyncLockAccess<Lock, MutMid> + Clone,
+    L: AsyncLockLike<Lock, MidValue> + AsyncLockLike<Lock, MutMid> + Clone,
     G2: Fn(MidValue) -> Option<Value> + Clone,
     S2: Fn(MutMid) -> Option<MutValue> + Clone,
 {
@@ -402,7 +417,7 @@ where
         MutValue2: std::borrow::BorrowMut<V2>,
         G2_1: Fn(Value) -> Option<LockValue2> + Clone,
         S2_1: Fn(MutValue) -> Option<MutLock2> + Clone,
-        L2: AsyncLockAccess<Lock2, MidValue2> + AsyncLockAccess<Lock2, MutMid2> + Clone,
+        L2: AsyncLockLike<Lock2, MidValue2> + AsyncLockLike<Lock2, MutMid2> + Clone,
         G2_2: Fn(MidValue2) -> Option<Value2> + Clone,
         S2_2: Fn(MutMid2) -> Option<MutValue2> + Clone,
     {
@@ -414,7 +429,7 @@ where
     }
 }
 
-// Implement AsyncLockAccess for AsyncLockKp so it can be used in composition at any depth.
+// Implement AsyncKeyPathLike for AsyncLockKp so it can be used in composition at any depth.
 #[async_trait(?Send)]
 impl<
     R,
@@ -434,7 +449,7 @@ impl<
     L,
     G2,
     S2,
-> AsyncLockAccess<Root, MutRoot>
+> AsyncKeyPathLike<Root, MutRoot>
     for AsyncLockKp<R, Lock, Mid, V, Root, LockValue, MidValue, Value, MutRoot, MutLock, MutMid, MutValue, G1, S1, L, G2, S2>
 where
     Root: std::borrow::Borrow<R>,
@@ -447,7 +462,7 @@ where
     MutValue: std::borrow::BorrowMut<V>,
     G1: Fn(Root) -> Option<LockValue> + Clone,
     S1: Fn(MutRoot) -> Option<MutLock> + Clone,
-    L: AsyncLockAccess<Lock, MidValue> + AsyncLockAccess<Lock, MutMid> + Clone,
+    L: AsyncLockLike<Lock, MidValue> + AsyncLockLike<Lock, MutMid> + Clone,
     G2: Fn(MidValue) -> Option<Value> + Clone,
     S2: Fn(MutMid) -> Option<MutValue> + Clone,
     Lock: Clone,
@@ -478,8 +493,8 @@ pub struct ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, S
 impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
     ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
 where
-    First: AsyncLockAccess<Root, MutRoot>,
-    Second: AsyncLockAccess<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
+    First: AsyncKeyPathLike<Root, MutRoot>,
+    Second: AsyncKeyPathLike<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
 {
     /// Get through all composed locks (root is passed here, not at compose time).
     pub async fn get(&self, root: Root) -> Option<Value2> {
@@ -571,7 +586,7 @@ where
         MutMid3: std::borrow::BorrowMut<Mid3>,
         G3_1: Fn(Value2) -> Option<LockValue3> + Clone,
         S3_1: Fn(MutValue2) -> Option<MutLock3> + Clone,
-        L3: AsyncLockAccess<Lock3, MidValue3> + AsyncLockAccess<Lock3, MutMid3> + Clone,
+        L3: AsyncLockLike<Lock3, MidValue3> + AsyncLockLike<Lock3, MutMid3> + Clone,
         G3_2: Fn(MidValue3) -> Option<Value3> + Clone,
         S3_2: Fn(MutMid3) -> Option<MutValue3> + Clone,
         Lock3: Clone,
@@ -586,10 +601,10 @@ where
 
 #[async_trait(?Send)]
 impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
-    AsyncLockAccess<Root, MutRoot> for ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+    AsyncKeyPathLike<Root, MutRoot> for ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
 where
-    First: AsyncLockAccess<Root, MutRoot>,
-    Second: AsyncLockAccess<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
+    First: AsyncKeyPathLike<Root, MutRoot>,
+    Second: AsyncKeyPathLike<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
 {
     type Value = Value2;
     type MutValue = MutValue2;
@@ -636,7 +651,7 @@ impl<T> Default for TokioMutexAccess<T> {
 // Implementation for immutable access
 #[cfg(feature = "tokio")]
 #[async_trait]
-impl<'a, T: 'static + Send + Sync> AsyncLockAccess<Arc<tokio::sync::Mutex<T>>, &'a T>
+impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::Mutex<T>>, &'a T>
     for TokioMutexAccess<T>
 {
     async fn lock_read(&self, lock: &Arc<tokio::sync::Mutex<T>>) -> Option<&'a T> {
@@ -656,7 +671,7 @@ impl<'a, T: 'static + Send + Sync> AsyncLockAccess<Arc<tokio::sync::Mutex<T>>, &
 // Implementation for mutable access
 #[cfg(feature = "tokio")]
 #[async_trait]
-impl<'a, T: 'static + Send + Sync> AsyncLockAccess<Arc<tokio::sync::Mutex<T>>, &'a mut T>
+impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::Mutex<T>>, &'a mut T>
     for TokioMutexAccess<T>
 {
     async fn lock_read(&self, lock: &Arc<tokio::sync::Mutex<T>>) -> Option<&'a mut T> {
@@ -708,7 +723,7 @@ impl<T> Default for TokioRwLockAccess<T> {
 // Implementation for immutable access (read lock)
 #[cfg(feature = "tokio")]
 #[async_trait]
-impl<'a, T: 'static + Send + Sync> AsyncLockAccess<Arc<tokio::sync::RwLock<T>>, &'a T>
+impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::RwLock<T>>, &'a T>
     for TokioRwLockAccess<T>
 {
     async fn lock_read(&self, lock: &Arc<tokio::sync::RwLock<T>>) -> Option<&'a T> {
@@ -729,7 +744,7 @@ impl<'a, T: 'static + Send + Sync> AsyncLockAccess<Arc<tokio::sync::RwLock<T>>, 
 // Implementation for mutable access (write lock)
 #[cfg(feature = "tokio")]
 #[async_trait]
-impl<'a, T: 'static + Send + Sync> AsyncLockAccess<Arc<tokio::sync::RwLock<T>>, &'a mut T>
+impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::RwLock<T>>, &'a mut T>
     for TokioRwLockAccess<T>
 {
     async fn lock_read(&self, lock: &Arc<tokio::sync::RwLock<T>>) -> Option<&'a mut T> {
