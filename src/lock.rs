@@ -386,16 +386,13 @@ where
     ///
     /// This method requires two types of cloning, both SHALLOW:
     ///
-    /// 1. **`L2: Clone`** (line 261): Clones the lock accessor trait object
+    /// 1. **`L2: Clone`**: Clones the lock accessor (typically PhantomData)
     ///    - For `ArcMutexAccess<T>`: Only clones `PhantomData` (zero-cost)
     ///    - No data is cloned, just the lock access behavior
     ///
-    /// 2. **`Lock2: Clone`** (line 287): Clones the lock container
-    ///    - For `Arc<Mutex<T>>`: Only increments Arc reference count
-    ///    - The actual data `T` inside the Mutex is NOT cloned
-    ///    - This is necessary to satisfy borrow checker in closure context
+    /// 2. **NO `Lock2: Clone` needed**: Uses `&Lock2` reference directly (interior mutability)
     ///
-    /// **Performance**: Both clones are O(1) operations with no deep data copying
+    /// **Performance**: Only L2 (lock accessor) is cloned—O(1), typically zero-cost PhantomData
     ///
     /// # Example
     /// ```ignore
@@ -463,7 +460,6 @@ where
     where
         V: 'static + Clone,
         V2: 'static,
-        Lock2: Clone, // SHALLOW: For Arc<Mutex<T>>, only increments refcount
         Value: std::borrow::Borrow<V>,
         LockValue2: std::borrow::Borrow<Lock2>,
         MidValue2: std::borrow::Borrow<Mid2>,
@@ -513,16 +509,10 @@ where
             move |mid_value: MutMid| {
                 // Same flow but for mutable access
                 next_set(mid_value).and_then(|value1| {
-                    other_prev_set(value1).and_then(|mut lock2_value| {
-                        let lock2: &mut Lock2 = lock2_value.borrow_mut();
-
-                        // SHALLOW CLONE: For Arc<Mutex<T>>, only increments Arc refcount
-                        // The actual data T inside Mutex is NOT cloned
-                        // This is required to satisfy Rust's borrow checker in closure context
-                        let mut lock2_clone = lock2.clone();
-
+                    other_prev_set(value1).and_then(|lock2_value| {
+                        let lock2: &Lock2 = lock2_value.borrow();
                         other_mid2
-                            .lock_write(&mut lock2_clone)
+                            .lock_write(lock2)
                             .and_then(|mid2_value| other_next_set(mid2_value))
                     })
                 })
