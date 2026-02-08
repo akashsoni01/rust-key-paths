@@ -479,8 +479,8 @@ where
         G1,
         S1,
         L,
-        impl Fn(MidValue) -> Option<Value2> + Clone,
-        impl Fn(MutMid) -> Option<MutValue2> + Clone,
+        impl Fn(MidValue) -> Option<Value2> + Clone + use<G1, G2, G3, L, Lock, LockValue, Mid, MidValue, MutLock, MutMid, MutRoot, MutValue, MutValue2, R, Root, S1, S2, S3, Value, Value2, V, V2>,
+        impl Fn(MutMid) -> Option<MutValue2> + Clone + use<G1, G2, G3, L, Lock, LockValue, Mid, MidValue, MutLock, MutMid, MutRoot, MutValue, MutValue2, R, Root, S1, S2, S3, Value, Value2, V, V2>,
     >
     where
         V: 'static,

@@ -351,8 +351,8 @@ where
         G1,
         S1,
         L,
-        impl Fn(MidValue) -> Option<Value2>,
-        impl Fn(MutMid) -> Option<MutValue2>,
+        impl Fn(MidValue) -> Option<Value2> + use<G1, G2, G3, L, Lock, LockValue, Mid, MidValue, MutLock, MutMid, MutRoot, MutValue, MutValue2, R, Root, S1, S2, S3, Value, Value2, V, V2>,
+        impl Fn(MutMid) -> Option<MutValue2> + use<G1, G2, G3, L, Lock, LockValue, Mid, MidValue, MutLock, MutMid, MutRoot, MutValue, MutValue2, R, Root, S1, S2, S3, Value, Value2, V, V2>,
     >
     where
         V: 'static,
@@ -454,8 +454,8 @@ where
         G1,
         S1,
         L,
-        impl Fn(MidValue) -> Option<Value2>,
-        impl Fn(MutMid) -> Option<MutValue2>,
+        impl Fn(MidValue) -> Option<Value2> + use<G1, G2, G2_1, G2_2, L, L2, Lock, Lock2, LockValue, LockValue2, Mid, Mid2, MidValue, MidValue2, MutLock, MutLock2, MutMid, MutMid2, MutRoot, MutValue, MutValue2, R, Root, S1, S2, S2_1, S2_2, Value, Value2, V, V2>,
+        impl Fn(MutMid) -> Option<MutValue2> + use<G1, G2, G2_1, G2_2, L, L2, Lock, Lock2, LockValue, LockValue2, Mid, Mid2, MidValue, MidValue2, MutLock, MutLock2, MutMid, MutMid2, MutRoot, MutValue, MutValue2, R, Root, S1, S2, S2_1, S2_2, Value, Value2, V, V2>,
     >
     where
         V: 'static + Clone,
