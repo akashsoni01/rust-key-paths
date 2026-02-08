@@ -510,6 +510,25 @@ Benchmarks include:
 - [ ] Derive macros for complex multi-field enum variants
 ---
 
+## Deep Chain Leaf Benchmark (Sync + Async Locks)
+
+Benchmark comparing reading and writing the deepest value (leaf) through a mixed sync/async chain:
+`Root → Arc<Mutex<L1>> → L1 → L2 → Arc<TokioMutex<L3>> → L3 → leaf i32`
+
+**Run:**
+```bash
+cargo bench --bench deep_chain_leaf --features tokio,parking_lot
+```
+
+| Operation | Keypath | Direct Locks | Overhead |
+|-----------|---------|--------------|----------|
+| **Read**  | ~267 ns | ~115 ns      | ~2.3x    |
+| **Write** | ~230 ns | ~110 ns      | ~2.1x    |
+
+The keypath approach builds the chain each iteration and traverses through `LockKp.then().then().then_async().then()`; direct locks use `sync_mutex.lock()` then `tokio_mutex.lock().await`. The keypath overhead reflects chain construction plus composed traversal vs. manual lock nesting.
+
+---
+
 ## 📜 License
 
 * Mozilla Public License 2.0
