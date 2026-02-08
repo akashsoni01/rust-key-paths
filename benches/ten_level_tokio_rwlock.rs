@@ -57,11 +57,11 @@ struct L9 {
 }
 #[derive(Clone, Kp)]
 struct L10 {
-    leaf: i32,
+    leaf: f64,
 }
 
 fn make_root() -> L0 {
-    let leaf = L10 { leaf: 42 };
+    let leaf = L10 { leaf: 42.0 };
     let l9 = L9 {
         inner: Arc::new(RwLock::new(leaf)),
     };
@@ -156,5 +156,56 @@ fn bench_ten_level_read(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_ten_level_read);
+fn bench_ten_level_incr(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let mut group = c.benchmark_group("ten_level_tokio_rwlock_incr");
+
+    group.bench_function("keypath_static", |b| {
+        let chain = make_chain!();
+        let mut root = make_root();
+        b.iter(|| {
+            rt.block_on(async {
+                if let Some(v) = chain.get_mut(black_box(&mut root)).await {
+                    *v += 0.25;
+                }
+            });
+        })
+    });
+
+    group.bench_function("keypath_dynamic", |b| {
+        let mut root = make_root();
+        b.iter(|| {
+            let chain = make_chain!();
+            rt.block_on(async {
+                if let Some(v) = chain.get_mut(black_box(&mut root)).await {
+                    *v += 0.25;
+                }
+            });
+        })
+    });
+
+    group.bench_function("direct_lock", |b| {
+        let mut root = make_root();
+        b.iter(|| {
+            rt.block_on(async {
+                let root_ref = black_box(&mut root);
+                let mut g1 = root_ref.inner.write().await;
+                let mut g2 = g1.inner.write().await;
+                let mut g3 = g2.inner.write().await;
+                let mut g4 = g3.inner.write().await;
+                let mut g5 = g4.inner.write().await;
+                let mut g6 = g5.inner.write().await;
+                let mut g7 = g6.inner.write().await;
+                let mut g8 = g7.inner.write().await;
+                let mut g9 = g8.inner.write().await;
+                let mut g10 = g9.inner.write().await;
+                g10.leaf += 0.25;
+            });
+        })
+    });
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_ten_level_read, bench_ten_level_incr);
 criterion_main!(benches);

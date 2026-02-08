@@ -112,7 +112,7 @@ fn build_read_chain() -> impl Fn(&L0) -> Option<&f64> {
 
 /// Build and return the chain (for static reuse - caller stores it)
 #[inline(never)]
-fn build_chain_once() -> impl Fn(&L0) -> Option<&i32> {
+fn build_chain_once() -> impl Fn(&L0) -> Option<&f64> {
     build_read_chain()
 }
 
@@ -161,8 +161,69 @@ fn bench_ten_level_read(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_ten_level_incr(c: &mut Criterion) {
+    let mut group = c.benchmark_group("ten_level_arc_rwlock_incr");
+
+    group.bench_function("keypath_static", |b| {
+        let chain = L0::inner_lock()
+            .then_lock(L1::inner_lock())
+            .then_lock(L2::inner_lock())
+            .then_lock(L3::inner_lock())
+            .then_lock(L4::inner_lock())
+            .then_lock(L5::inner_lock())
+            .then_lock(L6::inner_lock())
+            .then_lock(L7::inner_lock())
+            .then_lock(L8::inner_lock())
+            .then_lock(L9::inner_lock())
+            .then(L10::leaf());
+        let mut root = make_root();
+        b.iter(|| {
+            let _ = chain.set(black_box(&mut root), |v| *v += 0.25);
+        })
+    });
+
+    group.bench_function("keypath_dynamic", |b| {
+        let mut root = make_root();
+        b.iter(|| {
+            let chain = L0::inner_lock()
+                .then_lock(L1::inner_lock())
+                .then_lock(L2::inner_lock())
+                .then_lock(L3::inner_lock())
+                .then_lock(L4::inner_lock())
+                .then_lock(L5::inner_lock())
+                .then_lock(L6::inner_lock())
+                .then_lock(L7::inner_lock())
+                .then_lock(L8::inner_lock())
+                .then_lock(L9::inner_lock())
+                .then(L10::leaf());
+            let _ = chain.set(black_box(&mut root), |v| *v += 0.25);
+        })
+    });
+
+    group.bench_function("direct_lock", |b| {
+        let mut root = make_root();
+        b.iter(|| {
+            let root_ref = black_box(&mut root);
+            let mut g1 = root_ref.inner.write();
+            let mut g2 = g1.inner.write();
+            let mut g3 = g2.inner.write();
+            let mut g4 = g3.inner.write();
+            let mut g5 = g4.inner.write();
+            let mut g6 = g5.inner.write();
+            let mut g7 = g6.inner.write();
+            let mut g8 = g7.inner.write();
+            let mut g9 = g8.inner.write();
+            let mut g10 = g9.inner.write();
+            g10.leaf += 0.25;
+        })
+    });
+
+    group.finish();
+}
+
 criterion_group! {
     benches,
     bench_ten_level_read,
+    bench_ten_level_incr,
 }
 criterion_main!(benches);
