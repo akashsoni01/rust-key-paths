@@ -1,7 +1,7 @@
-use key_paths_derive::Kp;
+use key_paths_derive::{Kp, Pkp};
 use rust_key_paths::KpType;
 
-#[derive(Kp)]
+#[derive(Kp, Pkp)]
 struct Person {
     name: String,
     age: i32,
@@ -119,4 +119,26 @@ fn test_multiple_structs() {
 
     assert_eq!(person_name, Some(&"Charlie".to_string()));
     assert_eq!(company_name, Some(&"Startup Inc".to_string()));
+}
+
+#[test]
+fn test_partial_kps() {
+    let kps = Person::partial_kps();
+    assert_eq!(kps.len(), 3); // name, age, email
+
+    let person = Person {
+        name: "Dave".to_string(),
+        age: 40,
+        email: "dave@example.com".to_string(),
+    };
+
+    // Each PKp should be able to get the value
+    let name_val = kps[0].get_as::<String>(&person);
+    assert_eq!(name_val, Some(&"Dave".to_string()));
+
+    let age_val = kps[1].get_as::<i32>(&person);
+    assert_eq!(age_val, Some(&40));
+
+    let email_val = kps[2].get_as::<String>(&person);
+    assert_eq!(email_val, Some(&"dave@example.com".to_string()));
 }

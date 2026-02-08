@@ -1852,3 +1852,80 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
+
+/// Derive macro that generates `partial_kps() -> Vec<PKp<Self>>` returning all field keypaths.
+/// Must be used together with `#[derive(Kp)]` so the field accessor methods exist.
+///
+/// # Example
+/// ```
+/// use key_paths_derive::{Kp, Pkp};
+/// use rust_key_paths::PKp;
+///
+/// #[derive(Kp, Pkp)]
+/// struct Person {
+///     name: String,
+///     age: i32,
+/// }
+///
+/// let kps = Person::partial_kps();
+/// assert_eq!(kps.len(), 2);
+/// ```
+#[proc_macro_derive(Pkp)]
+pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+
+    let kp_calls = match &input.data {
+        Data::Struct(data_struct) => match &data_struct.fields {
+            Fields::Named(fields_named) => {
+                let calls: Vec<_> = fields_named
+                    .named
+                    .iter()
+                    .filter_map(|f| f.ident.as_ref())
+                    .map(|field_ident| {
+                        quote! { rust_key_paths::PKp::new(Self::#field_ident()) }
+                    })
+                    .collect();
+                quote! { #(#calls),* }
+            }
+            Fields::Unnamed(unnamed) => {
+                let calls: Vec<_> = (0..unnamed.unnamed.len())
+                    .map(|idx| {
+                        let kp_fn = format_ident!("f{}", idx);
+                        quote! { rust_key_paths::PKp::new(Self::#kp_fn()) }
+                    })
+                    .collect();
+                quote! { #(#calls),* }
+            }
+            Fields::Unit => quote! {},
+        },
+        Data::Enum(_) => {
+            return syn::Error::new(
+                input.ident.span(),
+                "Pkp derive does not support enums; use structs only",
+            )
+            .to_compile_error()
+            .into();
+        }
+        Data::Union(_) => {
+            return syn::Error::new(
+                input.ident.span(),
+                "Pkp derive does not support unions",
+            )
+            .to_compile_error()
+            .into();
+        }
+    };
+
+    let expanded = quote! {
+        impl #name {
+            /// Returns a vec of all field keypaths as partial keypaths (type-erased).
+            #[inline]
+            pub fn partial_kps() -> Vec<rust_key_paths::PKp<#name>> {
+                vec![#kp_calls]
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
