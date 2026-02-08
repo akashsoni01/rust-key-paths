@@ -61,6 +61,21 @@ Currently, `Kp::then()` composes via closures that capture the previous step, so
 
 The keypath approach builds the chain each iteration and traverses through `LockKp.then().then().then_async().then()`; direct locks use `sync_mutex.lock()` then `tokio_mutex.lock().await`. Hot-path functions are annotated with `#[inline]` for improved performance.
 
+### 10-level deep Arc&lt;RwLock&gt; read benchmarks
+
+Benchmark: 10 levels of nested `Arc<RwLock<Next>>`, reading leaf `i32`. Run with:
+- `cargo bench --features parking_lot --bench ten_level_arc_rwlock`
+- `cargo bench --bench ten_level_std_rwlock`
+- `cargo bench --features tokio --bench ten_level_tokio_rwlock`
+
+| RwLock implementation | keypath_static | keypath_dynamic | direct_lock |
+|-----------------------|----------------|-----------------|-------------|
+| **parking_lot**       | ~33 ns         | ~40 ns          | ~40 ns      |
+| **std::sync**         | ~97 ns         | ~108 ns         | ~49 ns      |
+| **tokio::sync**       | ~1.74 µs       | ~1.61 µs        | ~255 ns     |
+
+Static keypath (chain built once, reused) matches or beats direct lock for sync RwLocks. For tokio, async keypath has higher overhead than direct `.read().await`; direct lock is fastest.
+
 ---
 
 ## 📜 License

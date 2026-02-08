@@ -64,3 +64,11 @@ harness = false
 [[bench]]
 name = "ten_level_arc_rwlock"
 harness = false
+
+[[bench]]
+name = "ten_level_std_rwlock"
+harness = false
+
+[[bench]]
+name = "ten_level_tokio_rwlock"
+harness = false
