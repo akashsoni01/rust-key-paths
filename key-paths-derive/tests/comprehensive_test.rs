@@ -1,6 +1,6 @@
 use key_paths_derive::Kp;
 use rust_key_paths::{KpType, LockKp};
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
 use rust_key_paths::async_lock::SyncKeyPathLike;
 
@@ -36,6 +36,13 @@ struct WithTokioLocks {
 #[derive(Kp)]
 struct WithOptionTokioLocks {
     data: Option<Arc<tokio::sync::RwLock<i32>>>,
+}
+
+// Test HashMap and BTreeMap _at(key)
+#[derive(Kp)]
+struct WithMaps {
+    users: HashMap<String, i32>,
+    cache: BTreeMap<u64, String>,
 }
 
 #[test]
@@ -89,11 +96,11 @@ fn test_vec_access() {
         queue: VecDeque::new(),
     };
 
-    // items() returns container; items_at() returns first element
+    // items() returns container; items_at(index) returns element at index
     let container_kp = Collections::items();
     assert_eq!(container_kp.get(&collections).map(|v| v.len()), Some(5));
 
-    let first_kp = Collections::items_at();
+    let first_kp = Collections::items_at(0);
     assert_eq!(first_kp.get(&collections), Some(&10));
 }
 
@@ -104,8 +111,8 @@ fn test_vec_mutable() {
         queue: VecDeque::new(),
     };
 
-    // Mutate first element through items_at()
-    let items_at_kp = Collections::items_at();
+    // Mutate first element through items_at(index)
+    let items_at_kp = Collections::items_at(0);
     items_at_kp.get_mut(&mut collections).map(|v| *v = 200);
 
     assert_eq!(collections.items[0], 200);
@@ -122,9 +129,47 @@ fn test_vecdeque_access() {
         items: vec![],
         queue,
     };
-    // queue() returns container; queue_at() returns front element
-    let front_kp = Collections::queue_at();
+    // queue() returns container; queue_at(index) returns element at index
+    let front_kp = Collections::queue_at(0);
     assert_eq!(front_kp.get(&collections), Some(&1.1));
+}
+
+#[test]
+fn test_hashmap_at() {
+    let mut users = HashMap::new();
+    users.insert("alice".to_string(), 100);
+    users.insert("bob".to_string(), 200);
+    let data = WithMaps {
+        users: users.clone(),
+        cache: BTreeMap::new(),
+    };
+
+    let kp = WithMaps::users_at("alice".to_string());
+    assert_eq!(kp.get(&data), Some(&100));
+
+    let mut data_mut = WithMaps { users, cache: BTreeMap::new() };
+    let kp_mut = WithMaps::users_at("alice".to_string());
+    *kp_mut.get_mut(&mut data_mut).unwrap() = 150;
+    assert_eq!(data_mut.users.get("alice"), Some(&150));
+}
+
+#[test]
+fn test_btreemap_at() {
+    let mut cache = BTreeMap::new();
+    cache.insert(1u64, "one".to_string());
+    cache.insert(2u64, "two".to_string());
+    let data = WithMaps {
+        users: HashMap::new(),
+        cache: cache.clone(),
+    };
+
+    let kp = WithMaps::cache_at(1);
+    assert_eq!(kp.get(&data), Some(&"one".to_string()));
+
+    let mut data_mut = WithMaps { users: HashMap::new(), cache };
+    let kp_mut = WithMaps::cache_at(1);
+    *kp_mut.get_mut(&mut data_mut).unwrap() = "1".to_string();
+    assert_eq!(data_mut.cache.get(&1), Some(&"1".to_string()));
 }
 
 #[test]

@@ -260,8 +260,6 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
 }
 
 /// For HashMap<K,V> or BTreeMap<K,V>, returns Some((key_ty, value_ty)).
-/// Used when we need key type for future _at(key) support (e.g. if KpType allowed closures).
-#[allow(dead_code)]
 fn extract_map_key_value(ty: &Type) -> Option<(Type, Type)> {
     use syn::{GenericArgument, PathArguments};
 
@@ -389,7 +387,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
-                            // Vec: (1) container, (2) kp_at_fn() -> first element (no capture; KpType requires fn pointer)
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -397,34 +394,75 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.first(),
-                                        |root: &mut #name| root.#field_ident.first_mut(),
+                                        Box::new(move |root: &#name| root.#field_ident.get(index)),
+                                        Box::new(move |root: &mut #name| root.#field_ident.get_mut(index)),
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
-                            // HashMap: (1) container only; _at(key) would require capturing key (not compatible with KpType fn pointer)
-                            tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
-                                }
-                            });
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
+                            if let Some((key_ty, _)) = extract_map_key_value(ty) {
+                                tokens.extend(quote! {
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#field_ident),
+                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                        )
+                                    }
+                                    pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
+                                    where
+                                        #key_ty: Clone + std::hash::Hash + Eq + 'static,
+                                    {
+                                        let key2 = key.clone();
+                                        rust_key_paths::Kp::new(
+                                            Box::new(move |root: &#name| root.#field_ident.get(&key)),
+                                            Box::new(move |root: &mut #name| root.#field_ident.get_mut(&key2)),
+                                        )
+                                    }
+                                });
+                            } else {
+                                tokens.extend(quote! {
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#field_ident),
+                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                        )
+                                    }
+                                });
+                            }
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
-                                }
-                            });
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
+                            if let Some((key_ty, _)) = extract_map_key_value(ty) {
+                                tokens.extend(quote! {
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#field_ident),
+                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                        )
+                                    }
+                                    pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
+                                    where
+                                        #key_ty: Clone + Ord + 'static,
+                                    {
+                                        let key2 = key.clone();
+                                        rust_key_paths::Kp::new(
+                                            Box::new(move |root: &#name| root.#field_ident.get(&key)),
+                                            Box::new(move |root: &mut #name| root.#field_ident.get_mut(&key2)),
+                                        )
+                                    }
+                                });
+                            } else {
+                                tokens.extend(quote! {
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#field_ident),
+                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                        )
+                                    }
+                                });
+                            }
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             // For Box<T>, deref to inner type (returns &T / &mut T, not &Box<T>)
@@ -460,41 +498,27 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(inner_ty)) => {
-                            // HashSet: (1) container, (2) field_at() -> one element (by iteration order)
+                        (WrapperKind::HashSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
-                                }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.iter().next(),
-                                        |_root: &mut #name| None, // HashSet doesn't support mutable iteration
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
-                                }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.iter().next(),
-                                        |_root: &mut #name| None, // BTreeSet doesn't support mutable iteration
                                     )
                                 }
                             });
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
-                            // VecDeque: (1) container, (2) field_at() -> front element
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -502,44 +526,30 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.front(),
-                                        |root: &mut #name| root.#field_ident.front_mut(),
+                                        Box::new(move |root: &#name| root.#field_ident.get(index)),
+                                        Box::new(move |root: &mut #name| root.#field_ident.get_mut(index)),
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::LinkedList, Some(inner_ty)) => {
-                            // LinkedList: (1) container, (2) field_at() -> front element
+                        (WrapperKind::LinkedList, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
-                                }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.front(),
-                                        |root: &mut #name| root.#field_ident.front_mut(),
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
-                            // BinaryHeap: (1) container, (2) field_at() -> peek top element
+                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
-                                }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.peek(),
-                                        |_root: &mut #name| None, // BinaryHeap doesn't support mutable peek
                                     )
                                 }
                             });
@@ -849,33 +859,75 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.first(),
-                                        |root: &mut #name| root.#idx_lit.first_mut(),
+                                        Box::new(move |root: &#name| root.#idx_lit.get(index)),
+                                        Box::new(move |root: &mut #name| root.#idx_lit.get_mut(index)),
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::HashMap, Some(_inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
-                                    )
-                                }
-                            });
+                        (WrapperKind::HashMap, Some(inner_ty)) => {
+                            if let Some((key_ty, _)) = extract_map_key_value(ty) {
+                                tokens.extend(quote! {
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#idx_lit),
+                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                        )
+                                    }
+                                    pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
+                                    where
+                                        #key_ty: Clone + std::hash::Hash + Eq + 'static,
+                                    {
+                                        let key2 = key.clone();
+                                        rust_key_paths::Kp::new(
+                                            Box::new(move |root: &#name| root.#idx_lit.get(&key)),
+                                            Box::new(move |root: &mut #name| root.#idx_lit.get_mut(&key2)),
+                                        )
+                                    }
+                                });
+                            } else {
+                                tokens.extend(quote! {
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#idx_lit),
+                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                        )
+                                    }
+                                });
+                            }
                         }
-                        (WrapperKind::BTreeMap, Some(_inner_ty)) => {
-                            tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
-                                    )
-                                }
-                            });
+                        (WrapperKind::BTreeMap, Some(inner_ty)) => {
+                            if let Some((key_ty, _)) = extract_map_key_value(ty) {
+                                tokens.extend(quote! {
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#idx_lit),
+                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                        )
+                                    }
+                                    pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
+                                    where
+                                        #key_ty: Clone + Ord + 'static,
+                                    {
+                                        let key2 = key.clone();
+                                        rust_key_paths::Kp::new(
+                                            Box::new(move |root: &#name| root.#idx_lit.get(&key)),
+                                            Box::new(move |root: &mut #name| root.#idx_lit.get_mut(&key2)),
+                                        )
+                                    }
+                                });
+                            } else {
+                                tokens.extend(quote! {
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| Some(&root.#idx_lit),
+                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                        )
+                                    }
+                                });
+                            }
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             // Box: deref to inner (returns &T / &mut T)
@@ -908,34 +960,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(inner_ty)) => {
+                        (WrapperKind::HashSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
-                                    )
-                                }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.iter().next(),
-                                        |_root: &mut #name| None,
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
-                                    )
-                                }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.iter().next(),
-                                        |_root: &mut #name| None,
                                     )
                                 }
                             });
@@ -948,15 +988,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.front(),
-                                        |root: &mut #name| root.#idx_lit.front_mut(),
+                                        Box::new(move |root: &#name| root.#idx_lit.get(index)),
+                                        Box::new(move |root: &mut #name| root.#idx_lit.get_mut(index)),
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::LinkedList, Some(inner_ty)) => {
+                        (WrapperKind::LinkedList, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
@@ -964,26 +1004,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.front(),
-                                        |root: &mut #name| root.#idx_lit.front_mut(),
-                                    )
-                                }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
+                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
-                                    )
-                                }
-                                pub fn #kp_at_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.peek(),
-                                        |_root: &mut #name| None,
                                     )
                                 }
                             });

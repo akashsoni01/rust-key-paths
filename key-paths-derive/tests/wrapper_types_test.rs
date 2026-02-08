@@ -177,11 +177,11 @@ fn test_vec_type() {
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
 
-    // vec_numbers() returns container; vec_numbers_at() returns first element
+    // vec_numbers() returns container; vec_numbers_at(index) returns element at index
     let vec_container_kp = AllWrapperTypes::vec_numbers();
     assert_eq!(vec_container_kp.get(&data).map(|v| v.len()), Some(3));
 
-    let vec_kp = AllWrapperTypes::vec_numbers_at();
+    let vec_kp = AllWrapperTypes::vec_numbers_at(0);
     assert_eq!(vec_kp.get(&data), Some(&1));
 }
 
@@ -372,8 +372,8 @@ fn test_mutable_vec_type() {
         rwlock_value: StdRwLock::new("locked".to_string()),
     };
 
-    // Test mutable access to Vec first element via vec_numbers_at()
-    let vec_kp = AllWrapperTypes::vec_numbers_at();
+    // Test mutable access to Vec first element via vec_numbers_at(index)
+    let vec_kp = AllWrapperTypes::vec_numbers_at(0);
     vec_kp.get_mut(&mut data).map(|v| *v = 99);
     assert_eq!(data.vec_numbers[0], 99);
 }

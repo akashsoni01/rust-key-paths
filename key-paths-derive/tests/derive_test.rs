@@ -82,12 +82,12 @@ fn test_keypath_composition() {
     let company_name = company_name_kp.get(&company);
     assert_eq!(company_name, Some(&"Tech Corp".to_string()));
 
-    // employees() returns container (Vec); employees_at() returns first element
+    // employees() returns container (Vec); employees_at(index) returns element at index
     let employees_kp = Company::employees();
     let employees = employees_kp.get(&company);
     assert_eq!(employees.as_ref().map(|e| e.len()), Some(2));
 
-    let first_employee_kp = Company::employees_at();
+    let first_employee_kp = Company::employees_at(0);
     let first_employee = first_employee_kp.get(&company);
     assert_eq!(first_employee.map(|e| &e.name), Some(&"Alice".to_string()));
 }
