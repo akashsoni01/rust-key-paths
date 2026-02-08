@@ -10,7 +10,7 @@ homepage = "https://github.com/codefonsi/rust-key-paths"
 documentation = "https://docs.rs/rust-key-paths"
 keywords = ["keypaths", "EnumKeyPath", "type-safe", "WritableKeyPath", "ReadableKeyPath"]
 readme = "./README.md"
-include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
 async-trait = "0.1"
