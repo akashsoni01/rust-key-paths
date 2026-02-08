@@ -91,16 +91,43 @@ async fn integration_async_lock_then_lock_then_chain() {
     let inner = std_lock_kp.get(l3.unwrap());
     assert_eq!(inner, Some(&7));
 
-    // Write Level2
-    let mut_root = &mut root.clone();
-    with_parking.get_mut(mut_root).await.unwrap().value = 100;
+    // Mutation via interior mutability: use root_lock.set() for the first level
+    let root_lock_only = {
+        let prev: KpType<'_, Root, Arc<tokio::sync::Mutex<Level1>>> =
+            Kp::new(|r: &Root| Some(r), |r: &mut Root| Some(r));
+        let next: KpType<'_, Level1, Level1> =
+            Kp::new(|l1: &Level1| Some(l1), |l1: &mut Level1| Some(l1));
+        AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+    };
+    let parking_kp_for_set = {
+        let prev: KpType<'_, Level1, Arc<parking_lot::Mutex<Level2>>> =
+            Kp::new(|l1: &Level1| Some(&l1.parking), |l1: &mut Level1| Some(&mut l1.parking));
+        let next: KpType<'_, Level2, Level2> =
+            Kp::new(|l2: &Level2| Some(l2), |l2: &mut Level2| Some(l2));
+        LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+    };
+    root_lock_only
+        .set(&root, |l1: &mut Level1| {
+            let l2 = parking_kp_for_set.get_mut(l1).unwrap();
+            l2.value = 100;
+        })
+        .await
+        .unwrap();
     assert_eq!(with_parking.get(&root).await.unwrap().value, 100);
 
-    // Write Level3.value (inner i32) via async_kp then std_lock_kp
-    let mut_root2 = &mut root.clone();
-    let mut_l2 = with_parking.get_mut(mut_root2).await.unwrap();
-    let mut_l3 = async_kp.get_mut(mut_l2).await.unwrap();
-    *std_lock_kp.get_mut(mut_l3).unwrap() = 99;
+    // Mutation of innermost i32: need &mut Level3 for std_lock_kp.get_mut.
+    // Get it by manually acquiring the tokio RwLock write guard.
+    let parking_kp_inner = {
+        let prev: KpType<'_, Level1, Arc<parking_lot::Mutex<Level2>>> =
+            Kp::new(|l1: &Level1| Some(&l1.parking), |l1: &mut Level1| Some(&mut l1.parking));
+        let next: KpType<'_, Level2, Level2> =
+            Kp::new(|l2: &Level2| Some(l2), |l2: &mut Level2| Some(l2));
+        LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+    };
+    let mut guard = root.lock().await;
+    let l2_mut = parking_kp_inner.get_mut(&mut *guard).unwrap();
+    let mut l3_guard = l2_mut.rwlock.write().await;
+    *std_lock_kp.get_mut(&mut *l3_guard).unwrap() = 99;
 
     let l2_again = with_parking.get(&root).await.unwrap();
     let l3_again = async_kp.get(l2_again).await;

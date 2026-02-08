@@ -756,20 +756,15 @@ where
         Root,
         Value,
         AsyncKp::Value,
-        MutRoot,
-        MutValue,
-        AsyncKp::MutValue,
         Self,
         AsyncKp,
     >
     where
         V: 'static,
         Value: std::borrow::Borrow<V>,
-        MutValue: std::borrow::BorrowMut<V>,
-        AsyncKp: crate::async_lock::AsyncKeyPathLike<Value, MutValue>,
+        AsyncKp: crate::async_lock::AsyncKeyPathLike<Value>,
         AsyncKp::Value: KeyPathValueTarget
             + std::borrow::Borrow<<AsyncKp::Value as KeyPathValueTarget>::Target>,
-        AsyncKp::MutValue: std::borrow::BorrowMut<<AsyncKp::Value as KeyPathValueTarget>::Target>,
         <AsyncKp::Value as KeyPathValueTarget>::Target: 'static,
     {
         crate::async_lock::KpThenAsyncKeyPath {
@@ -4796,14 +4791,6 @@ mod tests {
         let leaf = deep_chain.get(&root).await;
         assert_eq!(leaf, Some(&42));
 
-        // Mutate leaf through full chain
-        let mut root_mut = root.clone();
-        let leaf_mut = deep_chain.get_mut(&mut root_mut).await;
-        assert!(leaf_mut.is_some());
-        *leaf_mut.unwrap() = 99;
-
-        // Read back
-        let leaf_after = deep_chain.get(&root_mut).await;
-        assert_eq!(leaf_after, Some(&99));
+        // Note: Mutation uses interior mutability via AsyncLockKp::set (async keypaths don't have get_mut).
     }
 }

@@ -496,20 +496,15 @@ where
         Root,
         Value,
         AsyncKp::Value,
-        MutRoot,
-        MutValue,
-        AsyncKp::MutValue,
         Self,
         AsyncKp,
     >
     where
         V: 'static + Clone,
         Value: std::borrow::Borrow<V>,
-        MutValue: std::borrow::BorrowMut<V>,
-        AsyncKp: crate::async_lock::AsyncKeyPathLike<Value, MutValue>,
+        AsyncKp: crate::async_lock::AsyncKeyPathLike<Value>,
         AsyncKp::Value: crate::KeyPathValueTarget
             + std::borrow::Borrow<<AsyncKp::Value as crate::KeyPathValueTarget>::Target>,
-        AsyncKp::MutValue: std::borrow::BorrowMut<<AsyncKp::Value as crate::KeyPathValueTarget>::Target>,
         <AsyncKp::Value as crate::KeyPathValueTarget>::Target: 'static,
     {
         crate::async_lock::KpThenAsyncKeyPath {
