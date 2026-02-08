@@ -355,6 +355,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 // Generate identity methods for the struct
                 tokens.extend(quote! {
                     /// Returns a generic identity keypath for this type
+                    #[inline]
                     pub fn identity_typed<Root, MutRoot>() -> rust_key_paths::Kp<
                         #name,
                         #name,
@@ -376,6 +377,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     }
 
                     /// Returns a simple identity keypath for this type
+                    #[inline]
                     pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
                         rust_key_paths::Kp::new(
                             |r: &#name| Some(r),
@@ -397,6 +399,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             // For Option<T>, unwrap and access inner type
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#field_ident.as_ref(),
@@ -407,12 +410,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
+                                #[inline]
                                 pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         Box::new(move |root: &#name| root.#field_ident.get(index)),
@@ -424,12 +430,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
+                                    #[inline]
+                                    #[inline]
                                     pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
                                             |root: &mut #name| Some(&mut root.#field_ident),
                                         )
                                     }
+                                    #[inline]
                                     pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
                                     where
                                         #key_ty: Clone + std::hash::Hash + Eq + 'static,
@@ -443,6 +452,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 });
                             } else {
                                 tokens.extend(quote! {
+                                    #[inline]
+                                    #[inline]
                                     pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -455,12 +466,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
+                                    #[inline]
+                                    #[inline]
                                     pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
                                             |root: &mut #name| Some(&mut root.#field_ident),
                                         )
                                     }
+                                    #[inline]
                                     pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
                                     where
                                         #key_ty: Clone + Ord + 'static,
@@ -474,6 +488,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 });
                             } else {
                                 tokens.extend(quote! {
+                                    #[inline]
+                                    #[inline]
                                     pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -487,6 +503,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Box<T>, deref to inner type (returns &T / &mut T, not &Box<T>)
                             // Matches reference: WritableKeyPath::new(|s: &mut #name| &mut *s.#field_ident)
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&*root.#field_ident),
@@ -498,6 +515,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Rc, Some(inner_ty)) => {
                             // For Rc<T>, deref to inner type (returns &T; get_mut when uniquely owned)
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(root.#field_ident.as_ref()),
@@ -509,6 +527,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Arc, Some(inner_ty)) => {
                             // For Arc<T>, deref to inner type (returns &T; get_mut when uniquely owned)
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(root.#field_ident.as_ref()),
@@ -520,6 +539,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Cow, Some(inner_ty)) => {
                             // For Cow<'_, B>, deref to inner type (as_ref/to_mut)
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(root.#field_ident.as_ref()),
@@ -532,6 +552,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionCow, Some(inner_ty)) => {
                             // For Option<Cow<'_, B>>
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#field_ident.as_ref().map(|c| c.as_ref()),
@@ -542,7 +563,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::HashSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -552,7 +575,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BTreeSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -562,12 +587,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
+                                #[inline]
                                 pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         Box::new(move |root: &#name| root.#field_ident.get(index)),
@@ -578,7 +606,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::LinkedList, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -588,7 +618,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -599,6 +631,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Result, Some(inner_ty)) => {
                             // For Result<T, E>, access Ok value
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#field_ident.as_ref().ok(),
@@ -611,7 +644,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Arc<std::sync::Mutex<T>>
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -636,7 +671,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Arc<std::sync::RwLock<T>>
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -661,7 +698,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::StdMutex, Some(_inner_ty)) => {
                             // For Mutex<T>, return keypath to container
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -673,7 +712,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::StdRwLock, Some(_inner_ty)) => {
                             // For RwLock<T>, return keypath to container
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -684,7 +725,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
                             let kp_async_fn = format_ident!("{}_async", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -708,7 +751,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
                             let kp_async_fn = format_ident!("{}_async", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -732,7 +777,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
                             let kp_async_fn = format_ident!("{}_async", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -756,7 +803,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
                             let kp_async_fn = format_ident!("{}_async", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -782,7 +831,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -814,7 +865,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -845,7 +898,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionMutex, Some(inner_ty)) => {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -863,7 +918,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionRwLock, Some(inner_ty)) => {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -880,7 +937,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Weak, Some(_inner_ty)) => {
                             // For Weak<T>, return keypath to container
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |_root: &mut #name| None, // Weak doesn't support mutable access
@@ -891,7 +950,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::None, None) => {
                             // For basic types, direct access
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -902,7 +963,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         _ => {
                             // For unknown/complex nested types, return keypath to field itself
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                             rust_key_paths::Kp::new(
                                 |root: &#name| Some(&root.#field_ident),
                                 |root: &mut #name| Some(&mut root.#field_ident),
@@ -921,6 +984,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 // Generate identity methods for the tuple struct
                 tokens.extend(quote! {
                     /// Returns a generic identity keypath for this type
+                    #[inline]
                     pub fn identity_typed<Root, MutRoot>() -> rust_key_paths::Kp<
                         #name,
                         #name,
@@ -942,6 +1006,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     }
 
                     /// Returns a simple identity keypath for this type
+                    #[inline]
                     pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
                         rust_key_paths::Kp::new(
                             |r: &#name| Some(r),
@@ -962,6 +1027,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref(),
@@ -972,12 +1038,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
+                                #[inline]
                                 pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         Box::new(move |root: &#name| root.#idx_lit.get(index)),
@@ -989,12 +1058,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::HashMap, Some(inner_ty)) => {
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
+                                    #[inline]
+                                    #[inline]
                                     pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#idx_lit),
                                             |root: &mut #name| Some(&mut root.#idx_lit),
                                         )
                                     }
+                                    #[inline]
                                     pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
                                     where
                                         #key_ty: Clone + std::hash::Hash + Eq + 'static,
@@ -1008,6 +1080,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 });
                             } else {
                                 tokens.extend(quote! {
+                                    #[inline]
+                                    #[inline]
                                     pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#idx_lit),
@@ -1020,12 +1094,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::BTreeMap, Some(inner_ty)) => {
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
+                                    #[inline]
+                                    #[inline]
                                     pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#idx_lit),
                                             |root: &mut #name| Some(&mut root.#idx_lit),
                                         )
                                     }
+                                    #[inline]
                                     pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
                                     where
                                         #key_ty: Clone + Ord + 'static,
@@ -1039,6 +1116,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 });
                             } else {
                                 tokens.extend(quote! {
+                                    #[inline]
+                                    #[inline]
                                     pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#idx_lit),
@@ -1051,6 +1130,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Box, Some(inner_ty)) => {
                             // Box: deref to inner (returns &T / &mut T)
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&*root.#idx_lit),
@@ -1061,6 +1141,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Rc, Some(inner_ty)) => {
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(root.#idx_lit.as_ref()),
@@ -1071,6 +1152,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(root.#idx_lit.as_ref()),
@@ -1082,6 +1164,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         
                         (WrapperKind::Cow, Some(inner_ty)) => {
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(root.#idx_lit.as_ref()),
@@ -1093,6 +1176,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         
                         (WrapperKind::OptionCow, Some(inner_ty)) => {
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref().map(|c| c.as_ref()),
@@ -1103,7 +1187,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::HashSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1113,7 +1199,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BTreeSet, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1123,12 +1211,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
+                                #[inline]
                                 pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         Box::new(move |root: &#name| root.#idx_lit.get(index)),
@@ -1139,7 +1230,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::LinkedList, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1149,7 +1242,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1159,6 +1254,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref().ok(),
@@ -1170,7 +1266,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Mutex, Some(_inner_ty))
                         | (WrapperKind::StdMutex, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1181,7 +1279,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::RwLock, Some(_inner_ty))
                         | (WrapperKind::StdRwLock, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1192,7 +1292,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
                             let kp_async_fn = format_ident!("f{}_async", idx);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1216,7 +1318,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
                             let kp_async_fn = format_ident!("f{}_async", idx);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1240,7 +1344,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
                             let kp_async_fn = format_ident!("f{}_async", idx);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1264,7 +1370,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
                             let kp_async_fn = format_ident!("f{}_async", idx);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1289,7 +1397,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionArcMutex, Some(inner_ty)) => {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1307,7 +1417,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionArcRwLock, Some(inner_ty)) => {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1325,7 +1437,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionMutex, Some(inner_ty)) => {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1343,7 +1457,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionRwLock, Some(inner_ty)) => {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1359,7 +1475,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Weak, Some(_inner_ty)) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |_root: &mut #name| None,
@@ -1369,7 +1487,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1379,7 +1499,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         _ => {
                             tokens.extend(quote! {
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                #[inline]
+                                    #[inline]
+                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
@@ -1404,6 +1526,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             // Generate identity methods for the enum
             tokens.extend(quote! {
                 /// Returns a generic identity keypath for this type
+                #[inline]
                 pub fn identity_typed<Root, MutRoot>() -> rust_key_paths::Kp<
                     #name,
                     #name,
@@ -1425,6 +1548,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 }
 
                 /// Returns a simple identity keypath for this type
+                #[inline]
                 pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
                     rust_key_paths::Kp::new(
                         |r: &#name| Some(r),
@@ -1441,6 +1565,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     Fields::Unit => {
                         // Unit variant - return keypath that checks if enum matches variant
                         tokens.extend(quote! {
+                            #[inline]
                             pub fn #snake() -> rust_key_paths::KpType<'static, #name, ()> {
                                 rust_key_paths::Kp::new(
                                     |root: &#name| match root {
@@ -1464,6 +1589,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             match (kind, inner_ty.clone()) {
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1480,6 +1606,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Vec, Some(inner_ty)) => {
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1497,6 +1624,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Box, Some(inner_ty)) => {
                                     // Box in enum: deref to inner (&T / &mut T)
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1513,6 +1641,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Rc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1529,6 +1658,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Arc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1545,6 +1675,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Cow, Some(inner_ty)) => {
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1561,6 +1692,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::OptionCow, Some(inner_ty)) => {
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1578,6 +1710,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::None, None) => {
                                     // Basic type
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1595,6 +1728,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 _ => {
                                     // Other wrapper types - return keypath to field
                                     tokens.extend(quote! {
+                                        #[inline]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -1613,6 +1747,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         } else {
                             // Multi-field tuple variant - return keypath to variant itself
                             tokens.extend(quote! {
+                                #[inline]
                                 pub fn #snake() -> rust_key_paths::KpType<'static, #name, #name> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| match root {
