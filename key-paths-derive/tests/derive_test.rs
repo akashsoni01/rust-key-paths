@@ -1,7 +1,7 @@
-use key_paths_derive::{Kp, Pkp};
+use key_paths_derive::{Akp, Kp, Pkp};
 use rust_key_paths::KpType;
 
-#[derive(Kp, Pkp)]
+#[derive(Kp, Pkp, Akp)]
 struct Person {
     name: String,
     age: i32,
@@ -141,4 +141,23 @@ fn test_partial_kps() {
 
     let email_val = kps[2].get_as::<String>(&person);
     assert_eq!(email_val, Some(&"dave@example.com".to_string()));
+}
+
+#[test]
+fn test_any_kps() {
+    let kps = Person::any_kps();
+    assert_eq!(kps.len(), 3); // name, age, email
+
+    let person = Person {
+        name: "Eve".to_string(),
+        age: 28,
+        email: "eve@example.com".to_string(),
+    };
+
+    // AKp operates on &dyn Any - use get_as for typed access
+    let name_val = kps[0].get_as::<Person, String>(&person);
+    assert_eq!(name_val, Some(Some(&"Eve".to_string())));
+
+    let age_val = kps[1].get_as::<Person, i32>(&person);
+    assert_eq!(age_val, Some(Some(&28)));
 }

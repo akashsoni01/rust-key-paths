@@ -1929,3 +1929,84 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
+
+/// Derive macro that generates `any_kps() -> Vec<AKp>` returning all field keypaths as any keypaths.
+/// Must be used together with `#[derive(Kp)]` so the field accessor methods exist.
+/// AKp type-erases both Root and Value, enabling heterogeneous collections of keypaths.
+///
+/// # Example
+/// ```
+/// use key_paths_derive::{Kp, Akp};
+/// use rust_key_paths::AKp;
+///
+/// #[derive(Kp, Akp)]
+/// struct Person {
+///     name: String,
+///     age: i32,
+/// }
+///
+/// let kps = Person::any_kps();
+/// assert_eq!(kps.len(), 2);
+/// let person = Person { name: "Alice".into(), age: 30 };
+/// let name: Option<&String> = kps[0].get(&person as &dyn std::any::Any).and_then(|v| v.downcast_ref());
+/// assert_eq!(name, Some(&"Alice".to_string()));
+/// ```
+#[proc_macro_derive(Akp)]
+pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+
+    let kp_calls = match &input.data {
+        Data::Struct(data_struct) => match &data_struct.fields {
+            Fields::Named(fields_named) => {
+                let calls: Vec<_> = fields_named
+                    .named
+                    .iter()
+                    .filter_map(|f| f.ident.as_ref())
+                    .map(|field_ident| {
+                        quote! { rust_key_paths::AKp::new(Self::#field_ident()) }
+                    })
+                    .collect();
+                quote! { #(#calls),* }
+            }
+            Fields::Unnamed(unnamed) => {
+                let calls: Vec<_> = (0..unnamed.unnamed.len())
+                    .map(|idx| {
+                        let kp_fn = format_ident!("f{}", idx);
+                        quote! { rust_key_paths::AKp::new(Self::#kp_fn()) }
+                    })
+                    .collect();
+                quote! { #(#calls),* }
+            }
+            Fields::Unit => quote! {},
+        },
+        Data::Enum(_) => {
+            return syn::Error::new(
+                input.ident.span(),
+                "Akp derive does not support enums; use structs only",
+            )
+            .to_compile_error()
+            .into();
+        }
+        Data::Union(_) => {
+            return syn::Error::new(
+                input.ident.span(),
+                "Akp derive does not support unions",
+            )
+            .to_compile_error()
+            .into();
+        }
+    };
+
+    let expanded = quote! {
+        impl #name {
+            /// Returns a vec of all field keypaths as any keypaths (fully type-erased).
+            #[inline]
+            pub fn any_kps() -> Vec<rust_key_paths::AKp> {
+                vec![#kp_calls]
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
