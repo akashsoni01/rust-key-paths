@@ -145,6 +145,36 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             ("Option", WrapperKind::HashMap) => {
                                 return (WrapperKind::OptionHashMap, inner_inner);
                             }
+                            ("Option", WrapperKind::StdArcMutex) => {
+                                return (WrapperKind::OptionStdArcMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::StdArcRwLock) => {
+                                return (WrapperKind::OptionStdArcRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::ArcMutex) => {
+                                return (WrapperKind::OptionArcMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::ArcRwLock) => {
+                                return (WrapperKind::OptionArcRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::StdMutex) => {
+                                return (WrapperKind::OptionStdMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::StdRwLock) => {
+                                return (WrapperKind::OptionStdRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::Mutex) => {
+                                return (WrapperKind::OptionMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::RwLock) => {
+                                return (WrapperKind::OptionRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::TokioArcMutex) => {
+                                return (WrapperKind::OptionTokioArcMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::TokioArcRwLock) => {
+                                return (WrapperKind::OptionTokioArcRwLock, inner_inner);
+                            }
                             ("Box", WrapperKind::Option) => {
                                 return (WrapperKind::BoxOption, inner_inner);
                             }
@@ -598,6 +628,126 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
+                            let kp_async_fn = format_ident!("{}_async", field_ident);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
+                                    rust_key_paths::async_lock::AsyncLockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| root.#field_ident.as_ref(),
+                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                        ),
+                                        rust_key_paths::async_lock::TokioMutexAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
+                            let kp_async_fn = format_ident!("{}_async", field_ident);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
+                                    rust_key_paths::async_lock::AsyncLockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| root.#field_ident.as_ref(),
+                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                        ),
+                                        rust_key_paths::async_lock::TokioRwLockAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionStdArcMutex, Some(inner_ty))
+                        | (WrapperKind::OptionArcMutex, Some(inner_ty)) => {
+                            let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::Mutex<#inner_ty>>> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref(),
+                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionStdArcRwLock, Some(inner_ty))
+                        | (WrapperKind::OptionArcRwLock, Some(inner_ty)) => {
+                            let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::RwLock<#inner_ty>>> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref(),
+                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionStdMutex, Some(inner_ty))
+                        | (WrapperKind::OptionMutex, Some(inner_ty)) => {
+                            let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Mutex<#inner_ty>> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref(),
+                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionStdRwLock, Some(inner_ty))
+                        | (WrapperKind::OptionRwLock, Some(inner_ty)) => {
+                            let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::RwLock<#inner_ty>> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref(),
+                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::Weak, Some(_inner_ty)) => {
                             // For Weak<T>, return keypath to container
                             tokens.extend(quote! {
@@ -914,6 +1064,126 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             |v: &#inner_ty| Some(v),
                                             |v: &mut #inner_ty| Some(v),
                                         ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
+                            let kp_async_fn = format_ident!("f{}_async", idx);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
+                                    rust_key_paths::async_lock::AsyncLockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| root.#idx_lit.as_ref(),
+                                            |root: &mut #name| root.#idx_lit.as_mut(),
+                                        ),
+                                        rust_key_paths::async_lock::TokioMutexAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
+                            let kp_async_fn = format_ident!("f{}_async", idx);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
+                                    rust_key_paths::async_lock::AsyncLockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            |root: &#name| root.#idx_lit.as_ref(),
+                                            |root: &mut #name| root.#idx_lit.as_mut(),
+                                        ),
+                                        rust_key_paths::async_lock::TokioRwLockAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            |v: &#inner_ty| Some(v),
+                                            |v: &mut #inner_ty| Some(v),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionStdArcMutex, Some(inner_ty))
+                        | (WrapperKind::OptionArcMutex, Some(inner_ty)) => {
+                            let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::Mutex<#inner_ty>>> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref(),
+                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionStdArcRwLock, Some(inner_ty))
+                        | (WrapperKind::OptionArcRwLock, Some(inner_ty)) => {
+                            let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::RwLock<#inner_ty>>> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref(),
+                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionStdMutex, Some(inner_ty))
+                        | (WrapperKind::OptionMutex, Some(inner_ty)) => {
+                            let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Mutex<#inner_ty>> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref(),
+                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionStdRwLock, Some(inner_ty))
+                        | (WrapperKind::OptionRwLock, Some(inner_ty)) => {
+                            let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
+                            tokens.extend(quote! {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::RwLock<#inner_ty>> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref(),
+                                        |root: &mut #name| root.#idx_lit.as_mut(),
                                     )
                                 }
                             });

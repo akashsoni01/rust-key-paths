@@ -2,6 +2,7 @@ use key_paths_derive::Kp;
 use rust_key_paths::{KpType, LockKp};
 use std::collections::VecDeque;
 use std::sync::Arc;
+use rust_key_paths::async_lock::SyncKeyPathLike;
 
 // Test collections
 #[derive(Kp)]
@@ -29,6 +30,12 @@ struct WithLocks {
 #[derive(Kp)]
 struct WithTokioLocks {
     data: Arc<tokio::sync::RwLock<Vec<i32>>>,
+}
+
+// Test Option<Arc<tokio::sync::RwLock<T>>>
+#[derive(Kp)]
+struct WithOptionTokioLocks {
+    data: Option<Arc<tokio::sync::RwLock<i32>>>,
 }
 
 #[test]
@@ -236,7 +243,11 @@ fn test_std_mutex_with_lockkp() {
 
     // Get keypath to mutex
     let mutex_kp = WithLocks::std_mutex();
-
+    let rwlock_kp = WithLocks::std_rwlock();
+    // rwlock_kp.get()
+    // rwlock_kp.sync_get(&locks).unwrap();
+    // rwlock_kp.sync_get_mut()
+    
     // Create LockKp for accessing the inner value
     let next: KpType<i32, i32> = rust_key_paths::Kp::new(|i: &i32| Some(i), |i: &mut i32| Some(i));
 
@@ -263,4 +274,22 @@ async fn test_tokio_rwlock_async_kp() {
     let value = async_kp.get(&root).await;
     assert!(value.is_some());
     assert_eq!(value.unwrap().len(), 5);
+}
+
+#[tokio::test]
+async fn test_option_tokio_rwlock_async_kp() {
+    let root_some = WithOptionTokioLocks {
+        data: Some(Arc::new(tokio::sync::RwLock::new(42))),
+    };
+    let root_none = WithOptionTokioLocks { data: None };
+
+    // data_async() - when Some, returns the value
+    let async_kp = WithOptionTokioLocks::data_async();
+    let value = async_kp.get(&root_some).await;
+    assert!(value.is_some());
+    assert_eq!(*value.unwrap(), 42);
+
+    // When None, returns None
+    let value_none = async_kp.get(&root_none).await;
+    assert!(value_none.is_none());
 }
