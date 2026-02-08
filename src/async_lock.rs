@@ -1559,6 +1559,57 @@ impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::RwLock<T>>, &'
 }
 
 // ============================================================================
+// Type aliases for derive macro (return concrete type to avoid lifetime issues)
+// ============================================================================
+//
+// The keypath object is 'static—references are created when get() is called
+// with a root, not when the keypath is constructed.
+
+#[cfg(feature = "tokio")]
+/// Type alias for AsyncLockKp over Arc<tokio::sync::Mutex<T>>. Use with derive macro's `_async()` methods.
+pub type AsyncLockKpMutexFor<Root, Lock, Inner> = AsyncLockKp<
+    Root,
+    Lock,
+    Inner,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Inner,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Inner,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    TokioMutexAccess<Inner>,
+    for<'b> fn(&'b Inner) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
+>;
+
+#[cfg(feature = "tokio")]
+/// Type alias for AsyncLockKp over Arc<tokio::sync::RwLock<T>>. Use with derive macro's `_async()` methods.
+pub type AsyncLockKpRwLockFor<Root, Lock, Inner> = AsyncLockKp<
+    Root,
+    Lock,
+    Inner,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Inner,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Inner,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    TokioRwLockAccess<Inner>,
+    for<'b> fn(&'b Inner) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
+>;
+
+// ============================================================================
 // Tests
 // ============================================================================
 

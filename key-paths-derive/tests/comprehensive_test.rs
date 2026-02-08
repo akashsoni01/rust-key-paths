@@ -1,5 +1,4 @@
 use key_paths_derive::Kp;
-use rust_key_paths::async_lock::AsyncKeyPathLike;
 use rust_key_paths::{KpType, LockKp};
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -259,10 +258,9 @@ async fn test_tokio_rwlock_async_kp() {
     let arc_ref = container_kp.get(&root);
     assert!(arc_ref.is_some());
 
-    // data_async() returns AsyncLockKp - use .get(&root).await for async access
+    // data_async() returns AsyncLockKpRwLockFor - use .get(&root).await for async access
     let async_kp = WithTokioLocks::data_async();
     let value = async_kp.get(&root).await;
     assert!(value.is_some());
-    // Value is &Vec<i32>; dereference to call len()
-    assert_eq!(value.as_ref().map(|v| (**v).len()), Some(5));
+    assert_eq!(value.unwrap().len(), 5);
 }
