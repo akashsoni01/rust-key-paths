@@ -2,6 +2,14 @@
 //!
 //! This module provides `AsyncLockKp` for safely navigating through async locked/synchronized data structures.
 //!
+//! # Naming convention (aligned with [crate::lock::LockKp] and [crate::Kp])
+//!
+//! - **`then`** – chain with a plain [crate::Kp]
+//! - **`then_lock`** – chain with a sync [crate::lock::LockKp]
+//! - **`then_async`** – chain with another async keypath (e.g. tokio RwLock)
+//!
+//! Example: `root_lock.then_lock(parking_kp).then_async(async_kp).then_lock(std_lock_kp)`
+//!
 //! # SHALLOW CLONING GUARANTEE
 //!
 //! **IMPORTANT**: All cloning operations in this module are SHALLOW (reference-counted) clones:
@@ -38,8 +46,8 @@ pub use tokio::sync::{Mutex as TokioMutex, RwLock as TokioRwLock};
 //   by TokioMutexAccess, TokioRwLockAccess, etc.
 //
 // - AsyncKeyPathLike<Root, MutRoot>: A full keypath from Root to a value. Used
-//   so we can compose at any depth: both AsyncLockKp and ComposedAsyncLockKp
-//   implement it, so we can write `kp1.compose(kp2).compose(kp3).get(&root)`.
+//   so we can chain at any depth: both AsyncLockKp and ComposedAsyncLockKp
+//   implement it, so we can write `kp1.then_async(kp2).then_async(kp3).get(&root)`.
 //   Without this trait we could not express "first and second can be either a
 //   single AsyncLockKp or another ComposedAsyncLockKp" in the type system.
 
@@ -340,7 +348,7 @@ where
     }
 
     // ========================================================================
-    // Interoperability: then (compose with Kp), then_lock (compose with LockKp)
+    // Interoperability: then (Kp), then_lock (sync LockKp), then_async (async keypath)
     // ========================================================================
 
     /// Chain this AsyncLockKp with a regular [crate::Kp] (no root at call site).
@@ -485,10 +493,10 @@ where
         }
     }
 
-    /// Compose this AsyncLockKp with another AsyncLockKp (like [crate::lock::LockKp::compose]).
+    /// Chain with another async keypath (like [crate::lock::LockKp::then_lock] for sync locks).
     ///
-    /// Does not take root: returns a composed keypath that you use with [ComposedAsyncLockKp::get] or
-    /// [ComposedAsyncLockKp::get_mut] and pass root there.
+    /// Chain with another async keypath (e.g. tokio RwLock). Use [ComposedAsyncLockKp::get] or
+    /// [ComposedAsyncLockKp::get_mut] with root later.
     ///
     /// Root -> AsyncLock1 -> Container -> AsyncLock2 -> Value
     ///
@@ -497,10 +505,10 @@ where
     /// // Root -> Arc<tokio::Mutex<Container>> -> Container -> Arc<tokio::Mutex<Value>> -> Value
     /// let async_kp1 = AsyncLockKp::new(...); // Root -> Container
     /// let async_kp2 = AsyncLockKp::new(...); // Container -> Value
-    /// let composed = async_kp1.compose(async_kp2);
-    /// let result = composed.get(&root).await;
+    /// let chained = async_kp1.then_async(async_kp2);
+    /// let result = chained.get(&root).await;
     /// ```
-    pub fn compose<
+    pub fn then_async<
         Lock2,
         Mid2,
         V2,
@@ -639,12 +647,12 @@ where
     }
 }
 
-/// Composed async lock keypath: chains two or more AsyncLockKps (Root -> V -> V2 -> ...) without taking root at compose time.
+/// Chained async lock keypath: two or more async keypaths (Root -> V -> V2 -> ...). Root is passed at get/get_mut time.
 ///
-/// Use [AsyncLockKp::compose] to create (or [ComposedAsyncLockKp::compose] for more levels). Then call [ComposedAsyncLockKp::get] or
+/// Use [AsyncLockKp::then_async] to create (or [ComposedAsyncLockKp::then_async] for more levels). Then call [ComposedAsyncLockKp::get] or
 /// [ComposedAsyncLockKp::get_mut] with root when you need the value.
 ///
-/// Composing any depth: `kp1.compose(kp2).compose(kp3).compose(kp4)...` then `.get(&root).await`.
+/// Chain any depth: `kp1.then_async(kp2).then_async(kp3).then_async(kp4)...` then `.get(&root).await`.
 #[derive(Clone)]
 pub struct ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> {
     pub(crate) first: First,
@@ -658,7 +666,7 @@ where
     First: AsyncKeyPathLike<Root, MutRoot>,
     Second: AsyncKeyPathLike<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
 {
-    /// Get through all composed locks (root is passed here, not at compose time).
+    /// Get through all chained async locks (root is passed here).
     pub async fn get(&self, root: Root) -> Option<Value2> {
         let value = self.first.get(root).await?;
         self.second.get(value).await
@@ -670,8 +678,8 @@ where
         self.second.get_mut(mut_value).await
     }
 
-    /// Compose with another AsyncLockKp for arbitrary depth: `a.compose(b).compose(c).get(&root).await`.
-    pub fn compose<
+    /// Chain with another async keypath: `a.then_async(b).then_async(c).get(&root).await`.
+    pub fn then_async<
         Lock3,
         Mid3,
         V3,
@@ -1120,9 +1128,9 @@ impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> AsyncLockKpThenLock
 where
     First: AsyncKeyPathLike<Root, MutRoot>,
 {
-    /// Compose with an async keypath (e.g. tokio RwLock) so chain becomes: ... -> Value2 -> async lock -> Value3.
+    /// Chain with an async keypath (e.g. tokio RwLock): ... -> Value2 -> async lock -> Value3.
     /// Use `.get(&root).await` or `.get_mut(...).await` on the returned [ComposedAsyncLockKp].
-    pub fn compose<
+    pub fn then_async<
         Lock3,
         Mid3,
         V3,
@@ -1705,14 +1713,14 @@ mod tests {
             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
         };
 
-        // Compose (no root): then get with root
-        let composed = async_kp1.compose(async_kp2);
-        let result = composed.get(&root).await;
+        // Chain with then_async; get with root
+        let chained = async_kp1.then_async(async_kp2);
+        let result = chained.get(&root).await;
         assert_eq!(result, Some(&999));
     }
 
     #[tokio::test]
-    async fn test_async_kp_compose_three_levels() {
+    async fn test_async_kp_then_async_three_levels() {
         use tokio::sync::Mutex;
 
         #[derive(Clone)]
@@ -1757,8 +1765,8 @@ mod tests {
             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
         };
 
-        let composed = kp1.compose(kp2).compose(kp3);
-        let result = composed.get(&root).await;
+        let chained = kp1.then_async(kp2).then_async(kp3);
+        let result = chained.get(&root).await;
         assert_eq!(result, Some(&42));
     }
 }

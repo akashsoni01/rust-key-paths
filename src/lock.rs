@@ -2,6 +2,11 @@
 //!
 //! This module provides `LockKp` for safely navigating through locked/synchronized data structures.
 //!
+//! # Naming convention (aligned with [crate::Kp] and [crate::async_lock])
+//!
+//! - **`then`** – chain with a plain [crate::Kp]
+//! - **`then_lock`** – chain with another [LockKp] for multi-level lock access
+//!
 //! # SHALLOW CLONING GUARANTEE & NO UNNECESSARY CLONES
 //!
 //! **IMPORTANT**: All cloning operations in this module are SHALLOW (reference-counted) clones:
@@ -324,7 +329,7 @@ where
         LockKp::new(self.prev, self.mid, chained_kp)
     }
 
-    /// Compose this LockKp with another LockKp for multi-level lock chaining
+    /// Chain with another LockKp for multi-level lock access (then_lock convention)
     ///
     /// This allows you to chain through multiple lock levels:
     /// Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> Value
@@ -350,9 +355,9 @@ where
     /// let lock_kp1 = LockKp::new(root_to_lock1, ArcMutexAccess::new(), lock1_to_mid1);
     /// let lock_kp2 = LockKp::new(mid1_to_lock2, ArcMutexAccess::new(), mid2_to_value);
     ///
-    /// let composed = lock_kp1.compose(lock_kp2);
+    /// let chained = lock_kp1.then_lock(lock_kp2);
     /// ```
-    pub fn compose<
+    pub fn then_lock<
         Lock2,
         Mid2,
         V2,
@@ -491,7 +496,7 @@ where
 /// This struct only contains `PhantomData<T>`, which is a zero-sized type.
 /// Cloning `ArcMutexAccess<T>` is a **zero-cost operation** - no data is copied.
 ///
-/// The `Clone` impl is required for the `compose()` method to work, but it's
+/// The `Clone` impl is required for the `then_lock()` method to work, but it's
 /// completely free (compiled away to nothing).
 #[derive(Clone)] // ZERO-COST: Only clones PhantomData (zero-sized type)
 pub struct ArcMutexAccess<T> {
@@ -1395,7 +1400,7 @@ mod tests {
         };
 
         // Compose them: Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> String
-        let composed = lock_kp1.compose(lock_kp2);
+        let composed = lock_kp1.then_lock(lock_kp2);
 
         // Verify composition works
         let value = composed.get(&root);
@@ -1453,7 +1458,7 @@ mod tests {
         };
 
         // Compose both locks
-        let composed = lock1.compose(lock2);
+        let composed = lock1.then_lock(lock2);
 
         // Test get
         let value = composed.get(&root);
@@ -1521,8 +1526,8 @@ mod tests {
         };
 
         // Compose all three levels
-        let composed_1_2 = lock_kp1.compose(lock_kp2);
-        let composed_all = composed_1_2.compose(lock_kp3);
+        let composed_1_2 = lock_kp1.then_lock(lock_kp2);
+        let composed_all = composed_1_2.then_lock(lock_kp3);
 
         // Test get through all three lock levels
         let value = composed_all.get(&root);
@@ -1584,7 +1589,7 @@ mod tests {
             Kp::new(|d: &Data| Some(&d.value), |d: &mut Data| Some(&mut d.value));
 
         // Compose locks, then chain with regular keypaths
-        let composed = lock1.compose(lock2);
+        let composed = lock1.then_lock(lock2);
         let with_data = composed.then(to_data);
         let with_value = with_data.then(to_value);
 
@@ -1683,7 +1688,7 @@ mod tests {
         };
 
         // Compose both RwLocks
-        let composed = lock1.compose(lock2);
+        let composed = lock1.then_lock(lock2);
 
         // Test get through both read locks
         let value = composed.get(&root);
@@ -1741,7 +1746,7 @@ mod tests {
         };
 
         // Compose RwLock -> Mutex
-        let composed = rwlock_kp.compose(mutex_kp);
+        let composed = rwlock_kp.then_lock(mutex_kp);
 
         // Test get through both locks
         let value = composed.get(&root);
@@ -1847,7 +1852,7 @@ mod tests {
         };
 
         // Compose all three RwLocks
-        let composed = lock1.compose(lock2).compose(lock3);
+        let composed = lock1.then_lock(lock2).then_lock(lock3);
 
         // Test get through all three read locks
         let value = composed.get(&root);
@@ -1950,7 +1955,7 @@ mod tests {
 
         // CRITICAL TEST: Compose both locks
         // If any deep cloning occurs, the PanicOnClone will trigger and test will fail
-        let composed = lock1.compose(lock2);
+        let composed = lock1.then_lock(lock2);
 
         // If we get here without panic, shallow cloning is working correctly!
         // Now actually use the composed keypath
@@ -2041,7 +2046,7 @@ mod tests {
 
         // CRITICAL TEST: Compose both Mutex locks
         // If any deep cloning occurs, PanicOnClone will trigger
-        let composed = lock1.compose(lock2);
+        let composed = lock1.then_lock(lock2);
 
         // ✅ SUCCESS: No panic means no deep cloning!
         let value = composed.get(&root);
@@ -2134,7 +2139,7 @@ mod tests {
 
         // CRITICAL TEST: Compose RwLock with Mutex
         // If deep cloning occurs, NeverClone will panic
-        let composed = rwlock_kp.compose(mutex_kp);
+        let composed = rwlock_kp.then_lock(mutex_kp);
 
         // ✅ SUCCESS: No panic = no deep cloning!
         // Only Arc refcounts were incremented
@@ -2251,7 +2256,7 @@ mod tests {
         };
 
         // Compose both levels
-        let composed = lock1.compose(lock2);
+        let composed = lock1.then_lock(lock2);
 
         // Test get through both locks
         let value = composed.get(&root);
@@ -2330,8 +2335,8 @@ mod tests {
         };
 
         // Compose all three levels
-        let composed_1_2 = lock1.compose(lock2);
-        let composed_all = composed_1_2.compose(lock3);
+        let composed_1_2 = lock1.then_lock(lock2);
+        let composed_all = composed_1_2.then_lock(lock3);
 
         // Test get through all three locks
         let value = composed_all.get(&root);
@@ -2423,7 +2428,7 @@ mod tests {
 
         // CRITICAL TEST: Compose both Rc<RefCell> locks
         // If any deep cloning occurs, PanicOnClone will trigger
-        let composed = lock1.compose(lock2);
+        let composed = lock1.then_lock(lock2);
 
         // ✅ SUCCESS: No panic means no deep cloning!
         // Only Rc refcounts were incremented (shallow)
@@ -2591,7 +2596,7 @@ mod tests {
         };
 
         // Compose both levels
-        let composed = lock1.compose(lock2);
+        let composed = lock1.then_lock(lock2);
         let value = composed.get(&root);
         assert_eq!(value.unwrap(), &42);
     }
