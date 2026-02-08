@@ -141,9 +141,11 @@ where
     S2: Fn(MutMid) -> Option<MutValue>,
     V: Clone,
 {
+    #[inline]
     fn sync_get(&self, root: Root) -> Option<Value> {
         self.get(root)
     }
+    #[inline]
     fn sync_get_mut(&self, root: MutRoot) -> Option<MutValue> {
         self.get_mut(root)
     }
@@ -313,6 +315,7 @@ where
     /// - Only the Arc reference count is incremented (one atomic operation)
     /// - The actual data `T` inside the Mutex is **NEVER** cloned
     /// - This is safe and efficient - the whole point of Arc
+    #[inline]
     pub async fn get(&self, root: Root) -> Option<Value>
     where
         Lock: Clone,
@@ -331,6 +334,7 @@ where
     }
 
     /// Get mutable access to the value through the lock
+    #[inline]
     pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue>
     where
         Lock: Clone,
@@ -883,11 +887,13 @@ where
     Second: AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
 {
     /// Get through sync keypath then async keypath (root is passed here).
+    #[inline]
     pub async fn get(&self, root: Root) -> Option<Value2> {
         let v = self.first.sync_get(root)?;
         self.second.get(v).await
     }
     /// Get mutable through sync then async (root is passed here).
+    #[inline]
     pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
         let mut_v = self.first.sync_get_mut(root)?;
         self.second.get_mut(mut_v).await
@@ -962,11 +968,13 @@ where
     S: Fn(First::MutValue) -> Option<MutValue2>,
 {
     /// Get through async keypath then Kp (root is passed here).
+    #[inline]
     pub async fn get(&self, root: Root) -> Option<Value2> {
         let value = self.first.get(root).await?;
         (self.second.get)(value)
     }
     /// Get mutable through async keypath then Kp (root is passed here).
+    #[inline]
     pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
         let mut_value = self.first.get_mut(root).await?;
         (self.second.set)(mut_value)
@@ -1429,6 +1437,7 @@ impl<T> Default for TokioMutexAccess<T> {
 impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::Mutex<T>>, &'a T>
     for TokioMutexAccess<T>
 {
+    #[inline]
     async fn lock_read(&self, lock: &Arc<tokio::sync::Mutex<T>>) -> Option<&'a T> {
         // SHALLOW CLONE: Only Arc refcount is incremented
         let guard = lock.lock().await;
@@ -1436,6 +1445,7 @@ impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::Mutex<T>>, &'a
         unsafe { Some(&*ptr) }
     }
 
+    #[inline]
     async fn lock_write(&self, lock: &mut Arc<tokio::sync::Mutex<T>>) -> Option<&'a T> {
         let guard = lock.lock().await;
         let ptr = &*guard as *const T;
@@ -1449,6 +1459,7 @@ impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::Mutex<T>>, &'a
 impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::Mutex<T>>, &'a mut T>
     for TokioMutexAccess<T>
 {
+    #[inline]
     async fn lock_read(&self, lock: &Arc<tokio::sync::Mutex<T>>) -> Option<&'a mut T> {
         // SHALLOW CLONE: Only Arc refcount is incremented
         let mut guard = lock.lock().await;
@@ -1456,6 +1467,7 @@ impl<'a, T: 'static + Send + Sync> AsyncLockLike<Arc<tokio::sync::Mutex<T>>, &'a
         unsafe { Some(&mut *ptr) }
     }
 
+    #[inline]
     async fn lock_write(&self, lock: &mut Arc<tokio::sync::Mutex<T>>) -> Option<&'a mut T> {
         let mut guard = lock.lock().await;
         let ptr = &mut *guard as *mut T;

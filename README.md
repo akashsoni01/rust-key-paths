@@ -522,10 +522,10 @@ cargo bench --bench deep_chain_leaf --features tokio,parking_lot
 
 | Operation | Keypath | Direct Locks | Overhead |
 |-----------|---------|--------------|----------|
-| **Read**  | ~267 ns | ~115 ns      | ~2.3x    |
-| **Write** | ~230 ns | ~110 ns      | ~2.1x    |
+| **Read**  | ~241 ns | ~117 ns      | ~2.1x    |
+| **Write** | ~239 ns | ~114 ns      | ~2.1x    |
 
-The keypath approach builds the chain each iteration and traverses through `LockKp.then().then().then_async().then()`; direct locks use `sync_mutex.lock()` then `tokio_mutex.lock().await`. The keypath overhead reflects chain construction plus composed traversal vs. manual lock nesting.
+The keypath approach builds the chain each iteration and traverses through `LockKp.then().then().then_async().then()`; direct locks use `sync_mutex.lock()` then `tokio_mutex.lock().await`. The keypath overhead reflects chain construction plus composed traversal vs. manual lock nesting. Hot-path functions are annotated with `#[inline]` for improved performance.
 
 ---
 

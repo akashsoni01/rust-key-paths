@@ -44,3 +44,15 @@ key-paths-derive = { path = "key-paths-derive" }
 [[bench]]
 name = "deep_chain_leaf"
 harness = false
+
+[[bench]]
+name = "kp_plain_only"
+harness = false
+
+[[bench]]
+name = "deep_chain_sync_only"
+harness = false
+
+[[bench]]
+name = "deep_chain_async_only"
+harness = false

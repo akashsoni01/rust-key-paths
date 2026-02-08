@@ -656,9 +656,11 @@ where
         }
     }
 
+    #[inline]
     pub fn get(&self, root: Root) -> Option<Value> {
         (self.get)(root)
     }
+    #[inline]
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
         (self.set)(root)
     }

@@ -220,6 +220,7 @@ where
     /// # Cloning Behavior
     /// Only requires `V: Clone` for the final value.
     /// NO `Lock: Clone` needed because `lock_read` takes `&Lock`.
+    #[inline]
     pub fn get(&self, root: Root) -> Option<Value>
     where
         V: Clone,
@@ -237,6 +238,7 @@ where
     /// # NO CLONING Required!
     ///
     /// No longer needs `Lock: Clone` because `lock_write` now takes `&Lock` instead of `&mut Lock`
+    #[inline]
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
         (self.prev.set)(root).and_then(|mut lock_value| {
             let lock: &Lock = lock_value.borrow();
@@ -539,6 +541,7 @@ where
     Second: crate::async_lock::SyncKeyPathLike<Value, Value2, MutValue, MutValue2>,
 {
     /// Get through first keypath then second (sync).
+    #[inline]
     pub fn get(&self, root: Root) -> Option<Value2>
     where
         Value2: Clone,
@@ -547,6 +550,7 @@ where
         self.second.sync_get(v)
     }
     /// Get mutable through first then second (sync).
+    #[inline]
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
         let mut_v = self.first.sync_get_mut(root)?;
         self.second.sync_get_mut(mut_v)
@@ -587,6 +591,7 @@ impl<T> Default for ArcMutexAccess<T> {
 
 // Implementation for immutable access (returns reference to locked value)
 impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a T> for ArcMutexAccess<T> {
+    #[inline]
     fn lock_read(&self, lock: &Arc<Mutex<T>>) -> Option<&'a T> {
         // Note: This is a simplified implementation
         // In practice, returning a reference from a MutexGuard is tricky
@@ -597,6 +602,7 @@ impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a T> for ArcMutexAccess<T> {
         })
     }
 
+    #[inline]
     fn lock_write(&self, lock: &Arc<Mutex<T>>) -> Option<&'a T> {
         lock.lock().ok().map(|guard| {
             let ptr = &*guard as *const T;
@@ -607,6 +613,7 @@ impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a T> for ArcMutexAccess<T> {
 
 // Implementation for mutable access
 impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a mut T> for ArcMutexAccess<T> {
+    #[inline]
     fn lock_read(&self, lock: &Arc<Mutex<T>>) -> Option<&'a mut T> {
         lock.lock().ok().map(|mut guard| {
             let ptr = &mut *guard as *mut T;
@@ -614,6 +621,7 @@ impl<'a, T: 'static> LockAccess<Arc<Mutex<T>>, &'a mut T> for ArcMutexAccess<T> 
         })
     }
 
+    #[inline]
     fn lock_write(&self, lock: &Arc<Mutex<T>>) -> Option<&'a mut T> {
         lock.lock().ok().map(|mut guard| {
             let ptr = &mut *guard as *mut T;
