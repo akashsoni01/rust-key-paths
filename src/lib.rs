@@ -96,6 +96,27 @@ pub type KpComposed<R, V> = Kp<
     Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V>>,
 >;
 
+impl<R, V> Kp<
+    R,
+    V,
+    &'static R,
+    &'static V,
+    &'static mut R,
+    &'static mut V,
+    Box<dyn for<'b> Fn(&'b R) -> Option<&'b V>>,
+    Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V>>,
+> {
+    /// Build a keypath from two closures (e.g. when they capture a variable like an index).
+    /// Same pattern as `Kp::new` in lock.rs; use this when the keypath captures variables.
+    pub fn from_closures<G, S>(get: G, set: S) -> Self
+    where
+        G: for<'b> Fn(&'b R) -> Option<&'b V> + 'static,
+        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + 'static,
+    {
+        Self::new(Box::new(get), Box::new(set))
+    }
+}
+
 pub struct AKp {
     getter: Rc<dyn for<'r> Fn(&'r dyn Any) -> Option<&'r dyn Any>>,
     root_type_id: TypeId,
@@ -1660,10 +1681,10 @@ mod tests {
             }
         }
 
-        fn g(index: i32) -> KpDynamic<TestKP, TestKP2> {
-            Kp::new(
-                Box::new(move |x: &TestKP| x.g.get(&index)),
-                Box::new(move |x: &mut TestKP| x.g.get_mut(&index)),
+        fn g(index: i32) -> KpComposed<TestKP, TestKP2> {
+            KpComposed::from_closures(
+                move |r: &TestKP| r.g.get(&index),
+                move |r: &mut TestKP| r.g.get_mut(&index),
             )
         }
 
