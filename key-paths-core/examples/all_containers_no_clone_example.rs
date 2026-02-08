@@ -17,7 +17,7 @@ fn main() {
 
     // Create test data
     let user = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: Some("akash@example.com".to_string()),
     };
@@ -55,7 +55,7 @@ fn main() {
 
     // Write to Box - no cloning!
     name_path_w.clone().with_box_mut(&mut boxed_user, |name| {
-        *name = "Alice Boxed".to_string();
+        *name = "Akash Boxed".to_string();
         println!("  Updated name in Box: {}", name);
     });
 
@@ -85,7 +85,7 @@ fn main() {
 
     // Write to Result - no cloning!
     if let Some(()) = name_path_w.clone().with_result_mut(&mut result_user, |name| {
-        *name = "Alice Result".to_string();
+        *name = "Akash Result".to_string();
         println!("  Updated name in Result: {}", name);
     }) {
         println!("  Successfully updated Result");
@@ -110,7 +110,7 @@ fn main() {
     // Write to Mutex - no cloning!
     let mut mutex_user_mut = Mutex::new(user.clone());
     name_path_w.clone().with_mutex_mut(&mut mutex_user_mut, |name| {
-        *name = "Alice Mutexed".to_string();
+        *name = "Akash Mutexed".to_string();
         println!("  Updated name in Mutex: {}", name);
     });
 

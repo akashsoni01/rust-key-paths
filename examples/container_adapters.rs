@@ -7,12 +7,12 @@
 // 5. Compose keypaths with adapters
 // cargo run --example container_adapters
 
+use keypaths_proc::Kp;
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Product {
     id: u32,
@@ -22,7 +22,7 @@ struct Product {
     in_stock: bool,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct User {
     id: u32,
@@ -36,7 +36,7 @@ fn main() {
 
     // ===== Example 1: Vec<Arc<T>> =====
     println!("--- Example 1: Vec<Arc<Product>> ---");
-    
+
     let products_arc: Vec<Arc<Product>> = vec![
         Arc::new(Product {
             id: 1,
@@ -98,7 +98,7 @@ fn main() {
     let users_box: Vec<Box<User>> = vec![
         Box::new(User {
             id: 1,
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             email: "akash@example.com".to_string(),
             age: 30,
         }),
@@ -190,9 +190,9 @@ fn main() {
     if let Some(user) = users_box_mut.get_mut(0) {
         let name = name_path_box_w.get_mut(user);
         println!("  Original name: {}", name);
-        *name = "Alice Smith".to_string();
+        *name = "Akash Smith".to_string();
         println!("  Modified name: {}", name);
-        
+
         let age = age_path_box_w.get_mut(user);
         *age += 1;
         println!("  Incremented age to: {}", age);
@@ -274,7 +274,10 @@ fn main() {
 
     // All use the same underlying keypath, just adapted
     println!("Arc:  {}", name_path_arc.get(&product_arc).unwrap());
-    println!("Box:  {}", Product::name_r().for_box_root().get(&product_box).unwrap());
+    println!(
+        "Box:  {}",
+        Product::name_r().for_box_root().get(&product_box).unwrap()
+    );
     println!("Rc:   {}", name_path_rc.get(&product_rc).unwrap());
 
     // ===== Example 8: Practical Use Case - Shared State =====
@@ -307,7 +310,15 @@ fn main() {
     for product in &thread1_products {
         if let Some(name) = name_path_arc.get(product) {
             if let Some(in_stock) = Product::in_stock_r().for_arc_root().get(product) {
-                println!("  • {} - {}", name, if *in_stock { "Available" } else { "Out of stock" });
+                println!(
+                    "  • {} - {}",
+                    name,
+                    if *in_stock {
+                        "Available"
+                    } else {
+                        "Out of stock"
+                    }
+                );
             }
         }
     }
@@ -315,10 +326,14 @@ fn main() {
     println!("Thread 2 view (same data):");
     let available_count = thread2_products
         .iter()
-        .filter(|p| Product::in_stock_r().for_arc_root().get(p).map_or(false, |s| *s))
+        .filter(|p| {
+            Product::in_stock_r()
+                .for_arc_root()
+                .get(p)
+                .map_or(false, |s| *s)
+        })
         .count();
     println!("  Available products: {}", available_count);
 
     println!("\n✓ Container adapter demo complete!");
 }
-

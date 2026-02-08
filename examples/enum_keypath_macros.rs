@@ -1,7 +1,7 @@
+use keypaths_proc::Kp;
 use rust_keypaths::EnumKeyPath;
-use keypaths_proc::Keypaths;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 struct User {
     id: u32,
     name: String,
@@ -37,7 +37,7 @@ fn main() {
         |s: &Status| match s {
             Status::Active(u) => Some(u),
             _ => None,
-        }
+        },
     );
 
     let status_inactive_unit = EnumKeyPath::readable_enum(
@@ -45,7 +45,7 @@ fn main() {
         |s: &Status| match s {
             Status::Inactive(u) => Some(u),
             _ => None,
-        }
+        },
     );
 
     let some_other_active = EnumKeyPath::readable_enum(
@@ -53,7 +53,7 @@ fn main() {
         |s: &SomeOtherStatus| match s {
             SomeOtherStatus::Active(v) => Some(v),
             _ => None,
-        }
+        },
     );
 
     let status = Status::Active(User {
@@ -71,7 +71,7 @@ fn main() {
         |s: &Status| match s {
             Status::Active(u) => Some(u),
             _ => None,
-        }
+        },
     )
     .to_optional()
     .then(User::name_r().to_optional());

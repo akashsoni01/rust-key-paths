@@ -32,7 +32,7 @@ Compares writing through nested `Option` types:
 
 ### 3. Deep Nested with Enum (`deep_nested_with_enum`)
 Compares deep nested access including enum case paths:
-- **Keypath**: Includes `SomeEnum::b_case_w()` and `for_box()` adapter
+- **Keypath**: Includes `SomeEnum::b_w()` and `for_box()` adapter
 - **Direct**: Pattern matching on enum variants
 
 ### 4. Write Deep Nested with Enum (`write_deep_nested_with_enum`)
@@ -76,11 +76,11 @@ SomeStruct {
 
 **Keypath Approach**:
 ```rust
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct SomeStruct {
     f1: Arc<RwLock<SomeOtherStruct>>,

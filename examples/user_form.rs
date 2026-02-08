@@ -7,9 +7,9 @@
 // // cargo run --example user_form
 
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Keypaths;
+// use keypaths_proc::Kp;
 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct UserProfile {
 //     name: String,
@@ -17,7 +17,7 @@
 //     settings: UserSettings,
 // }
 
-// #[derive(Debug, Clone, Keypaths)]
+// #[derive(Debug, Clone, Kp)]
 // #[All]
 // struct UserSettings {
 //     notifications_enabled: bool,
@@ -157,7 +157,7 @@
 //     // Demonstrate the power of keypaths: accessing nested fields directly
 //     println!("\n--- Direct keypath access demonstration ---");
 //     let theme_path = UserProfile::settings_w().to_optional().then(UserSettings::theme_w());
-    
+
 //     let theme = theme_path.get_mut(&mut profile);
 //     {
 //         println!("Current theme: {}", theme);
@@ -176,6 +176,5 @@
 
 //     println!("\nFinal profile: {:#?}", profile);
 // }
-
 
 fn main() {}

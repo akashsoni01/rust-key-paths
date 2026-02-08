@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Data, DeriveInput, Fields, Type, Attribute, parse_macro_input, spanned::Spanned};
+use syn::{Attribute, Data, DeriveInput, Fields, Type, parse_macro_input, spanned::Spanned};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WrapperKind {
@@ -109,22 +109,34 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
     for attr in attrs {
         if attr.path().is_ident("Readable") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(
+                    attr.span(),
+                    "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant",
+                ));
             }
             scope = Some(MethodScope::Readable);
         } else if attr.path().is_ident("Writable") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(
+                    attr.span(),
+                    "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant",
+                ));
             }
             scope = Some(MethodScope::Writable);
         } else if attr.path().is_ident("Owned") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(
+                    attr.span(),
+                    "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant",
+                ));
             }
             scope = Some(MethodScope::Owned);
         } else if attr.path().is_ident("All") {
             if scope.is_some() {
-                return Err(syn::Error::new(attr.span(), "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant"));
+                return Err(syn::Error::new(
+                    attr.span(),
+                    "Only one of #[All], #[Readable], #[Writable], or #[Owned] may be used per field or variant",
+                ));
             }
             scope = Some(MethodScope::All);
         }
@@ -181,9 +193,9 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 /// # Examples
 ///
 /// ```rust,ignore
-/// use keypaths_proc::Keypaths;
+/// use keypaths_proc::Kp;
 ///
-/// #[derive(Keypaths)]
+/// #[derive(Kp)]
 /// #[All]  // Generate all methods
 /// struct User {
 ///     name: String,
@@ -197,7 +209,7 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 /// let tags_path = User::tags_r();  // KeyPath<User, Vec<String>>
 ///
 /// let user = User {
-///     name: "Alice".to_string(),
+///     name: "Akash".to_string(),
 ///     age: Some(30),
 ///     tags: vec!["admin".to_string()],
 /// };
@@ -210,7 +222,7 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 /// # Field-level Control
 ///
 /// ```rust,ignore
-/// #[derive(Keypaths)]
+/// #[derive(Kp)]
 /// struct Config {
 ///     #[Readable]  // Only readable methods for this field
 ///     api_key: String,
@@ -222,7 +234,7 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 ///     settings: Option<Settings>,
 /// }
 /// ```
-#[proc_macro_derive(Keypaths, attributes(Readable, Writable, Owned, All))]
+#[proc_macro_derive(Kp, attributes(Readable, Writable, Owned, All))]
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -235,7 +247,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
     let methods = match input.data {
         Data::Struct(data_struct) => match data_struct.fields {
-            Fields::Named(fields_named) => {/**/
+            Fields::Named(fields_named) => {
+                /**/
                 let mut tokens = proc_macro2::TokenStream::new();
                 for field in fields_named.named.iter() {
                     let field_ident = field.ident.as_ref().unwrap();
@@ -1199,7 +1212,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fr_at() - Chain through parking_lot::Mutex with a readable keypath (DEFAULT)
                             let fr_at_fn = format_ident!("{}_fr_at", field_ident);
                             push_method(
@@ -1209,7 +1222,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     /// Chains through Arc<parking_lot::Mutex<T>> with a readable keypath.
                                     /// Returns a chained keypath that can be used with `.get(root, |value| ...)`.
-                                    /// 
+                                    ///
                                     /// Note: Mutex defaults to parking_lot. Use `std::sync::Mutex` for std::sync.
                                     pub fn #fr_at_fn<Value, F>(
                                         inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
@@ -1228,7 +1241,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fw_at() - Chain through parking_lot::Mutex with a writable keypath (DEFAULT)
                             let fw_at_fn = format_ident!("{}_fw_at", field_ident);
                             push_method(
@@ -1238,7 +1251,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     /// Chains through Arc<parking_lot::Mutex<T>> with a writable keypath.
                                     /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...)`.
-                                    /// 
+                                    ///
                                     /// Note: Mutex defaults to parking_lot. Use `std::sync::Mutex` for std::sync.
                                     pub fn #fw_at_fn<Value, F>(
                                         inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
@@ -1258,7 +1271,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                         }
-                        
+
                         // ========== STD::SYNC (EXPLICIT) ==========
                         // StdArcMutex = Arc<std::sync::Mutex<T>> (requires explicit std::sync:: prefix)
                         (WrapperKind::StdArcMutex, Some(inner_ty)) => {
@@ -1295,7 +1308,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fr_at() - Chain through std::sync::Mutex with a readable keypath
                             let fr_at_fn = format_ident!("{}_fr_at", field_ident);
                             push_method(
@@ -1323,7 +1336,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fw_at() - Chain through std::sync::Mutex with a writable keypath
                             let fw_at_fn = format_ident!("{}_fw_at", field_ident);
                             push_method(
@@ -1387,7 +1400,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fr_at() - Chain through parking_lot::RwLock with a readable keypath (DEFAULT)
                             let fr_at_fn = format_ident!("{}_fr_at", field_ident);
                             push_method(
@@ -1397,7 +1410,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     /// Chains through Arc<parking_lot::RwLock<T>> with a readable keypath.
                                     /// Returns a chained keypath that can be used with `.get(root, |value| ...)`.
-                                    /// 
+                                    ///
                                     /// Note: RwLock defaults to parking_lot. Use `std::sync::RwLock` for std::sync.
                                     pub fn #fr_at_fn<Value, F>(
                                         inner_kp: rust_keypaths::KeyPath<#inner_ty, Value, F>
@@ -1416,7 +1429,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fw_at() - Chain through parking_lot::RwLock with a writable keypath (DEFAULT)
                             let fw_at_fn = format_ident!("{}_fw_at", field_ident);
                             push_method(
@@ -1426,7 +1439,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 quote! {
                                     /// Chains through Arc<parking_lot::RwLock<T>> with a writable keypath.
                                     /// Returns a chained keypath that can be used with `.get_mut(root, |value| ...)`.
-                                    /// 
+                                    ///
                                     /// Note: RwLock defaults to parking_lot. Use `std::sync::RwLock` for std::sync.
                                     pub fn #fw_at_fn<Value, F>(
                                         inner_kp: rust_keypaths::WritableKeyPath<#inner_ty, Value, F>
@@ -1446,7 +1459,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                         }
-                        
+
                         // ========== TOKIO (requires tokio feature) ==========
                         // TokioArcMutex = Arc<tokio::sync::Mutex<T>>
                         (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
@@ -1483,7 +1496,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fr_at() - Chain through tokio::sync::Mutex with a readable keypath (async)
                             let fr_at_fn = format_ident!("{}_fr_at", field_ident);
                             push_method(
@@ -1511,7 +1524,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fw_at() - Chain through tokio::sync::Mutex with a writable keypath (async)
                             let fw_at_fn = format_ident!("{}_fw_at", field_ident);
                             push_method(
@@ -1540,7 +1553,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                         }
-                        
+
                         // TokioArcRwLock = Arc<tokio::sync::RwLock<T>>
                         (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
                             // _r() - Returns KeyPath to the Arc<tokio::sync::RwLock<T>> field
@@ -1576,7 +1589,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fr_at() - Chain through tokio::sync::RwLock with a readable keypath (async, read lock)
                             let fr_at_fn = format_ident!("{}_fr_at", field_ident);
                             push_method(
@@ -1604,7 +1617,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fw_at() - Chain through tokio::sync::RwLock with a writable keypath (async, write lock)
                             let fw_at_fn = format_ident!("{}_fw_at", field_ident);
                             push_method(
@@ -1633,7 +1646,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 },
                             );
                         }
-                        
+
                         // StdArcRwLock = Arc<std::sync::RwLock<T>> (requires explicit std::sync:: prefix)
                         (WrapperKind::StdArcRwLock, Some(inner_ty)) => {
                             // _r() - Returns KeyPath to the Arc<std::sync::RwLock<T>> field
@@ -1669,7 +1682,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fr_at() - Chain through std::sync::RwLock with a readable keypath
                             let fr_at_fn = format_ident!("{}_fr_at", field_ident);
                             push_method(
@@ -1697,7 +1710,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            
+
                             // _fw_at() - Chain through std::sync::RwLock with a writable keypath
                             let fw_at_fn = format_ident!("{}_fw_at", field_ident);
                             push_method(
@@ -3535,12 +3548,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
-                let r_fn = format_ident!("{}_case_r", snake);
-                let w_fn = format_ident!("{}_case_w", snake);
-                let _fr_fn = format_ident!("{}_case_fr", snake);
-                let _fw_fn = format_ident!("{}_case_fw", snake);
-                let fr_at_fn = format_ident!("{}_case_fr_at", snake);
-                let fw_at_fn = format_ident!("{}_case_fw_at", snake);
+                let r_fn = format_ident!("{}_r", snake);
+                let w_fn = format_ident!("{}_w", snake);
+                let _fr_fn = format_ident!("{}_fr", snake);
+                let _fw_fn = format_ident!("{}_fw", snake);
+                let fr_at_fn = format_ident!("{}_fr_at", snake);
+                let fw_at_fn = format_ident!("{}_fw_at", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
@@ -3606,8 +3619,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 });
                             }
-                        (WrapperKind::HashMap, Some(inner_ty)) => {
-                            tokens.extend(quote! {
+                            (WrapperKind::HashMap, Some(inner_ty)) => {
+                                tokens.extend(quote! {
                                     pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::EnumKeyPath::readable_enum(
                                             #name::#v_ident,
@@ -4006,10 +4019,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let field_fn = format_ident!("f{}", index);
                             let r_fn = format_ident!("{}_{}_r", snake, field_fn);
                             let w_fn = format_ident!("{}_{}_w", snake, field_fn);
-                            
+
                             // Generate pattern matching for this specific field
                             let mut pattern_parts = Vec::new();
-                            
+
                             for i in 0..unnamed.unnamed.len() {
                                 if i == index {
                                     pattern_parts.push(quote! { v });
@@ -4017,11 +4030,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     pattern_parts.push(quote! { _ });
                                 }
                             }
-                            
+
                             let pattern = quote! { #name::#v_ident(#(#pattern_parts),*) };
                             let match_expr = quote! { match e { #pattern => Some(v), _ => None } };
-                            let match_mut_expr = quote! { match e { #pattern => Some(v), _ => None } };
-                            
+                            let match_mut_expr =
+                                quote! { match e { #pattern => Some(v), _ => None } };
+
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| #match_expr)
@@ -4039,7 +4053,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let field_ty = &field.ty;
                             let r_fn = format_ident!("{}_{}_r", snake, field_ident);
                             let w_fn = format_ident!("{}_{}_w", snake, field_ident);
-                            
+
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
@@ -4077,31 +4091,35 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 fn is_std_sync_type(path: &syn::Path) -> bool {
     // Check for paths like std::sync::Mutex, std::sync::RwLock
     let segments: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
-    segments.len() >= 2 && segments.contains(&"std".to_string()) && segments.contains(&"sync".to_string())
+    segments.len() >= 2
+        && segments.contains(&"std".to_string())
+        && segments.contains(&"sync".to_string())
 }
 
 /// Helper function to check if a type path includes tokio::sync module
 fn is_tokio_sync_type(path: &syn::Path) -> bool {
     // Check for paths like tokio::sync::Mutex, tokio::sync::RwLock
     let segments: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
-    segments.len() >= 2 && segments.contains(&"tokio".to_string()) && segments.contains(&"sync".to_string())
+    segments.len() >= 2
+        && segments.contains(&"tokio".to_string())
+        && segments.contains(&"sync".to_string())
 }
 
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
-    
+
     if let Type::Path(tp) = ty {
         // Check if this is explicitly a std::sync type
         let is_std_sync = is_std_sync_type(&tp.path);
         // Check if this is explicitly a tokio::sync type
         let is_tokio_sync = is_tokio_sync_type(&tp.path);
-        
+
         if let Some(seg) = tp.path.segments.last() {
             let ident_str = seg.ident.to_string();
-            
+
             if let PathArguments::AngleBracketed(ab) = &seg.arguments {
                 let args: Vec<_> = ab.args.iter().collect();
-                
+
                 // Handle map types (HashMap, BTreeMap) - they have K, V parameters
                 if ident_str == "HashMap" || ident_str == "BTreeMap" {
                     if let (Some(_key_arg), Some(value_arg)) = (args.get(0), args.get(1)) {
@@ -4129,7 +4147,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                     if let GenericArgument::Type(inner) = arg {
                         // Check for nested containers first
                         let (inner_kind, inner_inner) = extract_wrapper_inner_type(inner);
-                        
+
                         // Handle nested combinations
                         match (ident_str.as_str(), inner_kind) {
                             ("Option", WrapperKind::Box) => {
@@ -4201,11 +4219,19 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     "BinaryHeap" => (WrapperKind::BinaryHeap, Some(inner.clone())),
                                     "Result" => (WrapperKind::Result, Some(inner.clone())),
                                     // For std::sync::Mutex and std::sync::RwLock, use Std variants
-                                    "Mutex" if is_std_sync => (WrapperKind::StdMutex, Some(inner.clone())),
-                                    "RwLock" if is_std_sync => (WrapperKind::StdRwLock, Some(inner.clone())),
+                                    "Mutex" if is_std_sync => {
+                                        (WrapperKind::StdMutex, Some(inner.clone()))
+                                    }
+                                    "RwLock" if is_std_sync => {
+                                        (WrapperKind::StdRwLock, Some(inner.clone()))
+                                    }
                                     // For tokio::sync::Mutex and tokio::sync::RwLock, use Tokio variants
-                                    "Mutex" if is_tokio_sync => (WrapperKind::TokioMutex, Some(inner.clone())),
-                                    "RwLock" if is_tokio_sync => (WrapperKind::TokioRwLock, Some(inner.clone())),
+                                    "Mutex" if is_tokio_sync => {
+                                        (WrapperKind::TokioMutex, Some(inner.clone()))
+                                    }
+                                    "RwLock" if is_tokio_sync => {
+                                        (WrapperKind::TokioRwLock, Some(inner.clone()))
+                                    }
                                     // Default: parking_lot (no std::sync or tokio::sync prefix)
                                     "Mutex" => (WrapperKind::Mutex, Some(inner.clone())),
                                     "RwLock" => (WrapperKind::RwLock, Some(inner.clone())),
@@ -4222,7 +4248,6 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     }
     (WrapperKind::None, None)
 }
-
 
 fn to_snake_case(name: &str) -> String {
     let mut out = String::new();
@@ -4242,7 +4267,7 @@ fn to_snake_case(name: &str) -> String {
 /// Derives only writable keypath methods for struct fields.
 ///
 /// This macro is a convenience wrapper that generates only writable keypaths,
-/// equivalent to using `#[derive(Keypaths)]` with `#[Writable]` on the struct.
+/// equivalent to using `#[derive(Kp)]` with `#[Writable]` on the struct.
 ///
 /// # Generated Methods
 ///
@@ -5108,9 +5133,9 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         if unnamed.unnamed.len() == 1 {
                             // Single-field tuple variant - smart keypath selection
                             let field_ty = &unnamed.unnamed[0].ty;
-                    let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
+                            let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
 
-                    match (kind, inner_ty.clone()) {
+                            match (kind, inner_ty.clone()) {
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
@@ -5161,7 +5186,8 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::Rc, Some(inner_ty)) | (WrapperKind::Arc, Some(inner_ty)) => {
+                                (WrapperKind::Rc, Some(inner_ty))
+                                | (WrapperKind::Arc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
@@ -5328,7 +5354,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
 /// Derives only readable keypath methods for struct fields.
 ///
 /// This macro is a convenience wrapper that generates only readable keypaths,
-/// equivalent to using `#[derive(Keypaths)]` with `#[Readable]` on the struct.
+/// equivalent to using `#[derive(Kp)]` with `#[Readable]` on the struct.
 ///
 /// # Generated Methods
 ///
@@ -5352,7 +5378,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
 ///
 /// // Usage:
 /// let user = User {
-///     name: "Alice".to_string(),
+///     name: "Akash".to_string(),
 ///     email: Some("alice@example.com".to_string()),
 ///     tags: vec!["admin".to_string()],
 /// };
@@ -5780,21 +5806,21 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
 ///
 /// For each variant `VariantName` with a single field of type `T`:
 ///
-/// - `variant_name_case_r()` - Returns an `OptionalKeyPath<Enum, T>` for reading
-/// - `variant_name_case_w()` - Returns a `WritableOptionalKeyPath<Enum, T>` for writing
-/// - `variant_name_case_fr()` - Alias for `variant_name_case_r()`
-/// - `variant_name_case_fw()` - Alias for `variant_name_case_w()`
-/// - `variant_name_case_embed(value)` - Returns `Enum` by embedding a value into the variant
-/// - `variant_name_case_enum()` - Returns an `EnumKeyPath<Enum, T>` with both extraction and embedding
+/// - `variant_name_r()` - Returns an `OptionalKeyPath<Enum, T>` for reading
+/// - `variant_name_w()` - Returns a `WritableOptionalKeyPath<Enum, T>` for writing
+/// - `variant_name_fr()` - Alias for `variant_name_r()`
+/// - `variant_name_fw()` - Alias for `variant_name_w()`
+/// - `variant_name_embed(value)` - Returns `Enum` by embedding a value into the variant
+/// - `variant_name_enum()` - Returns an `EnumKeyPath<Enum, T>` with both extraction and embedding
 ///
 /// For unit variants (no fields):
 ///
-/// - `variant_name_case_fr()` - Returns an `OptionalKeyPath<Enum, ()>` that checks if variant matches
+/// - `variant_name_fr()` - Returns an `OptionalKeyPath<Enum, ()>` that checks if variant matches
 ///
 /// For multi-field tuple variants:
 ///
-/// - `variant_name_case_fr()` - Returns an `OptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
-/// - `variant_name_case_fw()` - Returns a `WritableOptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
+/// - `variant_name_fr()` - Returns an `OptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
+/// - `variant_name_fw()` - Returns a `WritableOptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
 ///
 /// # Attributes
 ///
@@ -5827,16 +5853,16 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
 /// let mut status = Status::Active("online".to_string());
 ///
 /// // Extract value from variant
-/// let active_path = Status::active_case_r();
+/// let active_path = Status::active_r();
 /// if let Some(value) = active_path.get(&status) {
 ///     println!("Status is: {}", value);
 /// }
 ///
 /// // Embed value into variant
-/// let new_status = Status::active_case_embed("offline".to_string());
+/// let new_status = Status::active_embed("offline".to_string());
 ///
 /// // Use EnumKeyPath for both extraction and embedding
-/// let active_enum = Status::active_case_enum();
+/// let active_enum = Status::active_enum();
 /// let extracted = active_enum.extract(&status);  // Option<&String>
 /// let embedded = active_enum.embed("new".to_string());  // Status::Active("new")
 /// ```
@@ -5858,18 +5884,18 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
-                
+
                 // Get variant-specific scope
                 let variant_scope = match method_scope_from_attrs(&variant.attrs) {
                     Ok(Some(scope)) => scope,
                     Ok(None) => default_scope.clone(),
                     Err(_) => default_scope.clone(),
                 };
-                
-                let r_fn = format_ident!("{}_case_r", snake);
-                let w_fn = format_ident!("{}_case_w", snake);
-                let fr_fn = format_ident!("{}_case_fr", snake);
-                let fw_fn = format_ident!("{}_case_fw", snake);
+
+                let r_fn = format_ident!("{}_r", snake);
+                let w_fn = format_ident!("{}_w", snake);
+                let fr_fn = format_ident!("{}_fr", snake);
+                let fw_fn = format_ident!("{}_fw", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
@@ -5885,12 +5911,12 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                     }
                     Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
                         let inner_ty = &unnamed.unnamed.first().unwrap().ty;
-                        
+
                         // Single-field variant - extract the inner value
                         // Generate EnumKeyPath for single-field variants to support embedding
                         if variant_scope.includes_read() {
-                            let embed_fn = format_ident!("{}_case_embed", snake);
-                            let enum_kp_fn = format_ident!("{}_case_enum", snake);
+                            let embed_fn = format_ident!("{}_embed", snake);
+                            let enum_kp_fn = format_ident!("{}_enum", snake);
                             tokens.extend(quote! {
                                 pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
@@ -5928,12 +5954,12 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                     Fields::Unnamed(unnamed) => {
                         let field_types: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
                         let tuple_ty = quote! { (#(#field_types),*) };
-                        
+
                         // Generate pattern matching for tuple fields
                         let field_patterns: Vec<_> = (0..unnamed.unnamed.len())
                             .map(|i| format_ident!("f{}", i))
                             .collect();
-                        
+
                         if variant_scope.includes_read() {
                             tokens.extend(quote! {
                                 pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
@@ -5949,13 +5975,17 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
                             });
                         }
                     }
-                    
+
                     // Labeled variant: Enum::Variant { field1: T1, field2: T2, ... }
                     Fields::Named(named) => {
-                        let field_names: Vec<_> = named.named.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+                        let field_names: Vec<_> = named
+                            .named
+                            .iter()
+                            .map(|f| f.ident.as_ref().unwrap())
+                            .collect();
                         let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
                         let tuple_ty = quote! { (#(#field_types),*) };
-                        
+
                         if variant_scope.includes_read() {
                             tokens.extend(quote! {
                                 pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
@@ -6027,7 +6057,7 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
 /// ];
 ///
 /// let user = User {
-///     name: "Alice".to_string(),
+///     name: "Akash".to_string(),
 ///     age: 30,
 ///     email: Some("alice@example.com".to_string()),
 /// };
@@ -6143,7 +6173,9 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                 }
                 tokens
             }
-            _ => quote! { compile_error!("PartialKeypaths can only be derived for structs with named fields"); },
+            _ => {
+                quote! { compile_error!("PartialKeypaths can only be derived for structs with named fields"); }
+            }
         },
         _ => quote! { compile_error!("PartialKeypaths can only be derived for structs"); },
     };
@@ -6201,7 +6233,7 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
 /// ];
 ///
 /// let user = User {
-///     name: "Alice".to_string(),
+///     name: "Akash".to_string(),
 ///     age: 30,
 /// };
 ///
@@ -6315,7 +6347,9 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                 }
                 tokens
             }
-            _ => quote! { compile_error!("AnyKeypaths can only be derived for structs with named fields"); },
+            _ => {
+                quote! { compile_error!("AnyKeypaths can only be derived for structs with named fields"); }
+            }
         },
         _ => quote! { compile_error!("AnyKeypaths can only be derived for structs"); },
     };
@@ -6334,7 +6368,7 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 // #[proc_macro]
 // pub fn keypath_suggestion(input: TokenStream) -> TokenStream {
 //     let input_str = input.to_string();
-//     
+//
 //     // Parse the input to understand what the user is trying to do
 //     let suggestion = if input_str.contains("Arc<") && input_str.contains("KeyPaths<") {
 //         "💡 Suggestion: If you have a KeyPaths<SomeStruct, Value> but need KeyPaths<Arc<SomeStruct>, Value>, use the .for_arc() adapter method:\n   let arc_keypath = your_keypath.for_arc();"
@@ -6353,11 +6387,11 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 //     } else {
 //         "💡 Suggestion: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T>\n   - .for_box() for Box<T>\n   - .for_rc() for Rc<T>\n   - .for_option() for Option<T>\n   - .for_result() for Result<T, E>\n   - .with_mutex() for Mutex<T> (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> (with parking_lot feature)"
 //     };
-//     
+//
 //     let expanded = quote! {
 //         compile_error!(#suggestion);
 //     };
-//     
+//
 //     TokenStream::from(expanded)
 // }
 
@@ -6366,16 +6400,16 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 // #[proc_macro]
 // pub fn keypath_help(input: TokenStream) -> TokenStream {
 //     let input_str = input.to_string();
-//     
+//
 //     let help_message = if input_str.is_empty() {
 //         "🔧 KeyPaths Help: Use adapter methods to work with different container types:\n   - .for_arc() for Arc<T> containers\n   - .for_box() for Box<T> containers\n   - .for_rc() for Rc<T> containers\n   - .for_option() for Option<T> containers\n   - .for_result() for Result<T, E> containers\n   - .with_mutex() for Mutex<T> containers (import WithContainer trait)\n   - .with_rwlock() for RwLock<T> containers (import WithContainer trait)\n   - .for_arc_mutex() for Arc<Mutex<T>> containers (with parking_lot feature)\n   - .for_arc_rwlock() for Arc<RwLock<T>> containers (with parking_lot feature)\n\nExample: let arc_keypath = my_keypath.for_arc();\nFor Mutex/RwLock: use rust_keypaths::WithContainer; then my_keypath.with_mutex(&mutex, |value| { ... });\nFor Arc<Mutex>/Arc<RwLock>: let arc_mutex_keypath = my_keypath.for_arc_mutex();".to_string()
 //     } else {
 //         format!("🔧 KeyPaths Help for '{}': Use adapter methods to work with different container types. See documentation for more details.", input_str)
 //     };
-//     
+//
 //     let expanded = quote! {
 //         compile_error!(#help_message);
 //     };
-//     
+//
 //     TokenStream::from(expanded)
 // }

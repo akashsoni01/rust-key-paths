@@ -1,7 +1,7 @@
+use keypaths_proc::Kp;
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct Point(u32, Option<u32>, String);
 
@@ -21,8 +21,7 @@ fn main() {
     println!("y (fr) = {:?}", y_fr.get(&p));
 
     let y_fw = Point::f1_fw();
-    if let Some(y) = y_fw.get_mut(&mut p)
-    {
+    if let Some(y) = y_fw.get_mut(&mut p) {
         *y += 1;
     }
 

@@ -1,7 +1,7 @@
+use keypaths_proc::Kp;
 use rust_keypaths::WritableOptionalKeyPath;
-use keypaths_proc::Keypaths;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct Size {
     width: u32,
@@ -19,7 +19,7 @@ enum Color {
 #[derive(Debug)]
 struct RGBU8(u8, u8, u8);
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct ABox {
     name: String,

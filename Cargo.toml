@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "1.25.0"
+version = "2.0.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -10,28 +10,25 @@ homepage = "https://github.com/codefonsi/rust-key-paths"
 documentation = "https://docs.rs/rust-key-paths"
 keywords = ["keypaths", "EnumKeyPath", "type-safe", "WritableKeyPath", "ReadableKeyPath"]
 readme = "./README.md"
-include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
-rust-keypaths = { path = "rust-keypaths", version = "1.7.0", features = ["tagged", "parking_lot", "tokio"] }
-keypaths-proc = { path = "keypaths-proc", version = "1.7.0"}
+async-trait = "0.1"
+tokio = { version = "1.38.0", features = ["sync", "rt"], optional = true }
+parking_lot = { version = "0.12", optional = true }
 
 [workspace]
 resolver = "3" # or "3"
 members = [
-    "keypaths-proc",
-    "rust-keypaths"
+    "key-paths-derive",
 ]
 
-[patch.crates-io]
-rust-keypaths = { path = "rust-keypaths" }
-keypaths-proc = { path = "keypaths-proc" }
 
 [features]
 default = []
-parking_lot = ["parking_lot/default"]
+parking_lot = ["dep:parking_lot"]
 tagged_core = ["tagged-core/default"]
-tokio = ["rust-keypaths/tokio"]
+tokio = ["dep:tokio"]
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -42,11 +39,20 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 tokio = { version = "1.38.0", features = ["sync", "rt", "rt-multi-thread", "macros"] }
+key-paths-derive = { path = "key-paths-derive" }
 
 [[bench]]
-name = "keypath_vs_unwrap"
+name = "deep_chain_leaf"
 harness = false
 
 [[bench]]
-name = "rwlock_write_deeply_nested"
+name = "kp_plain_only"
+harness = false
+
+[[bench]]
+name = "deep_chain_sync_only"
+harness = false
+
+[[bench]]
+name = "deep_chain_async_only"
 harness = false

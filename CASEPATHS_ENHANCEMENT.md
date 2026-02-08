@@ -15,8 +15,8 @@ enum MyEnum {
 }
 
 // Generated methods:
-MyEnum::variant_case_fr() -> OptionalKeyPath<MyEnum, InnerType, ...>
-MyEnum::variant_case_fw() -> WritableOptionalKeyPath<MyEnum, InnerType, ...>
+MyEnum::variant_fr() -> OptionalKeyPath<MyEnum, InnerType, ...>
+MyEnum::variant_fw() -> WritableOptionalKeyPath<MyEnum, InnerType, ...>
 ```
 
 ### Multi-Field Tuple Variants
@@ -26,8 +26,8 @@ enum MyEnum {
 }
 
 // Generated methods:
-MyEnum::variant_case_fr() -> OptionalKeyPath<MyEnum, (T1, T2, T3), ...>
-MyEnum::variant_case_fw() -> WritableOptionalKeyPath<MyEnum, (T1, T2, T3), ...>
+MyEnum::variant_fr() -> OptionalKeyPath<MyEnum, (T1, T2, T3), ...>
+MyEnum::variant_fw() -> WritableOptionalKeyPath<MyEnum, (T1, T2, T3), ...>
 ```
 
 ### Named Field Variants
@@ -37,8 +37,8 @@ enum MyEnum {
 }
 
 // Generated methods:
-MyEnum::variant_case_fr() -> OptionalKeyPath<MyEnum, (T1, T2), ...>
-MyEnum::variant_case_fw() -> WritableOptionalKeyPath<MyEnum, (T1, T2), ...>
+MyEnum::variant_fr() -> OptionalKeyPath<MyEnum, (T1, T2), ...>
+MyEnum::variant_fw() -> WritableOptionalKeyPath<MyEnum, (T1, T2), ...>
 ```
 
 ### Unit Variants
@@ -48,15 +48,15 @@ enum MyEnum {
 }
 
 // Generated methods:
-MyEnum::variant_case_fr() -> OptionalKeyPath<MyEnum, (), ...>
+MyEnum::variant_fr() -> OptionalKeyPath<MyEnum, (), ...>
 ```
 
 ## Attribute Support
 
 The macro supports the same attributes as `Keypaths`:
 
-- `#[Readable]` - Generate only readable methods (`_case_fr()`)
-- `#[Writable]` - Generate only writable methods (`_case_fw()`)
+- `#[Readable]` - Generate only readable methods (`_fr()`)
+- `#[Writable]` - Generate only writable methods (`_fw()`)
 - `#[All]` - Generate both readable and writable methods (default)
 
 ### Example
@@ -70,7 +70,7 @@ enum MyEnum {
 }
 
 // Usage:
-let path = MyEnum::b_case_fw()  // Returns WritableOptionalKeyPath
+let path = MyEnum::b_fw()  // Returns WritableOptionalKeyPath
     .for_box()                   // Unwrap Box<InnerStruct>
     .then(InnerStruct::field_fw());
 ```
@@ -92,7 +92,7 @@ enum MyEnum {
 }
 
 // Generated methods returned KeyPaths enum
-let path = MyEnum::variant_case_r();
+let path = MyEnum::variant_r();
 ```
 
 ### New API (rust-keypaths)
@@ -104,13 +104,13 @@ enum MyEnum {
 }
 
 // Generated methods return specific types
-let path = MyEnum::variant_case_fw();  // Returns WritableOptionalKeyPath
+let path = MyEnum::variant_fw();  // Returns WritableOptionalKeyPath
 ```
 
 ## Example: Deep Nesting with Box
 
 ```rust
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct Outer {
     inner: Option<MyEnum>,
@@ -122,7 +122,7 @@ enum MyEnum {
     B(Box<InnerStruct>),
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[Writable]
 struct InnerStruct {
     field: Option<String>,
@@ -130,7 +130,7 @@ struct InnerStruct {
 
 // Chain through Option -> Enum variant -> Box -> Option
 let path = Outer::inner_fw()
-    .then(MyEnum::b_case_fw())  // Extract variant
+    .then(MyEnum::b_fw())  // Extract variant
     .for_box()                   // Unwrap Box
     .then(InnerStruct::field_fw());
 

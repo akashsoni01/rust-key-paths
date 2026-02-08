@@ -141,7 +141,7 @@ let chained = kp1.then(kp2);  // Note: method name changed from compose() to the
 ```rust
 use key_paths_core::KeyPaths;
 
-let mut user = User { name: "Alice".to_string() };
+let mut user = User { name: "Akash".to_string() };
 let kp = KeyPaths::writable(|s: &mut User| &mut s.name);
 if let Some(name_ref) = kp.get_mut(&mut user) {
     *name_ref = "Bob".to_string();
@@ -152,7 +152,7 @@ if let Some(name_ref) = kp.get_mut(&mut user) {
 ```rust
 use rust_keypaths::WritableKeyPath;
 
-let mut user = User { name: "Alice".to_string() };
+let mut user = User { name: "Akash".to_string() };
 let kp = WritableKeyPath::new(|s: &mut User| &mut s.name);
 let name_ref = kp.get_mut(&mut user);  // Returns &mut String directly (not Option)
 *name_ref = "Bob".to_string();
@@ -209,7 +209,7 @@ let enum_kp = EnumKeyPaths::for_variant(|e: &MyEnum| {
 ```rust
 use key_paths_derive::Keypaths;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 struct User {
     name: String,
     email: Option<String>,
@@ -222,9 +222,9 @@ let email_kp = User::email_fr();  // Returns KeyPaths<User, String>
 
 #### After
 ```rust
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 struct User {
     name: String,
     email: Option<String>,
@@ -278,7 +278,7 @@ use key_paths_derive::Keypaths;
 
 // After
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 ```
 
 ### Step 3: Update KeyPath Creation
@@ -378,14 +378,14 @@ let chained = kp1.then(kp2).then(kp3);
 ### Pattern 4: Mutable Access
 ```rust
 // Before
-let mut user = User { name: "Alice".to_string() };
+let mut user = User { name: "Akash".to_string() };
 let kp = KeyPaths::writable(|s: &mut User| &mut s.name);
 if let Some(name_ref) = kp.get_mut(&mut user) {
     *name_ref = "Bob".to_string();
 }
 
 // After
-let mut user = User { name: "Alice".to_string() };
+let mut user = User { name: "Akash".to_string() };
 let kp = WritableKeyPath::new(|s: &mut User| &mut s.name);
 let name_ref = kp.get_mut(&mut user);  // Direct access
 *name_ref = "Bob".to_string();

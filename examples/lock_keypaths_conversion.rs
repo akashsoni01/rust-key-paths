@@ -1,14 +1,14 @@
+use keypaths_proc::Kp;
 use rust_keypaths::KeyPath;
 use std::sync::{Arc, RwLock};
-use keypaths_proc::Keypaths;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct SomeStruct {
     data: String,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Container {
     rwlock_data: Arc<std::sync::RwLock<SomeStruct>>,
@@ -23,7 +23,7 @@ fn main() {
 
     // Using the new to_arc_rwlock_kp() method directly on keypaths
     println!("=== Using to_arc_rwlock_kp() method ===");
-    
+
     // Convert a normal keypath to a lock keypath using the method
     Container::rwlock_data_r()
         .to_arc_rwlock_kp()
@@ -42,4 +42,3 @@ fn main() {
 
     println!("\n✅ to_arc_rwlock_kp() method is working correctly!");
 }
-

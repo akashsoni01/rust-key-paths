@@ -1,7 +1,7 @@
+use keypaths_proc::Kp;
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct Garage {
     cars: Vec<String>,

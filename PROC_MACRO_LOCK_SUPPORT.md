@@ -11,7 +11,7 @@
 use parking_lot::RwLock;  // OK - will use parking_lot methods
 use std::sync::RwLock;    // Must use: std::sync::RwLock<T> in the field type
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 struct Example {
     // These default to parking_lot:
     data1: Arc<RwLock<Inner>>,           // parking_lot (default)
@@ -54,15 +54,15 @@ For fields like `f1: Arc<std::sync::RwLock<T>>`:
 ```rust
 use std::sync::Arc;
 use parking_lot::RwLock;
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Container {
     data: Arc<RwLock<Inner>>,  // parking_lot (default)
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Inner {
     value: String,
@@ -92,16 +92,16 @@ fn main() {
 
 ```rust
 use std::sync::{Arc, RwLock};
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Container {
     // MUST use full path for std::sync
     data: Arc<std::sync::RwLock<Inner>>,
 }
 
-#[derive(Keypaths)]
+#[derive(Kp)]
 #[All]
 struct Inner {
     value: String,

@@ -1,6 +1,6 @@
 [package]
 name = "keypaths-proc"
-version = "1.7.0"
+version = "1.9.0"
 edition = "2024"
 description = "Proc-macro derive to generate keypath methods using rust-keypaths (static dispatch)"
 license = "MIT OR Apache-2.0"
@@ -21,4 +21,4 @@ quote = "1"
 syn = { version = "2", features = ["full"] }
 
 [dev-dependencies]
-rust-keypaths = { path = "../rust-keypaths", version = "1.7.0" }
+rust-keypaths = { path = "../rust-keypaths", version = "1.9.0" }

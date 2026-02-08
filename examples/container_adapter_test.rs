@@ -27,8 +27,7 @@ fn main() {
     let value_path = KeyPath::new(|s: &TestStruct| &s.value);
     let value_path_w = WritableKeyPath::new(|s: &mut TestStruct| &mut s.value);
     let optional_path = OptionalKeyPath::new(|s: &TestStruct| s.optional.as_ref());
-    let optional_path_w =
-        WritableOptionalKeyPath::new(|s: &mut TestStruct| s.optional.as_mut());
+    let optional_path_w = WritableOptionalKeyPath::new(|s: &mut TestStruct| s.optional.as_mut());
 
     // ===== Test 1: Arc Readable =====
     println!("--- Test 1: Arc with Readable KeyPath ---");
@@ -214,7 +213,7 @@ fn main() {
 
     // ===== Test 12: Multiple Container Types Together =====
     println!("--- Test 12: Mixed Container Types ---");
-    
+
     let arc_item = Arc::new(test_data.clone());
     let box_item = Box::new(test_data.clone());
     let rc_item = Rc::new(test_data.clone());
@@ -236,14 +235,17 @@ fn main() {
     println!("--- Test 13: Result with Readable KeyPath ---");
     let ok_data = Ok(test_data.clone());
     let err_data: Result<TestStruct, String> = Err("Error occurred".to_string());
-    
+
     let name_path_result = name_path.clone().for_result::<String>();
 
     if let Some(name) = name_path_result.get(&ok_data) {
         println!("  Result name (Ok): {}", name);
-        assert_eq!(name, "Test", "Result readable should return correct value for Ok");
+        assert_eq!(
+            name, "Test",
+            "Result readable should return correct value for Ok"
+        );
     }
-    
+
     if let Some(_) = name_path_result.get(&err_data) {
         panic!("Result readable should return None for Err");
     }
@@ -253,16 +255,19 @@ fn main() {
     println!("--- Test 14: Result with Writable KeyPath ---");
     let mut ok_data_mut = Ok(test_data.clone());
     let mut err_data_mut: Result<TestStruct, String> = Err("Error occurred".to_string());
-    
+
     let name_path_result_w = name_path_w.clone().for_result::<String>();
 
     if let Some(name) = name_path_result_w.get_mut(&mut ok_data_mut) {
         println!("  Original Result name: {}", name);
         *name = "Modified Result".to_string();
         println!("  Modified Result name: {}", name);
-        assert_eq!(name, "Modified Result", "Result writable should allow modification for Ok");
+        assert_eq!(
+            name, "Modified Result",
+            "Result writable should allow modification for Ok"
+        );
     }
-    
+
     if name_path_result_w.get_mut(&mut err_data_mut).is_some() {
         panic!("Result writable should return None for Err");
     }
@@ -281,18 +286,21 @@ fn main() {
         optional: None,
     });
     let err_data_opt: Result<TestStruct, String> = Err("Error occurred".to_string());
-    
+
     let optional_path_result = optional_path.clone().for_result::<String>();
 
     if let Some(opt_val) = optional_path_result.get(&ok_data_opt) {
         println!("  Result optional (Some): {}", opt_val);
-        assert_eq!(opt_val, "Optional Value", "Result failable readable should return Some for Ok with Some");
+        assert_eq!(
+            opt_val, "Optional Value",
+            "Result failable readable should return Some for Ok with Some"
+        );
     }
-    
+
     if let Some(_) = optional_path_result.get(&ok_data_none) {
         panic!("Result failable readable should return None for Ok with None");
     }
-    
+
     if let Some(_) = optional_path_result.get(&err_data_opt) {
         panic!("Result failable readable should return None for Err");
     }
@@ -306,17 +314,23 @@ fn main() {
         optional: Some("Original".to_string()),
     });
     let mut err_data_opt_mut: Result<TestStruct, String> = Err("Error occurred".to_string());
-    
+
     let optional_path_result_w = optional_path_w.clone().for_result::<String>();
 
     if let Some(opt_val) = optional_path_result_w.get_mut(&mut ok_data_opt_mut) {
         println!("  Original Result optional: {}", opt_val);
         *opt_val = "Modified".to_string();
         println!("  Modified Result optional: {}", opt_val);
-        assert_eq!(opt_val, "Modified", "Result failable writable should allow modification for Ok with Some");
+        assert_eq!(
+            opt_val, "Modified",
+            "Result failable writable should allow modification for Ok with Some"
+        );
     }
-    
-    if optional_path_result_w.get_mut(&mut err_data_opt_mut).is_some() {
+
+    if optional_path_result_w
+        .get_mut(&mut err_data_opt_mut)
+        .is_some()
+    {
         panic!("Result failable writable should return None for Err");
     }
     println!("✓ Test 16 passed\n");
@@ -356,4 +370,3 @@ fn main() {
 
     println!("=== All 17 Tests Passed! ===");
 }
-

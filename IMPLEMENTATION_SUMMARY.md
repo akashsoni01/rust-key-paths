@@ -89,7 +89,7 @@ field_name_fw_at(key) -> KeyPaths<Struct, InnerT>  // Indexed writable
 ```rust
 use key_paths_derive::Keypaths;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 struct MyStruct {
     data: Vec<String>,
     config: Option<HashMap<String, i32>>,

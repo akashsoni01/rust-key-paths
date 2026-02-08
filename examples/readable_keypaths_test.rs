@@ -1,5 +1,5 @@
 use keypaths_proc::ReadableKeypaths;
-use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
+use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -31,7 +31,7 @@ struct TupleStruct(String, Option<i32>, Vec<f64>);
 
 fn main() {
     let user = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: Some("akash@example.com".to_string()),
         tags: vec!["developer".to_string(), "rust".to_string()],
@@ -88,7 +88,7 @@ fn main() {
     println!("=== Basic Readable Keypaths ===");
     let name_path = User::name_r();
     println!("Name: {:?}", name_path.get(&user));
-    
+
     let age_path = User::age_r();
     println!("Age: {:?}", age_path.get(&user));
 
@@ -107,7 +107,7 @@ fn main() {
     if let Some(tag) = first_tag_path.get(&user) {
         println!("First tag: {}", tag);
     }
-    
+
     let tag_at_1_path = User::tags_fr_at(1);
     if let Some(tag) = tag_at_1_path.get(&user) {
         println!("Tag at index 1: {}", tag);
@@ -179,15 +179,15 @@ fn main() {
     // Test tuple struct
     println!("\n=== Tuple Struct ===");
     let tuple = TupleStruct("test".to_string(), Some(42), vec![1.0, 2.0, 3.0]);
-    
+
     let f0_path = TupleStruct::f0_r();
     println!("Tuple f0: {:?}", f0_path.get(&tuple));
-    
+
     let f1_fr_path = TupleStruct::f1_fr();
     if let Some(value) = f1_fr_path.get(&tuple) {
         println!("Tuple f1 (Option): {}", value);
     }
-    
+
     let f2_fr_path = TupleStruct::f2_fr();
     if let Some(value) = f2_fr_path.get(&tuple) {
         println!("Tuple f2 (Vec first): {}", value);

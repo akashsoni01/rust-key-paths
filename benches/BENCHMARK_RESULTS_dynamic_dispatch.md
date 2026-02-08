@@ -57,12 +57,12 @@ Read operations show consistent ~2.5x overhead, which is expected:
 |--------|---------------------|--------------------------------------|------------------------|-------------|
 | Read (3 levels) | 988.69 ps (2.57x) | 565.84 ps (1.43x) | 565.44 ps (1.46x) | **43% improvement** ⚡ |
 | Write (3 levels) | 5.04 ns (13.1x) | 4.168 ns (10.8x) | 4.105 ns (10.7x) | **19% improvement** |
-| Deep Read | 974.13 ps (2.54x) | 569.35 ps (1.45x) | 9.565 ns (24.5x) | **Corrected: uses _fr + _case_r** |
+| Deep Read | 974.13 ps (2.54x) | 569.35 ps (1.45x) | 9.565 ns (24.5x) | **Corrected: uses _fr + _r** |
 | Write Deep | 10.71 ns (28.1x) | 10.272 ns (25.5x) | 9.743 ns (25.0x) | **9% improvement** |
 | Reused Read | 381.99 ps (95.4x faster) | 383.74 ps (98.3x faster) | 568.07 ps (65.7x faster) | Consistent benefit |
 | Pre-composed | ~956 ps | 558.76 ps | 568.07 ps | **41% improvement** ⚡ |
 
-**Note**: The `deep_nested_with_enum` benchmark was corrected to use `_fr` (FailableReadable) with `_case_r` (ReadableEnum) for proper composition compatibility, showing 24.5x overhead due to enum case path matching and Box adapter complexity.
+**Note**: The `deep_nested_with_enum` benchmark was corrected to use `_fr` (FailableReadable) with `_r` (ReadableEnum) for proper composition compatibility, showing 24.5x overhead due to enum case path matching and Box adapter complexity.
 
 ## Recommendations
 

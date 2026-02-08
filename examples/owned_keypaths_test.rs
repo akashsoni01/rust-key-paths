@@ -13,9 +13,9 @@
 // }
 
 // /*
-// there is no fom and om i.e. failable owned mutable and owned mutable keypaths. 
-// because once the value moved it is up to you you wan to mutate it or not. 
-// e.g. 
+// there is no fom and om i.e. failable owned mutable and owned mutable keypaths.
+// because once the value moved it is up to you you wan to mutate it or not.
+// e.g.
 //     let name_kp = KeyPaths::owned(|p: Person| p.name);
 //     let mut extracted_name = name_kp.get_owned(person.clone());
 // */
@@ -23,7 +23,7 @@
 //     println!("=== Owned KeyPaths Test Suite ===\n");
 
 //     let person = Person {
-//         name: "Alice".to_string(),
+//         name: "Akash".to_string(),
 //         age: 30,
 //     };
 
@@ -36,7 +36,7 @@
 //     println!("Test 1: Basic owned keypath");
 //     let name_kp = KeyPaths::owned(|p: Person| p.name);
 //     let extracted_name = name_kp.get_owned(person.clone());
-//     assert_eq!(extracted_name, "Alice");
+//     assert_eq!(extracted_name, "Akash");
 //     println!("  ✓ Name extraction: {}", extracted_name);
 
 //     // Test 2: Failable owned keypath
@@ -70,11 +70,11 @@
 //     struct PersonWithAddresses {
 //         addresses: Vec<Address>,
 //     }
-    
+
 //     let person_with_addresses = PersonWithAddresses {
 //         addresses: vec![address.clone(), address.clone()],
 //     };
-    
+
 //     let addresses_kp = KeyPaths::owned(|p: PersonWithAddresses| p.addresses);
 //     if let Some(iter) = addresses_kp.into_iter(person_with_addresses.clone()) {
 //         let count = iter.count();
@@ -86,7 +86,7 @@
 //     println!("Test 6: KeyPath kind names");
 //     let name_kp = KeyPaths::owned(|p: Person| p.name);
 //     let failable_age_kp = KeyPaths::failable_owned(|p: Person| Some(p.age));
-    
+
 //     assert_eq!(name_kp.kind_name(), "Owned");
 //     assert_eq!(failable_age_kp.kind_name(), "FailableOwned");
 //     println!("  ✓ Name keypath kind: {}", name_kp.kind_name());
@@ -95,6 +95,4 @@
 //     println!("\n=== All Tests Passed! ===");
 // }
 
-fn main() {
-    
-}
+fn main() {}

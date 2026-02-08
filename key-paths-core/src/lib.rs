@@ -614,7 +614,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     /// 
     /// Example:
     /// ```rust
-    /// let people = vec![Person { name: "Alice".to_string(), age: 30 }];
+    /// let people = vec![Person { name: "Akash".to_string(), age: 30 }];
     /// let names: Vec<&String> = Person::name_r().extract_from_slice(&people);
     /// ```
     #[inline]
@@ -642,7 +642,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     /// 
     /// Example:
     /// ```rust
-    /// let people = vec![Person { name: "Alice".to_string(), age: 30 }];
+    /// let people = vec![Person { name: "Akash".to_string(), age: 30 }];
     /// let names: Vec<&String> = Person::name_r().extract_from_iter(people.iter());
     /// ```
     #[inline]
@@ -671,7 +671,7 @@ impl<Root, Value> KeyPaths<Root, Value> {
     /// 
     /// Example:
     /// ```rust
-    /// let mut people = vec![Person { name: "Alice".to_string(), age: 30 }];
+    /// let mut people = vec![Person { name: "Akash".to_string(), age: 30 }];
     /// let names: Vec<&mut String> = Person::name_w().extract_mut_from_slice(&mut people);
     /// ```
     #[inline]

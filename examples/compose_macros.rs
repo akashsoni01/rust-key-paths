@@ -1,24 +1,24 @@
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct Engine {
     horsepower: u32,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct Car {
     engine: Option<Engine>,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct Garage {
     car: Option<Car>,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct City {
     garage: Option<Garage>,

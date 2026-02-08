@@ -49,10 +49,7 @@ fn main() {
     }
 
     // let cp4 = enum_keypath!(SomeOtherStatus::Inactive);
-    let cp4 = EnumKeyPath::readable_enum(
-        |_unit: ()| SomeOtherStatus::Inactive,
-        |_u| None::<&()>,
-    );
+    let cp4 = EnumKeyPath::readable_enum(|_unit: ()| SomeOtherStatus::Inactive, |_u| None::<&()>);
     if let Some(_x) = cp4.get(&SomeOtherStatus::Inactive) {
         println!("Inactive: {:?}", _x);
     }

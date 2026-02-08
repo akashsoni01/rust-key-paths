@@ -11,7 +11,7 @@ struct Person {
 #[test]
 fn test_keypath_generation() {
     let person = Person {
-        name: Some("Alice".to_string()),
+        name: Some("Akash".to_string()),
         result_name: Ok("Bob".to_string()),
         age: 30,
     };
@@ -27,7 +27,7 @@ fn test_keypath_generation() {
     let age_value = age_keypath.get(&person);
     let name_result = name_result.get(&person);
 
-    assert_eq!(name_value, Some(&"Alice".to_string()));
+    assert_eq!(name_value, Some(&"Akash".to_string()));
     assert_eq!(age_value, Some(&30));
     assert_eq!(name_result, Some(&"Bob".to_string()));
     

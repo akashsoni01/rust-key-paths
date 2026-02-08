@@ -238,7 +238,7 @@ for item in &nested {
 Adapted keypaths work with composition:
 
 ```rust
-#[derive(Keypaths)]
+#[derive(Kp)]
 struct Order {
     product: Product,
     quantity: u32,

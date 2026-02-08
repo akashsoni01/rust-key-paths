@@ -1,7 +1,7 @@
+use keypaths_proc::Kp;
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::Keypaths;
 
-#[derive(Clone, Debug, Keypaths)]
+#[derive(Clone, Debug, Kp)]
 #[Readable]
 struct Account {
     // Inherits the struct-level #[Readable] scope; only readable methods are emitted.
@@ -44,4 +44,3 @@ fn main() {
     // Uncommenting the next line would fail to compile because `nickname` only has readable methods.
     // let _ = Account::nickname_w();
 }
-

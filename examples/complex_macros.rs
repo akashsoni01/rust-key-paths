@@ -1,14 +1,14 @@
+use keypaths_proc::{Casepaths, Kp};
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::{Casepaths, Keypaths};
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct Profile {
     display_name: String,
     age: u32,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct User {
     id: u64,
@@ -16,11 +16,11 @@ struct User {
     tags: Vec<String>,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct DbConfig(u16, String); // (port, url)
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct Settings {
     theme: String,
@@ -43,7 +43,7 @@ enum Status {
     Pending(u32),
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct App {
     users: Vec<User>,
@@ -105,7 +105,7 @@ fn main() {
 
     // 3) Compose writable + enum case (prism) to mutate only when connected
     app.connection = Connection::Connected("10.0.0.1".into());
-    let connected_case = Connection::connected_case_w();
+    let connected_case = Connection::connected_w();
     // compose requires a keypath from App -> Connection first
     let app_connection_w = App::connection_w().to_optional();
     let app_connected_ip = app_connection_w.then(connected_case);
@@ -116,7 +116,7 @@ fn main() {
 
     // 4) Enum readable case path for state without payload
     app.connection = Connection::Disconnected;
-    let disc = Connection::disconnected_case_fr();
+    let disc = Connection::disconnected_fr();
     println!("is disconnected? {:?}", disc.get(&app.connection).is_some());
 
     // 5) Iterate immutably and mutably via derived vec keypaths
@@ -149,9 +149,9 @@ fn main() {
     println!("first user after bday = {:?}", app.users.first());
 
     // 7) Embed: build a Connected from payload
-    let connected_r = Connection::connected_case_r();
+    let connected_r = Connection::connected_r();
     // Use EnumKeyPath for embedding
-    let connected_enum = Connection::connected_case_enum();
+    let connected_enum = Connection::connected_enum();
     let new_conn = connected_enum.embed("192.168.0.1".to_string());
     println!("embedded = {:?}", new_conn);
 
@@ -161,11 +161,11 @@ fn main() {
         profile: None,
         tags: vec![],
     });
-    let st_active = Status::active_case_r();
+    let st_active = Status::active_r();
     let st_active_name = st_active.then(User::id_r().to_optional());
     println!("status active user id = {:?}", st_active_name.get(&st));
 
-    let st_pending = Status::pending_case_w();
+    let st_pending = Status::pending_w();
     st = Status::Pending(5);
     if let Some(v) = st_pending.get_mut(&mut st) {
         *v += 1;

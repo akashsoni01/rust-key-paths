@@ -1,5 +1,5 @@
 use keypaths_proc::Keypath;
-use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
+use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -31,7 +31,7 @@ struct TupleStruct(String, Option<i32>, Vec<f64>);
 
 fn main() {
     let user = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: Some("akash@example.com".to_string()),
         tags: vec!["developer".to_string(), "rust".to_string()],
@@ -85,7 +85,7 @@ fn main() {
     };
 
     println!("=== Smart Keypaths Access ===");
-    
+
     // Basic types - readable keypath
     println!("Name: {:?}", User::name().get(&user));
     println!("Age: {:?}", User::age().get(&user));
@@ -150,15 +150,15 @@ fn main() {
     // Test tuple struct
     println!("\n=== Tuple Struct ===");
     let tuple = TupleStruct("test".to_string(), Some(42), vec![1.0, 2.0, 3.0]);
-    
+
     if let Some(f0) = TupleStruct::f0().get(&tuple) {
         println!("Tuple f0: {}", f0);
     }
-    
+
     if let Some(f1) = TupleStruct::f1().get(&tuple) {
         println!("Tuple f1 (Option): {}", f1);
     }
-    
+
     if let Some(f2) = TupleStruct::f2().get(&tuple) {
         println!("Tuple f2 (Vec first): {}", f2);
     }

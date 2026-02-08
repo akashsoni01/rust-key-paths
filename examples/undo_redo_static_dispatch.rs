@@ -120,9 +120,9 @@
 //
 // ============================================================================
 
-use keypaths_proc::Keypaths;
+use keypaths_proc::Kp;
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct Document {
     title: String,
@@ -130,7 +130,7 @@ struct Document {
     metadata: DocumentMetadata,
 }
 
-#[derive(Debug, Clone, Keypaths)]
+#[derive(Debug, Clone, Kp)]
 #[All]
 struct DocumentMetadata {
     author: String,
@@ -182,17 +182,23 @@ impl<T> Command<T> {
     // Space: O(1) - no allocations
     fn execute(&self, target: &mut T) {
         match self {
-            Command::String { get_mut, new_value, .. } => {
+            Command::String {
+                get_mut, new_value, ..
+            } => {
                 if let Some(field) = get_mut(target) {
                     *field = new_value.clone();
                 }
             }
-            Command::U32 { get_mut, new_value, .. } => {
+            Command::U32 {
+                get_mut, new_value, ..
+            } => {
                 if let Some(field) = get_mut(target) {
                     *field = *new_value;
                 }
             }
-            Command::VecString { get_mut, new_value, .. } => {
+            Command::VecString {
+                get_mut, new_value, ..
+            } => {
                 if let Some(field) = get_mut(target) {
                     *field = new_value.clone();
                 }
@@ -205,17 +211,23 @@ impl<T> Command<T> {
     // Space: O(1) - no allocations
     fn undo(&self, target: &mut T) {
         match self {
-            Command::String { get_mut, old_value, .. } => {
+            Command::String {
+                get_mut, old_value, ..
+            } => {
                 if let Some(field) = get_mut(target) {
                     *field = old_value.clone();
                 }
             }
-            Command::U32 { get_mut, old_value, .. } => {
+            Command::U32 {
+                get_mut, old_value, ..
+            } => {
                 if let Some(field) = get_mut(target) {
                     *field = *old_value;
                 }
             }
-            Command::VecString { get_mut, old_value, .. } => {
+            Command::VecString {
+                get_mut, old_value, ..
+            } => {
                 if let Some(field) = get_mut(target) {
                     *field = old_value.clone();
                 }
@@ -347,11 +359,7 @@ impl<T> UndoStack<T> {
             .iter()
             .enumerate()
             .map(|(i, cmd)| {
-                let marker = if i < self.current {
-                    "✓"
-                } else {
-                    " "
-                };
+                let marker = if i < self.current { "✓" } else { " " };
                 format!("{} {}", marker, cmd.description())
             })
             .collect()
@@ -457,7 +465,7 @@ fn main() {
         title: "My Document".to_string(),
         content: "Hello, World!".to_string(),
         metadata: DocumentMetadata {
-            author: "Alice".to_string(),
+            author: "Akash".to_string(),
             tags: vec!["draft".to_string()],
             revision: 1,
         },
@@ -501,11 +509,7 @@ fn main() {
 
     // Change 4: Update revision number
     println!("\n--- Change 4: Update revision ---");
-    let cmd = make_u32_change_revision(
-        &doc,
-        2,
-        "Increment revision to 2".to_string(),
-    );
+    let cmd = make_u32_change_revision(&doc, 2, "Increment revision to 2".to_string());
     undo_stack.execute(&mut doc, cmd);
     println!("Revision: {}", doc.metadata.revision);
 
@@ -623,8 +627,14 @@ fn main() {
     // Verify we're back to the original state
     println!("\n=== Verification ===");
     println!("Title matches original: {}", doc.title == "My Document");
-    println!("Content matches original: {}", doc.content == "Hello, World!");
-    println!("Author matches original: {}", doc.metadata.author == "Alice");
+    println!(
+        "Content matches original: {}",
+        doc.content == "Hello, World!"
+    );
+    println!(
+        "Author matches original: {}",
+        doc.metadata.author == "Akash"
+    );
     println!("Revision matches original: {}", doc.metadata.revision == 1);
     println!(
         "Tags match original: {}",

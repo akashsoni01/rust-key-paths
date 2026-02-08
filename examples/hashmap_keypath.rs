@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::{Casepaths, Keypaths};
+use keypaths_proc::{Casepaths, Kp};
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct SomeComplexStruct {
     scsf: HashMap<String, SomeOtherStruct>,
@@ -79,7 +79,7 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
@@ -92,14 +92,14 @@ enum SomeEnum {
     B(DarkStruct),
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
-#[derive(Debug, Keypaths)]
+#[derive(Debug, Kp)]
 #[All]
 struct DarkStruct {
     dsf: String,
@@ -109,7 +109,7 @@ fn main() {
     let op = SomeComplexStruct::scsf_fw_at("1".to_string())
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_w())
+        .then(SomeEnum::b_w())
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
     if let Some(omsf) = op.get_mut(&mut instance) {
@@ -120,7 +120,7 @@ fn main() {
     let op = SomeComplexStruct::scsf_fw_at("0".to_string())
         .then(SomeOtherStruct::sosf_fw())
         .then(OneMoreStruct::omse_fw())
-        .then(SomeEnum::b_case_w())
+        .then(SomeEnum::b_w())
         .then(DarkStruct::dsf_fw());
     let mut instance = SomeComplexStruct::new();
     if let Some(omsf) = op.get_mut(&mut instance) {
