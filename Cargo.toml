@@ -60,3 +60,7 @@ harness = false
 [[bench]]
 name = "keypath_vs_unwrap"
 harness = false
+
+[[bench]]
+name = "ten_level_arc_rwlock"
+harness = false
