@@ -3,6 +3,80 @@
 Key paths provide a **safe, composable way to access and modify nested data** in Rust.
 Inspired by **KeyPath and Functional Lenses** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
 
+## Starter Guide
+
+### Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+rust-key-paths = "2.0.2"
+key-paths-derive = "2.0.2"
+```
+
+### Basic usage
+
+```rust
+use key_paths_derive::Kp;
+
+#[derive(Kp)]
+struct Person {
+    name: String,
+    age: i32,
+}
+
+fn main() {
+    let person = Person { name: "Alice".into(), age: 30 };
+
+    // Read via keypath
+    let name_kp = Person::name();
+    let name = name_kp.get(&person);
+    assert_eq!(name, Some(&"Alice".to_string()));
+
+    // Write via keypath
+    let mut person = person;
+    name_kp.get_mut(&mut person).map(|n| *n = "Bob".into());
+    assert_eq!(person.name, "Bob");
+}
+```
+
+### Composing keypaths
+
+Chain through nested structures with `then()`:
+
+```rust
+#[derive(Kp)]
+struct Address { street: String }
+
+#[derive(Kp)]
+struct Person { address: Box<Address> }
+
+let street_kp = Person::address().then(Address::street());
+let street = street_kp.get(&person);  // Option<&String>
+```
+
+### Partial and Any keypaths
+
+Use `#[derive(Pkp, Akp)]` (requires `Kp`) to get type-erased keypath collections:
+
+- **PKp** – `partial_kps()` returns `Vec<PKp<Self>>`; value type erased, root known
+- **AKp** – `any_kps()` returns `Vec<AKp>`; both root and value type-erased for heterogeneous collections
+
+Filter by `value_type_id()` / `root_type_id()` and read with `get_as()`. For writes, dispatch to the typed `Kp` (e.g. `Person::name()`) based on TypeId.
+
+See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
+
+### More examples
+
+```bash
+cargo run --example kp_derive_showcase
+cargo run --example pkp_akp_filter_typeid
+cargo run --example pkp_akp_read_write_convert
+```
+
+---
+
 ## Supported containers
 
 The `#[derive(Kp)]` macro (from `key-paths-derive`) generates keypath accessors for these wrapper types:
