@@ -82,9 +82,9 @@ fn bench_read_nested_option(c: &mut Criterion) {
     let mut group = c.benchmark_group("read_nested_option");
 
     let instance = Level1Struct::new();
-    let kp0 = Level1Struct::level1_field();
-    let step1 = kp0.then(Level2Struct::level2_field());
-    let kp = step1.then(Level3Struct::level3_field());
+    let kp = Level1Struct::level1_field()
+        .then(Level2Struct::level2_field())
+        .then(Level3Struct::level3_field());
 
     // Keypath approach: Level1 -> Level2 -> Level3
     group.bench_function("keypath", |b| {
@@ -116,9 +116,9 @@ fn bench_write_nested_option(c: &mut Criterion) {
     group.bench_function("keypath", |b| {
         let mut instance = Level1Struct::new();
         b.iter(|| {
-            let kp0 = Level1Struct::level1_field();
-            let step1 = kp0.then(Level2Struct::level2_field());
-            let keypath = step1.then(Level3Struct::level3_field());
+            let keypath = Level1Struct::level1_field()
+                .then(Level2Struct::level2_field())
+                .then(Level3Struct::level3_field());
             let result = keypath.get_mut(black_box(&mut instance));
             black_box(result.is_some())
         })
@@ -147,11 +147,11 @@ fn bench_deep_nested_without_enum(c: &mut Criterion) {
 
     let instance = Level1Struct::new();
 
-    let kp0 = Level1Struct::level1_field();
-    let s1 = kp0.then(Level2Struct::level2_field());
-    let s2 = s1.then(Level3Struct::level3_deep_field());
-    let s3 = s2.then(Level4Struct::level4_field());
-    let keypath = s3.then(Level5Struct::level5_field());
+    let keypath = Level1Struct::level1_field()
+        .then(Level2Struct::level2_field())
+        .then(Level3Struct::level3_deep_field())
+        .then(Level4Struct::level4_field())
+        .then(Level5Struct::level5_field());
 
     group.bench_function("keypath", |b| {
         b.iter(|| {
@@ -183,11 +183,11 @@ fn bench_deep_nested_with_enum(c: &mut Criterion) {
 
     let instance = Level1Struct::new();
 
-    let kp0 = Level1Struct::level1_field();
-    let s1 = kp0.then(Level2Struct::level2_field());
-    let s2 = s1.then(Level3Struct::level3_enum_field());
-    let s3 = s2.then(Level3Enum::b());
-    let keypath = s3.then(Level3EnumStruct::level3_enum_struct_field());
+    let keypath = Level1Struct::level1_field()
+        .then(Level2Struct::level2_field())
+        .then(Level3Struct::level3_enum_field())
+        .then(Level3Enum::b())
+        .then(Level3EnumStruct::level3_enum_struct_field());
 
     group.bench_function("keypath", |b| {
         b.iter(|| {
@@ -222,11 +222,11 @@ fn bench_write_deep_nested_with_enum(c: &mut Criterion) {
     group.bench_function("keypath", |b| {
         let mut instance = Level1Struct::new();
         b.iter(|| {
-            let kp0 = Level1Struct::level1_field();
-            let s1 = kp0.then(Level2Struct::level2_field());
-            let s2 = s1.then(Level3Struct::level3_enum_field());
-            let s3 = s2.then(Level3Enum::b());
-            let keypath = s3.then(Level3EnumStruct::level3_enum_struct_field());
+            let keypath = Level1Struct::level1_field()
+                .then(Level2Struct::level2_field())
+                .then(Level3Struct::level3_enum_field())
+                .then(Level3Enum::b())
+                .then(Level3EnumStruct::level3_enum_struct_field());
             let result = keypath.get_mut(black_box(&mut instance));
             black_box(result.is_some())
         })
@@ -261,11 +261,11 @@ fn bench_keypath_creation(c: &mut Criterion) {
     group.bench_function("create_complex_keypath", |b| {
         let instance = Level1Struct::new();
         b.iter(|| {
-            let kp0 = Level1Struct::level1_field();
-            let s1 = kp0.then(Level2Struct::level2_field());
-            let s2 = s1.then(Level3Struct::level3_enum_field());
-            let s3 = s2.then(Level3Enum::b());
-            let keypath = s3.then(Level3EnumStruct::level3_enum_struct_field());
+            let keypath = Level1Struct::level1_field()
+                .then(Level2Struct::level2_field())
+                .then(Level3Struct::level3_enum_field())
+                .then(Level3Enum::b())
+                .then(Level3EnumStruct::level3_enum_struct_field());
             black_box(keypath.get(black_box(&instance)).is_some())
         })
     });
@@ -281,9 +281,9 @@ fn bench_keypath_reuse(c: &mut Criterion) {
 
     group.bench_function("keypath_reused", |b| {
         b.iter(|| {
-            let kp0 = Level1Struct::level1_field();
-            let step1 = kp0.then(Level2Struct::level2_field());
-            let keypath = step1.then(Level3Struct::level3_field());
+            let keypath = Level1Struct::level1_field()
+                .then(Level2Struct::level2_field())
+                .then(Level3Struct::level3_field());
             let mut sum = 0;
             for instance in &mut instances {
                 if let Some(value) = keypath.get_mut(instance) {
@@ -321,9 +321,9 @@ fn bench_composition_overhead(c: &mut Criterion) {
 
     group.bench_function("pre_composed", |b| {
         b.iter(|| {
-            let kp0 = Level1Struct::level1_field();
-            let step1 = kp0.then(Level2Struct::level2_field());
-            let pre_composed = step1.then(Level3Struct::level3_field());
+            let pre_composed = Level1Struct::level1_field()
+                .then(Level2Struct::level2_field())
+                .then(Level3Struct::level3_field());
             let result = pre_composed.get_mut(black_box(&mut instance));
             black_box(result.is_some())
         })
@@ -332,9 +332,9 @@ fn bench_composition_overhead(c: &mut Criterion) {
     // Composed on-the-fly
     group.bench_function("composed_on_fly", |b| {
         b.iter(|| {
-            let kp0 = Level1Struct::level1_field();
-            let s1 = kp0.then(Level2Struct::level2_field());
-            let keypath = s1.then(Level3Struct::level3_field());
+            let keypath = Level1Struct::level1_field()
+                .then(Level2Struct::level2_field())
+                .then(Level3Struct::level3_field());
             let result = keypath.get(black_box(&instance)).map(|s| s.len());
             black_box(result)
         })
@@ -428,16 +428,16 @@ fn bench_ten_level(c: &mut Criterion) {
     let instance = TenLevel1Struct::new();
     group.bench_function("read", |b| {
         b.iter(|| {
-            let k0 = TenLevel1Struct::level1_field();
-            let k1 = k0.then(TenLevel2Struct::level2_field());
-            let k2 = k1.then(TenLevel3Struct::level3_field());
-            let k3 = k2.then(TenLevel4Struct::level4_field());
-            let k4 = k3.then(TenLevel5Struct::level5_field());
-            let k5 = k4.then(TenLevel6Struct::level6_field());
-            let k6 = k5.then(TenLevel7Struct::level7_field());
-            let k7 = k6.then(TenLevel8Struct::level8_field());
-            let k8 = k7.then(TenLevel9Struct::level9_field());
-            let read_kp = k8.then(TenLevel10Struct::level10_field());
+            let read_kp = TenLevel1Struct::level1_field()
+                .then(TenLevel2Struct::level2_field())
+                .then(TenLevel3Struct::level3_field())
+                .then(TenLevel4Struct::level4_field())
+                .then(TenLevel5Struct::level5_field())
+                .then(TenLevel6Struct::level6_field())
+                .then(TenLevel7Struct::level7_field())
+                .then(TenLevel8Struct::level8_field())
+                .then(TenLevel9Struct::level9_field())
+                .then(TenLevel10Struct::level10_field());
             let result = read_kp.get(black_box(&instance));
             black_box(result.is_some())
         })
@@ -448,16 +448,16 @@ fn bench_ten_level(c: &mut Criterion) {
 
     group.bench_function("write", |b| {
         b.iter(|| {
-            let k0 = TenLevel1Struct::level1_field();
-            let k1 = k0.then(TenLevel2Struct::level2_field());
-            let k2 = k1.then(TenLevel3Struct::level3_field());
-            let k3 = k2.then(TenLevel4Struct::level4_field());
-            let k4 = k3.then(TenLevel5Struct::level5_field());
-            let k5 = k4.then(TenLevel6Struct::level6_field());
-            let k6 = k5.then(TenLevel7Struct::level7_field());
-            let k7 = k6.then(TenLevel8Struct::level8_field());
-            let k8 = k7.then(TenLevel9Struct::level9_field());
-            let write_kp = k8.then(TenLevel10Struct::level10_field());
+            let write_kp = TenLevel1Struct::level1_field()
+                .then(TenLevel2Struct::level2_field())
+                .then(TenLevel3Struct::level3_field())
+                .then(TenLevel4Struct::level4_field())
+                .then(TenLevel5Struct::level5_field())
+                .then(TenLevel6Struct::level6_field())
+                .then(TenLevel7Struct::level7_field())
+                .then(TenLevel8Struct::level8_field())
+                .then(TenLevel9Struct::level9_field())
+                .then(TenLevel10Struct::level10_field());
             if let Some(value) = write_kp.get_mut(black_box(&mut instance_mut)) {
                 *value = String::from("updated value");
             }

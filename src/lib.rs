@@ -674,7 +674,7 @@ where
     }
 
     pub fn then<SV, SubValue, MutSubValue, G2, S2>(
-        &self,
+        self,
         next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
     ) -> Kp<
         R,
@@ -683,8 +683,8 @@ where
         SubValue,
         MutRoot,
         MutSubValue,
-        impl Fn(Root) -> Option<SubValue> + use<'_, SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
-        impl Fn(MutRoot) -> Option<MutSubValue> + use<'_, SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
+        impl Fn(Root) -> Option<SubValue> + use<SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
+        impl Fn(MutRoot) -> Option<MutSubValue> + use<SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
     >
     where
         SubValue: std::borrow::Borrow<SV>,
@@ -694,8 +694,8 @@ where
         V: 'static,
     {
         Kp::new(
-            move |root: Root| (&self.get)(root).and_then(|value| (next.get)(value)),
-            move |root: MutRoot| (&self.set)(root).and_then(|value| (next.set)(value)),
+            move |root: Root| (self.get)(root).and_then(|value| (next.get)(value)),
+            move |root: MutRoot| (self.set)(root).and_then(|value| (next.set)(value)),
         )
     }
 
@@ -1323,7 +1323,7 @@ where
     /// Chain this keypath with another to create a composition
     /// Alias for `then` with a more descriptive name
     pub fn chain<SV, SubValue, MutSubValue, G2, S2>(
-        &self,
+        self,
         next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
     ) -> Kp<
         R,
@@ -2008,18 +2008,16 @@ mod tests {
         let kp = TestKP::identity();
         let kp_a = TestKP::a();
         // TestKP::a().for_arc();
-        let kp_f = TestKP::f();
-        let wres = kp_f.then(TestKP2::a()).get_mut(&mut instance).unwrap();
+        let wres = TestKP::f().then(TestKP2::a()).get_mut(&mut instance).unwrap();
         *wres = String::from("a3 changed successfully");
-        let res = kp_f.then(TestKP2::a()).get(&instance);
+        let res = TestKP::f().then(TestKP2::a()).get(&instance);
         println!("{:?}", res);
-        let res = kp_f.then(TestKP2::identity()).get(&instance);
+        let res = TestKP::f().then(TestKP2::identity()).get(&instance);
         println!("{:?}", res);
         let res = kp.get(&instance);
         println!("{:?}", res);
 
-        let hash_kp = TestKP::g(0);
-        let new_kp_from_hashmap = hash_kp.then(TestKP2::a());
+        let new_kp_from_hashmap = TestKP::g(0).then(TestKP2::a());
         println!("{:?}", new_kp_from_hashmap.get(&instance));
     }
 
