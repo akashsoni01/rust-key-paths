@@ -615,6 +615,14 @@ where
 /// AKp (AnyKeyPath) - Hides both Root and Value types
 /// Most flexible keypath type for heterogeneous collections
 /// Uses dynamic dispatch and type checking at runtime
+///
+/// # Mutation: get vs get_mut (setter path)
+///
+/// - **[get](Kp::get)** uses the `get` closure (getter): `Fn(Root) -> Option<Value>`
+/// - **[get_mut](Kp::get_mut)** uses the `set` closure (setter): `Fn(MutRoot) -> Option<MutValue>`
+///
+/// When mutating through a Kp, the **setter path** is used—`get_mut` invokes the `set` closure,
+/// not the `get` closure. The getter is for read-only access only.
 #[derive(Clone)]
 pub struct Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
@@ -624,7 +632,9 @@ where
     G: Fn(Root) -> Option<Value>,
     S: Fn(MutRoot) -> Option<MutValue>,
 {
+    /// Getter closure: used by [Kp::get] for read-only access.
     pub get: G,
+    /// Setter closure: used by [Kp::get_mut] for mutation.
     pub set: S,
     _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
 }
@@ -4748,7 +4758,7 @@ mod tests {
             leaf: i32,
         }
 
-        let root = Root {
+        let mut root = Root {
             sync_mutex: Arc::new(Mutex::new(Level1 {
                 inner: Level2 {
                     tokio_mutex: Arc::new(tokio::sync::Mutex::new(Level3 { leaf: 42 })),
@@ -4794,7 +4804,8 @@ mod tests {
 
         // Read leaf through full chain (async)
         let leaf = deep_chain.get(&root).await;
-        assert_eq!(leaf, Some(&42));
+        deep_chain.get_mut(&mut root).await.map(|l| *l = 100);
+        assert_eq!(leaf, Some(&100));
 
         // Mutate leaf through full chain
         let mut root_mut = root.clone();

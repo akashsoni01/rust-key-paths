@@ -150,6 +150,15 @@ where
 }
 
 /// Trait for async keypaths (both [AsyncLockKp] and [ComposedAsyncLockKp]) so composition can be any depth.
+///
+/// # Why MutRoot? (RwLock/Mutex interior mutability)
+///
+/// RwLock and Mutex provide **interior mutability**—their `lock()` / `write()` methods take `&self`,
+/// so you can mutate through an immutable reference. For **async lock keypaths**, the mutation
+/// happens inside the lock; you do *not* need a mutable root. `MutRoot` exists for composition
+/// with sync keypaths (e.g. [Kp]) that may require `&mut` along the path. When the path goes
+/// entirely through locks (RwLock/Mutex), `Root` and `MutRoot` are typically the same type
+/// (e.g. `&Root` for both).
 #[async_trait(?Send)]
 pub trait AsyncKeyPathLike<Root, MutRoot> {
     /// Value type at the end of the keypath.
@@ -338,7 +347,12 @@ where
         (self.next.set)(mid_value)
     }
 
-    /// Set the value through the lock using an updater function
+    /// Set the value through the lock using an updater function.
+    ///
+    /// Uses interior mutability—no mutable root required. RwLock/Mutex allow mutation through
+    /// `&self` (lock().write() etc.), so `root` can be `&Root`.
+    ///
+    /// Internally uses: `prev.get` → `mid.lock_read`/`lock_write` → `next.set` (the setter path).
     pub async fn set<F>(&self, root: Root, updater: F) -> Result<(), String>
     where
         Lock: Clone,
