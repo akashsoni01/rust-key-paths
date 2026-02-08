@@ -486,6 +486,39 @@ where
 }
 
 // ============================================================================
+// KpThenLockKp: Kp .then_lock(LockKp) — sync keypath then sync lock
+// ============================================================================
+
+/// Keypath that chains a [crate::Kp] with a [LockKp]. Use [crate::Kp::then_lock] to create.
+#[derive(Clone)]
+pub struct KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second> {
+    pub(crate) first: First,
+    pub(crate) second: Second,
+    pub(crate) _p: std::marker::PhantomData<(R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2)>,
+}
+
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+where
+    First: crate::async_lock::SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: crate::async_lock::SyncKeyPathLike<Value, Value2, MutValue, MutValue2>,
+{
+    /// Get through first keypath then second (sync).
+    pub fn get(&self, root: Root) -> Option<Value2>
+    where
+        Value2: Clone,
+    {
+        let v = self.first.sync_get(root)?;
+        self.second.sync_get(v)
+    }
+    /// Get mutable through first then second (sync).
+    pub fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
+        let mut_v = self.first.sync_get_mut(root)?;
+        self.second.sync_get_mut(mut_v)
+    }
+}
+
+// ============================================================================
 // Standard Lock Access Implementations
 // ============================================================================
 

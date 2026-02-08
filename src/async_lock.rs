@@ -63,9 +63,28 @@ pub trait AsyncLockLike<Lock, Inner>: Send + Sync {
 }
 
 /// Sync keypath that can be used as the "second" in [AsyncLockKpThenLockKp] for blanket impls.
+/// Also implemented for [crate::Kp] so [crate::Kp::then_lock] and [crate::Kp::then_async] can chain.
 pub trait SyncKeyPathLike<Root, Value, MutRoot, MutValue> {
     fn sync_get(&self, root: Root) -> Option<Value>;
     fn sync_get_mut(&self, root: MutRoot) -> Option<MutValue>;
+}
+
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> SyncKeyPathLike<Root, Value, MutRoot, MutValue>
+    for crate::Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
+where
+    Root: std::borrow::Borrow<R>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G: Fn(Root) -> Option<Value>,
+    S: Fn(MutRoot) -> Option<MutValue>,
+{
+    fn sync_get(&self, root: Root) -> Option<Value> {
+        self.get(root)
+    }
+    fn sync_get_mut(&self, root: MutRoot) -> Option<MutValue> {
+        self.get_mut(root)
+    }
 }
 
 impl<
@@ -832,6 +851,51 @@ where
             second: lock_kp,
             _p: std::marker::PhantomData,
         }
+    }
+}
+
+/// Keypath that chains a sync keypath ([crate::Kp]) with an [AsyncKeyPathLike]. Use [crate::Kp::then_async] to create; then `.get(&root).await`.
+#[derive(Clone)]
+pub struct KpThenAsyncKeyPath<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second> {
+    pub(crate) first: First,
+    pub(crate) second: Second,
+    pub(crate) _p: std::marker::PhantomData<(R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2)>,
+}
+
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    KpThenAsyncKeyPath<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+where
+    First: SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    /// Get through sync keypath then async keypath (root is passed here).
+    pub async fn get(&self, root: Root) -> Option<Value2> {
+        let v = self.first.sync_get(root)?;
+        self.second.get(v).await
+    }
+    /// Get mutable through sync then async (root is passed here).
+    pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
+        let mut_v = self.first.sync_get_mut(root)?;
+        self.second.get_mut(mut_v).await
+    }
+}
+
+#[async_trait(?Send)]
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    AsyncKeyPathLike<Root, MutRoot> for KpThenAsyncKeyPath<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+where
+    First: SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    type Value = Value2;
+    type MutValue = MutValue2;
+    async fn get(&self, root: Root) -> Option<Value2> {
+        let v = self.first.sync_get(root)?;
+        self.second.get(v).await
+    }
+    async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
+        let mut_v = self.first.sync_get_mut(root)?;
+        self.second.get_mut(mut_v).await
     }
 }
 

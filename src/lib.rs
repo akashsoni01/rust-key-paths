@@ -669,6 +669,89 @@ where
         )
     }
 
+    /// Chain with a sync [crate::lock::LockKp]. Use `.get(root)` / `.get_mut(root)` on the returned keypath.
+    pub fn then_lock<
+        Lock,
+        Mid,
+        V2,
+        LockValue,
+        MidValue,
+        Value2,
+        MutLock,
+        MutMid,
+        MutValue2,
+        G1,
+        S1,
+        L,
+        G2,
+        S2,
+    >(
+        self,
+        lock_kp: crate::lock::LockKp<
+            V,
+            Lock,
+            Mid,
+            V2,
+            Value,
+            LockValue,
+            MidValue,
+            Value2,
+            MutValue,
+            MutLock,
+            MutMid,
+            MutValue2,
+            G1,
+            S1,
+            L,
+            G2,
+            S2,
+        >,
+    ) -> crate::lock::KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, Self, crate::lock::LockKp<V, Lock, Mid, V2, Value, LockValue, MidValue, Value2, MutValue, MutLock, MutMid, MutValue2, G1, S1, L, G2, S2>>
+    where
+        V: 'static + Clone,
+        V2: 'static,
+        Value: std::borrow::Borrow<V>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        LockValue: std::borrow::Borrow<Lock>,
+        MidValue: std::borrow::Borrow<Mid>,
+        MutLock: std::borrow::BorrowMut<Lock>,
+        MutMid: std::borrow::BorrowMut<Mid>,
+        G1: Fn(Value) -> Option<LockValue>,
+        S1: Fn(MutValue) -> Option<MutLock>,
+        L: crate::lock::LockAccess<Lock, MidValue> + crate::lock::LockAccess<Lock, MutMid>,
+        G2: Fn(MidValue) -> Option<Value2>,
+        S2: Fn(MutMid) -> Option<MutValue2>,
+    {
+        crate::lock::KpThenLockKp {
+            first: self,
+            second: lock_kp,
+            _p: std::marker::PhantomData,
+        }
+    }
+
+    /// Chain with an async keypath (e.g. [crate::async_lock::AsyncLockKp]). Use `.get(&root).await` on the returned keypath.
+    pub fn then_async<AsyncKp, V2, Value2, MutValue2>(
+        self,
+        async_kp: AsyncKp,
+    ) -> crate::async_lock::KpThenAsyncKeyPath<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, Self, AsyncKp>
+    where
+        V: 'static,
+        V2: 'static,
+        Value: std::borrow::Borrow<V>,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue: std::borrow::BorrowMut<V>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        AsyncKp: crate::async_lock::AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
+    {
+        crate::async_lock::KpThenAsyncKeyPath {
+            first: self,
+            second: async_kp,
+            _p: std::marker::PhantomData,
+        }
+    }
+
     /// Map the value through a transformation function
     /// Returns a new keypath that transforms the value when accessed
     ///
@@ -4472,5 +4555,139 @@ mod tests {
             *elem = 20;
         }
         assert_eq!(buffer.get(1), Some(&20));
+    }
+
+    #[test]
+    fn test_kp_then_lock_deep_structs() {
+        use std::sync::{Arc, Mutex};
+
+        #[derive(Clone)]
+        struct Root {
+            guard: Arc<Mutex<Level1>>,
+        }
+        #[derive(Clone)]
+        struct Level1 {
+            name: String,
+            nested: Level2,
+        }
+        #[derive(Clone)]
+        struct Level2 {
+            count: i32,
+        }
+
+        let root = Root {
+            guard: Arc::new(Mutex::new(Level1 {
+                name: "deep".to_string(),
+                nested: Level2 { count: 42 },
+            })),
+        };
+
+        let kp_to_guard: KpType<Root, Arc<Mutex<Level1>>> =
+            Kp::new(|r: &Root| Some(&r.guard), |r: &mut Root| Some(&mut r.guard));
+
+        let lock_kp = {
+            let prev: KpType<Arc<Mutex<Level1>>, Arc<Mutex<Level1>>> =
+                Kp::new(|g: &Arc<Mutex<Level1>>| Some(g), |g: &mut Arc<Mutex<Level1>>| Some(g));
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
+            crate::lock::LockKp::new(prev, crate::lock::ArcMutexAccess::new(), next)
+        };
+
+        let chained = kp_to_guard.then_lock(lock_kp);
+        let level1 = chained.get(&root);
+        assert!(level1.is_some());
+        assert_eq!(level1.unwrap().name, "deep");
+        assert_eq!(level1.unwrap().nested.count, 42);
+
+        let mut_root = &mut root.clone();
+        let mut_level1 = chained.get_mut(mut_root);
+        assert!(mut_level1.is_some());
+        mut_level1.unwrap().nested.count = 99;
+        assert_eq!(chained.get(&root).unwrap().nested.count, 99);
+    }
+
+    #[test]
+    fn test_kp_then_lock_with_enum() {
+        use std::sync::{Arc, Mutex};
+
+        #[derive(Clone)]
+        enum Message {
+            Request(LevelA),
+            Response(i32),
+        }
+        #[derive(Clone)]
+        struct LevelA {
+            data: Arc<Mutex<i32>>,
+        }
+
+        struct RootWithEnum {
+            msg: Arc<Mutex<Message>>,
+        }
+
+        let root = RootWithEnum {
+            msg: Arc::new(Mutex::new(Message::Request(LevelA {
+                data: Arc::new(Mutex::new(100)),
+            }))),
+        };
+
+        let kp_msg: KpType<RootWithEnum, Arc<Mutex<Message>>> =
+            Kp::new(|r: &RootWithEnum| Some(&r.msg), |r: &mut RootWithEnum| Some(&mut r.msg));
+
+        let lock_kp_msg = {
+            let prev: KpType<Arc<Mutex<Message>>, Arc<Mutex<Message>>> =
+                Kp::new(|m: &Arc<Mutex<Message>>| Some(m), |m: &mut Arc<Mutex<Message>>| Some(m));
+            let next: KpType<Message, Message> =
+                Kp::new(|m: &Message| Some(m), |m: &mut Message| Some(m));
+            crate::lock::LockKp::new(prev, crate::lock::ArcMutexAccess::new(), next)
+        };
+
+        let chained = kp_msg.then_lock(lock_kp_msg);
+        let msg = chained.get(&root);
+        assert!(msg.is_some());
+        match msg.unwrap() {
+            Message::Request(a) => assert_eq!(*a.data.lock().unwrap(), 100),
+            Message::Response(_) => panic!("expected Request"),
+        }
+    }
+
+    #[cfg(all(feature = "tokio", feature = "parking_lot"))]
+    #[tokio::test]
+    async fn test_kp_then_async_deep_chain() {
+        use std::sync::Arc;
+        use crate::async_lock::{AsyncLockKp, TokioMutexAccess};
+
+        #[derive(Clone)]
+        struct Root {
+            tokio_guard: Arc<tokio::sync::Mutex<Level1>>,
+        }
+        #[derive(Clone)]
+        struct Level1 {
+            value: i32,
+        }
+
+        let root = Root {
+            tokio_guard: Arc::new(tokio::sync::Mutex::new(Level1 { value: 7 })),
+        };
+
+        let kp_to_guard: KpType<Root, Arc<tokio::sync::Mutex<Level1>>> = Kp::new(
+            |r: &Root| Some(&r.tokio_guard),
+            |r: &mut Root| Some(&mut r.tokio_guard),
+        );
+
+        let async_kp = {
+            let prev: KpType<Arc<tokio::sync::Mutex<Level1>>, Arc<tokio::sync::Mutex<Level1>>> =
+                Kp::new(
+                    |g: &Arc<tokio::sync::Mutex<Level1>>| Some(g),
+                    |g: &mut Arc<tokio::sync::Mutex<Level1>>| Some(g),
+                );
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        let chained = kp_to_guard.then_async::<_, Level1, &Level1, &mut Level1>(async_kp);
+        let level1 = chained.get(&root).await;
+        assert!(level1.is_some());
+        assert_eq!(level1.unwrap().value, 7);
     }
 }
