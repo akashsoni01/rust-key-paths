@@ -6,12 +6,11 @@
 // 4. Build a generic change detection system
 // cargo run --example change_tracker
 
-use keypaths_proc::Kp;
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 use serde::{Deserialize, Serialize};
+use key_paths_derive::Kp;
+use rust_key_paths::KpType;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Kp)]
-#[All]
 struct AppState {
     user: User,
     settings: Settings,
@@ -19,7 +18,6 @@ struct AppState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Kp)]
-#[All]
 struct User {
     id: u64,
     name: String,
@@ -27,14 +25,12 @@ struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Kp)]
-#[All]
 struct Settings {
     theme: String,
     language: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Kp)]
-#[Writable]
 struct Cache {
     last_sync: u64,
 }
@@ -69,8 +65,8 @@ impl<T> ChangeTracker<T> {
 
     fn add_path<FR, FW>(
         &mut self,
-        read_path: OptionalKeyPath<T, String, FR>,
-        write_path: WritableOptionalKeyPath<T, String, FW>,
+        read_path: KpType<T, String, FR>,
+        write_path: KpType<T, String, FW>,
         name: Vec<String>,
     ) where
         FR: for<'r> Fn(&'r T) -> Option<&'r String> + 'static,
@@ -242,7 +238,7 @@ fn main() {
     println!("Making local changes...");
     // Note: WritableKeyPath doesn't have then() - convert to optional first
     if let Some(name) = AppState::user_w()
-        .to_optional() // Convert WritableKeyPath to WritableOptionalKeyPath for chaining
+        .to_optional() // Convert WritableKeyPath to KpType for chaining
         .then(User::name_w().to_optional())
         .get_mut(&mut local_state)
     {
@@ -250,7 +246,7 @@ fn main() {
     }
 
     if let Some(language) = AppState::settings_w()
-        .to_optional() // Convert WritableKeyPath to WritableOptionalKeyPath for chaining
+        .to_optional() // Convert WritableKeyPath to KpType for chaining
         .then(Settings::language_w().to_optional())
         .get_mut(&mut local_state)
     {
