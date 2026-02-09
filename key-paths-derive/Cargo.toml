@@ -1,6 +1,6 @@
 [package]
 name = "key-paths-derive"
-version = "2.0.2"
+version = "2.0.3"
 edition = "2024"
 description = "Proc-macro derive to generate keypath methods"
 license = "MPL-2.0"
@@ -22,5 +22,5 @@ syn = { version = "2", features = ["full"] }
 
 
 [dev-dependencies]
-rust-key-paths = { path = "../", version = "2.0.2", features = ["tokio"] }
+rust-key-paths = { path = "../", version = "2.0.3", features = ["tokio"] }
 tokio = { version = "1.38", features = ["sync", "rt", "macros"] }

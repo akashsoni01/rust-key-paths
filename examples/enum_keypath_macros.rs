@@ -1,5 +1,4 @@
-use keypaths_proc::Kp;
-use rust_keypaths::EnumKeyPath;
+use key_paths_derive::Kp;
 
 #[derive(Debug, Clone, Kp)]
 struct User {
@@ -21,8 +20,8 @@ enum SomeOtherStatus {
 
 fn main() {
     // Derive-generated keypaths for struct fields
-    let user_name_kp = User::name_r();
-    let user_id_kp = User::id_r();
+    let user_name_kp = User::name();
+    let user_id_kp = User::id();
 
     let user = User {
         id: 7,
@@ -74,7 +73,7 @@ fn main() {
         },
     )
     .to_optional()
-    .then(User::name_r().to_optional());
+    .then(User::name().to_optional());
 
     println!("Active user name = {:?}", active_user_name.get(&status));
 
