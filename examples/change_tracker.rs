@@ -1,14 +1,14 @@
-// Demonstrates using rust-key-paths for change tracking and synchronization
-// This example shows how to:
-// 1. Track changes between two states using keypaths
-// 2. Serialize changes for network transmission
-// 3. Apply changes from remote sources
-// 4. Build a generic change detection system
-// cargo run --example change_tracker
+//! Change tracking and synchronization using rust-key-paths.
+//!
+//! Demonstrates:
+//! 1. Detecting changes between two states using keypaths
+//! 2. Serializing changes for transmission
+//! 3. Applying changes from remote sources
+//!
+//! Run with: `cargo run --example change_tracker`
 
-use serde::{Deserialize, Serialize};
 use key_paths_derive::Kp;
-use rust_key_paths::KpType;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Kp)]
 struct AppState {
@@ -35,26 +35,23 @@ struct Cache {
     last_sync: u64,
 }
 
-// Path identifier for serialization
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct FieldChange {
-    path: Vec<String>, // e.g., ["user", "name"]
+    path: Vec<String>,
     old_value: String,
     new_value: String,
 }
 
-// Track which paths changed
-// Note: We need both readable and writable keypaths because:
-// - Readable paths (_r) work with immutable references for comparison
-// - Writable paths (_w) work with mutable references for updates
 struct ChangeTracker<T: 'static> {
-    // Use closures to store keypaths with different closure types
-    read_paths: Vec<Box<dyn Fn(&T) -> Option<&String>>>, // For reading/comparing
-    write_paths: Vec<Box<dyn Fn(&mut T) -> Option<&mut String>>>, // For writing changes
-    path_names: Vec<Vec<String>>,                        // Human-readable path identifiers
+    read_paths: Vec<Box<dyn Fn(&T) -> Option<&String>>>,
+    write_paths: Vec<Box<dyn Fn(&mut T) -> Option<&mut String>>>,
+    path_names: Vec<Vec<String>>,
 }
 
-impl<T> ChangeTracker<T> {
+impl<T> ChangeTracker<T>
+where
+    T: 'static,
+{
     fn new() -> Self {
         Self {
             read_paths: Vec::new(),
@@ -63,35 +60,21 @@ impl<T> ChangeTracker<T> {
         }
     }
 
-    fn add_path<FR, FW>(
-        &mut self,
-        read_path: KpType<T, String, FR>,
-        write_path: KpType<T, String, FW>,
-        name: Vec<String>,
-    ) where
-        FR: for<'r> Fn(&'r T) -> Option<&'r String> + 'static,
-        FW: for<'r> Fn(&'r mut T) -> Option<&'r mut String> + 'static,
+    fn add_path<FR, FW>(&mut self, read: FR, write: FW, name: Vec<String>)
+    where
+        FR: Fn(&T) -> Option<&String> + 'static,
+        FW: Fn(&mut T) -> Option<&mut String> + 'static,
     {
-        // Extract the closures from the keypaths and store them as trait objects
-        // We need to move the keypaths into the closures
-        let read_closure: Box<dyn Fn(&T) -> Option<&String>> =
-            Box::new(move |t: &T| read_path.get(t));
-
-        let write_closure: Box<dyn Fn(&mut T) -> Option<&mut String>> =
-            Box::new(move |t: &mut T| write_path.get_mut(t));
-
-        self.read_paths.push(read_closure);
-        self.write_paths.push(write_closure);
+        self.read_paths.push(Box::new(read));
+        self.write_paths.push(Box::new(write));
         self.path_names.push(name);
     }
 
     fn detect_changes(&self, old: &T, new: &T) -> Vec<FieldChange> {
         let mut changes = Vec::new();
-
         for (path, path_name) in self.read_paths.iter().zip(&self.path_names) {
             let old_val = path(old);
             let new_val = path(new);
-
             if old_val != new_val {
                 changes.push(FieldChange {
                     path: path_name.clone(),
@@ -100,7 +83,6 @@ impl<T> ChangeTracker<T> {
                 });
             }
         }
-
         changes
     }
 
@@ -118,11 +100,9 @@ impl<T> ChangeTracker<T> {
     }
 }
 
-// Usage: Real-time sync
 fn main() {
     println!("=== Change Tracker Demo ===\n");
 
-    // Initial local state
     let mut local_state = AppState {
         user: User {
             id: 1,
@@ -139,15 +119,14 @@ fn main() {
     println!("Initial local state:");
     println!("{:#?}\n", local_state);
 
-    // Simulated remote state (as if from server)
     let remote_state = AppState {
         user: User {
             id: 1,
-            name: "Akash Cooper".to_string(), // Name changed
+            name: "Akash Cooper".to_string(),
             online: true,
         },
         settings: Settings {
-            theme: "light".to_string(), // Theme changed
+            theme: "light".to_string(),
             language: "en".to_string(),
         },
         cache: Cache { last_sync: 1000 },
@@ -156,39 +135,25 @@ fn main() {
     println!("Remote state (from server):");
     println!("{:#?}\n", remote_state);
 
-    // Create tracker with keypaths for fields we want to monitor
     let mut tracker = ChangeTracker::new();
 
-    // Add paths to track (need both readable for comparison and writable for updates)
+    // Add paths: closures that use the composed keypaths
     tracker.add_path(
-        AppState::user_r().to_optional().then(User::name_fr()),
-        AppState::user_w()
-            .to_optional()
-            .then(User::name_w().to_optional()),
+        |s: &AppState| AppState::user().then(User::name()).get(s),
+        |s: &mut AppState| AppState::user().then(User::name()).get_mut(s),
         vec!["user".into(), "name".into()],
     );
-
     tracker.add_path(
-        AppState::settings_r()
-            .to_optional()
-            .then(Settings::theme_r().to_optional()),
-        AppState::settings_w()
-            .to_optional()
-            .then(Settings::theme_w().to_optional()),
+        |s: &AppState| AppState::settings().then(Settings::theme()).get(s),
+        |s: &mut AppState| AppState::settings().then(Settings::theme()).get_mut(s),
         vec!["settings".into(), "theme".into()],
     );
-
     tracker.add_path(
-        AppState::settings_r()
-            .to_optional()
-            .then(Settings::language_r().to_optional()),
-        AppState::settings_w()
-            .to_optional()
-            .then(Settings::language_w().to_optional()),
+        |s: &AppState| AppState::settings().then(Settings::language()).get(s),
+        |s: &mut AppState| AppState::settings().then(Settings::language()).get_mut(s),
         vec!["settings".into(), "language".into()],
     );
 
-    // Detect what changed on server
     println!("--- Detecting Changes ---");
     let changes = tracker.detect_changes(&local_state, &remote_state);
 
@@ -204,59 +169,42 @@ fn main() {
         }
     }
 
-    // Serialize changes for network transmission
     let json = serde_json::to_string_pretty(&changes).unwrap();
     println!("\n--- Serialized Changes (JSON) ---");
     println!("{}\n", json);
 
-    // Apply changes from server to local state
     println!("--- Applying Changes to Local State ---");
     tracker.apply_changes(&mut local_state, &changes);
 
     println!("Updated local state:");
     println!("{:#?}\n", local_state);
 
-    // Verify synchronization
     println!("--- Verification ---");
     let verification_changes = tracker.detect_changes(&local_state, &remote_state);
     if verification_changes.is_empty() {
         println!("✓ Local and remote states are now synchronized!");
     } else {
-        println!("✗ States still differ:");
-        for change in verification_changes {
-            println!(
-                "  • {:?}: '{}' -> '{}'",
-                change.path, change.old_value, change.new_value
-            );
-        }
+        println!("✗ States still differ");
     }
 
-    // Demonstrate bidirectional sync
     println!("\n=== Bidirectional Sync Demo ===\n");
 
-    // Make local changes
-    println!("Making local changes...");
-    // Note: WritableKeyPath doesn't have then() - convert to optional first
-    if let Some(name) = AppState::user_w()
-        .to_optional() // Convert WritableKeyPath to KpType for chaining
-        .then(User::name_w().to_optional())
-        .get_mut(&mut local_state)
     {
-        *name = "Akash C. Johnson".to_string();
+        let name_kp = AppState::user().then(User::name());
+        if let Some(name) = name_kp.get_mut(&mut local_state) {
+            *name = "Akash C. Johnson".to_string();
+        }
     }
-
-    if let Some(language) = AppState::settings_w()
-        .to_optional() // Convert WritableKeyPath to KpType for chaining
-        .then(Settings::language_w().to_optional())
-        .get_mut(&mut local_state)
     {
-        *language = "es".to_string();
+        let lang_kp = AppState::settings().then(Settings::language());
+        if let Some(lang) = lang_kp.get_mut(&mut local_state) {
+            *lang = "es".to_string();
+        }
     }
 
     println!("Local state after modifications:");
     println!("{:#?}\n", local_state);
 
-    // Detect changes to send to server
     let outgoing_changes = tracker.detect_changes(&remote_state, &local_state);
     println!("Changes to send to server:");
     for change in &outgoing_changes {
@@ -270,22 +218,16 @@ fn main() {
     println!("\nOutgoing JSON:");
     println!("{}", outgoing_json);
 
-    // Demonstrate deserializing and applying changes
     println!("\n--- Deserializing Changes from JSON ---");
-    let deserialized_changes: Vec<FieldChange> = serde_json::from_str(&outgoing_json).unwrap();
-    println!(
-        "Successfully deserialized {} changes",
-        deserialized_changes.len()
-    );
+    let deserialized: Vec<FieldChange> = serde_json::from_str(&outgoing_json).unwrap();
+    println!("Deserialized {} changes", deserialized.len());
 
-    // Apply to a new state (simulating server receiving changes)
     let mut server_state = remote_state.clone();
-    tracker.apply_changes(&mut server_state, &deserialized_changes);
+    tracker.apply_changes(&mut server_state, &deserialized);
 
     println!("\nServer state after applying changes:");
     println!("{:#?}", server_state);
 
-    // Final verification
     let final_check = tracker.detect_changes(&local_state, &server_state);
     if final_check.is_empty() {
         println!("\n✓ Full bidirectional sync successful!");
