@@ -189,14 +189,6 @@ Benchmark: 10 levels of nested `Arc<RwLock<Next>>`, reading/writing leaf `f64`. 
 - `cargo bench --bench ten_level_std_rwlock`
 - `cargo bench --features tokio --bench ten_level_tokio_rwlock`
 
-**Read** (get leaf value):
-
-| RwLock implementation | keypath_static | keypath_dynamic | direct_lock |
-|-----------------------|----------------|-----------------|-------------|
-| **parking_lot**       | ~39 ns         | ~44 ns          | ~40 ns      |
-| **std::sync**         | ~102 ns        | ~123 ns         | ~50 ns      |
-| **tokio::sync**       | ~1.75 µs       | ~1.78 µs        | ~274 ns     |
-
 **Incr** (write: leaf += 0.25):
 
 | RwLock implementation | keypath_static | keypath_dynamic | direct_lock |
