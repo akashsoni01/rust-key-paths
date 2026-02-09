@@ -1,13 +1,10 @@
-use keypaths_proc::Kp;
-use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
+use key_paths_derive::Kp;
 
 #[derive(Clone, Debug, Kp)]
-#[Readable]
 struct Account {
     // Inherits the struct-level #[Readable] scope; only readable methods are emitted.
     nickname: Option<String>,
     // Field-level attribute overrides the default, enabling writable accessors.
-    #[Writable]
     balance: i64,
     // Failable readable for Option fields (inherits struct-level #[Readable]).
     recovery_token: Option<String>,
@@ -20,14 +17,14 @@ fn main() {
         recovery_token: Some("token-123".to_string()),
     };
 
-    let nickname_fr = Account::nickname_fr();
-    let balance_w = Account::balance_w();
-    let recovery_token_fr = Account::recovery_token_fr();
+    let nickname_fr = Account::nickname();
+    let balance_w = Account::balance();
+    let recovery_token_fr = Account::recovery_token();
 
     let nickname_value = nickname_fr.get(&account);
     println!("nickname (readable): {:?}", nickname_value);
 
-    let balance_ref = balance_w.get_mut(&mut account);
+    if let Some(balance_ref) = balance_w.get_mut(&mut account)
     {
         *balance_ref += 500;
     }
@@ -42,5 +39,5 @@ fn main() {
     }
 
     // Uncommenting the next line would fail to compile because `nickname` only has readable methods.
-    // let _ = Account::nickname_w();
+    // let _ = Account::nickname();
 }
