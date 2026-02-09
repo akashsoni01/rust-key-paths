@@ -38,7 +38,6 @@ fn main() {
     let _arc_path = AllContainersTest::arc_field();
     // Test sets
     let _hashset_path = AllContainersTest::hashset_field();
-    AllContainersTest::hashset_field()
     let _btreeset_path = AllContainersTest::btreeset_field();
 
     // Test queues and lists

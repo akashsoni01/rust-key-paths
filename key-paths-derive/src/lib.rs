@@ -561,26 +561,54 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
+                            let kp_at_fn = format_ident!("{}_at", field_ident);
+
                             tokens.extend(quote! {
                                 #[inline]
-                                    #[inline]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
+
+                                /// _at: check if element exists and get reference.
+                                /// HashSet does not allow mutable element access (would break hash invariant).
+                                #[inline]
+                                pub fn #kp_at_fn(key: #inner_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
+                                where
+                                    #inner_ty: Clone + std::hash::Hash + Eq + 'static,
+                                {
+                                    rust_key_paths::Kp::new(
+                                        Box::new(move |root: &#name| root.#field_ident.get(&key)),
+                                        Box::new(move |_root: &mut #name| None),
+                                    )
+                                }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
+                            let kp_at_fn = format_ident!("{}_at", field_ident);
+
                             tokens.extend(quote! {
                                 #[inline]
-                                    #[inline]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+
+                                /// _at: check if element exists and get reference.
+                                /// BTreeSet does not allow mutable element access (would break ordering invariant).
+                                #[inline]
+                                pub fn #kp_at_fn(key: #inner_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
+                                where
+                                    #inner_ty: Clone + Ord + 'static,
+                                {
+                                    rust_key_paths::Kp::new(
+                                        Box::new(move |root: &#name| root.#field_ident.get(&key)),
+                                        Box::new(move |_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -1237,26 +1265,54 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                        (WrapperKind::HashSet, Some(inner_ty)) => {
+                            let kp_at_fn = format_ident!("f{}_at", idx);
+
                             tokens.extend(quote! {
                                 #[inline]
-                                    #[inline]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
+
+                                /// _at: check if element exists and get reference.
+                                /// HashSet does not allow mutable element access (would break hash invariant).
+                                #[inline]
+                                pub fn #kp_at_fn(key: #inner_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
+                                where
+                                    #inner_ty: Clone + std::hash::Hash + Eq + 'static,
+                                {
+                                    rust_key_paths::Kp::new(
+                                        Box::new(move |root: &#name| root.#idx_lit.get(&key)),
+                                        Box::new(move |_root: &mut #name| None),
+                                    )
+                                }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
+                            let kp_at_fn = format_ident!("f{}_at", idx);
+
                             tokens.extend(quote! {
                                 #[inline]
-                                    #[inline]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+
+                                /// _at: check if element exists and get reference.
+                                /// BTreeSet does not allow mutable element access (would break ordering invariant).
+                                #[inline]
+                                pub fn #kp_at_fn(key: #inner_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
+                                where
+                                    #inner_ty: Clone + Ord + 'static,
+                                {
+                                    rust_key_paths::Kp::new(
+                                        Box::new(move |root: &#name| root.#idx_lit.get(&key)),
+                                        Box::new(move |_root: &mut #name| None),
                                     )
                                 }
                             });
