@@ -1,7 +1,7 @@
-use keypaths_proc::Kp;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
+use key_paths_derive::Kp;
 
 #[derive(Debug, Kp)]
 struct AllContainersTest {
@@ -31,24 +31,24 @@ fn main() {
     println!("All containers test");
 
     // Test basic containers
-    let _option_path = AllContainersTest::option_field_fr();
-    let _vec_path = AllContainersTest::vec_field_r();
-    let _box_path = AllContainersTest::box_field_r();
-    let _rc_path = AllContainersTest::rc_field_r();
-    let _arc_path = AllContainersTest::arc_field_r();
-
+    let _option_path = AllContainersTest::option_field();
+    let _vec_path = AllContainersTest::vec_field();
+    let _box_path = AllContainersTest::box_field();
+    let _rc_path = AllContainersTest::rc_field();
+    let _arc_path = AllContainersTest::arc_field();
     // Test sets
-    let _hashset_path = AllContainersTest::hashset_field_r();
-    let _btreeset_path = AllContainersTest::btreeset_field_r();
+    let _hashset_path = AllContainersTest::hashset_field();
+    AllContainersTest::hashset_field()
+    let _btreeset_path = AllContainersTest::btreeset_field();
 
     // Test queues and lists
-    let _vecdeque_path = AllContainersTest::vecdeque_field_r();
-    let _linkedlist_path = AllContainersTest::linkedlist_field_r();
-    let _binaryheap_path = AllContainersTest::binaryheap_field_r();
+    let _vecdeque_path = AllContainersTest::vecdeque_field();
+    let _linkedlist_path = AllContainersTest::linkedlist_field();
+    let _binaryheap_path = AllContainersTest::binaryheap_field();
 
     // Test maps
-    let _hashmap_path = AllContainersTest::hashmap_field_r();
-    let _btreemap_path = AllContainersTest::btreemap_field_r();
-    let empty_touple = AllContainersTest::empty_touple_fr();
+    let _hashmap_path = AllContainersTest::hashmap_field();
+    let _btreemap_path = AllContainersTest::btreemap_field();
+    let empty_touple = AllContainersTest::empty_touple();
     println!("All containers generated successfully!");
 }
