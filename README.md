@@ -11,8 +11,8 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "2.0.2"
-key-paths-derive = "2.0.2"
+rust-key-paths = "2.0.4"
+key-paths-derive = "2.0.4"
 ```
 
 ### Basic usage
@@ -114,12 +114,25 @@ Filter by `value_type_id()` / `root_type_id()` and read with `get_as()`. For wri
 
 See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| `parking_lot` | Use `parking_lot::Mutex` / `RwLock` instead of `std::sync` |
+| `tokio` | Async lock support (`tokio::sync::Mutex`, `RwLock`) |
+| `pin_project` | Enable `#[pin]` field support for pin-project compatibility |
+
 ### More examples
 
 ```bash
 cargo run --example kp_derive_showcase
 cargo run --example pkp_akp_filter_typeid
 cargo run --example pkp_akp_read_write_convert
+# Box and Pin support
+cargo run --example box_and_pin_example
+# pin_project #[pin] fields
+cargo run --example pin_project_example --features pin_project
+cargo run --example pin_project_fair_race --features "pin_project,tokio"
 # Deadlock prevention (parallel execution)
 cargo run --example deadlock_prevention_sync --features parking_lot
 cargo run --example deadlock_prevention_async --features tokio
@@ -135,6 +148,7 @@ The `#[derive(Kp)]` macro (from `key-paths-derive`) generates keypath accessors 
 |-----------|--------|-------|
 | `Option<T>` | `field()` | Unwraps to inner type |
 | `Box<T>` | `field()` | Derefs to inner |
+| `Pin<T>`, `Pin<Box<T>>` | `field()`, `field_inner()` | Container + inner (when `T: Unpin`) |
 | `Rc<T>`, `Arc<T>` | `field()` | Derefs; mut when unique ref |
 | `Vec<T>` | `field()`, `field_at(i)` | Container + index access |
 | `HashMap<K,V>`, `BTreeMap<K,V>` | `field_at(k)` | Key-based access |
@@ -149,6 +163,30 @@ The `#[derive(Kp)]` macro (from `key-paths-derive`) generates keypath accessors 
 | `parking_lot::Mutex`, `parking_lot::RwLock` | `field()`, `field_lock()` | parking_lot feature |
 
 Nested combinations (e.g. `Option<Box<T>>`, `Option<Vec<T>>`, `Vec<Option<T>>`) are supported.
+
+### pin_project `#[pin]` fields (optional feature)
+
+When using [pin-project](https://docs.rs/pin-project), mark pinned fields with `#[pin]`. The derive generates:
+
+| `#[pin]` field type | Access | Notes |
+|---------------------|--------|-------|
+| Plain (e.g. `i32`) | `field()`, `field_pinned()` | Pinned projection via `this.project()` |
+| `Future` | `field()`, `field_pinned()`, `field_await()` | Poll through `Pin<&mut Self>` |
+| `Box<dyn Future<Output=T>>` | `field()`, `field_pinned()`, `field_await()` | Same for boxed futures |
+
+Enable with `pin_project` feature and add `#[pin_project]` to your struct:
+
+```rust
+#[pin_project]
+#[derive(Kp)]
+struct WithPinnedFuture {
+    fair: bool,
+    #[pin]
+    fut: Pin<Box<dyn Future<Output = String> + Send>>,
+}
+```
+
+Examples: `pin_project_example`, `pin_project_fair_race` (FairRaceFuture use case).
 
 ## Performance: Kp vs direct unwrap
 
