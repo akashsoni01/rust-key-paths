@@ -10,6 +10,8 @@
 //! - **Per-pixel**: `par_chunks_exact`, `par_iter` process pixels in parallel within each transform
 //! - **Per-row**: `(0..h).into_par_iter()` parallelizes row-wise for blur/sobel
 //! - **Per-image**: when processing a directory, images are processed in parallel via `par_iter`
+//! - **Per-algorithm (PKp + HOF)**: different algorithms run in parallel via `PKp::map`; each algo
+//!   is a type-erased `PKp<Image>` mapping Image → Result<Image, PipelineError>, executed in parallel
 //!
 //! Supported formats (when using image_pipeline_load): PNG, JPEG, GIF, TIFF, BMP
 //!
@@ -20,7 +22,8 @@
 #![cfg(feature = "image_pipeline")]
 
 use rayon::prelude::*;
-use rust_key_paths::{Kp, KpType};
+use rust_key_paths::{Kp, KpType, PKp};
+#[cfg(feature = "image_pipeline_load")]
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -82,7 +85,7 @@ impl ImageKpRegistry {
 // Validation (all reads via keypaths)
 // ============================================================================
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PipelineError {
     InvalidDimensions { width: usize, height: usize },
     UnsupportedChannels(usize),
@@ -573,6 +576,66 @@ pub fn run_pipeline(img: Image) -> Result<(), PipelineError> {
         .and_then(|c| gaussian_blur(&c))
         .and_then(|gb| sobel(&gb))?;
 
+    println!("  algorithms in parallel (PKp + map HOF)...");
+    run_algorithms_parallel_pkp(&img)?;
+
+    Ok(())
+}
+
+/// Run different algorithms in parallel using PKp and the map HOF.
+/// Uses an identity keypath `Image → Image` and `PKp::map` to wrap each algorithm
+/// as a type-erased `PKp<Image>` that maps to `Result<Image, PipelineError>`.
+/// Rayon's `par_iter` runs all algorithms concurrently.
+/// PKp is built inside each parallel task (PKp uses Rc, not Send) so we parallelize over indices.
+pub fn run_algorithms_parallel_pkp(img: &Image) -> Result<(), PipelineError> {
+    validate_image(img)?;
+
+    type AlgoResult = Result<Image, PipelineError>;
+
+    let results: Vec<(&'static str, Result<(), PipelineError>)> = (0..8)
+        .into_par_iter()
+        .map(|idx| {
+            // Create PKp + map HOF inside each parallel task (closures must be 'static for rayon)
+            let identity_kp: KpType<'static, Image, Image> =
+                Kp::new(|i: &Image| Some(i), |i: &mut Image| Some(i));
+            let base = PKp::new(identity_kp);
+            let (name, pkp): (&str, PKp<Image>) = match idx {
+                0 => ("grayscale", base.map(|i| grayscale(i))),
+                1 => ("brightness+30", base.map(|i| brightness(i, 30))),
+                2 => ("contrast(1.2)", base.map(|i| contrast(i, 1.2))),
+                3 => ("threshold(128)", base.map(|i| threshold(i, 128))),
+                4 => ("otsu_threshold", base.map(|i| otsu_threshold(i))),
+                5 => ("box_blur", base.map(|i| box_blur(i))),
+                6 => ("gaussian_blur", base.map(|i| gaussian_blur(i))),
+                7 => ("sobel", base.map(|i| sobel(i))),
+                _ => ("unknown", base.map(|i| grayscale(i))),
+            };
+            let r = pkp.get_as::<AlgoResult>(img);
+            (
+                name,
+                match r {
+                    Some(Ok(_)) => Ok(()),
+                    Some(Err(e)) => Err(e.clone()),
+                    None => Err(PipelineError::LoadError("PKp type mismatch".into())),
+                },
+            )
+        })
+        .collect();
+
+    for (name, res) in &results {
+        match res {
+            Ok(()) => println!("    ✓ {}", name),
+            Err(e) => eprintln!("    ✗ {}: {:?}", name, e),
+        }
+    }
+
+    let failed = results.iter().filter(|(_, r)| r.is_err()).count();
+    if failed > 0 {
+        return Err(PipelineError::LoadError(format!(
+            "{} algorithm(s) failed in parallel run",
+            failed
+        )));
+    }
     Ok(())
 }
 
