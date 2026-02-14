@@ -120,6 +120,9 @@ See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 cargo run --example kp_derive_showcase
 cargo run --example pkp_akp_filter_typeid
 cargo run --example pkp_akp_read_write_convert
+# Deadlock prevention (parallel execution)
+cargo run --example deadlock_prevention_sync --features parking_lot
+cargo run --example deadlock_prevention_async --features tokio
 ```
 
 ---
