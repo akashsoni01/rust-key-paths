@@ -66,11 +66,13 @@ enum WrapperKind {
     OptionTokioArcRwLock,
     // Tagged types
     Tagged,
+    OptionTagged,
     // Clone-on-write (std::borrow::Cow)
     Cow,
     OptionCow,
     // Reference types (&T, &str, &[T], etc.)
     Reference,
+    OptionReference,
 }
 
 /// Helper function to check if a type path includes std::sync module
@@ -199,6 +201,12 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             }
                             ("Option", WrapperKind::Cow) => {
                                 return (WrapperKind::OptionCow, inner_inner);
+                            }
+                            ("Option", WrapperKind::Tagged) => {
+                                return (WrapperKind::OptionTagged, inner_inner);
+                            }
+                            ("Option", WrapperKind::Reference) => {
+                                return (WrapperKind::OptionReference, Some(inner.clone()));
                             }
                             ("Box", WrapperKind::Option) => {
                                 return (WrapperKind::BoxOption, inner_inner);
@@ -559,6 +567,30 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#field_ident.as_ref().map(|c| c.as_ref()),
                                         |root: &mut #name| root.#field_ident.as_mut().map(|c| c.to_mut()),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionTagged, Some(inner_ty)) => {
+                            // For Option<Tagged<Tag, T>> - Tagged implements Deref/DerefMut
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref().map(|t| std::ops::Deref::deref(t)),
+                                        |root: &mut #name| root.#field_ident.as_mut().map(|t| std::ops::DerefMut::deref_mut(t)),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionReference, Some(inner_ty)) => {
+                            // For Option<&T>, Option<&str>, Option<&[T]> - read-only, setter returns None
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref(),
+                                        |_root: &mut #name| None,
                                     )
                                 }
                             });
@@ -1256,6 +1288,28 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::OptionTagged, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref().map(|t| std::ops::Deref::deref(t)),
+                                        |root: &mut #name| root.#idx_lit.as_mut().map(|t| std::ops::DerefMut::deref_mut(t)),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionReference, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref(),
+                                        |_root: &mut #name| None,
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::HashSet, Some(inner_ty)) => {
                             let kp_at_fn = format_ident!("f{}_at", idx);
 
@@ -1797,6 +1851,37 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                     #name::#v_ident(inner) => inner.as_mut().map(|c| c.to_mut()),
                                                     _ => None,
                                                 },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionTagged, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_ref().map(|t| std::ops::Deref::deref(t)),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => inner.as_mut().map(|t| std::ops::DerefMut::deref_mut(t)),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionReference, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_ref(),
+                                                    _ => None,
+                                                },
+                                                |_root: &mut #name| None,
                                             )
                                         }
                                     });

@@ -16,6 +16,8 @@ struct AllContainersTest {
     static_str_field: &'static str,
     static_slice_field: &'static [u8],
     static_slice_i32: &'static [i32],
+    // Option<Reference>
+    opt_static_str: Option<&'static str>,
 
     // Sets
     hashset_field: HashSet<String>,
@@ -47,6 +49,7 @@ fn main() {
         static_str_field: "static",
         static_slice_field: BYTES,
         static_slice_i32: INTS,
+        opt_static_str: Some("optional"),
         hashset_field: HashSet::from(["s".to_string()]),
         btreeset_field: BTreeSet::from(["t".to_string()]),
         vecdeque_field: VecDeque::from(["v".to_string()]),
@@ -71,6 +74,8 @@ fn main() {
     assert_eq!(static_str_kp.get(&data), Some(&"static"));
     assert_eq!(static_slice_kp.get(&data).map(|s| *s), Some(BYTES));
     assert_eq!(static_slice_i32_kp.get(&data).map(|s| *s), Some(INTS));
+    let opt_str_kp = AllContainersTest::opt_static_str();
+    assert_eq!(opt_str_kp.get(&data).map(|s| *s), Some("optional"));
 
     // Test sets
     let _hashset_path = AllContainersTest::hashset_field();
