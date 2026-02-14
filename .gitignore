@@ -32,3 +32,6 @@ key-paths-core/.idea/tagged-core.iml
 key-paths-core/.idea/modules.xml
 key-paths-core/.idea/key-paths-core.iml
 *.mdc
+
+# Cheque dataset (benchmark images)
+benches/cheq_dataset
