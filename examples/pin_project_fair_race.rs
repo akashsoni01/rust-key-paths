@@ -19,48 +19,41 @@ use key_paths_derive::Kp;
 use pin_project::pin_project;
 use tokio::time::{sleep, Duration};
 
+type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
+
 /// Races two futures with fair polling: alternates which future gets polled first
 /// to avoid starvation. Completes with the first result.
 #[pin_project]
 #[derive(Kp)]
-pub struct FairRaceFuture<F1, F2>
-where
-    F1: Future,
-    F2: Future<Output = F1::Output>,
-{
+pub struct FairRaceFuture {
     /// If true, poll fut1 first; otherwise poll fut2 first. Toggled each poll.
     pub fair: bool,
     #[pin]
-    fut1: F1,
+    fut1: BoxFuture<String>,
     #[pin]
-    fut2: F2,
+    fut2: BoxFuture<String>,
 }
 
-impl<F1, F2> FairRaceFuture<F1, F2>
-where
-    F1: Future,
-    F2: Future<Output = F1::Output>,
-{
-    pub fn new(fut1: F1, fut2: F2) -> Self {
+impl FairRaceFuture {
+    pub fn new<F1, F2>(fut1: F1, fut2: F2) -> Self
+    where
+        F1: Future<Output = String> + Send + 'static,
+        F2: Future<Output = String> + Send + 'static,
+    {
         Self {
             fair: true,
-            fut1,
-            fut2,
+            fut1: Box::pin(fut1),
+            fut2: Box::pin(fut2),
         }
     }
 }
 
-impl<F1, F2> Future for FairRaceFuture<F1, F2>
-where
-    F1: Future,
-    F2: Future<Output = F1::Output>,
-{
-    type Output = F1::Output;
+impl Future for FairRaceFuture {
+    type Output = String;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.project();
 
-        // Use the fair flag to alternate: whichever we poll second gets priority next time
         if *this.fair {
             *this.fair = false;
             if let Poll::Ready(v) = this.fut1.as_mut().poll(cx) {
@@ -82,7 +75,6 @@ where
     }
 }
 
-/// Wraps a future with a label for demo output.
 async fn labeled_sleep(ms: u64, label: &'static str) -> String {
     sleep(Duration::from_millis(ms)).await;
     format!("{} completed", label)
@@ -93,40 +85,36 @@ async fn main() {
     println!("=== FairRaceFuture: Fair alternation between two futures ===\n");
 
     // Scenario: Two tasks, one fast (50ms) and one slow (150ms).
-    // With fair polling, both get CPU time; the fast one still wins the race.
     let fast = labeled_sleep(50, "fast");
     let slow = labeled_sleep(150, "slow");
 
-    let mut race = FairRaceFuture::new(fast, slow);
+    let race = FairRaceFuture::new(fast, slow);
 
     // Introspection via Kp: inspect the fair flag before polling
-    let fair_kp = FairRaceFuture::<_, _>::fair();
+    let fair_kp = FairRaceFuture::fair();
     println!("  Initial fair flag: {:?}", fair_kp.get(&race));
 
-    // Run the race – the 50ms future should complete first
     let result = race.await;
     println!("  Race result: {:?}", result);
     assert_eq!(result, "fast completed");
 
-    // Same setup but reverse order – fair flag affects first poll
+    // Toggle fair via keypath to demonstrate mutable access
     let fast2 = labeled_sleep(30, "A");
     let slow2 = labeled_sleep(100, "B");
     let mut race2 = FairRaceFuture::new(fast2, slow2);
 
-    // Toggle fair to demonstrate it affects polling order
     if let Some(f) = FairRaceFuture::fair().get_mut(&mut race2) {
-        *f = false; // Start by polling fut2 first this time
+        *f = false;
     }
     let result2 = race2.await;
     println!("  Second race (fair=false initially): {:?}", result2);
-    assert_eq!(result2, "A completed"); // A is still faster
+    assert_eq!(result2, "A completed");
 
-    // Keypath introspection: inspect fair flag before the race
-    let mut race3 = FairRaceFuture::new(
+    // Keypath introspection before the race
+    let race3 = FairRaceFuture::new(
         labeled_sleep(10, "left"),
         labeled_sleep(20, "right"),
     );
-    let fair_kp = FairRaceFuture::<_, _>::fair();
     println!("\n  Before race, fair flag: {:?}", fair_kp.get(&race3));
     let result3 = race3.await;
     println!("  Third race result: {:?}", result3);
