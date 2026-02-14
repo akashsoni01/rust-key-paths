@@ -737,6 +737,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::PinnedFuture, _) => {
                             let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
                             let kp_await_fn = format_ident!("{}_await", field_ident);
+                            let kp_pin_future_fn = format_ident!("{}_pin_future_kp", field_ident);
+                            let output_ty = quote! { <#ty as std::future::Future>::Output };
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
@@ -751,17 +753,23 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     this.project().#field_ident
                                 }
                                 /// Poll the pinned future. Requires #[pin_project] on struct.
-                                pub async fn #kp_await_fn(this: std::pin::Pin<&mut #name>) -> Option<<#ty as std::future::Future>::Output>
+                                pub async fn #kp_await_fn(this: std::pin::Pin<&mut #name>) -> Option<#output_ty>
                                 where #ty: std::future::Future
                                 {
                                     use std::future::Future;
                                     Some(this.project().#field_ident.await)
+                                }
+                                /// Keypath for [rust_key_paths::Kp::then_pin_future]. Composable pin future await.
+                                #[inline(always)]
+                                pub fn #kp_pin_future_fn() -> impl rust_key_paths::pin::PinFutureAwaitLike<#name, #output_ty> {
+                                    rust_key_paths::pin_future_await_kp!(#name, #kp_await_fn -> #output_ty)
                                 }
                             });
                         }
                         (WrapperKind::PinnedBoxFuture, Some(output_ty)) => {
                             let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
                             let kp_await_fn = format_ident!("{}_await", field_ident);
+                            let kp_pin_future_fn = format_ident!("{}_pin_future_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
@@ -778,6 +786,11 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 /// Poll the pinned boxed future. Requires #[pin_project] on struct.
                                 pub async fn #kp_await_fn(this: std::pin::Pin<&mut #name>) -> Option<#output_ty> {
                                     Some(this.project().#field_ident.await)
+                                }
+                                /// Keypath for [rust_key_paths::Kp::then_pin_future]. Composable pin future await.
+                                #[inline(always)]
+                                pub fn #kp_pin_future_fn() -> impl rust_key_paths::pin::PinFutureAwaitLike<#name, #output_ty> {
+                                    rust_key_paths::pin_future_await_kp!(#name, #kp_await_fn -> #output_ty)
                                 }
                             });
                         }

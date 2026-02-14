@@ -7,7 +7,7 @@
 //! - **`then`** – chain with a plain [crate::Kp]
 //! - **`then_lock`** – chain with a sync [crate::lock::LockKp]
 //! - **`then_async`** – chain with another async keypath (e.g. tokio RwLock)
-//! - **`then_pin_future`** – chain with a #[pin] Future field await (pin_project pattern)
+//! - **`then_pin_future`** – chain with a #[pin] Future field await ([crate::pin])
 //!
 //! Example: `root_lock.then_lock(parking_kp).then_async(async_kp).then_lock(std_lock_kp)`
 //!
@@ -31,7 +31,6 @@
 
 use crate::Kp;
 use async_trait::async_trait;
-use std::pin::Pin;
 use std::sync::Arc;
 
 // Re-export tokio sync types for convenience
@@ -234,90 +233,6 @@ pub trait AsyncKeyPathLike<Root, MutRoot> {
     async fn get(&self, root: Root) -> Option<Self::Value>;
     /// Get mutable access to the value at the end of the keypath.
     async fn get_mut(&self, root: MutRoot) -> Option<Self::MutValue>;
-}
-
-// =============================================================================
-// PinFutureAwait: #[pin] Future field await as AsyncKeyPathLike (pin_project)
-// =============================================================================
-//
-// Enables composing `fut_await` with then_pin_future, e.g.:
-//   kp.then_pin_future(pin_future_await_kp!(WithPinnedBoxFuture::fut_await -> i32))
-//   .then(...)  // go deeper into the output if it's a struct
-//
-// Requires: pin_project feature, #[pin_project] #[derive(Kp)] struct with #[pin] fut: Pin<Box<dyn Future>>
-
-#[cfg(feature = "pin_project")]
-/// Trait for awaiting a #[pin] Future field via Pin<&mut S>. Implemented by [pin_future_await_kp!].
-#[async_trait(?Send)]
-pub trait PinFutureAwaitLike<S, Output> {
-    /// Await the pinned future. Requires `Pin<&mut S>` (use via [Kp::then_pin_future]).
-    async fn get_await(&self, this: Pin<&mut S>) -> Option<Output>;
-}
-
-#[cfg(feature = "pin_project")]
-/// Async keypath that awaits a #[pin] Future field. Use [pin_future_await_kp!] to construct.
-/// Implements [AsyncKeyPathLike] so it composes with [crate::Kp::then_pin_future] and [AsyncLockKp::then_async].
-#[derive(Clone)]
-pub struct PinFutureAwaitKp<S, Output, L> {
-    inner: L,
-    _p: std::marker::PhantomData<(S, Output)>,
-}
-
-#[cfg(feature = "pin_project")]
-impl<S, Output, L> PinFutureAwaitKp<S, Output, L>
-where
-    L: PinFutureAwaitLike<S, Output>,
-{
-    pub fn new(inner: L) -> Self {
-        Self {
-            inner,
-            _p: std::marker::PhantomData,
-        }
-    }
-}
-
-#[cfg(feature = "pin_project")]
-#[async_trait(?Send)]
-impl<S, Output, L> PinFutureAwaitLike<S, Output> for PinFutureAwaitKp<S, Output, L>
-where
-    L: PinFutureAwaitLike<S, Output> + Sync,
-{
-    async fn get_await(&self, this: Pin<&mut S>) -> Option<Output> {
-        self.inner.get_await(this).await
-    }
-}
-
-// PinFutureAwaitKp does not implement AsyncKeyPathLike (get would need Pin<&mut S>).
-// Use Kp::then_pin_future() for composition.
-
-#[cfg(feature = "pin_project")]
-/// Macro to create a [PinFutureAwaitKp] from a derived `field_await` function.
-///
-/// # Example
-/// ```ignore
-/// #[pin_project]
-/// #[derive(Kp)]
-/// struct WithPinnedBoxFuture {
-///     #[pin] fut: Pin<Box<dyn Future<Output = i32> + Send>>,
-/// }
-///
-/// let kp = Kp::identity::<WithPinnedBoxFuture>()
-///     .then_pin_future(pin_future_await_kp!(WithPinnedBoxFuture, fut_await -> i32));
-/// let result = kp.get_mut(&mut data).await;  // Option<i32>
-/// ```
-#[macro_export]
-macro_rules! pin_future_await_kp {
-    ($ty:ty, $method:ident -> $output:ty) => {{
-        #[derive(Clone, Copy)]
-        struct KpImpl;
-        #[async_trait::async_trait(?Send)]
-        impl $crate::async_lock::PinFutureAwaitLike<$ty, $output> for KpImpl {
-            async fn get_await(&self, this: std::pin::Pin<&mut $ty>) -> Option<$output> {
-                <$ty>::$method(this).await
-            }
-        }
-        $crate::async_lock::PinFutureAwaitKp::new(KpImpl)
-    }};
 }
 
 /// An async keypath that handles async locked values (e.g., Arc<tokio::sync::Mutex<T>>)
@@ -1063,39 +978,6 @@ where
     async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
         let mut_v = self.first.sync_get_mut(root)?;
         self.second.get_mut(mut_v).await
-    }
-}
-
-#[cfg(feature = "pin_project")]
-/// Keypath that chains a sync [crate::Kp] with a [PinFutureAwaitKp]. Use [crate::Kp::then_pin_future] to create.
-/// Enables: `kp.then_pin_future(...).get_mut(&mut root).await` to await #[pin] Future fields.
-#[derive(Clone)]
-pub struct KpThenPinFuture<R, S, Output, Root, MutRoot, Value, MutValue, First, Second> {
-    pub(crate) first: First,
-    pub(crate) second: Second,
-    pub(crate) _p: std::marker::PhantomData<(R, S, Output, Root, MutRoot, Value, MutValue)>,
-}
-
-#[cfg(feature = "pin_project")]
-impl<R, S, Output, Root, MutRoot, Value, MutValue, First, Second>
-    KpThenPinFuture<R, S, Output, Root, MutRoot, Value, MutValue, First, Second>
-where
-    S: Unpin,
-    Output: 'static,
-    MutValue: std::borrow::BorrowMut<S>,
-    First: SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
-    Second: PinFutureAwaitLike<S, Output>,
-{
-    /// Get through the chain. For pin futures, [get] returns `None` (await requires mutable access).
-    pub async fn get(&self, _root: Root) -> Option<Output> {
-        None
-    }
-
-    /// Get mutable through the chain: sync navigate to &mut S, then await the pinned future.
-    pub async fn get_mut(&self, root: MutRoot) -> Option<Output> {
-        let mut mut_value = self.first.sync_get_mut(root)?;
-        let s: &mut S = mut_value.borrow_mut();
-        self.second.get_await(Pin::new(s)).await
     }
 }
 

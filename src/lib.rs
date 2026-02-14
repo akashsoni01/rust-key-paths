@@ -28,6 +28,9 @@ pub use lock::{
 // Export the async_lock module
 pub mod async_lock;
 
+#[cfg(feature = "pin_project")]
+pub mod pin;
+
 /// Used so that `then_async` can infer `V2` from `AsyncKp::Value` without ambiguity
 /// (e.g. `&i32` has both `Borrow<i32>` and `Borrow<&i32>`; this picks the referent).
 /// Implemented only for reference types so there is no overlap with the blanket impl.
@@ -762,12 +765,12 @@ where
     }
 
     /// Chain with a #[pin] Future field await (pin_project pattern). Use `.get_mut(&mut root).await` on the returned keypath.
-    /// Enables composing futures: `kp.then_pin_future(pin_future_await_kp!(S, fut_await -> i32)).then(...)` to go deeper.
+    /// Enables composing futures: `kp.then_pin_future(S::fut_pin_future_kp()).then(...)` to go deeper.
     #[cfg(feature = "pin_project")]
     pub fn then_pin_future<Struct, Output, L>(
         self,
-        pin_fut: crate::async_lock::PinFutureAwaitKp<Struct, Output, L>,
-    ) -> crate::async_lock::KpThenPinFuture<
+        pin_fut: L,
+    ) -> crate::pin::KpThenPinFuture<
         R,
         Struct,
         Output,
@@ -776,7 +779,7 @@ where
         Value,
         MutValue,
         Self,
-        crate::async_lock::PinFutureAwaitKp<Struct, Output, L>,
+        L,
     >
     where
         V: 'static,
@@ -784,9 +787,9 @@ where
         Output: 'static,
         Value: std::borrow::Borrow<Struct>,
         MutValue: std::borrow::BorrowMut<Struct>,
-        L: crate::async_lock::PinFutureAwaitLike<Struct, Output> + Sync,
+        L: crate::pin::PinFutureAwaitLike<Struct, Output> + Sync,
     {
-        crate::async_lock::KpThenPinFuture {
+        crate::pin::KpThenPinFuture {
             first: self,
             second: pin_fut,
             _p: std::marker::PhantomData,

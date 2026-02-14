@@ -58,5 +58,5 @@ async fn test_pinned_future_field_await() {
     assert_eq!(result, Some(42));
 
     // For composable style (then_pin_future), see rust-key-paths tests/integration_pin_future.rs:
-    //   kp.then_pin_future(pin_future_await_kp!(WithPinnedBoxFuture, fut_await -> i32)).get_mut(&mut data).await
+    //   kp.then_pin_future(WithPinnedBoxFuture::fut_pin_future_kp()).get_mut(&mut data).await
 }
