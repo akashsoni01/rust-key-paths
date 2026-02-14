@@ -6,8 +6,10 @@
 //! - Box blur, Gaussian blur
 //! - Sobel edge detection
 //!
+//! Supported formats (when using image_pipeline_load): PNG, JPEG, GIF, TIFF, BMP
+//!
 //! Run: `cargo run --example image_pipeline_kp --features image_pipeline`
-//! Or:  `cargo run --example image_pipeline_kp --features image_pipeline -- path/to/image.png`
+//! Or:  `cargo run --example image_pipeline_kp --features image_pipeline_load -- path/to/image.png`
 
 #![cfg(feature = "image_pipeline")]
 
@@ -116,7 +118,12 @@ pub fn validate_image(img: &Image) -> Result<(), PipelineError> {
 
 #[cfg(feature = "image_pipeline_load")]
 fn load_image(path: &Path) -> Result<Image, PipelineError> {
-    let img = image::open(path).map_err(|e| PipelineError::LoadError(e.to_string()))?;
+    let img = image::open(path).map_err(|e| {
+        PipelineError::LoadError(format!(
+            "{} (supported: PNG, JPEG, GIF, TIFF, BMP)",
+            e
+        ))
+    })?;
     let rgb = img.to_rgb8();
     let (w, h) = rgb.dimensions();
     let data: Vec<u8> = rgb.as_raw().to_vec();
