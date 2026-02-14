@@ -1821,6 +1821,183 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
+                                (WrapperKind::StdArcRwLock, Some(inner_ty)) => {
+                                    let snake_lock = format_ident!("{}_lock", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        pub fn #snake_lock() -> rust_key_paths::lock::LockKpArcRwLockFor<#name, #field_ty, #inner_ty> {
+                                            rust_key_paths::lock::LockKp::new(
+                                                rust_key_paths::Kp::new(
+                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                ),
+                                                rust_key_paths::lock::ArcRwLockAccess::new(),
+                                                rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::StdArcMutex, Some(inner_ty)) => {
+                                    let snake_lock = format_ident!("{}_lock", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        pub fn #snake_lock() -> rust_key_paths::lock::LockKpArcMutexFor<#name, #field_ty, #inner_ty> {
+                                            rust_key_paths::lock::LockKp::new(
+                                                rust_key_paths::Kp::new(
+                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                ),
+                                                rust_key_paths::lock::ArcMutexAccess::new(),
+                                                rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::ArcRwLock, Some(inner_ty)) => {
+                                    let snake_lock = format_ident!("{}_lock", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        pub fn #snake_lock() -> rust_key_paths::lock::LockKpParkingLotRwLockFor<#name, #field_ty, #inner_ty> {
+                                            rust_key_paths::lock::LockKp::new(
+                                                rust_key_paths::Kp::new(
+                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                ),
+                                                rust_key_paths::lock::ParkingLotRwLockAccess::new(),
+                                                rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::ArcMutex, Some(inner_ty)) => {
+                                    let snake_lock = format_ident!("{}_lock", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        pub fn #snake_lock() -> rust_key_paths::lock::LockKpParkingLotMutexFor<#name, #field_ty, #inner_ty> {
+                                            rust_key_paths::lock::LockKp::new(
+                                                rust_key_paths::Kp::new(
+                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                ),
+                                                rust_key_paths::lock::ParkingLotMutexAccess::new(),
+                                                rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::StdMutex, Some(_inner_ty))
+                                | (WrapperKind::Mutex, Some(_inner_ty))
+                                | (WrapperKind::StdRwLock, Some(_inner_ty))
+                                | (WrapperKind::RwLock, Some(_inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Tagged, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(std::ops::Deref::deref(inner)),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(std::ops::DerefMut::deref_mut(inner)),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Reference, Some(_inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |_root: &mut #name| None,
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Weak, Some(_inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |_root: &mut #name| None,
+                                            )
+                                        }
+                                    });
+                                }
                                 (WrapperKind::Cow, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
