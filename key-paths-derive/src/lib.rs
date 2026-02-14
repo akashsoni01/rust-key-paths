@@ -79,6 +79,12 @@ enum WrapperKind {
     // Pin types
     Pin,
     PinBox,
+    /// Field marked with #[pin] - plain type (pin_project pattern)
+    PinnedField,
+    /// Field marked with #[pin] - Future type (pin_project pattern)
+    PinnedFuture,
+    /// Field marked with #[pin] - Box<dyn Future> (pin_project pattern)
+    PinnedBoxFuture,
 }
 
 /// Helper function to check if a type path includes std::sync module
@@ -328,6 +334,94 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     (WrapperKind::None, None)
 }
 
+/// Check if a field has the #[pin] attribute (pin_project pattern).
+fn field_has_pin_attr(field: &syn::Field) -> bool {
+    field.attrs.iter().any(|attr| {
+        attr.path().get_ident().map(|i| i == "pin").unwrap_or(false)
+    })
+}
+
+/// Check if a type is a Future (dyn Future, impl Future, or Box<dyn Future>).
+fn is_future_type(ty: &Type) -> bool {
+    use syn::{GenericArgument, PathArguments, TypeParamBound};
+
+    match ty {
+        Type::TraitObject(trait_obj) => trait_obj.bounds.iter().any(|b| {
+            if let TypeParamBound::Trait(t) = b {
+                t.path.segments.last()
+                    .map(|s| s.ident == "Future")
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }),
+        Type::ImplTrait(impl_trait) => impl_trait.bounds.iter().any(|b| {
+            if let TypeParamBound::Trait(t) = b {
+                t.path.segments.last()
+                    .map(|s| s.ident == "Future")
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }),
+        Type::Path(tp) => {
+            if let Some(seg) = tp.path.segments.last() {
+                if seg.ident == "Box" {
+                    if let PathArguments::AngleBracketed(args) = &seg.arguments {
+                        if let Some(GenericArgument::Type(inner)) = args.args.first() {
+                            return is_future_type(inner);
+                        }
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Extract Output type from Future trait bound (dyn Future<Output = T>, impl Future<Output = T>, etc.).
+fn extract_future_output(ty: &Type) -> Option<Type> {
+    use syn::{GenericArgument, PathArguments, TypeParamBound};
+
+    let bounds = match ty {
+        Type::TraitObject(t) => &t.bounds,
+        Type::ImplTrait(t) => &t.bounds,
+        Type::Path(tp) => {
+            if let Some(seg) = tp.path.segments.last() {
+                if seg.ident == "Box" {
+                    if let PathArguments::AngleBracketed(args) = &seg.arguments {
+                        if let Some(GenericArgument::Type(inner)) = args.args.first() {
+                            return extract_future_output(inner);
+                        }
+                    }
+                }
+            }
+            return None;
+        }
+        _ => return None,
+    };
+
+    for bound in bounds {
+        if let TypeParamBound::Trait(trait_bound) = bound {
+            if let Some(seg) = trait_bound.path.segments.last() {
+                if seg.ident == "Future" {
+                    if let PathArguments::AngleBracketed(args) = &seg.arguments {
+                        for arg in &args.args {
+                            if let GenericArgument::AssocType(assoc) = arg {
+                                if assoc.ident == "Output" {
+                                    return Some(assoc.ty.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 /// For HashMap<K,V> or BTreeMap<K,V>, returns Some((key_ty, value_ty)).
 fn extract_map_key_value(ty: &Type) -> Option<(Type, Type)> {
     use syn::{GenericArgument, PathArguments};
@@ -436,6 +530,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     }
                 });
                 
+                // When struct has #[pin] fields, generated code calls this.project() which must
+                // be provided by #[pin_project]. If missing, user gets: no method named `project`.
+
                 for field in fields_named.named.iter() {
                     let field_ident = field.ident.as_ref().unwrap();
                     let ty = &field.ty;
@@ -445,7 +542,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
-                    match (kind, inner_ty.clone()) {
+                    // Override kind when field has #[pin] (pin_project pattern)
+                    let (kind, inner_ty) = if field_has_pin_attr(field) {
+                        let pinned_kind = if let Some(output_ty) = extract_future_output(ty) {
+                            if matches!(kind, WrapperKind::Box) {
+                                (WrapperKind::PinnedBoxFuture, Some(output_ty))
+                            } else {
+                                (WrapperKind::PinnedFuture, Some(output_ty))
+                            }
+                        } else if is_future_type(ty) {
+                            (WrapperKind::PinnedFuture, inner_ty.clone())
+                        } else {
+                            (WrapperKind::PinnedField, inner_ty.clone())
+                        };
+                        pinned_kind
+                    } else {
+                        (kind, inner_ty.clone())
+                    };
+
+                    match (kind, inner_ty) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             // For Option<T>, unwrap and access inner type
                             tokens.extend(quote! {
@@ -596,6 +711,70 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref()),
                                         |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut()),
                                     )
+                                }
+                            });
+                        }
+                        (WrapperKind::PinnedField, _) => {
+                            let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                /// Pinned projection for #[pin] field. Requires #[pin_project] on struct.
+                                #[inline(always)]
+                                pub fn #kp_pinned_fn(this: std::pin::Pin<&mut #name>) -> std::pin::Pin<&mut #ty> {
+                                    this.project().#field_ident
+                                }
+                            });
+                        }
+                        (WrapperKind::PinnedFuture, _) => {
+                            let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
+                            let kp_await_fn = format_ident!("{}_await", field_ident);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                /// Pinned projection for #[pin] Future field. Requires #[pin_project] on struct.
+                                #[inline(always)]
+                                pub fn #kp_pinned_fn(this: std::pin::Pin<&mut #name>) -> std::pin::Pin<&mut #ty> {
+                                    this.project().#field_ident
+                                }
+                                /// Poll the pinned future. Requires #[pin_project] on struct.
+                                pub async fn #kp_await_fn(this: std::pin::Pin<&mut #name>) -> Option<<#ty as std::future::Future>::Output>
+                                where #ty: std::future::Future
+                                {
+                                    use std::future::Future;
+                                    Some(this.project().#field_ident.await)
+                                }
+                            });
+                        }
+                        (WrapperKind::PinnedBoxFuture, Some(output_ty)) => {
+                            let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
+                            let kp_await_fn = format_ident!("{}_await", field_ident);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                /// Pinned projection for #[pin] Box<dyn Future> field. Requires #[pin_project] on struct.
+                                #[inline(always)]
+                                pub fn #kp_pinned_fn(this: std::pin::Pin<&mut #name>) -> std::pin::Pin<&mut #ty> {
+                                    this.project().#field_ident
+                                }
+                                /// Poll the pinned boxed future. Requires #[pin_project] on struct.
+                                pub async fn #kp_await_fn(this: std::pin::Pin<&mut #name>) -> Option<#output_ty> {
+                                    Some(this.project().#field_ident.await)
                                 }
                             });
                         }

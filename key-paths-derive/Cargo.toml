@@ -25,3 +25,4 @@ syn = { version = "2", features = ["full"] }
 rust-key-paths = { path = "../", version = "2.0.3", features = ["tokio", "parking_lot"] }
 tokio = { version = "1.38", features = ["sync", "rt", "macros"] }
 parking_lot = "0.12"
+pin-project = "1.1"
