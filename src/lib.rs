@@ -761,6 +761,38 @@ where
         }
     }
 
+    /// Chain with a #[pin] Future field await (pin_project pattern). Use `.get_mut(&mut root).await` on the returned keypath.
+    /// Enables composing futures: `kp.then_pin_future(pin_future_await_kp!(S, fut_await -> i32)).then(...)` to go deeper.
+    #[cfg(feature = "pin_project")]
+    pub fn then_pin_future<Struct, Output, L>(
+        self,
+        pin_fut: crate::async_lock::PinFutureAwaitKp<Struct, Output, L>,
+    ) -> crate::async_lock::KpThenPinFuture<
+        R,
+        Struct,
+        Output,
+        Root,
+        MutRoot,
+        Value,
+        MutValue,
+        Self,
+        crate::async_lock::PinFutureAwaitKp<Struct, Output, L>,
+    >
+    where
+        V: 'static,
+        Struct: Unpin + 'static,
+        Output: 'static,
+        Value: std::borrow::Borrow<Struct>,
+        MutValue: std::borrow::BorrowMut<Struct>,
+        L: crate::async_lock::PinFutureAwaitLike<Struct, Output> + Sync,
+    {
+        crate::async_lock::KpThenPinFuture {
+            first: self,
+            second: pin_fut,
+            _p: std::marker::PhantomData,
+        }
+    }
+
     /// Chain with an async keypath (e.g. [crate::async_lock::AsyncLockKp]). Use `.get(&root).await` on the returned keypath.
     /// When `AsyncKp::Value` is a reference type (`&T` / `&mut T`), `V2` is inferred as `T` via [KeyPathValueTarget].
     pub fn then_async<AsyncKp>(
