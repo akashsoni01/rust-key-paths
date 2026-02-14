@@ -21,6 +21,12 @@ pub struct Image {
     pub channels: usize,
     pub depth: usize,
     pub data: Vec<u8>,
+    /// Optional: if present, must be non-empty
+    pub color_profile: Option<String>,
+    /// Optional: if present, must be in 1..=1200
+    pub dpi: Option<u32>,
+    /// Optional: if present, each tag must be non-empty, max 64 tags
+    pub tags: Option<Vec<String>>,
 }
 
 // ============================================================================
@@ -35,6 +41,9 @@ static KP_HEIGHT: OnceLock<KpType<'static, Image, usize>> = OnceLock::new();
 static KP_CHANNELS: OnceLock<KpType<'static, Image, usize>> = OnceLock::new();
 static KP_DEPTH: OnceLock<KpType<'static, Image, usize>> = OnceLock::new();
 static KP_DATA: OnceLock<KpType<'static, Image, Vec<u8>>> = OnceLock::new();
+static KP_COLOR_PROFILE: OnceLock<KpType<'static, Image, Option<String>>> = OnceLock::new();
+static KP_DPI: OnceLock<KpType<'static, Image, Option<u32>>> = OnceLock::new();
+static KP_TAGS: OnceLock<KpType<'static, Image, Option<Vec<String>>>> = OnceLock::new();
 
 pub fn kp_width() -> &'static KpType<'static, Image, usize> {
     KP_WIDTH.get_or_init(|| {
@@ -81,6 +90,33 @@ pub fn kp_data() -> &'static KpType<'static, Image, Vec<u8>> {
     })
 }
 
+pub fn kp_color_profile() -> &'static KpType<'static, Image, Option<String>> {
+    KP_COLOR_PROFILE.get_or_init(|| {
+        Kp::new(
+            |img: &Image| Some(&img.color_profile),
+            |img: &mut Image| Some(&mut img.color_profile),
+        )
+    })
+}
+
+pub fn kp_dpi() -> &'static KpType<'static, Image, Option<u32>> {
+    KP_DPI.get_or_init(|| {
+        Kp::new(
+            |img: &Image| Some(&img.dpi),
+            |img: &mut Image| Some(&mut img.dpi),
+        )
+    })
+}
+
+pub fn kp_tags() -> &'static KpType<'static, Image, Option<Vec<String>>> {
+    KP_TAGS.get_or_init(|| {
+        Kp::new(
+            |img: &Image| Some(&img.tags),
+            |img: &mut Image| Some(&mut img.tags),
+        )
+    })
+}
+
 // ============================================================================
 // Registry: group all keypaths — one atomic load for all fields
 // ============================================================================
@@ -91,6 +127,9 @@ pub struct ImageKpRegistry {
     pub channels: KpType<'static, Image, usize>,
     pub depth: KpType<'static, Image, usize>,
     pub data: KpType<'static, Image, Vec<u8>>,
+    pub color_profile: KpType<'static, Image, Option<String>>,
+    pub dpi: KpType<'static, Image, Option<u32>>,
+    pub tags: KpType<'static, Image, Option<Vec<String>>>,
 }
 
 static KP_REGISTRY: OnceLock<ImageKpRegistry> = OnceLock::new();
@@ -118,6 +157,18 @@ impl ImageKpRegistry {
                 |img: &Image| Some(&img.data),
                 |img: &mut Image| Some(&mut img.data),
             ),
+            color_profile: Kp::new(
+                |img: &Image| Some(&img.color_profile),
+                |img: &mut Image| Some(&mut img.color_profile),
+            ),
+            dpi: Kp::new(
+                |img: &Image| Some(&img.dpi),
+                |img: &mut Image| Some(&mut img.dpi),
+            ),
+            tags: Kp::new(
+                |img: &Image| Some(&img.tags),
+                |img: &mut Image| Some(&mut img.tags),
+            ),
         })
     }
 }
@@ -132,6 +183,13 @@ pub enum CheckError {
     UnsupportedChannels(usize),
     UnsupportedDepth(usize),
     CorruptedBuffer { expected: usize, actual: usize },
+    /// Optional color_profile present but empty
+    EmptyColorProfile,
+    /// Optional dpi out of range (1..=1200)
+    InvalidDpi(u32),
+    /// Optional tags: empty tag or too many (max 64)
+    InvalidTags { index: usize },
+    TooManyTags { count: usize },
 }
 
 // ============================================================================
@@ -168,6 +226,28 @@ pub fn check_image(img: &Image) -> Result<(), CheckError> {
         });
     }
 
+    // Validate optional fields when present
+    if let Some(cp) = reg.color_profile.get(img).and_then(|o| o.as_ref()) {
+        if cp.is_empty() {
+            return Err(CheckError::EmptyColorProfile);
+        }
+    }
+    if let Some(&d) = reg.dpi.get(img).and_then(|o| o.as_ref()) {
+        if !(1..=1200).contains(&d) {
+            return Err(CheckError::InvalidDpi(d));
+        }
+    }
+    if let Some(tags) = reg.tags.get(img).and_then(|o| o.as_ref()) {
+        if tags.len() > 64 {
+            return Err(CheckError::TooManyTags { count: tags.len() });
+        }
+        for (i, t) in tags.iter().enumerate() {
+            if t.is_empty() {
+                return Err(CheckError::InvalidTags { index: i });
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -178,17 +258,36 @@ pub fn check_image(img: &Image) -> Result<(), CheckError> {
 fn main() {
     println!("=== Check Detection with Keypaths ===\n");
 
-    // Valid image
+    // Valid image (no optional fields)
     let valid = Image {
         width: 4,
         height: 4,
         channels: 3,
         depth: 8,
         data: vec![0u8; 4 * 4 * 3],
+        color_profile: None,
+        dpi: None,
+        tags: None,
     };
     match check_image(&valid) {
         Ok(()) => println!("✓ Valid image passed check"),
         Err(e) => println!("✗ Valid image failed: {:?}", e),
+    }
+
+    // Valid image with optional fields
+    let valid_with_opts = Image {
+        width: 4,
+        height: 4,
+        channels: 3,
+        depth: 8,
+        data: vec![0u8; 4 * 4 * 3],
+        color_profile: Some("sRGB".to_string()),
+        dpi: Some(300),
+        tags: Some(vec!["photo".to_string(), "landscape".to_string()]),
+    };
+    match check_image(&valid_with_opts) {
+        Ok(()) => println!("✓ Valid image with optional fields passed check"),
+        Err(e) => println!("✗ Valid+opts failed: {:?}", e),
     }
 
     // Invalid: wrong dimensions
@@ -198,6 +297,9 @@ fn main() {
         channels: 3,
         depth: 8,
         data: vec![0u8; 48],
+        color_profile: None,
+        dpi: None,
+        tags: None,
     };
     match check_image(&bad_dims) {
         Ok(()) => println!("✗ Bad dims should have failed"),
@@ -214,6 +316,9 @@ fn main() {
         channels: 4,
         depth: 8,
         data: vec![0u8; 64],
+        color_profile: None,
+        dpi: None,
+        tags: None,
     };
     match check_image(&bad_channels) {
         Ok(()) => println!("✗ Bad channels should have failed"),
@@ -230,12 +335,66 @@ fn main() {
         channels: 3,
         depth: 8,
         data: vec![0u8; 10], // expected 48
+        color_profile: None,
+        dpi: None,
+        tags: None,
     };
     match check_image(&bad_buffer) {
         Ok(()) => println!("✗ Corrupted buffer should have failed"),
         Err(CheckError::CorruptedBuffer { expected, actual }) => {
             println!("✓ Detected corrupted buffer: expected {}, got {}", expected, actual)
         }
+        Err(e) => println!("  Unexpected: {:?}", e),
+    }
+
+    // Invalid optional: empty color_profile
+    let bad_color_profile = Image {
+        width: 4,
+        height: 4,
+        channels: 3,
+        depth: 8,
+        data: vec![0u8; 48],
+        color_profile: Some(String::new()),
+        dpi: None,
+        tags: None,
+    };
+    match check_image(&bad_color_profile) {
+        Ok(()) => println!("✗ Empty color_profile should have failed"),
+        Err(CheckError::EmptyColorProfile) => println!("✓ Detected empty color_profile"),
+        Err(e) => println!("  Unexpected: {:?}", e),
+    }
+
+    // Invalid optional: dpi out of range
+    let bad_dpi = Image {
+        width: 4,
+        height: 4,
+        channels: 3,
+        depth: 8,
+        data: vec![0u8; 48],
+        color_profile: None,
+        dpi: Some(0),
+        tags: None,
+    };
+    match check_image(&bad_dpi) {
+        Ok(()) => println!("✗ Invalid dpi should have failed"),
+        Err(CheckError::InvalidDpi(d)) => println!("✓ Detected invalid dpi: {}", d),
+        Err(e) => println!("  Unexpected: {:?}", e),
+    }
+
+    // Invalid optional: empty tag
+    let bad_tags = Image {
+        width: 4,
+        height: 4,
+        channels: 3,
+        depth: 8,
+        data: vec![0u8; 48],
+        color_profile: None,
+        dpi: None,
+        tags: Some(vec!["ok".to_string(), String::new(), "also_ok".to_string()]),
+    };
+    match check_image(&bad_tags) {
+        Ok(()) => println!("✗ Empty tag should have failed"),
+        Err(CheckError::InvalidTags { index }) => println!("✓ Detected invalid tag at index {}", index),
         Err(e) => println!("  Unexpected: {:?}", e),
     }
 
