@@ -1933,6 +1933,118 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
+                                (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
+                                    let snake_async = format_ident!("{}_async", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        pub fn #snake_async() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #field_ty, #inner_ty> {
+                                            rust_key_paths::async_lock::AsyncLockKp::new(
+                                                rust_key_paths::Kp::new(
+                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                ),
+                                                rust_key_paths::async_lock::TokioMutexAccess::new(),
+                                                rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
+                                    let snake_async = format_ident!("{}_async", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        pub fn #snake_async() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #field_ty, #inner_ty> {
+                                            rust_key_paths::async_lock::AsyncLockKp::new(
+                                                rust_key_paths::Kp::new(
+                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                ),
+                                                rust_key_paths::async_lock::TokioRwLockAccess::new(),
+                                                rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
+                                    let snake_async = format_ident!("{}_async", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        pub fn #snake_async() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
+                                            rust_key_paths::async_lock::AsyncLockKp::new(
+                                                rust_key_paths::Kp::new(
+                                                    |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
+                                                    |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                ),
+                                                rust_key_paths::async_lock::TokioMutexAccess::new(),
+                                                rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
+                                    let snake_async = format_ident!("{}_async", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        pub fn #snake_async() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
+                                            rust_key_paths::async_lock::AsyncLockKp::new(
+                                                rust_key_paths::Kp::new(
+                                                    |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
+                                                    |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                ),
+                                                rust_key_paths::async_lock::TokioRwLockAccess::new(),
+                                                rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
+                                            )
+                                        }
+                                    });
+                                }
                                 (WrapperKind::StdMutex, Some(_inner_ty))
                                 | (WrapperKind::Mutex, Some(_inner_ty))
                                 | (WrapperKind::StdRwLock, Some(_inner_ty))
