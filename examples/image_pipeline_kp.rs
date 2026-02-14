@@ -6,16 +6,22 @@
 //! - Box blur, Gaussian blur
 //! - Sobel edge detection
 //!
+//! **Rayon parallelism:**
+//! - **Per-pixel**: `par_chunks_exact`, `par_iter` process pixels in parallel within each transform
+//! - **Per-row**: `(0..h).into_par_iter()` parallelizes row-wise for blur/sobel
+//! - **Per-image**: when processing a directory, images are processed in parallel via `par_iter`
+//!
 //! Supported formats (when using image_pipeline_load): PNG, JPEG, GIF, TIFF, BMP
 //!
 //! Run: `cargo run --example image_pipeline_kp --features image_pipeline`
 //! Or:  `cargo run --example image_pipeline_kp --features image_pipeline_load -- path/to/image.png`
+//! Or:  `cargo run --example image_pipeline_kp --features image_pipeline_load -- benches/cheq_dataset/300`
 
 #![cfg(feature = "image_pipeline")]
 
 use rayon::prelude::*;
 use rust_key_paths::{Kp, KpType};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 // ============================================================================
@@ -117,6 +123,9 @@ pub fn validate_image(img: &Image) -> Result<(), PipelineError> {
 // ============================================================================
 
 #[cfg(feature = "image_pipeline_load")]
+const DEFAULT_DATASET: &str = "benches/cheq_dataset/300";
+
+#[cfg(feature = "image_pipeline_load")]
 fn load_image(path: &Path) -> Result<Image, PipelineError> {
     let img = image::open(path).map_err(|e| {
         PipelineError::LoadError(format!(
@@ -134,6 +143,36 @@ fn load_image(path: &Path) -> Result<Image, PipelineError> {
         depth: 8,
         data,
     })
+}
+
+/// Collect image paths from a directory (PNG, JPEG, GIF, TIFF, BMP)
+#[cfg(feature = "image_pipeline_load")]
+fn collect_image_paths(dir: &Path) -> Result<Vec<PathBuf>, PipelineError> {
+    use std::fs;
+    let ext = |p: &Path| p.extension().and_then(|e| e.to_str()).map(str::to_lowercase);
+    let paths: Vec<PathBuf> = fs::read_dir(dir)
+        .map_err(|e| PipelineError::LoadError(e.to_string()))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.is_file()
+                && ext(p).map_or(false, |e| {
+                    matches!(e.as_str(), "png" | "jpg" | "jpeg" | "gif" | "tif" | "tiff" | "bmp")
+                })
+        })
+        .collect();
+    Ok(paths)
+}
+
+/// Run full pipeline on one image (used for parallel batch processing)
+#[cfg(feature = "image_pipeline_load")]
+fn run_pipeline_on_path(path: &Path) -> Result<(), PipelineError> {
+    let img = load_image(path)?;
+    grayscale(&img)
+        .and_then(|g| contrast(&g, 1.1))
+        .and_then(|c| gaussian_blur(&c))
+        .and_then(|gb| sobel(&gb))?;
+    Ok(())
 }
 
 /// Create a sample image (gradient) when no file is provided
@@ -544,31 +583,62 @@ pub fn run_pipeline(img: Image) -> Result<(), PipelineError> {
 fn main() -> Result<(), PipelineError> {
     println!("=== Image Pipeline (Keypaths + Rayon) ===\n");
 
-    let img = {
-        #[cfg(feature = "image_pipeline_load")]
-        {
-            match std::env::args().nth(1) {
-                Some(path) => {
-                    let p = Path::new(&path);
-                    println!("Loading: {}", p.display());
-                    load_image(p)?
+    #[cfg(feature = "image_pipeline_load")]
+    {
+        let arg = std::env::args().nth(1).unwrap_or_else(|| DEFAULT_DATASET.into());
+        let p = Path::new(&arg);
+
+        if !p.exists() && arg == DEFAULT_DATASET {
+            println!("Default dataset '{}' not found, using sample image", DEFAULT_DATASET);
+            let img = create_sample_image();
+            println!("Image: {}x{}, {} channels\n", img.width, img.height, img.channels);
+            println!("Running pipeline (rayon: par_chunks, par_iter, into_par_iter):");
+            run_pipeline(img)?;
+        } else if p.exists() && p.is_dir() {
+            // Batch mode: process all images in directory in parallel
+            let paths = collect_image_paths(p)?;
+            println!(
+                "Processing {} images from {} (rayon par_iter)",
+                paths.len(),
+                p.display()
+            );
+            let results: Vec<Result<(), PipelineError>> =
+                paths.par_iter().map(|path| run_pipeline_on_path(path)).collect();
+            let ok = results.iter().filter(|r| r.is_ok()).count();
+            let err: Vec<_> = results
+                .iter()
+                .zip(paths.iter())
+                .filter_map(|(r, path)| r.as_ref().err().map(|e| (path, e)))
+                .collect();
+            if err.is_empty() {
+                println!("\n✓ All {} images processed successfully", ok);
+            } else {
+                eprintln!("\n✗ {} failed, {} ok:", err.len(), ok);
+                for (path, e) in err.iter().take(5) {
+                    eprintln!("  {}: {:?}", path.display(), e);
                 }
-                None => {
-                    println!("No path given, using sample image (128x128 gradient)");
-                    create_sample_image()
+                if err.len() > 5 {
+                    eprintln!("  ... and {} more", err.len() - 5);
                 }
             }
+        } else {
+            // Single file mode
+            let img = load_image(p)?;
+            println!("Image: {}x{}, {} channels\n", img.width, img.height, img.channels);
+            println!("Running pipeline (rayon: par_chunks, par_iter, into_par_iter):");
+            run_pipeline(img)?;
         }
-        #[cfg(not(feature = "image_pipeline_load"))]
-        {
-            println!("Using sample image (128x128 gradient). For file loading, use --features image_pipeline_load");
-            create_sample_image()
-        }
-    };
+    }
 
-    println!("Image: {}x{}, {} channels\n", img.width, img.height, img.channels);
-    println!("Running pipeline (parallel transforms via rayon):");
-    run_pipeline(img)?;
+    #[cfg(not(feature = "image_pipeline_load"))]
+    {
+        println!("Using sample image (128x128 gradient). For file/dir: --features image_pipeline_load");
+        let img = create_sample_image();
+        println!("Image: {}x{}, {} channels\n", img.width, img.height, img.channels);
+        println!("Running pipeline (rayon: par_chunks, par_iter, into_par_iter):");
+        run_pipeline(img)?;
+    }
+
     println!("\n✓ Pipeline complete");
     Ok(())
 }
