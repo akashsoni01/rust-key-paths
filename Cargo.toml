@@ -16,6 +16,8 @@ include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 async-trait = "0.1"
 tokio = { version = "1.38.0", features = ["sync", "rt", "rt-multi-thread", "macros", "time"], optional = true }
 parking_lot = { version = "0.12", optional = true }
+image = { version = "0.24", default-features = false, features = ["png"], optional = true }
+rayon = { version = "1.10", optional = true }
 
 [workspace]
 resolver = "3" # or "3"
@@ -29,6 +31,8 @@ default = []
 parking_lot = ["dep:parking_lot"]
 tagged_core = ["tagged-core/default"]
 tokio = ["dep:tokio"]
+image_pipeline = ["dep:rayon"]
+image_pipeline_load = ["image_pipeline", "dep:image"]
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
