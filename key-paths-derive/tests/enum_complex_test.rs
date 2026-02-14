@@ -1,6 +1,7 @@
 //! Test enum with complex containers like Arc<RwLock<T>> (reusing struct prior art)
 
 use key_paths_derive::Kp;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 
 #[derive(Debug, Kp)]
@@ -11,6 +12,8 @@ enum Message {
     TokioData(Arc<tokio::sync::RwLock<String>>),
     /// Arc<parking_lot::RwLock<T>> - has parking_data_lock()
     ParkingData(Arc<parking_lot::RwLock<String>>),
+    /// std::sync::atomic::AtomicI32
+    Counter(std::sync::atomic::AtomicI32),
     Empty,
 }
 
@@ -50,6 +53,14 @@ async fn test_enum_tokio_async() {
     let kp = Message::tokio_data_async();
     let guard = kp.get(&msg).await.unwrap();
     assert_eq!(guard.as_str(), "async_hello");
+}
+
+#[test]
+fn test_enum_atomic() {
+    let msg = Message::Counter(AtomicI32::new(99));
+    let kp = Message::counter();
+    let atomic = kp.get(&msg).unwrap();
+    assert_eq!(atomic.load(Ordering::SeqCst), 99);
 }
 
 #[test]

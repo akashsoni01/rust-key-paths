@@ -2,6 +2,7 @@ use key_paths_derive::Kp;
 use rust_key_paths::{KpType, LockKp};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 use std::sync::Arc;
 
 // Test collections
@@ -51,6 +52,19 @@ struct WithCow {
 struct WithMaps {
     users: HashMap<String, i32>,
     cache: BTreeMap<u64, String>,
+}
+
+// Test atomic types
+#[derive(Kp)]
+struct WithAtomics {
+    counter: AtomicI32,
+    flags: AtomicU64,
+}
+
+// Test Option<Atomic>
+#[derive(Kp)]
+struct WithOptionAtomic {
+    opt_counter: Option<AtomicI32>,
 }
 
 #[test]
@@ -175,6 +189,37 @@ fn test_cow_mutable() {
     let opt_cow_kp = WithCow::opt_cow();
     opt_cow_kp.get_mut(&mut data).map(|s| s.make_ascii_uppercase());
     assert_eq!(data.opt_cow.as_ref().map(|c| c.as_str()), Some("OPT_ORIGINAL"));
+}
+
+#[test]
+fn test_atomic_types() {
+    let mut data = WithAtomics {
+        counter: AtomicI32::new(42),
+        flags: AtomicU64::new(0xFF),
+    };
+
+    let counter_kp = WithAtomics::counter();
+    let atomic = counter_kp.get(&data).unwrap();
+    assert_eq!(atomic.load(Ordering::SeqCst), 42);
+    counter_kp.get_mut(&mut data).unwrap().store(100, Ordering::SeqCst);
+    assert_eq!(data.counter.load(Ordering::SeqCst), 100);
+
+    let flags_kp = WithAtomics::flags();
+    assert_eq!(flags_kp.get(&data).unwrap().load(Ordering::SeqCst), 0xFF);
+}
+
+#[test]
+fn test_option_atomic() {
+    let mut data = WithOptionAtomic {
+        opt_counter: Some(AtomicI32::new(10)),
+    };
+    let kp = WithOptionAtomic::opt_counter();
+    assert_eq!(kp.get(&data).unwrap().load(Ordering::SeqCst), 10);
+    kp.get_mut(&mut data).unwrap().store(20, Ordering::SeqCst);
+    assert_eq!(data.opt_counter.unwrap().load(Ordering::SeqCst), 20);
+
+    let data_none = WithOptionAtomic { opt_counter: None };
+    assert!(kp.get(&data_none).is_none());
 }
 
 #[test]

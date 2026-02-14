@@ -73,6 +73,9 @@ enum WrapperKind {
     // Reference types (&T, &str, &[T], etc.)
     Reference,
     OptionReference,
+    // Atomic types (std::sync::atomic::*)
+    Atomic,
+    OptionAtomic,
 }
 
 /// Helper function to check if a type path includes std::sync module
@@ -92,6 +95,20 @@ fn is_tokio_sync_type(path: &syn::Path) -> bool {
         && segments.contains(&"tokio".to_string())
         && segments.contains(&"sync".to_string())
 }
+
+/// Helper function to check if a type path includes std::sync::atomic module
+fn is_std_sync_atomic_type(path: &syn::Path) -> bool {
+    let segments: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
+    segments.contains(&"std".to_string())
+        && segments.contains(&"sync".to_string())
+        && segments.contains(&"atomic".to_string())
+}
+
+/// Atomic type idents (no type params): AtomicBool, AtomicI8, etc.
+const ATOMIC_TYPE_IDENTS: &[&str] = &[
+    "AtomicBool", "AtomicI8", "AtomicI16", "AtomicI32", "AtomicI64", "AtomicI128", "AtomicIsize",
+    "AtomicU8", "AtomicU16", "AtomicU32", "AtomicU64", "AtomicU128", "AtomicUsize",
+];
 
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
@@ -208,6 +225,9 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             ("Option", WrapperKind::Reference) => {
                                 return (WrapperKind::OptionReference, Some(inner.clone()));
                             }
+                            ("Option", WrapperKind::Atomic) => {
+                                return (WrapperKind::OptionAtomic, Some(inner.clone()));
+                            }
                             ("Box", WrapperKind::Option) => {
                                 return (WrapperKind::BoxOption, inner_inner);
                             }
@@ -281,12 +301,20 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     "Weak" => (WrapperKind::Weak, Some(inner.clone())),
                                     "Tagged" => (WrapperKind::Tagged, Some(inner.clone())),
                                     "Cow" => (WrapperKind::Cow, Some(inner.clone())),
+                                    "AtomicPtr" if is_std_sync_atomic_type(&tp.path) => (WrapperKind::Atomic, None),
                                     _ => (WrapperKind::None, None),
                                 };
                             }
                         }
                     }
                 }
+            }
+            // Handle atomic types with no angle bracket args (AtomicBool, AtomicI32, etc.)
+            if matches!(seg.arguments, PathArguments::None)
+                && is_std_sync_atomic_type(&tp.path)
+                && ATOMIC_TYPE_IDENTS.contains(&ident_str.as_str())
+            {
+                return (WrapperKind::Atomic, None);
             }
         }
     }
@@ -1107,6 +1135,29 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::Atomic, None | Some(_)) => {
+                            // For atomic types: return keypath to the atomic (user calls .load()/.store())
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionAtomic, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref(),
+                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::Reference, Some(_inner_ty)) => {
                             // For reference types (&T, &str, &[T]): read-only, setter returns None
                             tokens.extend(quote! {
@@ -1720,6 +1771,28 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::Atomic, None | Some(_)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionAtomic, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref(),
+                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::Reference, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
@@ -2314,6 +2387,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                     #name::#v_ident(inner) => Some(std::ops::DerefMut::deref_mut(inner)),
                                                     _ => None,
                                                 },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Atomic, None | Some(_)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionAtomic, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
+                                                |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
                                             )
                                         }
                                     });
