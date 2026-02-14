@@ -9,6 +9,8 @@ enum Message {
     Data(Arc<std::sync::RwLock<String>>),
     /// Arc<tokio::sync::RwLock<T>> - has tokio_data_async()
     TokioData(Arc<tokio::sync::RwLock<String>>),
+    /// Arc<parking_lot::RwLock<T>> - has parking_data_lock()
+    ParkingData(Arc<parking_lot::RwLock<String>>),
     Empty,
 }
 
@@ -48,4 +50,16 @@ async fn test_enum_tokio_async() {
     let kp = Message::tokio_data_async();
     let guard = kp.get(&msg).await.unwrap();
     assert_eq!(guard.as_str(), "async_hello");
+}
+
+#[test]
+fn test_enum_parking_lot() {
+    let msg = Message::ParkingData(Arc::new(parking_lot::RwLock::new("parking_hello".to_string())));
+    let arc_kp = Message::parking_data();
+    let arc = arc_kp.get(&msg);
+    assert!(arc.is_some());
+
+    let lock_kp = Message::parking_data_lock();
+    let guard = lock_kp.get(&msg).unwrap();
+    assert_eq!(guard.as_str(), "parking_hello");
 }
