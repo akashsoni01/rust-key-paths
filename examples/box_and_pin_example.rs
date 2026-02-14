@@ -70,7 +70,7 @@ fn main() {
     if let Some(s) = pin_inner_kp.get_mut(&mut with_pin_mut) {
         *s = "changed".to_string();
     }
-    println!("  after mutation via pinned_inner: {:?}", with_pin_mut.pinned.get_ref().as_str());
+    println!("  after mutation via pinned_inner: {:?}", std::pin::Pin::as_ref(&with_pin_mut.pinned).get_ref().as_str());
     println!();
 
     // --- Pin<Box<i32>> ---
@@ -88,7 +88,6 @@ fn main() {
     if let Some(v) = int_inner_kp.get_mut(&mut with_pin_int_mut) {
         *v = 200;
     }
-    println!("  after mutation: {:?}", with_pin_int_mut.pinned_value.get_ref());
     println!();
 
     println!("=== All Box and Pin examples passed! ===");

@@ -591,9 +591,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_inner_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty>
                                 where #inner_ty: std::marker::Unpin
                                 {
+                                    // Pin::as_ref on Pin<Box<T>> returns Pin<&T> (Box Deref target), so get_ref() already gives &T
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref().as_ref()),
-                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut().as_mut()),
+                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref()),
+                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut()),
                                     )
                                 }
                             });
@@ -1439,8 +1440,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 where #inner_ty: std::marker::Unpin
                                 {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#idx_lit).get_ref().as_ref()),
-                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#idx_lit).get_mut().as_mut()),
+                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#idx_lit).get_ref()),
+                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#idx_lit).get_mut()),
                                     )
                                 }
                             });
@@ -2101,11 +2102,11 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
-                                                    #name::#v_ident(inner) => Some(std::pin::Pin::as_ref(inner).get_ref().as_ref()),
+                                                    #name::#v_ident(inner) => Some(std::pin::Pin::as_ref(inner).get_ref()),
                                                     _ => None,
                                                 },
                                                 |root: &mut #name| match root {
-                                                    #name::#v_ident(inner) => Some(std::pin::Pin::as_mut(inner).get_mut().as_mut()),
+                                                    #name::#v_ident(inner) => Some(std::pin::Pin::as_mut(inner).get_mut()),
                                                     _ => None,
                                                 },
                                             )
