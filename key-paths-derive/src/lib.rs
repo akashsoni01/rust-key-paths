@@ -366,12 +366,15 @@ fn is_future_type(ty: &Type) -> bool {
         }),
         Type::Path(tp) => {
             if let Some(seg) = tp.path.segments.last() {
-                if seg.ident == "Box" {
-                    if let PathArguments::AngleBracketed(args) = &seg.arguments {
-                        if let Some(GenericArgument::Type(inner)) = args.args.first() {
-                            return is_future_type(inner);
+                match seg.ident.to_string().as_str() {
+                    "Box" | "Pin" => {
+                        if let PathArguments::AngleBracketed(args) = &seg.arguments {
+                            if let Some(GenericArgument::Type(inner)) = args.args.first() {
+                                return is_future_type(inner);
+                            }
                         }
                     }
+                    _ => {}
                 }
             }
             false
@@ -389,7 +392,7 @@ fn extract_future_output(ty: &Type) -> Option<Type> {
         Type::ImplTrait(t) => &t.bounds,
         Type::Path(tp) => {
             if let Some(seg) = tp.path.segments.last() {
-                if seg.ident == "Box" {
+                if matches!(seg.ident.to_string().as_str(), "Box" | "Pin") {
                     if let PathArguments::AngleBracketed(args) = &seg.arguments {
                         if let Some(GenericArgument::Type(inner)) = args.args.first() {
                             return extract_future_output(inner);
