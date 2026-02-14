@@ -12,6 +12,11 @@ struct AllContainersTest {
     rc_field: Rc<String>,
     arc_field: Arc<String>,
 
+    // Reference types
+    static_str_field: &'static str,
+    static_slice_field: &'static [u8],
+    static_slice_i32: &'static [i32],
+
     // Sets
     hashset_field: HashSet<String>,
     btreeset_field: BTreeSet<String>,
@@ -24,11 +29,33 @@ struct AllContainersTest {
     // Maps
     hashmap_field: HashMap<String, i32>,
     btreemap_field: BTreeMap<String, i32>,
-    empty_touple: (),
+    empty_tuple: (),
 }
+
+static BYTES: &[u8] = b"hello";
+static INTS: &[i32] = &[1, 2, 3];
 
 fn main() {
     println!("All containers test");
+
+    let data = AllContainersTest {
+        option_field: Some("opt".to_string()),
+        vec_field: vec!["a".to_string()],
+        box_field: Box::new("boxed".to_string()),
+        rc_field: Rc::new("rc".to_string()),
+        arc_field: Arc::new("arc".to_string()),
+        static_str_field: "static",
+        static_slice_field: BYTES,
+        static_slice_i32: INTS,
+        hashset_field: HashSet::from(["s".to_string()]),
+        btreeset_field: BTreeSet::from(["t".to_string()]),
+        vecdeque_field: VecDeque::from(["v".to_string()]),
+        linkedlist_field: LinkedList::from(["l".to_string()]),
+        binaryheap_field: BinaryHeap::from(["b".to_string()]),
+        hashmap_field: HashMap::from([("k".to_string(), 42)]),
+        btreemap_field: BTreeMap::from([("k".to_string(), 99)]),
+        empty_tuple: (),
+    };
 
     // Test basic containers
     let _option_path = AllContainersTest::option_field();
@@ -36,6 +63,15 @@ fn main() {
     let _box_path = AllContainersTest::box_field();
     let _rc_path = AllContainersTest::rc_field();
     let _arc_path = AllContainersTest::arc_field();
+
+    // Test reference types
+    let static_str_kp = AllContainersTest::static_str_field();
+    let static_slice_kp = AllContainersTest::static_slice_field();
+    let static_slice_i32_kp = AllContainersTest::static_slice_i32();
+    assert_eq!(static_str_kp.get(&data), Some(&"static"));
+    assert_eq!(static_slice_kp.get(&data).map(|s| *s), Some(BYTES));
+    assert_eq!(static_slice_i32_kp.get(&data).map(|s| *s), Some(INTS));
+
     // Test sets
     let _hashset_path = AllContainersTest::hashset_field();
     let _btreeset_path = AllContainersTest::btreeset_field();
@@ -48,6 +84,6 @@ fn main() {
     // Test maps
     let _hashmap_path = AllContainersTest::hashmap_field();
     let _btreemap_path = AllContainersTest::btreemap_field();
-    let empty_touple = AllContainersTest::empty_touple();
-    println!("All containers generated successfully!");
+    let _empty_tuple = AllContainersTest::empty_tuple();
+    println!("All containers (including &'static and reference types) generated successfully!");
 }

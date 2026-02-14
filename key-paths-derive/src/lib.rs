@@ -69,6 +69,8 @@ enum WrapperKind {
     // Clone-on-write (std::borrow::Cow)
     Cow,
     OptionCow,
+    // Reference types (&T, &str, &[T], etc.)
+    Reference,
 }
 
 /// Helper function to check if a type path includes std::sync module
@@ -91,6 +93,11 @@ fn is_tokio_sync_type(path: &syn::Path) -> bool {
 
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
+
+    // Handle reference types: &T, &'a str, &[T], etc.
+    if let Type::Reference(tr) = ty {
+        return (WrapperKind::Reference, Some((*tr.elem).clone()));
+    }
 
     if let Type::Path(tp) = ty {
         // Check if this is explicitly a std::sync type
@@ -1027,12 +1034,23 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::Reference, Some(_inner_ty)) => {
+                            // For reference types (&T, &str, &[T]): read-only, setter returns None
+                            tokens.extend(quote! {
+                                #[inline]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |_root: &mut #name| None, // references: read-only
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::None, None) => {
                             // For basic types, direct access
                             tokens.extend(quote! {
                                 #[inline]
-                                    #[inline]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
@@ -1584,8 +1602,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Weak, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline]
-                                    #[inline]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |_root: &mut #name| None,
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::Reference, Some(_inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |_root: &mut #name| None,
@@ -1596,8 +1624,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
                                 #[inline]
-                                    #[inline]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
