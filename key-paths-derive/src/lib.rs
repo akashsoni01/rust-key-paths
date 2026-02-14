@@ -76,6 +76,9 @@ enum WrapperKind {
     // Atomic types (std::sync::atomic::*)
     Atomic,
     OptionAtomic,
+    // Pin types
+    Pin,
+    PinBox,
 }
 
 /// Helper function to check if a type path includes std::sync module
@@ -228,6 +231,9 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             ("Option", WrapperKind::Atomic) => {
                                 return (WrapperKind::OptionAtomic, Some(inner.clone()));
                             }
+                            ("Pin", WrapperKind::Box) => {
+                                return (WrapperKind::PinBox, inner_inner);
+                            }
                             ("Box", WrapperKind::Option) => {
                                 return (WrapperKind::BoxOption, inner_inner);
                             }
@@ -302,6 +308,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     "Tagged" => (WrapperKind::Tagged, Some(inner.clone())),
                                     "Cow" => (WrapperKind::Cow, Some(inner.clone())),
                                     "AtomicPtr" if is_std_sync_atomic_type(&tp.path) => (WrapperKind::Atomic, None),
+                                    "Pin" => (WrapperKind::Pin, Some(inner.clone())),
                                     _ => (WrapperKind::None, None),
                                 };
                             }
@@ -539,13 +546,54 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Box, Some(inner_ty)) => {
                             // For Box<T>, deref to inner type (returns &T / &mut T, not &Box<T>)
-                            // Matches reference: WritableKeyPath::new(|s: &mut #name| &mut *s.#field_ident)
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&*root.#field_ident),
                                         |root: &mut #name| Some(&mut *root.#field_ident),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::Pin, Some(inner_ty)) => {
+                            let kp_inner_fn = format_ident!("{}_inner", field_ident);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                #[inline(always)]
+                                pub fn #kp_inner_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty>
+                                where #inner_ty: std::marker::Unpin
+                                {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref()),
+                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut()),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::PinBox, Some(inner_ty)) => {
+                            let kp_inner_fn = format_ident!("{}_inner", field_ident);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                    )
+                                }
+                                #[inline(always)]
+                                pub fn #kp_inner_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty>
+                                where #inner_ty: std::marker::Unpin
+                                {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref().as_ref()),
+                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut().as_mut()),
                                     )
                                 }
                             });
@@ -1355,6 +1403,48 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::Pin, Some(inner_ty)) => {
+                            let kp_inner_fn = format_ident!("{}_inner", kp_fn);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                                #[inline(always)]
+                                pub fn #kp_inner_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty>
+                                where #inner_ty: std::marker::Unpin
+                                {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#idx_lit).get_ref()),
+                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#idx_lit).get_mut()),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::PinBox, Some(inner_ty)) => {
+                            let kp_inner_fn = format_ident!("{}_inner", kp_fn);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                                #[inline(always)]
+                                pub fn #kp_inner_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty>
+                                where #inner_ty: std::marker::Unpin
+                                {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#idx_lit).get_ref().as_ref()),
+                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#idx_lit).get_mut().as_mut()),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::Rc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
@@ -1950,6 +2040,72 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                                 |root: &mut #name| match root {
                                                     #name::#v_ident(inner) => Some(&mut **inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Pin, Some(inner_ty)) => {
+                                    let snake_inner = format_ident!("{}_inner", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        #[inline(always)]
+                                        pub fn #snake_inner() -> rust_key_paths::KpType<'static, #name, #inner_ty>
+                                        where #inner_ty: std::marker::Unpin
+                                        {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(std::pin::Pin::as_ref(inner).get_ref()),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(std::pin::Pin::as_mut(inner).get_mut()),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::PinBox, Some(inner_ty)) => {
+                                    let snake_inner = format_ident!("{}_inner", snake);
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                        #[inline(always)]
+                                        pub fn #snake_inner() -> rust_key_paths::KpType<'static, #name, #inner_ty>
+                                        where #inner_ty: std::marker::Unpin
+                                        {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(std::pin::Pin::as_ref(inner).get_ref().as_ref()),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => Some(std::pin::Pin::as_mut(inner).get_mut().as_mut()),
                                                     _ => None,
                                                 },
                                             )
