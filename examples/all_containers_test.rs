@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedL
 use std::rc::Rc;
 use std::sync::Arc;
 use key_paths_derive::Kp;
+use rust_key_paths::KpDynamic;
 
 #[derive(Debug, Kp)]
 struct AllContainersTest {
@@ -36,6 +37,15 @@ struct AllContainersTest {
 
 static BYTES: &[u8] = b"hello";
 static INTS: &[i32] = &[1, 2, 3];
+
+/// Dynamic keypath to `opt_static_str` (equivalent to `AllContainersTest::opt_static_str()` from the derive).
+fn kp() -> KpDynamic<AllContainersTest, &'static str> {
+    KpDynamic::new(
+        Box::new(|x: &AllContainersTest| x.opt_static_str.as_ref()),
+        Box::new(|x: &mut AllContainersTest| x.opt_static_str.as_mut()),
+    )
+}
+
 
 fn main() {
     println!("All containers test");

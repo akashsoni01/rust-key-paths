@@ -11,9 +11,8 @@
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 // use keypaths_proc::Kp;
 use std::collections::HashMap;
-
-use keypaths_proc::Kp;
-use rust_keypaths::KeyPath;
+use key_paths_derive::Kp;
+use rust_key_paths::KpDynamic;
 
 #[derive(Debug, Clone, Kp)]
 struct Product {
@@ -42,7 +41,7 @@ impl<'a, T: 'static + Clone> Query<'a, T> {
     // Add a filter predicate
     fn where_<F, P>(
         mut self,
-        path: KeyPath<T, F, P>,
+        path: KpDynamic<T, P>,
         predicate: impl Fn(&F) -> bool + 'static,
     ) -> Self
     where
