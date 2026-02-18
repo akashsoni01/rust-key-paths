@@ -9490,6 +9490,43 @@ pub type Kp<R, V> = KpType<
     //  LockGetter<R, V>,
     //  LockSetter<R, V>
 >;
+pub struct KpStatic<R, V> {
+    pub get: fn(&R) -> Option<&V>,
+    pub set: fn(&mut R) -> Option<&mut V>,
+}
+
+impl<R, V> KpStatic<R, V> {
+    pub const fn new(
+        get: fn(&R) -> Option<&V>,
+        set: fn(&mut R) -> Option<&mut V>,
+    ) -> Self {
+        Self { get, set }
+    }
+
+    #[inline(always)]
+    pub fn get<'a>(&self, root: &'a R) -> Option<&'a V> {
+        (self.get)(root)
+    }
+
+    #[inline(always)]
+    pub fn set<'a>(&self, root: &'a mut R) -> Option<&'a mut V> {
+        (self.set)(root)
+    }
+}
+
+// // Macro generates:
+// #[inline(always)]
+// fn __get_static_str_field(x: &AllContainersTest) -> Option<&'static str> {
+//     Some(&x.static_str_field)
+// }
+//
+// #[inline(always)]
+// fn __set_static_str_field(x: &mut AllContainersTest) -> Option<&mut &'static str> {
+//     Some(&mut x.static_str_field)
+// }
+//
+// pub static STATIC_STR_FIELD_KP: KpStatic<AllContainersTest, &'static str> =
+//     KpStatic::new(__get_static_str_field, __set_static_str_field);
 
 #[derive(Debug)]
 pub struct KpType<
