@@ -11,23 +11,8 @@
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 // use keypaths_proc::Kp;
 use std::collections::HashMap;
-use std::sync::Arc;
 use key_paths_derive::Kp;
-use rust_key_paths::{Kp, KpDynamic, KpType};
-
-/// Converts a derived keypath (KpType) to KpDynamic so it can be stored in Query filters and used with dynamic dispatch.
-/// Requires `'a: 'static` so the boxed getter/setter closures can be `'static`.
-fn to_dynamic<'a, R, V>(kp: KpType<'a, R, V>) -> KpDynamic<R, V>
-where
-    'a: 'static,
-{
-    let kp = Arc::new(kp);
-    let kp2 = Arc::clone(&kp);
-    Kp::new(
-        Box::new(move |t: &R| kp.get(t)),
-        Box::new(move |t: &mut R| kp2.get_mut(t)),
-    )
-}
+use rust_key_paths::KpDynamic;
 
 #[derive(Debug, Clone, Kp)]
 struct Product {
@@ -378,7 +363,7 @@ fn main() {
 
     // Query 1: Select all product names
     println!("--- Query 1: Select All Product Names ---");
-    let names = Query::new(&products).select(to_dynamic(Product::name()));
+    let names = Query::new(&products).select(Product::name().into());
     println!("Product names ({}):", names.len());
     for name in &names {
         println!("  • {}", name);
@@ -386,21 +371,21 @@ fn main() {
 
     // Query 2: Order by price (ascending)
     println!("\n--- Query 2: Products Ordered by Price (Ascending) ---");
-    let ordered = Query::new(&products).order_by_float(to_dynamic(Product::price()));
+    let ordered = Query::new(&products).order_by_float(Product::price().into());
     for product in ordered.iter().take(5) {
         println!("  • {} - ${:.2}", product.name, product.price);
     }
 
     // Query 3: Order by rating (descending)
     println!("\n--- Query 3: Top-Rated Products (Descending) ---");
-    let top_rated = Query::new(&products).order_by_float_desc(to_dynamic(Product::rating()));
+    let top_rated = Query::new(&products).order_by_float_desc(Product::rating().into());
     for product in top_rated.iter().take(5) {
         println!("  • {} - Rating: {:.1}", product.name, product.rating);
     }
 
     // Query 4: Group by category
     println!("\n--- Query 4: Products Grouped by Category ---");
-    let by_category = Query::new(&products).group_by(to_dynamic(Product::category()));
+    let by_category = Query::new(&products).group_by(Product::category().into());
     for (category, items) in &by_category {
         println!("  {}: {} products", category, items.len());
         for item in items {
@@ -411,40 +396,40 @@ fn main() {
     // Query 5: Aggregations - Electronics statistics
     println!("\n--- Query 5: Electronics Category Statistics ---");
     let electronics_query =
-        Query::new(&products).where_(to_dynamic(Product::category()), |cat| cat == "Electronics");
+        Query::new(&products).where_(Product::category().into(), |cat| cat == "Electronics");
 
     println!("  Count: {}", electronics_query.count());
     println!(
         "  Total Value: ${:.2}",
-        electronics_query.sum(to_dynamic(Product::price()))
+        electronics_query.sum(Product::price().into())
     );
     println!(
         "  Average Price: ${:.2}",
-        electronics_query.avg(to_dynamic(Product::price())).unwrap_or(0.0)
+        electronics_query.avg(Product::price().into()).unwrap_or(0.0)
     );
     println!(
         "  Min Price: ${:.2}",
         electronics_query
-            .min_float(to_dynamic(Product::price()))
+            .min_float(Product::price().into())
             .unwrap_or(0.0)
     );
     println!(
         "  Max Price: ${:.2}",
         electronics_query
-            .max_float(to_dynamic(Product::price()))
+            .max_float(Product::price().into())
             .unwrap_or(0.0)
     );
     println!(
         "  Total Stock: {}",
-        electronics_query.sum(to_dynamic(Product::stock()))
+        electronics_query.sum(Product::stock().into())
     );
 
     // Query 6: Complex filtering with ordering
     println!("\n--- Query 6: Electronics Under $200, Ordered by Rating ---");
     let affordable_electronics = Query::new(&products)
-        .where_(to_dynamic(Product::category()), |cat| cat == "Electronics")
-        .where_(to_dynamic(Product::price()), |&price| price < 200.0)
-        .order_by_float_desc(to_dynamic(Product::rating()));
+        .where_(Product::category().into(), |cat| cat == "Electronics")
+        .where_(Product::price().into(), |&price| price < 200.0)
+        .order_by_float_desc(Product::rating().into());
 
     for product in &affordable_electronics {
         println!(
@@ -471,7 +456,7 @@ fn main() {
 
     // Query 9: First matching item
     println!("\n--- Query 9: Find First Product Over $1000 ---");
-    let query9 = Query::new(&products).where_(to_dynamic(Product::price()), |&price| price > 1000.0);
+    let query9 = Query::new(&products).where_(Product::price().into(), |&price| price > 1000.0);
     let expensive = query9.first();
 
     if let Some(product) = expensive {
@@ -483,35 +468,35 @@ fn main() {
     // Query 10: Check existence
     println!("\n--- Query 10: Check if Any Furniture Exists ---");
     let has_furniture = Query::new(&products)
-        .where_(to_dynamic(Product::category()), |cat| cat == "Furniture")
+        .where_(Product::category().into(), |cat| cat == "Furniture")
         .exists();
     println!("  Furniture available: {}", has_furniture);
 
     // Query 11: Multiple aggregations by group
     println!("\n--- Query 11: Category Statistics ---");
-    let grouped = Query::new(&products).group_by(to_dynamic(Product::category()));
+    let grouped = Query::new(&products).group_by(Product::category().into());
 
     for (category, items) in &grouped {
         let cat_query = Query::new(items);
         println!("\n  {} Statistics:", category);
         println!("    Products: {}", items.len());
-        println!("    Total Value: ${:.2}", cat_query.sum(to_dynamic(Product::price())));
+        println!("    Total Value: ${:.2}", cat_query.sum(Product::price().into()));
         println!(
             "    Avg Price: ${:.2}",
-            cat_query.avg(to_dynamic(Product::price())).unwrap_or(0.0)
+            cat_query.avg(Product::price().into()).unwrap_or(0.0)
         );
-        println!("    Total Stock: {}", cat_query.sum(to_dynamic(Product::stock())));
+        println!("    Total Stock: {}", cat_query.sum(Product::stock().into()));
         println!(
             "    Avg Rating: {:.2}",
-            cat_query.avg(to_dynamic(Product::rating())).unwrap_or(0.0)
+            cat_query.avg(Product::rating().into()).unwrap_or(0.0)
         );
     }
 
     // Query 12: Complex multi-stage query
     println!("\n--- Query 12: Top 3 Highly-Rated Products (Rating > 4.5) by Price ---");
     let top_products = Query::new(&products)
-        .where_(to_dynamic(Product::rating()), |&rating| rating > 4.5)
-        .order_by_float_desc(to_dynamic(Product::price()));
+        .where_(Product::rating().into(), |&rating| rating > 4.5)
+        .order_by_float_desc(Product::price().into());
 
     for (i, product) in top_products.iter().take(3).enumerate() {
         println!(
@@ -525,7 +510,7 @@ fn main() {
 
     // Query 13: Select multiple fields (simulated with tuples)
     println!("\n--- Query 13: Select Name and Price for Electronics ---");
-    let query13 = Query::new(&products).where_(to_dynamic(Product::category()), |cat| cat == "Electronics");
+    let query13 = Query::new(&products).where_(Product::category().into(), |cat| cat == "Electronics");
     let electronics = query13.all();
 
     for product in electronics {
@@ -535,8 +520,8 @@ fn main() {
     // Query 14: Stock analysis
     println!("\n--- Query 14: Low Stock Alert (Stock < 20) ---");
     let low_stock = Query::new(&products)
-        .where_(to_dynamic(Product::stock()), |&stock| stock < 20)
-        .order_by(to_dynamic(Product::stock()));
+        .where_(Product::stock().into(), |&stock| stock < 20)
+        .order_by(Product::stock().into());
 
     for product in &low_stock {
         println!("  ⚠️  {} - Only {} in stock", product.name, product.stock);
@@ -545,9 +530,9 @@ fn main() {
     // Query 15: Price range query with multiple conditions
     println!("\n--- Query 15: Mid-Range Products ($50-$300) with Good Ratings (>4.5) ---");
     let mid_range = Query::new(&products)
-        .where_(to_dynamic(Product::price()), |&price| price >= 50.0 && price <= 300.0)
-        .where_(to_dynamic(Product::rating()), |&rating| rating > 4.5)
-        .order_by_float(to_dynamic(Product::price()));
+        .where_(Product::price().into(), |&price| price >= 50.0 && price <= 300.0)
+        .where_(Product::rating().into(), |&rating| rating > 4.5)
+        .order_by_float(Product::price().into());
 
     for product in &mid_range {
         println!(
@@ -558,7 +543,7 @@ fn main() {
 
     // Query 16: Revenue calculation
     println!("\n--- Query 16: Potential Revenue by Category ---");
-    let by_category = Query::new(&products).group_by(to_dynamic(Product::category()));
+    let by_category = Query::new(&products).group_by(Product::category().into());
 
     for (category, items) in &by_category {
         let revenue: f64 = items.iter().map(|p| p.price * p.stock as f64).sum();
