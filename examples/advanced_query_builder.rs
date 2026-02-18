@@ -1,12 +1,17 @@
-// Demonstrates advanced query builder with SQL-like operations using keypaths
-// This example shows how to:
-// 1. Select specific fields (projection)
-// 2. Order results by fields (ascending/descending)
-// 3. Group by fields with aggregations
-// 4. Limit and paginate results
-// 5. Compute aggregates (count, sum, avg, min, max)
-// 6. Chain complex queries
-// cargo run --example advanced_query_builder
+//! Demonstrates advanced query builder with SQL-like operations using keypaths.
+//!
+//! ## 'static and memory safety
+//! KpType uses fn pointers (no heap). The 'static bound on keypaths means the pointers are
+//! program-lived—they don't own or retain data, so there are no memory leaks from 'static.
+//! Query filters hold Box<dyn Fn>; they are dropped with the Query.
+//!
+//! ## Optimizations
+//! - KpType over KpDynamic: fn pointers, no Box, no vtable
+//! - order_by* return Vec<&T> to avoid cloning T
+//! - avg uses single-pass fold to avoid Vec allocation
+//! - apply_filters() consolidates filter logic
+//!
+//! cargo run --example advanced_query_builder
 
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 // use keypaths_proc::Kp;
@@ -41,6 +46,11 @@ where
         }
     }
 
+    #[inline]
+    fn apply_filters(&self, item: &T) -> bool {
+        self.filters.iter().all(|f| f(item))
+    }
+
     // Add a filter predicate (KpType::get returns Option<&F>); KpType = fn pointers, no heap/dynamic dispatch
     fn where_<F>(mut self, path: KpType<'static, T, F>, predicate: impl Fn(&F) -> bool + 'static) -> Self
     where
@@ -54,32 +64,24 @@ where
 
     // Execute and get all matching items
     fn all(&self) -> Vec<&T> {
-        self.data
-            .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
-            .collect()
+        self.data.iter().filter(|item| self.apply_filters(item)).collect()
     }
 
     // Get first matching item
     fn first(&self) -> Option<&T> {
-        self.data
-            .iter()
-            .find(|item| self.filters.iter().all(|f| f(item)))
+        self.data.iter().find(|item| self.apply_filters(item))
     }
 
     // Count matching items
     fn count(&self) -> usize {
-        self.data
-            .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
-            .count()
+        self.data.iter().filter(|item| self.apply_filters(item)).count()
     }
 
     // Limit results
     fn limit(&self, n: usize) -> Vec<&T> {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
+            .filter(|item| self.apply_filters(item))
             .take(n)
             .collect()
     }
@@ -97,11 +99,7 @@ where
     where
         F: Ord + 'static,
     {
-        let mut results: Vec<&T> = self
-            .data
-            .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
-            .collect();
+        let mut results: Vec<&T> = self.data.iter().filter(|item| self.apply_filters(item)).collect();
         results.sort_by(|a, b| path.get(*a).cmp(&path.get(*b)));
         results
     }
@@ -111,22 +109,14 @@ where
     where
         F: Ord + 'static,
     {
-        let mut results: Vec<&T> = self
-            .data
-            .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
-            .collect();
+        let mut results: Vec<&T> = self.data.iter().filter(|item| self.apply_filters(item)).collect();
         results.sort_by(|a, b| path.get(*b).cmp(&path.get(*a)));
         results
     }
 
     // Order by a float field (ascending) - for f64
     fn order_by_float(&self, path: KpType<'static, T, f64>) -> Vec<&'a T> {
-        let mut results: Vec<&T> = self
-            .data
-            .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
-            .collect();
+        let mut results: Vec<&T> = self.data.iter().filter(|item| self.apply_filters(item)).collect();
         results.sort_by(|a, b| {
             let a_val = path.get(*a).copied().unwrap_or(0.0);
             let b_val = path.get(*b).copied().unwrap_or(0.0);
@@ -137,11 +127,7 @@ where
 
     // Order by a float field (descending) - for f64
     fn order_by_float_desc(&self, path: KpType<'static, T, f64>) -> Vec<&'a T> {
-        let mut results: Vec<&T> = self
-            .data
-            .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
-            .collect();
+        let mut results: Vec<&T> = self.data.iter().filter(|item| self.apply_filters(item)).collect();
         results.sort_by(|a, b| {
             let a_val = path.get(*a).copied().unwrap_or(0.0);
             let b_val = path.get(*b).copied().unwrap_or(0.0);
@@ -157,7 +143,7 @@ where
     {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
+            .filter(|item| self.apply_filters(item))
             .filter_map(|item| path.get(item).cloned())
             .collect()
     }
@@ -170,7 +156,7 @@ where
     {
         let mut groups: HashMap<F, Vec<T>> = HashMap::new();
         for item in self.data.iter() {
-            if self.filters.iter().all(|f| f(item)) {
+            if self.apply_filters(item) {
                 if let Some(key) = path.get(item).cloned() {
                     groups.entry(key).or_default().push(item.clone());
                 }
@@ -186,22 +172,22 @@ where
     {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
+            .filter(|item| self.apply_filters(item))
             .filter_map(|item| path.get(item).cloned())
             .fold(F::default(), |acc, val| acc + val)
     }
 
     fn avg(&self, path: KpType<'static, T, f64>) -> Option<f64> {
-        let items: Vec<f64> = self
+        let (sum, count) = self
             .data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
+            .filter(|item| self.apply_filters(item))
             .filter_map(|item| path.get(item).copied())
-            .collect();
-        if items.is_empty() {
+            .fold((0.0_f64, 0_usize), |(s, c), v| (s + v, c + 1));
+        if count == 0 {
             None
         } else {
-            Some(items.iter().sum::<f64>() / items.len() as f64)
+            Some(sum / count as f64)
         }
     }
 
@@ -211,7 +197,7 @@ where
     {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
+            .filter(|item| self.apply_filters(item))
             .filter_map(|item| path.get(item).cloned())
             .min()
     }
@@ -222,7 +208,7 @@ where
     {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
+            .filter(|item| self.apply_filters(item))
             .filter_map(|item| path.get(item).cloned())
             .max()
     }
@@ -230,7 +216,7 @@ where
     fn min_float(&self, path: KpType<'static, T, f64>) -> Option<f64> {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
+            .filter(|item| self.apply_filters(item))
             .filter_map(|item| path.get(item).copied())
             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
@@ -238,16 +224,14 @@ where
     fn max_float(&self, path: KpType<'static, T, f64>) -> Option<f64> {
         self.data
             .iter()
-            .filter(|item| self.filters.iter().all(|f| f(item)))
+            .filter(|item| self.apply_filters(item))
             .filter_map(|item| path.get(item).copied())
             .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
 
     // Check if any items match
     fn exists(&self) -> bool {
-        self.data
-            .iter()
-            .any(|item| self.filters.iter().all(|f| f(item)))
+        self.data.iter().any(|item| self.apply_filters(item))
     }
 }
 
@@ -257,12 +241,15 @@ struct QueryWithSkip<'a, 'b, T: 'static> {
     offset: usize,
 }
 
-impl<'a, 'b, T: 'static> QueryWithSkip<'a, 'b, T> {
+impl<'a, 'b, T: 'static> QueryWithSkip<'a, 'b, T>
+where
+    T: Clone,
+{
     fn limit(&self, n: usize) -> Vec<&'a T> {
         self.query
             .data
             .iter()
-            .filter(|item| self.query.filters.iter().all(|f| f(item)))
+            .filter(|item| self.query.apply_filters(item))
             .skip(self.offset)
             .take(n)
             .collect()
@@ -548,6 +535,13 @@ fn main() {
     for (category, items) in &by_category {
         let revenue: f64 = items.iter().map(|p| p.price * p.stock as f64).sum();
         println!("  {}: ${:.2}", category, revenue);
+    }
+
+    // Leak-safety: many queries, no accumulation (keypaths = fn pointers, filters dropped with Query)
+    for _ in 0..1000 {
+        let _ = Query::new(&products)
+            .where_(Product::category(), |c| c == "Electronics")
+            .select(Product::name());
     }
 
     println!("\n✓ Advanced query builder demo complete!");
