@@ -49,6 +49,12 @@ fn set_option_field(r: &mut AllContainersTest) -> Option<&mut String> {
 
 static KP: KpStatic<AllContainersTest, String> =
     KpStatic::new(get_option_field, set_option_field);
+
+static KP2: KpStatic<AllContainersTest, String> = KpStatic::new(
+    |r: &AllContainersTest| r.option_field.as_ref(),
+    |r: &mut AllContainersTest| r.option_field.as_mut(),
+);
+
 fn main() {
     println!("All containers test");
 
