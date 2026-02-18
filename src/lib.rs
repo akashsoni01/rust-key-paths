@@ -114,12 +114,25 @@ where
 {
     /// Converts this keypath (KpType) to [KpDynamic] for dynamic dispatch and storage.
     /// Requires `'a: 'static` so the boxed getter/setter closures can be `'static`.
+    #[inline]
     pub fn to_dynamic(self) -> KpDynamic<R, V> {
-        let kp = Arc::new(self);
-        let kp2 = Arc::clone(&kp);
+        self.into()
+    }
+}
+
+impl<'a, R, V> From<KpType<'a, R, V>> for KpDynamic<R, V>
+where
+    'a: 'static,
+    R: 'static,
+    V: 'static,
+{
+    #[inline]
+    fn from(kp: KpType<'a, R, V>) -> Self {
+        let get_fn = kp.get;
+        let set_fn = kp.set;
         Kp::new(
-            Box::new(move |t: &R| kp.get(t)),
-            Box::new(move |t: &mut R| kp2.get_mut(t)),
+            Box::new(move |t: &R| get_fn(t)),
+            Box::new(move |t: &mut R| set_fn(t)),
         )
     }
 }
