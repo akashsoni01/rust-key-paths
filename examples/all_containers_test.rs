@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
+use std::convert::AsMut;
 use std::rc::Rc;
 use std::sync::Arc;
 use key_paths_derive::Kp;
@@ -37,7 +38,10 @@ struct AllContainersTest {
 
 static BYTES: &[u8] = b"hello";
 static INTS: &[i32] = &[1, 2, 3];
-
+static   KP: KpType<'static, AllContainersTest, String> = KpType::new(
+    |x: &AllContainersTest| x.option_field.as_ref(),
+    |x: &mut AllContainersTest| None,
+);
 fn main() {
     println!("All containers test");
 

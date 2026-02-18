@@ -35,6 +35,10 @@ pub struct KpStatic<R, V> {
     pub set: fn(&mut R) -> Option<&mut V>,
 }
 
+// KpStatic holds only fn pointers; it is a functional component with no owned data.
+unsafe impl<R, V> Send for KpStatic<R, V> {}
+unsafe impl<R, V> Sync for KpStatic<R, V> {}
+
 impl<R, V> KpStatic<R, V> {
     pub const fn new(
         get: fn(&R) -> Option<&V>,
@@ -93,8 +97,8 @@ pub type KpDynamic<R, V> = Kp<
     &'static V,
     &'static mut R,
     &'static mut V,
-    Box<dyn for<'a> Fn(&'a R) -> Option<&'a V>>,
-    Box<dyn for<'a> Fn(&'a mut R) -> Option<&'a mut V>>,
+    Box<dyn for<'a> Fn(&'a R) -> Option<&'a V> + Send + Sync>,
+    Box<dyn for<'a> Fn(&'a mut R) -> Option<&'a mut V> + Send + Sync>,
 >;
 
 pub type KpType<'a, R, V> = Kp<
@@ -179,8 +183,8 @@ pub type KpComposed<R, V> = Kp<
     &'static V,
     &'static mut R,
     &'static mut V,
-    Box<dyn for<'b> Fn(&'b R) -> Option<&'b V>>,
-    Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V>>,
+    Box<dyn for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync>,
+    Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync>,
 >;
 
 impl<R, V> Kp<
@@ -190,15 +194,15 @@ impl<R, V> Kp<
     &'static V,
     &'static mut R,
     &'static mut V,
-    Box<dyn for<'b> Fn(&'b R) -> Option<&'b V>>,
-    Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V>>,
+    Box<dyn for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync>,
+    Box<dyn for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync>,
 > {
     /// Build a keypath from two closures (e.g. when they capture a variable like an index).
     /// Same pattern as `Kp::new` in lock.rs; use this when the keypath captures variables.
     pub fn from_closures<G, S>(get: G, set: S) -> Self
     where
-        G: for<'b> Fn(&'b R) -> Option<&'b V> + 'static,
-        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + 'static,
+        G: for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync + 'static,
+        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync + 'static,
     {
         Self::new(Box::new(get), Box::new(set))
     }
@@ -719,6 +723,26 @@ where
     /// Setter closure: used by [Kp::get_mut] for mutation.
     pub(crate) set: S,
     _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
+}
+
+// Kp is a functional component (get/set) with no owned data; Send/Sync follow from G and S.
+unsafe impl<R, V, Root, Value, MutRoot, MutValue, G, S> Send for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
+where
+    Root: std::borrow::Borrow<R>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G: Fn(Root) -> Option<Value> + Send,
+    S: Fn(MutRoot) -> Option<MutValue> + Send,
+{
+}
+unsafe impl<R, V, Root, Value, MutRoot, MutValue, G, S> Sync for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
+where
+    Root: std::borrow::Borrow<R>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G: Fn(Root) -> Option<Value> + Sync,
+    S: Fn(MutRoot) -> Option<MutValue> + Sync,
+{
 }
 
 impl<R, V, Root, Value, MutRoot, MutValue, G, S> Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
@@ -1587,6 +1611,32 @@ where
 {
     extractor: Kp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S>,
     embedder: E,
+}
+
+// EnumKp is a functional component; Send/Sync follow from extractor and embedder.
+unsafe impl<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E> Send
+    for EnumKp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E>
+where
+    Root: std::borrow::Borrow<Enum>,
+    Value: std::borrow::Borrow<Variant>,
+    MutRoot: std::borrow::BorrowMut<Enum>,
+    MutValue: std::borrow::BorrowMut<Variant>,
+    G: Fn(Root) -> Option<Value> + Send,
+    S: Fn(MutRoot) -> Option<MutValue> + Send,
+    E: Fn(Variant) -> Enum + Send,
+{
+}
+unsafe impl<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E> Sync
+    for EnumKp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E>
+where
+    Root: std::borrow::Borrow<Enum>,
+    Value: std::borrow::Borrow<Variant>,
+    MutRoot: std::borrow::BorrowMut<Enum>,
+    MutValue: std::borrow::BorrowMut<Variant>,
+    G: Fn(Root) -> Option<Value> + Sync,
+    S: Fn(MutRoot) -> Option<MutValue> + Sync,
+    E: Fn(Variant) -> Enum + Sync,
+{
 }
 
 impl<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E>
