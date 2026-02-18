@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
-use std::convert::AsMut;
 use std::rc::Rc;
 use std::sync::Arc;
 use key_paths_derive::Kp;
-use rust_key_paths::KpType;
+use rust_key_paths::{KpStatic, KpType};
+
 
 #[derive(Debug, Kp)]
 struct AllContainersTest {
@@ -38,10 +38,17 @@ struct AllContainersTest {
 
 static BYTES: &[u8] = b"hello";
 static INTS: &[i32] = &[1, 2, 3];
-static   KP: KpType<'static, AllContainersTest, String> = KpType::new(
-    |x: &AllContainersTest| x.option_field.as_ref(),
-    |x: &mut AllContainersTest| None,
-);
+// KpStatic uses const fn; can be initialized in static without LazyLock.
+
+fn get_option_field(r: &AllContainersTest) -> Option<&String> {
+    r.option_field.as_ref()
+}
+fn set_option_field(r: &mut AllContainersTest) -> Option<&mut String> {
+    r.option_field.as_mut()
+}
+
+static KP: KpStatic<AllContainersTest, String> =
+    KpStatic::new(get_option_field, set_option_field);
 fn main() {
     println!("All containers test");
 
@@ -65,7 +72,10 @@ fn main() {
         empty_tuple: (),
     };
 
-    // Test basic containers
+    // Static dispatch via KpStatic (no lazy init)
+    assert_eq!(KP.get(&data).map(|s| s.as_str()), Some("opt"));
+
+    // Test basic containers (derive)
     let _option_path = AllContainersTest::option_field();
     let _vec_path = AllContainersTest::vec_field();
     let _box_path = AllContainersTest::box_field();
