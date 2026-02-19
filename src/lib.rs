@@ -30,33 +30,33 @@ pub mod async_lock;
 
 
 
-pub struct KpStatic<R, V> {
-    pub get: fn(&R) -> Option<&V>,
-    pub set: fn(&mut R) -> Option<&mut V>,
-}
-
-// KpStatic holds only fn pointers; it is a functional component with no owned data.
-unsafe impl<R, V> Send for KpStatic<R, V> {}
-unsafe impl<R, V> Sync for KpStatic<R, V> {}
-
-impl<R, V> KpStatic<R, V> {
-    pub const fn new(
-        get: fn(&R) -> Option<&V>,
-        set: fn(&mut R) -> Option<&mut V>,
-    ) -> Self {
-        Self { get, set }
-    }
-
-    #[inline(always)]
-    pub fn get<'a>(&self, root: &'a R) -> Option<&'a V> {
-        (self.get)(root)
-    }
-
-    #[inline(always)]
-    pub fn set<'a>(&self, root: &'a mut R) -> Option<&'a mut V> {
-        (self.set)(root)
-    }
-}
+// pub struct KpStatic<R, V> {
+//     pub get: fn(&R) -> Option<&V>,
+//     pub set: fn(&mut R) -> Option<&mut V>,
+// }
+//
+// // KpStatic holds only fn pointers; it is a functional component with no owned data.
+// unsafe impl<R, V> Send for KpStatic<R, V> {}
+// unsafe impl<R, V> Sync for KpStatic<R, V> {}
+//
+// impl<R, V> KpStatic<R, V> {
+//     pub const fn new(
+//         get: fn(&R) -> Option<&V>,
+//         set: fn(&mut R) -> Option<&mut V>,
+//     ) -> Self {
+//         Self { get, set }
+//     }
+//
+//     #[inline(always)]
+//     pub fn get<'a>(&self, root: &'a R) -> Option<&'a V> {
+//         (self.get)(root)
+//     }
+//
+//     #[inline(always)]
+//     pub fn set<'a>(&self, root: &'a mut R) -> Option<&'a mut V> {
+//         (self.set)(root)
+//     }
+// }
 
 // // Macro generates:
 // #[inline(always)]
