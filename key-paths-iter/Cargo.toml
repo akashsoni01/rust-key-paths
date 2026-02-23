@@ -6,3 +6,8 @@ description = "Query builder and iteration over rust-key-paths KpType for Vec co
 
 [dependencies]
 rust-key-paths = { path = ".." }
+rayon = { version = "1.10", optional = true }
+
+[features]
+default = []
+rayon = ["dep:rayon"]

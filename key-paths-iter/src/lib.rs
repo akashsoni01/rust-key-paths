@@ -1,6 +1,11 @@
 //! Query builder for collection keypaths over [rust_key_paths::KpType] when the value type is `Vec<Item>`.
+//!
+//! Enable the `rayon` feature for parallel collection operations ([`query_par`]).
 
 use rust_key_paths::KpType;
+
+#[cfg(feature = "rayon")]
+pub mod query_par;
 
 /// Query builder for collection keypaths (KpType where value is `Vec<Item>`).
 pub struct CollectionQuery<'a, Root, Item> {
@@ -170,9 +175,10 @@ impl<'q, Root: 'static, Item: 'static> CollectionQueryStatic<'q, Root, Item> {
 }
 
 /// Get `&'a Vec<Item>` from a `'static` keypath and `&'a Root`.
-/// Sound because the closure in `KpType<'static, ...>` is `for<'b> fn(&'b Root) -> Option<&'b Vec<Item>>`.
+/// Used by [query_par] for parallel operations. Sound because the closure in
+/// `KpType<'static, ...>` is `for<'b> fn(&'b Root) -> Option<&'b Vec<Item>>`.
 #[inline]
-fn get_vec_static<'a, Root: 'static, Item: 'static>(
+pub(crate) fn get_vec_static<'a, Root: 'static, Item: 'static>(
     keypath: &KpType<'static, Root, Vec<Item>>,
     root: &'a Root,
 ) -> Option<&'a Vec<Item>> {
