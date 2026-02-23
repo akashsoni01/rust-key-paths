@@ -43,6 +43,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 tokio = { version = "1.38.0", features = ["sync", "rt", "rt-multi-thread", "macros"] }
 key-paths-derive = { path = "key-paths-derive" }
+key-paths-iter = { path = "key-paths-iter" }
 pin-project = "1.1"
 
 [[bench]]
