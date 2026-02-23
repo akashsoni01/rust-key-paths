@@ -1,9 +1,12 @@
+use std::borrow::Cow;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
+use std::marker::PhantomData;
+use std::ops::Range;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use key_paths_derive::Kp;
-use rust_key_paths::{KpStatic, KpType};
-
+use rust_key_paths::KpType;
 
 #[derive(Debug, Kp)]
 struct AllContainersTest {
@@ -14,11 +17,13 @@ struct AllContainersTest {
     rc_field: Rc<String>,
     arc_field: Arc<String>,
 
+    // String and owned text
+    string_field: String,
+
     // Reference types
     static_str_field: &'static str,
     static_slice_field: &'static [u8],
     static_slice_i32: &'static [i32],
-    // Option<Reference>
     opt_static_str: Option<&'static str>,
 
     // Sets
@@ -33,30 +38,36 @@ struct AllContainersTest {
     // Maps
     hashmap_field: HashMap<String, i32>,
     btreemap_field: BTreeMap<String, i32>,
+
+    // Container-of-Option (Option-of-container variants: OptionVecDeque, OptionHashSet, etc. also supported)
+    vecdeque_option_field: VecDeque<Option<String>>,
+
+    // Interior mutability
+    cell_field: Cell<i32>,
+    refcell_field: RefCell<String>,
+
+    // Lazy init
+    once_lock_field: OnceLock<String>,
+
+    // Marker / range
+    phantom_field: PhantomData<()>,
+    range_field: Range<u32>,
+
+    // Error handling and borrow
+    result_field: Result<i32, String>,
+    cow_str_field: Cow<'static, String>,
+
     empty_tuple: (),
 }
 
 static BYTES: &[u8] = b"hello";
 static INTS: &[i32] = &[1, 2, 3];
-// KpStatic uses const fn; can be initialized in static without LazyLock.
-
-fn get_option_field(r: &AllContainersTest) -> Option<&String> {
-    r.option_field.as_ref()
-}
-fn set_option_field(r: &mut AllContainersTest) -> Option<&mut String> {
-    r.option_field.as_mut()
-}
-
-static KP: KpStatic<AllContainersTest, String> =
-    KpStatic::new(get_option_field, set_option_field);
-
-static KP2: KpStatic<AllContainersTest, String> = KpStatic::new(
-    |r: &AllContainersTest| r.option_field.as_ref(),
-    |r: &mut AllContainersTest| r.option_field.as_mut(),
-);
 
 fn main() {
     println!("All containers test");
+
+    let once_lock = OnceLock::new();
+    let _ = once_lock.set("lazy".to_string());
 
     let data = AllContainersTest {
         option_field: Some("opt".to_string()),
@@ -64,6 +75,7 @@ fn main() {
         box_field: Box::new("boxed".to_string()),
         rc_field: Rc::new("rc".to_string()),
         arc_field: Arc::new("arc".to_string()),
+        string_field: "hello".to_string(),
         static_str_field: "static",
         static_slice_field: BYTES,
         static_slice_i32: INTS,
@@ -75,11 +87,16 @@ fn main() {
         binaryheap_field: BinaryHeap::from(["b".to_string()]),
         hashmap_field: HashMap::from([("k".to_string(), 42)]),
         btreemap_field: BTreeMap::from([("k".to_string(), 99)]),
+        vecdeque_option_field: VecDeque::from([Some("vo".to_string())]),
+        cell_field: Cell::new(10),
+        refcell_field: RefCell::new("refcell".to_string()),
+        once_lock_field: once_lock,
+        phantom_field: PhantomData,
+        range_field: 0..10,
+        result_field: Ok(200),
+        cow_str_field: Cow::Owned("cow".to_string()),
         empty_tuple: (),
     };
-
-    // Static dispatch via KpStatic (no lazy init)
-    assert_eq!(KP.get(&data).map(|s| s.as_str()), Some("opt"));
 
     // Test basic containers (derive)
     let _option_path = AllContainersTest::option_field();
@@ -87,6 +104,11 @@ fn main() {
     let _box_path = AllContainersTest::box_field();
     let _rc_path = AllContainersTest::rc_field();
     let _arc_path = AllContainersTest::arc_field();
+
+    // String and Option-of-container / container-of-Option
+    let string_kp = AllContainersTest::string_field();
+    assert_eq!(string_kp.get(&data).map(|s| s.as_str()), Some("hello"));
+    let _vecdeque_opt_kp = AllContainersTest::vecdeque_option_field();
 
     // Test reference types
     let static_str_kp = AllContainersTest::static_str_field();
@@ -111,6 +133,19 @@ fn main() {
     // Test maps
     let _hashmap_path = AllContainersTest::hashmap_field();
     let _btreemap_path = AllContainersTest::btreemap_field();
+
+    // Interior mutability, lazy, marker, range, result, cow
+    let _cell_kp = AllContainersTest::cell_field();
+    let _refcell_kp = AllContainersTest::refcell_field();
+    let _once_lock_kp = AllContainersTest::once_lock_field();
+    let _phantom_kp = AllContainersTest::phantom_field();
+    let range_kp = AllContainersTest::range_field();
+    assert_eq!(range_kp.get(&data), Some(&(0..10)));
+    let result_kp = AllContainersTest::result_field();
+    assert_eq!(result_kp.get(&data).copied(), Some(200));
+    let cow_kp = AllContainersTest::cow_str_field();
+    assert_eq!(cow_kp.get(&data).map(|c| c.as_str()), Some("cow"));
+
     let _empty_tuple = AllContainersTest::empty_tuple();
     println!("All containers (including &'static and reference types) generated successfully!");
 }
