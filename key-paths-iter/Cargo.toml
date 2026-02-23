@@ -3,9 +3,17 @@ name = "key-paths-iter"
 version = "0.1.0"
 edition = "2021"
 description = "Query builder and iteration over rust-key-paths KpType for Vec collections"
+authors = ["Codefonsi <info@codefonsi.com>"]
+license = "MPL-2.0"
+repository = "https://github.com/codefonsi/rust-key-paths"
+homepage = "https://github.com/codefonsi/rust-key-paths"
+documentation = "https://docs.rs/key-paths-iter"
+keywords = ["keypaths", "iterator", "query", "rayon", "parallel"]
+categories = ["data-structures", "development-tools"]
+readme = "README.md"
 
 [dependencies]
-rust-key-paths = { path = ".." }
+rust-key-paths = "2"
 rayon = { version = "1.10", optional = true }
 num_cpus = { version = "1.16", optional = true }
 

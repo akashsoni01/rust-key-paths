@@ -25,6 +25,10 @@ members = [
     "key-paths-iter",
 ]
 
+# Use local rust-key-paths when developing (remove or override when publishing dependents)
+[patch.crates-io]
+rust-key-paths = { path = "." }
+
 
 [features]
 default = []
