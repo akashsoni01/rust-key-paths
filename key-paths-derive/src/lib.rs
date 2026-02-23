@@ -679,19 +679,20 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::OptionVecDeque, Some(inner_ty))
-                        | (WrapperKind::OptionLinkedList, Some(inner_ty))
-                        | (WrapperKind::OptionBinaryHeap, Some(inner_ty))
-                        | (WrapperKind::OptionHashSet, Some(inner_ty))
-                        | (WrapperKind::OptionBTreeSet, Some(inner_ty))
-                        | (WrapperKind::OptionResult, Some(inner_ty))
-                        | (WrapperKind::OptionBTreeMap, Some(inner_ty)) => {
+                        (WrapperKind::OptionVecDeque, Some(_inner_ty))
+                        | (WrapperKind::OptionLinkedList, Some(_inner_ty))
+                        | (WrapperKind::OptionBinaryHeap, Some(_inner_ty))
+                        | (WrapperKind::OptionHashSet, Some(_inner_ty))
+                        | (WrapperKind::OptionBTreeSet, Some(_inner_ty))
+                        | (WrapperKind::OptionResult, Some(_inner_ty))
+                        | (WrapperKind::OptionBTreeMap, Some(_inner_ty)) => {
+                            // Keypath to the Option container (reference), like Vec/HashSet
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        |root: &#name| Some(&root.#field_ident),
+                                        |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
                             });
@@ -1566,24 +1567,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::OnceCell, Some(_inner_ty)) => {
+                        (WrapperKind::OnceCell, Some(inner_ty)) => {
+                            // OnceLock/OnceCell: keypath to inner value; get = .get() -> Option<&T>, set = None
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        |root: &#name| root.#field_ident.get(),
+                                        |_root: &mut #name| None,
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::Lazy, Some(_inner_ty)) => {
+                        (WrapperKind::Lazy, Some(inner_ty)) => {
+                            // Lazy/LazyLock: keypath to inner value; get = .get() -> &T wrapped in Some, set = None
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        |root: &#name| Some(root.#field_ident.get()),
+                                        |_root: &mut #name| None,
                                     )
                                 }
                             });
@@ -1632,24 +1635,24 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::OptionOnceCell, Some(_inner_ty)) => {
+                        (WrapperKind::OptionOnceCell, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        |root: &#name| root.#field_ident.as_ref().and_then(|c| c.get()),
+                                        |_root: &mut #name| None,
                                     )
                                 }
                             });
                         }
-                        (WrapperKind::OptionLazy, Some(_inner_ty)) => {
+                        (WrapperKind::OptionLazy, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        |root: &#name| root.#field_ident.as_ref().map(|c| c.get()),
+                                        |_root: &mut #name| None,
                                     )
                                 }
                             });
@@ -1775,19 +1778,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::OptionVecDeque, Some(inner_ty))
-                        | (WrapperKind::OptionLinkedList, Some(inner_ty))
-                        | (WrapperKind::OptionBinaryHeap, Some(inner_ty))
-                        | (WrapperKind::OptionHashSet, Some(inner_ty))
-                        | (WrapperKind::OptionBTreeSet, Some(inner_ty))
-                        | (WrapperKind::OptionResult, Some(inner_ty))
-                        | (WrapperKind::OptionBTreeMap, Some(inner_ty)) => {
+                        (WrapperKind::OptionVecDeque, Some(_inner_ty))
+                        | (WrapperKind::OptionLinkedList, Some(_inner_ty))
+                        | (WrapperKind::OptionBinaryHeap, Some(_inner_ty))
+                        | (WrapperKind::OptionHashSet, Some(_inner_ty))
+                        | (WrapperKind::OptionBTreeSet, Some(_inner_ty))
+                        | (WrapperKind::OptionResult, Some(_inner_ty))
+                        | (WrapperKind::OptionBTreeMap, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        |root: &#name| Some(&root.#idx_lit),
+                                        |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
                             });
@@ -2392,11 +2395,53 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::OnceCell, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.get(),
+                                        |_root: &mut #name| None,
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::Lazy, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| Some(root.#idx_lit.get()),
+                                        |_root: &mut #name| None,
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionOnceCell, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref().and_then(|c| c.get()),
+                                        |_root: &mut #name| None,
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionLazy, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref().map(|c| c.get()),
+                                        |_root: &mut #name| None,
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::Cell, Some(_inner_ty)) | (WrapperKind::RefCell, Some(_inner_ty))
-                        | (WrapperKind::OnceCell, Some(_inner_ty)) | (WrapperKind::Lazy, Some(_inner_ty))
                         | (WrapperKind::PhantomData, Some(_inner_ty)) | (WrapperKind::Range, Some(_inner_ty))
                         | (WrapperKind::OptionCell, Some(_inner_ty)) | (WrapperKind::OptionRefCell, Some(_inner_ty))
-                        | (WrapperKind::OptionOnceCell, Some(_inner_ty)) | (WrapperKind::OptionLazy, Some(_inner_ty))
                         | (WrapperKind::OptionPhantomData, Some(_inner_ty)) | (WrapperKind::OptionRange, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
@@ -2536,23 +2581,23 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
-                                (WrapperKind::OptionVecDeque, Some(inner_ty))
-                                | (WrapperKind::OptionLinkedList, Some(inner_ty))
-                                | (WrapperKind::OptionBinaryHeap, Some(inner_ty))
-                                | (WrapperKind::OptionHashSet, Some(inner_ty))
-                                | (WrapperKind::OptionBTreeSet, Some(inner_ty))
-                                | (WrapperKind::OptionResult, Some(inner_ty))
-                                | (WrapperKind::OptionBTreeMap, Some(inner_ty)) => {
+                                (WrapperKind::OptionVecDeque, Some(_inner_ty))
+                                | (WrapperKind::OptionLinkedList, Some(_inner_ty))
+                                | (WrapperKind::OptionBinaryHeap, Some(_inner_ty))
+                                | (WrapperKind::OptionHashSet, Some(_inner_ty))
+                                | (WrapperKind::OptionBTreeSet, Some(_inner_ty))
+                                | (WrapperKind::OptionResult, Some(_inner_ty))
+                                | (WrapperKind::OptionBTreeMap, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
-                                                    #name::#v_ident(inner) => inner.as_ref(),
+                                                    #name::#v_ident(inner) => Some(inner),
                                                     _ => None,
                                                 },
                                                 |root: &mut #name| match root {
-                                                    #name::#v_ident(inner) => inner.as_mut(),
+                                                    #name::#v_ident(inner) => Some(inner),
                                                     _ => None,
                                                 },
                                             )
@@ -3250,11 +3295,65 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         }
                                     });
                                 }
+                                (WrapperKind::OnceCell, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.get(),
+                                                    _ => None,
+                                                },
+                                                |_root: &mut #name| None,
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::Lazy, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => Some(inner.get()),
+                                                    _ => None,
+                                                },
+                                                |_root: &mut #name| None,
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionOnceCell, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_ref().and_then(|c| c.get()),
+                                                    _ => None,
+                                                },
+                                                |_root: &mut #name| None,
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionLazy, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_ref().map(|c| c.get()),
+                                                    _ => None,
+                                                },
+                                                |_root: &mut #name| None,
+                                            )
+                                        }
+                                    });
+                                }
                                 (WrapperKind::Cell, Some(_inner_ty)) | (WrapperKind::RefCell, Some(_inner_ty))
-                                | (WrapperKind::OnceCell, Some(_inner_ty)) | (WrapperKind::Lazy, Some(_inner_ty))
                                 | (WrapperKind::PhantomData, Some(_inner_ty)) | (WrapperKind::Range, Some(_inner_ty))
                                 | (WrapperKind::OptionCell, Some(_inner_ty)) | (WrapperKind::OptionRefCell, Some(_inner_ty))
-                                | (WrapperKind::OptionOnceCell, Some(_inner_ty)) | (WrapperKind::OptionLazy, Some(_inner_ty))
                                 | (WrapperKind::OptionPhantomData, Some(_inner_ty)) | (WrapperKind::OptionRange, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]

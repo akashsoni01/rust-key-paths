@@ -39,8 +39,11 @@ struct AllContainersTest {
     hashmap_field: HashMap<String, i32>,
     btreemap_field: BTreeMap<String, i32>,
 
-    // Container-of-Option (Option-of-container variants: OptionVecDeque, OptionHashSet, etc. also supported)
+    // Option-of-container and container-of-Option (keypath to container reference, like Vec/HashSet)
+    option_vecdeque_field: Option<VecDeque<String>>,
     vecdeque_option_field: VecDeque<Option<String>>,
+    option_hashset_field: Option<HashSet<String>>,
+    option_result_field: Option<Result<i32, String>>,
 
     // Interior mutability
     cell_field: Cell<i32>,
@@ -87,7 +90,10 @@ fn main() {
         binaryheap_field: BinaryHeap::from(["b".to_string()]),
         hashmap_field: HashMap::from([("k".to_string(), 42)]),
         btreemap_field: BTreeMap::from([("k".to_string(), 99)]),
+        option_vecdeque_field: Some(VecDeque::from(["ov".to_string()])),
         vecdeque_option_field: VecDeque::from([Some("vo".to_string())]),
+        option_hashset_field: Some(HashSet::from(["oh".to_string()])),
+        option_result_field: Some(Ok(100)),
         cell_field: Cell::new(10),
         refcell_field: RefCell::new("refcell".to_string()),
         once_lock_field: once_lock,
@@ -108,7 +114,10 @@ fn main() {
     // String and Option-of-container / container-of-Option
     let string_kp = AllContainersTest::string_field();
     assert_eq!(string_kp.get(&data).map(|s| s.as_str()), Some("hello"));
+    let _opt_vecdeque_kp = AllContainersTest::option_vecdeque_field();
     let _vecdeque_opt_kp = AllContainersTest::vecdeque_option_field();
+    let _opt_hashset_kp = AllContainersTest::option_hashset_field();
+    let _opt_result_kp = AllContainersTest::option_result_field();
 
     // Test reference types
     let static_str_kp = AllContainersTest::static_str_field();
@@ -137,7 +146,11 @@ fn main() {
     // Interior mutability, lazy, marker, range, result, cow
     let _cell_kp = AllContainersTest::cell_field();
     let _refcell_kp = AllContainersTest::refcell_field();
-    let _once_lock_kp = AllContainersTest::once_lock_field();
+    let once_lock_kp = AllContainersTest::once_lock_field();
+    if let Some(x) = once_lock_kp.get(&data) {
+        // x is &String (inner value reference)
+        assert_eq!(x.as_str(), "lazy");
+    }
     let _phantom_kp = AllContainersTest::phantom_field();
     let range_kp = AllContainersTest::range_field();
     assert_eq!(range_kp.get(&data), Some(&(0..10)));
