@@ -44,6 +44,8 @@ criterion = { version = "0.5", features = ["html_reports"] }
 tokio = { version = "1.38.0", features = ["sync", "rt", "rt-multi-thread", "macros"] }
 key-paths-derive = { path = "key-paths-derive" }
 key-paths-iter = { path = "key-paths-iter", features = ["rayon"] }
+num_cpus = "1.16"
+rayon = "1.10"
 pin-project = "1.1"
 
 [[bench]]

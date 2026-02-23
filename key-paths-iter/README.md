@@ -52,6 +52,8 @@ The keypath and the root reference share the same lifetime; use a type annotatio
 
 With the `rayon` feature, the crate exposes a **Rayon optimization** module: thread pool presets, chunk sizing, cache-friendly patterns, profiling helpers, and workload-specific guides. Use these with parallel keypath collection ops (e.g. `query_par`).
 
+**Examples** (from the workspace root): `rayon_config_example`, `adaptive_pool_example`, `chunk_size_example`, `memory_optimized_example`, `rayon_profiler_example`, `rayon_patterns_example`, `rayon_env_example`, `optimization_guide_example`, `performance_monitor_example`. Run with `cargo run --example <name>` (requires `key-paths-iter` with `rayon` in dev-dependencies).
+
 ### Thread count rules of thumb
 
 - **CPU-bound:** use all cores → `RAYON_NUM_THREADS = num_cpus::get()`
