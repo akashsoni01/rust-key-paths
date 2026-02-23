@@ -1,6 +1,6 @@
 [package]
 name = "key-paths-derive"
-version = "2.0.5"
+version = "2.0.6"
 edition = "2024"
 description = "Proc-macro derive to generate keypath methods"
 license = "MPL-2.0"
@@ -23,7 +23,7 @@ syn = { version = "2", features = ["full"] }
 
 [dev-dependencies]
 async-trait = "0.1"
-rust-key-paths = { path = "../", version = "2.0.5", features = ["tokio", "parking_lot", "pin_project"] }
+rust-key-paths = { path = "../", version = "2.0.6", features = ["tokio", "parking_lot", "pin_project"] }
 tokio = { version = "1.38", features = ["sync", "rt", "macros"] }
 parking_lot = "0.12"
 pin-project = "1.1"

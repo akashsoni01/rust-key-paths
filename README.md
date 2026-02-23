@@ -11,8 +11,8 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "2.0.4"
-key-paths-derive = "2.0.4"
+rust-key-paths = "2.0.6"
+key-paths-derive = "2.0.6"
 ```
 
 ### Basic usage
@@ -194,10 +194,6 @@ Benchmark: nested `Option` chains and enum case paths (`cargo bench --bench keyp
 
 | Scenario | Keypath | Direct unwrap | Overhead |
 |----------|---------|---------------|----------|
-| Read 3-level Option | ~2.25 ns | ~387 ps | ~5.8x |
-| Write 3-level Option | ~854 ps | ~381 ps | ~2.2x |
-| Read 5-level Option | ~3.54 ns | ~383 ps | ~9.2x |
-| Read 5-level with enum | ~3.52 ns | ~392 ps | ~9x |
 | 100× reuse (3-level) | ~36.6 ns | ~36.7 ns | ~1x |
 | 100× reuse (5-level) | ~52.3 ns | ~52.5 ns | ~1x |
 
