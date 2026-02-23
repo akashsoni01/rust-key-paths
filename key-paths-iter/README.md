@@ -18,6 +18,8 @@ For parallel iteration and Rayon tuning helpers, enable the `rayon` feature:
 key-paths-iter = { path = "../key-paths-iter", features = ["rayon"] }
 ```
 
+**Rayon version:** the crate uses **Rayon 1.10** (optional dependency). It is expected to work with Rayon **1.10.x** and newer 1.x; if you need a different Rayon version, use a patch in your workspace or fork. Rayon 1.x is stable and API-compatible across minor updates.
+
 Use with a keypath whose value type is `Vec<Item>`:
 
 ```rust
@@ -53,6 +55,30 @@ The keypath and the root reference share the same lifetime; use a type annotatio
 With the `rayon` feature, the crate exposes a **Rayon optimization** module: thread pool presets, chunk sizing, cache-friendly patterns, profiling helpers, and workload-specific guides. Use these with parallel keypath collection ops (e.g. `query_par`).
 
 **Examples** (from the workspace root): `rayon_config_example`, `adaptive_pool_example`, `chunk_size_example`, `memory_optimized_example`, `rayon_profiler_example`, `rayon_patterns_example`, `rayon_env_example`, `optimization_guide_example`, `performance_monitor_example`. Run with `cargo run --example <name>` (requires `key-paths-iter` with `rayon` in dev-dependencies).
+
+### Performance benefits of parallel (`par`)
+
+- **Throughput:** On multi-core machines, parallel iteration spreads work across cores, so total time can drop by roughly a factor of the number of cores (for CPU-bound work with good load balance).
+- **When you gain the most:** Large collections (e.g. &gt; 10k items), CPU-heavy per-item work (math, encoding, parsing), and batch operations (map, filter, count, sort, fold). Typical speedups are **~2–8×** on 2–8 cores when the workload is uniform and not memory-bound.
+- **When `par` may not help (or can hurt):** Very small collections (overhead dominates), very cheap per-item work (&lt; ~1 μs), or when the bottleneck is memory bandwidth or a single shared resource. Use `RayonProfiler::compare_parallel_vs_sequential` to measure.
+
+### Where you can use `par`
+
+**In this crate (keypath collections)** — use the `query_par` module and the `ParallelCollectionKeyPath` trait on `KpType<'static, Root, Vec<Item>>` (e.g. from `#[derive(Kp)]`):
+
+| Category | Methods |
+|----------|---------|
+| **Map / transform** | `par_map`, `par_filter`, `par_filter_map`, `par_flat_map`, `par_map_with_index` |
+| **Reduce / aggregate** | `par_fold`, `par_reduce`, `par_count`, `par_count_by` |
+| **Search** | `par_find`, `par_find_any`, `par_any`, `par_all`, `par_contains` |
+| **Min / max** | `par_min`, `par_max`, `par_min_by_key`, `par_max_by_key` |
+| **Partition / group** | `par_partition`, `par_group_by` |
+| **Ordering** | `par_sort`, `par_sort_by_key` |
+| **Side effects** | `par_for_each` |
+
+Example: `employees_kp.par_map(&company, |e| e.salary)`, `employees_kp.par_count_by(&company, |e| e.active)`.
+
+**With raw slices and Rayon** — on any `&[T]` or `Vec<T>` you can use Rayon’s `par_iter()`, `par_chunks()`, `par_chunks_mut()`, and the rest of the `rayon::prelude` API. The `rayon_optimizations` helpers (chunk sizing, pool config, profiling) work with both keypath-based and raw-slice parallel code.
 
 ### Thread count rules of thumb
 
