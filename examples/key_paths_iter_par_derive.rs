@@ -23,7 +23,7 @@ struct Employee {
 fn main() {
     let company = Company {
         name: "Acme Corp".to_string(),
-        employees: (0..5000)
+        employees: (0..5000000)
             .map(|i| Employee {
                 name: format!("Employee_{}", i),
                 role: if i % 3 == 0 {
