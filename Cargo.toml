@@ -22,6 +22,7 @@ parking_lot = { version = "0.12", optional = true }
 resolver = "3" # or "3"
 members = [
     "key-paths-derive",
+    "key-paths-iter",
 ]
 
 

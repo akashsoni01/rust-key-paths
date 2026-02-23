@@ -1,0 +1,8 @@
+[package]
+name = "key-paths-iter"
+version = "0.1.0"
+edition = "2021"
+description = "Query builder and iteration over rust-key-paths KpType for Vec collections"
+
+[dependencies]
+rust-key-paths = { path = ".." }
