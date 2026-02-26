@@ -83,3 +83,7 @@ harness = false
 [[bench]]
 name = "ten_level_tokio_rwlock"
 harness = false
+
+[[bench]]
+name = "scale_par_bench"
+harness = false

@@ -81,6 +81,67 @@ par_scale_buffers(&buffers_kp, &mut pipeline, 2.0);
 
 Run the full example: `cargo run --example scale_par_gpu_validation` (from the workspace root, with `key-paths-iter` and `rayon` enabled).
 
+### Benchmark (scale_par: parallel vs sequential)
+
+From the **workspace root** (rust-key-paths), run:
+
+```bash
+cargo bench --bench scale_par_bench
+```
+
+This compares:
+
+- **Buffer scaling:** sequential nested loops vs keypath `par_scale_buffers` (multiple buffer × length sizes).
+- **Validation (all non-empty):** sequential `iter().all(...)` vs `par_validate_buffers_non_empty`.
+- **Count by predicate:** sequential `filter().count()` vs keypath `par_count_by` (nodes by kind at 5k–100k nodes).
+
+On multi-core machines, parallel validation and `par_count_by` typically show speedups for large collections; buffer scaling may favor sequential for small inputs due to Rayon overhead. Use the benchmark to tune for your workload.
+
+---
+
+## Enabling GPU access (using keypaths with a GPU backend)
+
+This crate does **not** ship a GPU driver or runtime. It gives you **CPU-side** parallel validation, extraction, and preprocessing via keypaths. To run work on an actual GPU, add a GPU backend to your project and use keypaths to prepare and consume data.
+
+### 1. System and driver requirements
+
+| Backend | Typical use | What you need |
+|--------|-------------|----------------|
+| **Vulkan** | Cross-platform (Windows, Linux, macOS) | Vulkan SDK, GPU drivers with Vulkan support |
+| **Metal** | macOS, iOS | Xcode / Metal (usually already installed on Mac) |
+| **CUDA** | NVIDIA GPUs only | NVIDIA drivers, CUDA Toolkit, `nvcc` in path for Rust CUDA builds |
+| **ROCm** | AMD GPUs (Linux) | ROCm stack, compatible AMD GPU |
+
+- **Windows:** Install [Vulkan SDK](https://vulkan.lunarg.com/) and/or [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) (NVIDIA). GPU drivers from your vendor must be up to date.
+- **macOS:** Metal is built in; for Vulkan you can use MoltenVK (often bundled by wgpu).
+- **Linux:** Install Vulkan (e.g. `vulkan-tools`, `libvulkan-dev`), or NVIDIA drivers + CUDA for NVIDIA, or ROCm for AMD.
+
+### 2. Rust crates that enable GPU
+
+- **[wgpu](https://crates.io/crates/wgpu)** — Cross-platform (Vulkan / Metal / DX12 / WebGPU). Good default for “run on GPU” without tying to one vendor. Use keypaths to build buffers (e.g. `extract_gpu_data`, `par_flat_map_buffer_data`) and validate before `queue.write_buffer` / dispatch.
+- **[cudarc](https://crates.io/crates/cudarc)** / **[rust-cuda](https://github.com/Rust-GPU/Rust-CUDA)** — NVIDIA CUDA from Rust. Use keypaths to prepare host data, then copy to device and launch kernels.
+- **[vulkano](https://crates.io/crates/vulkano)** — Vulkan bindings. Keypaths can feed validated/extracted data into Vulkan buffers and compute dispatches.
+
+### 3. How to “enable GPU” in your project
+
+1. **Add a GPU dependency** to your `Cargo.toml`, e.g. `wgpu` or `cudarc`.
+2. **Use keypaths + `scale_par` on the CPU** to validate and prepare data (e.g. `validate_for_gpu`, `extract_gpu_data`, `par_scale_buffers`).
+3. **Transfer to the GPU** using the backend’s API (e.g. `wgpu::Queue::write_buffer` with data produced via keypath helpers).
+4. **Run your compute or render work** on the device; then read back results and, if needed, write them back into your structures via keypaths (e.g. `process_gpu_results`).
+
+Example pattern (pseudo-code):
+
+```text
+let data = extract_gpu_data(&pipeline, &nodes_kp, &pairs_kp);  // keypath-based
+validate_for_gpu(&pipeline, &nodes_kp, &pairs_kp, MAX_PORT)?;    // parallel validation
+queue.write_buffer(&buffer, 0, bytemuck::cast_slice(&data.nodes));  // wgpu/CUDA/...
+// ... dispatch ...
+// read back and write into pipeline via keypath
+process_gpu_results(&mut pipeline, &nodes_kp, gpu_results);
+```
+
+No feature flag in **key-paths-iter** is required for GPU: enable the **`rayon`** feature for parallel CPU prep; the GPU itself is enabled by your choice of backend and system drivers.
+
 ---
 
 ## Rayon performance tuning
