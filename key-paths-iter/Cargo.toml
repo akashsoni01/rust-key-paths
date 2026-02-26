@@ -16,7 +16,11 @@ readme = "README.md"
 rust-key-paths = "2"
 rayon = { version = "1.10", optional = true }
 num_cpus = { version = "1.16", optional = true }
+bytemuck = { version = "1.14", features = ["derive"], optional = true }
+wgpu = { version = "0.19", optional = true }
+pollster = { version = "0.3", optional = true }
 
 [features]
 default = []
 rayon = ["dep:rayon", "dep:num_cpus"]
+gpu = ["dep:bytemuck", "dep:wgpu", "dep:pollster"]

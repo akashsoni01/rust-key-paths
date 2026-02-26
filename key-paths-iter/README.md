@@ -81,6 +81,18 @@ par_scale_buffers(&buffers_kp, &mut pipeline, 2.0);
 
 Run the full example: `cargo run --example scale_par_gpu_validation` (from the workspace root, with `key-paths-iter` and `rayon` enabled).
 
+**GPU-compatible types:** `NetNode` is `#[repr(C)]` with `kind`, `port0`, `port1`, `port2` (use `NetNode::new(NodeKind, [u32;3])` and `.kind()` / `.ports()`). `RedexPair` is `#[repr(C)]` with `left`, `right`; convert with `RedexPair::from((u32, u32))`. With the `gpu` feature, both derive `bytemuck::Pod` and `Zeroable` for safe GPU buffer casting. Mutable access uses the keypath **`get_mut(root)`** API from rust_key_paths (returns `Option<&mut V>`).
+
+### Optional: GPU compute (feature `gpu`)
+
+Enable the `gpu` feature for wgpu-based HVM2-style reduction:
+
+```toml
+key-paths-iter = { path = "../key-paths-iter", features = ["rayon", "gpu"] }
+```
+
+This adds `GpuCompute::new()` and `execute_reduction()`, and `run_gpu_reduction_pipeline(pipeline, nodes_kp, pairs_kp)` for a full validate → extract → dispatch → read-back flow. Requires a GPU adapter (Vulkan/Metal/DX12). The WGSL shader is in `key-paths-iter/shaders/hvm_reduce.wgsl`.
+
 ### Benchmark (scale_par: parallel vs sequential)
 
 From the **workspace root** (rust-key-paths), run:

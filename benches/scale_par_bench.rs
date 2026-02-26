@@ -30,14 +30,14 @@ fn make_pipeline(num_buffers: usize, buffer_len: usize, num_nodes: usize, num_pa
         gpu_buffer_ids: (0..num_buffers as u32).collect(),
         reduction_net: InteractionNet {
             nodes: (0..num_nodes)
-                .map(|i| NetNode {
-                    kind: match i % 4 {
+                .map(|i| {
+                    let kind = match i % 4 {
                         0 => NodeKind::Era,
                         1 => NodeKind::Con,
                         2 => NodeKind::Dup,
                         _ => NodeKind::Ref,
-                    },
-                    ports: [i as u32 % 1000, (i + 1) as u32 % 1000, (i + 2) as u32 % 1000],
+                    };
+                    NetNode::new(kind, [i as u32 % 1000, (i + 1) as u32 % 1000, (i + 2) as u32 % 1000])
                 })
                 .collect(),
             active_pairs: (0..num_pairs).map(|i| (i as u32 % num_nodes as u32, (i + 1) as u32 % num_nodes as u32)).collect(),
@@ -58,7 +58,7 @@ fn sequential_validate_buffers_non_empty(pipeline: &GpuComputePipeline) -> bool 
 }
 
 fn sequential_count_nodes_era(pipeline: &GpuComputePipeline) -> usize {
-    pipeline.reduction_net.nodes.iter().filter(|n| n.kind == NodeKind::Era).count()
+    pipeline.reduction_net.nodes.iter().filter(|n| n.kind() == NodeKind::Era).count()
 }
 
 fn bench_buffer_scale(c: &mut Criterion) {
@@ -135,7 +135,7 @@ fn bench_count_by(c: &mut Criterion) {
             |p: &mut GpuComputePipeline| Some(&mut p.reduction_net.nodes),
         );
         group.bench_function(format!("keypath_par_count_by_era_{}nodes", num_nodes), |b| {
-            b.iter(|| nodes_kp.par_count_by(black_box(&pipeline), |n| n.kind == NodeKind::Era));
+            b.iter(|| nodes_kp.par_count_by(black_box(&pipeline), |n| n.kind() == NodeKind::Era));
         });
     }
 

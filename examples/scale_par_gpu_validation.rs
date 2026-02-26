@@ -43,15 +43,15 @@ fn main() {
         gpu_buffer_ids: vec![0, 1],
         reduction_net: InteractionNet {
             nodes: (0..500)
-                .map(|i| NetNode {
-                    kind: if i % 3 == 0 {
+                .map(|i| {
+                    let kind = if i % 3 == 0 {
                         NodeKind::Dup
                     } else if i % 3 == 1 {
                         NodeKind::Era
                     } else {
                         NodeKind::Ref
-                    },
-                    ports: [i as u32 % 100, (i + 1) as u32 % 100, (i + 2) as u32 % 100],
+                    };
+                    NetNode::new(kind, [i as u32 % 100, (i + 1) as u32 % 100, (i + 2) as u32 % 100])
                 })
                 .collect(),
             active_pairs: (0..2000).map(|i| (i as u32 % 500, (i + 1) as u32 % 500)).collect(),
