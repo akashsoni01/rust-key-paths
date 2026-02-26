@@ -8,6 +8,8 @@ use rust_key_paths::KpType;
 pub mod query_par;
 #[cfg(feature = "rayon")]
 pub mod rayon_optimizations;
+#[cfg(feature = "rayon")]
+pub mod scale_par;
 
 /// Query builder for collection keypaths (KpType where value is `Vec<Item>`).
 pub struct CollectionQuery<'a, Root, Item> {

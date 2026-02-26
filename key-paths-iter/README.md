@@ -50,6 +50,39 @@ The keypath and the root reference share the same lifetime; use a type annotatio
 
 ---
 
+## GPU-scale parallel validation and calculation (`scale_par`)
+
+With the `rayon` feature, the **`scale_par`** module provides types and helpers for GPU-style pipelines: parallel validation, data extraction for transfer, pre/post processing, and adaptive dispatch — all driven by keypaths.
+
+**Benefits of using `scale_par` with keypaths:**
+
+| Benefit | Description |
+|--------|-------------|
+| **Zero-cost + composable** | Keypaths use `fn` pointers that inline to direct field access; no boxed closures. Compose keypaths (e.g. into nested `reduction_net.nodes`) with no runtime overhead. |
+| **Parallel-first** | `par_all`, `par_count_by`, `par_flat_map`, etc. run over the collection at the keypath. Validate large node/pair arrays in parallel before GPU transfer. |
+| **GPU data pipeline** | Extract via keypath → validate in parallel → transfer; then write back results via `get_mut` and keypath. Same pattern works for CPU-only “GPU-style” batches. |
+| **First-class field access** | Pass keypaths as arguments (e.g. `validate_for_gpu(..., nodes_kp, pairs_kp)`). Generic code can work over any root/collection type. |
+| **Adaptive dispatch** | Use keypath queries (`par_count`, `par_count_by`) to choose workgroup size, batch size, or local memory usage from data shape. |
+| **No boilerplate** | One keypath per field; validation and calculation functions take keypath references. Works with `#[derive(Kp)]` or manual `Kp::new`. |
+
+**Example:** validate a compute pipeline, extract data for GPU, run parallel buffer scaling, then write back results:
+
+```rust
+use key_paths_iter::scale_par::{validate_for_gpu, extract_gpu_data, par_scale_buffers, ...};
+use rust_key_paths::Kp;
+
+let nodes_kp = Kp::new(|p: &GpuComputePipeline| Some(&p.reduction_net.nodes), ...);
+let pairs_kp = Kp::new(|p: &GpuComputePipeline| Some(&p.reduction_net.active_pairs), ...);
+
+validate_for_gpu(&pipeline, &nodes_kp, &pairs_kp, 1000)?;
+let gpu_data = extract_gpu_data(&pipeline, &nodes_kp, &pairs_kp);
+par_scale_buffers(&buffers_kp, &mut pipeline, 2.0);
+```
+
+Run the full example: `cargo run --example scale_par_gpu_validation` (from the workspace root, with `key-paths-iter` and `rayon` enabled).
+
+---
+
 ## Rayon performance tuning
 
 With the `rayon` feature, the crate exposes a **Rayon optimization** module: thread pool presets, chunk sizing, cache-friendly patterns, profiling helpers, and workload-specific guides. Use these with parallel keypath collection ops (e.g. `query_par`).
