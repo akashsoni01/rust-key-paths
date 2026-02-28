@@ -11,6 +11,9 @@ pub mod rayon_optimizations;
 #[cfg(feature = "rayon")]
 pub mod scale_par;
 
+#[cfg(feature = "gpu")]
+pub mod wgpu;
+
 /// Query builder for collection keypaths (KpType where value is `Vec<Item>`).
 pub struct CollectionQuery<'a, Root, Item> {
     keypath: &'a KpType<'a, Root, Vec<Item>>,

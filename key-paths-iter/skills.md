@@ -161,8 +161,6 @@ let config = adaptive_gpu_dispatch(&pipeline, &nodes_kp, &pairs_kp);
 
 ## 7. Runnable examples (workspace root)
 
-From the **rust-key-paths** workspace root (parent of key-paths-iter):
-
 ```bash
 cargo run --example key_paths_iter_par_derive   # parallel with derive(Kp)
 cargo run --example scale_par_gpu_validation    # scale_par validation + buffers
