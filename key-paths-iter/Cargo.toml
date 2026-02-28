@@ -1,6 +1,6 @@
 [package]
 name = "key-paths-iter"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Query builder and iteration over rust-key-paths KpType for Vec collections"
 authors = ["Codefonsi <info@codefonsi.com>"]
