@@ -5,8 +5,8 @@
 
 #![cfg(feature = "gpu")]
 
-use rust_key_paths::AKp;
-use std::any::TypeId;
+use rust_key_paths::{AKp, KpType};
+use std::any::{Any, TypeId};
 use std::sync::mpsc;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
@@ -29,6 +29,40 @@ pub struct NumericAKp {
     /// WGSL expression for the transform, e.g. `"input * 2.0"`. The input is a single f32.
     pub wgsl_expr: String,
     pub root_type_id: TypeId,
+}
+
+// ─── Kp / PKp → NumericAKp (reference-based; only the numeric value is copied) ─
+
+/// Converts a typed keypath that yields a GPU-compatible value into a [NumericAKp].
+/// Uses the keypath’s getter by reference; only the numeric value (e.g. one `f32`) is copied.
+pub trait IntoNumericAKp {
+    fn into_numeric_akp(self, wgsl_expr: impl Into<String>) -> NumericAKp;
+}
+
+impl<R: 'static> IntoNumericAKp for KpType<'static, R, f32> {
+    fn into_numeric_akp(self, wgsl_expr: impl Into<String>) -> NumericAKp {
+        NumericAKp {
+            extractor: Arc::new(move |root: &dyn Any| {
+                let r = root.downcast_ref::<R>()?;
+                self.get(r).map(|v| GpuValue::F32(*v))
+            }),
+            wgsl_expr: wgsl_expr.into(),
+            root_type_id: TypeId::of::<R>(),
+        }
+    }
+}
+
+impl<R: 'static> IntoNumericAKp for KpType<'static, R, u32> {
+    fn into_numeric_akp(self, wgsl_expr: impl Into<String>) -> NumericAKp {
+        NumericAKp {
+            extractor: Arc::new(move |root: &dyn Any| {
+                let r = root.downcast_ref::<R>()?;
+                self.get(r).map(|v| GpuValue::U32(*v))
+            }),
+            wgsl_expr: wgsl_expr.into(),
+            root_type_id: TypeId::of::<R>(),
+        }
+    }
 }
 
 // ─── Tier: GPU vs CPU ───────────────────────────────────────────────────────
