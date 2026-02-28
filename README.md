@@ -119,7 +119,7 @@ See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 The [key-paths-iter](https://github.com/codefonsi/rust-key-paths) crate can run **numeric** keypaths (e.g. `f32`) on the GPU via wgpu. Two styles:
 
 - **AKp runner** (`wgpu` module): `IntoNumericAKp` from Kp, `AKpTier::Numeric` / `Arbitrary`, `AKpRunner`. Examples: `kp_pkp_wgpu`, `akp_wgpu_runner`.
-- **Kp-only** (`kp_gpu` module): no AKp/PKp — `.map_gpu(wgsl)`, `.par_gpu(wgsl, roots, ctx)`, `GpuKpRunner`. Example: `kp_gpu_example`.
+- **Kp-only** (`kp_gpu` module): no AKp/PKp — `.map_gpu(wgsl)`, `.par_gpu(wgsl, roots, ctx)`, `GpuKpRunner`. Examples: `kp_gpu_example`, `kp_gpu_vec_example` (Kp with value `Vec<V>`: `.map_gpu_vec(wgsl)` for one dispatch over the vector).
 
 Run benchmarks: `cargo bench --bench akp_cpu_bench`. Typical results (MacBook Air M1):
 
@@ -150,6 +150,7 @@ cargo run --example pkp_akp_read_write_convert
 cargo run --example kp_pkp_wgpu
 cargo run --example akp_wgpu_runner
 cargo run --example kp_gpu_example
+cargo run --example kp_gpu_vec_example
 # Box and Pin support
 cargo run --example box_and_pin_example
 # pin_project #[pin] fields

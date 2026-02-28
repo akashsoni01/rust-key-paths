@@ -101,8 +101,9 @@ With the `gpu` feature, the **`kp_gpu`** module provides GPU extensions on `KpTy
 - **`.par_gpu(wgsl, roots, ctx)`** — attach kernel and run over a slice in one GPU dispatch.
 - **`.and_then_gpu(next_wgsl)`** — chain a second kernel (one dispatch).
 - **`GpuKpRunner`** — run a heterogeneous list of `GpuKp`s (f32, u32, i32) on one root or many roots in one dispatch.
+- **Vec value** — for `KpType<R, Vec<V>>` (e.g. a field that is `Vec<f32>`): **`.map_gpu_vec(wgsl)`** returns `GpuKpVec<R, V>` with `run_one(root, ctx)` and `apply_one(root, ctx)` for one GPU dispatch over the whole vector.
 
-Example: `cargo run --example kp_gpu_example` (from the workspace root).
+Examples: `cargo run --example kp_gpu_example`, `cargo run --example kp_gpu_vec_example` (from the workspace root).
 
 ### Benchmark (scale_par: parallel vs sequential)
 

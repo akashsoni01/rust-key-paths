@@ -215,6 +215,84 @@ where
     }
 }
 
+// ── 4b. KpType<R, Vec<V>>: GPU over a vector at the keypath ──────────────────
+
+/// A keypath that extracts a `Vec<V>` from `R` and runs an element-wise GPU kernel over it.
+///
+/// Created via [`KpGpuVecExt::map_gpu_vec`]. One GPU dispatch over the whole vector.
+pub struct GpuKpVec<R: 'static, V: GpuCompatible> {
+    extractor: Arc<dyn Fn(&R) -> Option<Vec<V>> + Send + Sync>,
+    injector: Arc<dyn Fn(&mut R, Vec<V>) + Send + Sync>,
+    pub kernel: GpuKernel,
+    pub root_type_id: TypeId,
+}
+
+impl<R: 'static, V: GpuCompatible> GpuKpVec<R, V> {
+    /// Run the GPU kernel on the vector at `root`; returns the transformed vector.
+    pub fn run_one(&self, root: &R, ctx: &WgpuContext) -> Option<Vec<V>> {
+        let values = (self.extractor)(root)?;
+        if values.is_empty() {
+            return Some(values);
+        }
+        ctx.dispatch_scalar::<V>(&values, &self.kernel).ok()
+    }
+
+    /// Run the kernel and write the result back into the root (in-place).
+    pub fn apply_one(&self, root: &mut R, ctx: &WgpuContext) -> bool {
+        if let Some(transformed) = self.run_one(root, ctx) {
+            (self.injector)(root, transformed);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Chain another WGSL statement (same as scalar `and_then_gpu`).
+    pub fn and_then_gpu(self, next_kernel: impl Into<String>) -> Self {
+        let combined = format!(
+            "{}\n    {}",
+            self.kernel.wgsl_statement,
+            next_kernel.into()
+        );
+        Self {
+            kernel: GpuKernel::new(combined),
+            ..self
+        }
+    }
+}
+
+/// GPU extensions for keypaths whose **value type is `Vec<V>`**.
+pub trait KpGpuVecExt<R: 'static, V: GpuCompatible> {
+    /// Attach an element-wise WGSL transform over the vector; one GPU dispatch.
+    fn map_gpu_vec(self, wgsl_statement: impl Into<String>) -> GpuKpVec<R, V>;
+}
+
+impl<R, V> KpGpuVecExt<R, V> for KpType<'static, R, Vec<V>>
+where
+    R: 'static,
+    V: GpuCompatible,
+{
+    fn map_gpu_vec(self, wgsl_statement: impl Into<String>) -> GpuKpVec<R, V> {
+        let kp = Arc::new(self);
+        GpuKpVec {
+            extractor: Arc::new({
+                let kp = Arc::clone(&kp);
+                move |r: &R| kp.get(r).map(|vec_ref| vec_ref.iter().copied().collect())
+            }),
+            injector: Arc::new({
+                let kp = Arc::clone(&kp);
+                move |r: &mut R, new_vec: Vec<V>| {
+                    if let Some(slot) = kp.get_mut(r) {
+                        *slot = new_vec;
+                    }
+                }
+            }),
+            kernel: GpuKernel::new(wgsl_statement),
+            root_type_id: TypeId::of::<R>(),
+        }
+    }
+}
+
 // ── 5. zip_gpu: run TWO GpuKps with one shader ──────────────────────────────
 
 /// Run two `GpuKp`s on the **same root** with a single GPU dispatch.
