@@ -46,6 +46,12 @@ pub struct WgpuContext {
     pub queue: wgpu::Queue,
 }
 
+/// Same transform as the default numeric shader: `x * 2.0 + 1.0`. Used for CPU-side benchmarks.
+#[inline(always)]
+pub fn cpu_transform_f32(x: f32) -> f32 {
+    x * 2.0 + 1.0
+}
+
 impl WgpuContext {
     pub fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         pollster::block_on(Self::new_async())
@@ -68,6 +74,14 @@ impl WgpuContext {
             )
             .await?;
         Ok(Self { device, queue })
+    }
+
+    /// Run the default f32 transform (x * 2 + 1) on GPU over a slice. For benchmarks and batch use.
+    pub fn transform_f32_gpu(
+        &self,
+        values: &[f32],
+    ) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
+        AKpRunner::dispatch_f32(self, values)
     }
 }
 

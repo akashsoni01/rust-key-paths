@@ -87,3 +87,7 @@ harness = false
 [[bench]]
 name = "scale_par_bench"
 harness = false
+
+[[bench]]
+name = "akp_cpu_bench"
+harness = false
