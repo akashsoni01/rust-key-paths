@@ -10,6 +10,7 @@
 #![cfg(feature = "gpu")]
 
 use std::any::TypeId;
+use std::marker::PhantomData;
 use std::sync::{mpsc, Arc};
 use wgpu::util::DeviceExt;
 
@@ -81,36 +82,43 @@ impl GpuKernel {
     }
 }
 
-// ── 3. GpuKp<R, V>: a KpType with an attached GPU kernel ───────────────────
+// ── 3. GpuKp<R, V, E, I>: static dispatch (no trait objects) ───────────────
 
 /// A keypath that extracts a `V` from `R` **and** knows how to transform
 /// that value on the GPU.
 ///
+/// Uses **static dispatch**: `E` and `I` are the concrete extractor/injector
+/// types (e.g. closures), so calls are monomorphized with no vtable.
+///
 /// Created via [`KpGpuExt::map_gpu`] or [`KpGpuExt::into_gpu`].
 /// Composable via [`.and_then_gpu()`] and [`.zip_gpu_same()`].
-pub struct GpuKp<R: 'static, V: GpuCompatible> {
-    /// Extracts the scalar from the root (CPU side).
-    pub(crate) extractor: Arc<dyn Fn(&R) -> Option<V> + Send + Sync>,
-    /// Writes transformed value back into the root (CPU side).
-    pub(crate) injector: Arc<dyn Fn(&mut R, V) + Send + Sync>,
+pub struct GpuKp<R: 'static, V: GpuCompatible, E, I> {
+    pub(crate) extractor: E,
+    pub(crate) injector: I,
     pub kernel: GpuKernel,
     pub root_type_id: TypeId,
+    /// Used to tie R and V to the type without requiring them to be Send/Sync.
+    _marker: PhantomData<fn() -> (R, V)>,
 }
 
-impl<R: 'static, V: GpuCompatible> GpuKp<R, V> {
+impl<R: 'static, V: GpuCompatible, E, I> GpuKp<R, V, E, I>
+where
+    E: Fn(&R) -> Option<V> + Send + Sync,
+    I: Fn(&mut R, V) + Send + Sync,
+{
     /// Compose: apply `next` kernel *after* `self` kernel.
-    ///
-    /// The composed kernel is a two-pass expression:
-    /// the second kernel's `wgsl_statement` acts on the output of the first.
-    pub fn and_then_gpu(self, next_kernel: impl Into<String>) -> Self {
+    pub fn and_then_gpu(self, next_kernel: impl Into<String>) -> GpuKp<R, V, E, I> {
         let combined = format!(
             "{}\n    {}",
             self.kernel.wgsl_statement,
             next_kernel.into()
         );
-        Self {
+        GpuKp {
             kernel: GpuKernel::new(combined),
-            ..self
+            extractor: self.extractor,
+            injector: self.injector,
+            root_type_id: self.root_type_id,
+            _marker: PhantomData,
         }
     }
 
@@ -158,16 +166,12 @@ impl<R: 'static, V: GpuCompatible> GpuKp<R, V> {
 /// GPU extensions for [`KpType`]; mirrors `.map()` / `.filter()` but produces [`GpuKp`].
 pub trait KpGpuExt<R: 'static, V: GpuCompatible> {
     /// Lift `self` into a `GpuKp` with an identity (pass-through) kernel.
-    /// Chain `.and_then_gpu()` to attach a transform.
-    fn into_gpu(self) -> GpuKp<R, V>;
+    fn into_gpu(self) -> GpuKp<R, V, impl Fn(&R) -> Option<V> + Send + Sync, impl Fn(&mut R, V) + Send + Sync>;
 
-    /// Attach a WGSL element-wise transform, producing a `GpuKp`.
-    ///
-    /// `wgsl_statement` receives `input[id]: V` and must write `output[id]`.
-    fn map_gpu(self, wgsl_statement: impl Into<String>) -> GpuKp<R, V>;
+    /// Attach a WGSL element-wise transform, producing a `GpuKp` (static dispatch).
+    fn map_gpu(self, wgsl_statement: impl Into<String>) -> GpuKp<R, V, impl Fn(&R) -> Option<V> + Send + Sync, impl Fn(&mut R, V) + Send + Sync>;
 
-    /// Run `self` across a `roots` slice in parallel:
-    /// GPU dispatch for this KP's values, returning transformed results.
+    /// Run `self` across a `roots` slice: one GPU dispatch, transformed results.
     fn par_gpu(
         self,
         wgsl_statement: impl Into<String>,
@@ -181,27 +185,28 @@ where
     R: 'static,
     V: GpuCompatible,
 {
-    fn into_gpu(self) -> GpuKp<R, V> {
+    fn into_gpu(self) -> GpuKp<R, V, impl Fn(&R) -> Option<V> + Send + Sync, impl Fn(&mut R, V) + Send + Sync> {
         self.map_gpu("output[id] = input[id];")
     }
 
-    fn map_gpu(self, wgsl_statement: impl Into<String>) -> GpuKp<R, V> {
+    fn map_gpu(self, wgsl_statement: impl Into<String>) -> GpuKp<R, V, impl Fn(&R) -> Option<V> + Send + Sync, impl Fn(&mut R, V) + Send + Sync> {
         let kp = Arc::new(self);
         GpuKp {
-            extractor: Arc::new({
+            extractor: {
                 let kp = Arc::clone(&kp);
                 move |r: &R| kp.get(r).copied()
-            }),
-            injector: Arc::new({
+            },
+            injector: {
                 let kp = Arc::clone(&kp);
                 move |r: &mut R, val: V| {
                     if let Some(slot) = kp.get_mut(r) {
                         *slot = val;
                     }
                 }
-            }),
+            },
             kernel: GpuKernel::new(wgsl_statement),
             root_type_id: TypeId::of::<R>(),
+            _marker: PhantomData,
         }
     }
 
@@ -215,19 +220,25 @@ where
     }
 }
 
-// ── 4b. KpType<R, Vec<V>>: GPU over a vector at the keypath ──────────────────
+// ── 4b. KpType<R, Vec<V>>: GPU over a vector (static dispatch) ────────────────
 
 /// A keypath that extracts a `Vec<V>` from `R` and runs an element-wise GPU kernel over it.
 ///
-/// Created via [`KpGpuVecExt::map_gpu_vec`]. One GPU dispatch over the whole vector.
-pub struct GpuKpVec<R: 'static, V: GpuCompatible> {
-    extractor: Arc<dyn Fn(&R) -> Option<Vec<V>> + Send + Sync>,
-    injector: Arc<dyn Fn(&mut R, Vec<V>) + Send + Sync>,
+/// Static dispatch: `E` and `I` are the concrete extractor/injector types.
+pub struct GpuKpVec<R: 'static, V: GpuCompatible, E, I> {
+    extractor: E,
+    injector: I,
     pub kernel: GpuKernel,
     pub root_type_id: TypeId,
+    /// Used to tie R and V to the type without requiring them to be Send/Sync.
+    _marker: PhantomData<fn() -> (R, V)>,
 }
 
-impl<R: 'static, V: GpuCompatible> GpuKpVec<R, V> {
+impl<R: 'static, V: GpuCompatible, E, I> GpuKpVec<R, V, E, I>
+where
+    E: Fn(&R) -> Option<Vec<V>> + Send + Sync,
+    I: Fn(&mut R, Vec<V>) + Send + Sync,
+{
     /// Run the GPU kernel on the vector at `root`; returns the transformed vector.
     pub fn run_one(&self, root: &R, ctx: &WgpuContext) -> Option<Vec<V>> {
         let values = (self.extractor)(root)?;
@@ -247,24 +258,27 @@ impl<R: 'static, V: GpuCompatible> GpuKpVec<R, V> {
         }
     }
 
-    /// Chain another WGSL statement (same as scalar `and_then_gpu`).
-    pub fn and_then_gpu(self, next_kernel: impl Into<String>) -> Self {
+    /// Chain another WGSL statement.
+    pub fn and_then_gpu(self, next_kernel: impl Into<String>) -> GpuKpVec<R, V, E, I> {
         let combined = format!(
             "{}\n    {}",
             self.kernel.wgsl_statement,
             next_kernel.into()
         );
-        Self {
+        GpuKpVec {
             kernel: GpuKernel::new(combined),
-            ..self
+            extractor: self.extractor,
+            injector: self.injector,
+            root_type_id: self.root_type_id,
+            _marker: PhantomData,
         }
     }
 }
 
 /// GPU extensions for keypaths whose **value type is `Vec<V>`**.
 pub trait KpGpuVecExt<R: 'static, V: GpuCompatible> {
-    /// Attach an element-wise WGSL transform over the vector; one GPU dispatch.
-    fn map_gpu_vec(self, wgsl_statement: impl Into<String>) -> GpuKpVec<R, V>;
+    /// Attach an element-wise WGSL transform over the vector (static dispatch).
+    fn map_gpu_vec(self, wgsl_statement: impl Into<String>) -> GpuKpVec<R, V, impl Fn(&R) -> Option<Vec<V>> + Send + Sync, impl Fn(&mut R, Vec<V>) + Send + Sync>;
 }
 
 impl<R, V> KpGpuVecExt<R, V> for KpType<'static, R, Vec<V>>
@@ -272,50 +286,61 @@ where
     R: 'static,
     V: GpuCompatible,
 {
-    fn map_gpu_vec(self, wgsl_statement: impl Into<String>) -> GpuKpVec<R, V> {
+    fn map_gpu_vec(self, wgsl_statement: impl Into<String>) -> GpuKpVec<R, V, impl Fn(&R) -> Option<Vec<V>> + Send + Sync, impl Fn(&mut R, Vec<V>) + Send + Sync> {
         let kp = Arc::new(self);
         GpuKpVec {
-            extractor: Arc::new({
+            extractor: {
                 let kp = Arc::clone(&kp);
                 move |r: &R| kp.get(r).map(|vec_ref| vec_ref.iter().copied().collect())
-            }),
-            injector: Arc::new({
+            },
+            injector: {
                 let kp = Arc::clone(&kp);
                 move |r: &mut R, new_vec: Vec<V>| {
                     if let Some(slot) = kp.get_mut(r) {
                         *slot = new_vec;
                     }
                 }
-            }),
+            },
             kernel: GpuKernel::new(wgsl_statement),
             root_type_id: TypeId::of::<R>(),
+            _marker: PhantomData,
         }
     }
 }
 
 // ── 5. zip_gpu: run TWO GpuKps with one shader ──────────────────────────────
 
-/// Run two `GpuKp`s on the **same root** with a single GPU dispatch.
-///
-/// Returns `(Option<A>, Option<B>)`.
-pub fn zip_gpu<R: 'static, A: GpuCompatible, B: GpuCompatible>(
-    kp_a: &GpuKp<R, A>,
-    kp_b: &GpuKp<R, B>,
+/// Run two `GpuKp`s on the **same root** (static dispatch).
+pub fn zip_gpu<R: 'static, A: GpuCompatible, B: GpuCompatible, E1, I1, E2, I2>(
+    kp_a: &GpuKp<R, A, E1, I1>,
+    kp_b: &GpuKp<R, B, E2, I2>,
     root: &R,
     ctx: &WgpuContext,
-) -> (Option<A>, Option<B>) {
+) -> (Option<A>, Option<B>)
+where
+    E1: Fn(&R) -> Option<A> + Send + Sync,
+    I1: Fn(&mut R, A) + Send + Sync,
+    E2: Fn(&R) -> Option<B> + Send + Sync,
+    I2: Fn(&mut R, B) + Send + Sync,
+{
     let a = kp_a.run_one(root, ctx);
     let b = kp_b.run_one(root, ctx);
     (a, b)
 }
 
 /// Run two same-type `GpuKp<R, V>` with **one GPU dispatch** (packed buffer).
-pub fn zip_gpu_same<R: 'static, V: GpuCompatible>(
-    kp_a: &GpuKp<R, V>,
-    kp_b: &GpuKp<R, V>,
+pub fn zip_gpu_same<R: 'static, V: GpuCompatible, E1, I1, E2, I2>(
+    kp_a: &GpuKp<R, V, E1, I1>,
+    kp_b: &GpuKp<R, V, E2, I2>,
     root: &R,
     ctx: &WgpuContext,
-) -> (Option<V>, Option<V>) {
+) -> (Option<V>, Option<V>)
+where
+    E1: Fn(&R) -> Option<V> + Send + Sync,
+    I1: Fn(&mut R, V) + Send + Sync,
+    E2: Fn(&R) -> Option<V> + Send + Sync,
+    I2: Fn(&mut R, V) + Send + Sync,
+{
     let a_raw = (kp_a.extractor)(root);
     let b_raw = (kp_b.extractor)(root);
 
@@ -345,7 +370,11 @@ trait ErasedGpuKp<R>: Send + Sync {
     fn kernel(&self) -> &GpuKernel;
 }
 
-impl<R: 'static> ErasedGpuKp<R> for GpuKp<R, f32> {
+impl<R: 'static, E, I> ErasedGpuKp<R> for GpuKp<R, f32, E, I>
+where
+    E: Fn(&R) -> Option<f32> + Send + Sync,
+    I: Fn(&mut R, f32) + Send + Sync,
+{
     fn extract_f32(&self, root: &R) -> Option<f32> {
         (self.extractor)(root)
     }
@@ -357,7 +386,11 @@ impl<R: 'static> ErasedGpuKp<R> for GpuKp<R, f32> {
     }
 }
 
-impl<R: 'static> ErasedGpuKp<R> for GpuKp<R, u32> {
+impl<R: 'static, E, I> ErasedGpuKp<R> for GpuKp<R, u32, E, I>
+where
+    E: Fn(&R) -> Option<u32> + Send + Sync,
+    I: Fn(&mut R, u32) + Send + Sync,
+{
     fn extract_f32(&self, root: &R) -> Option<f32> {
         (self.extractor)(root).map(|v| v as f32)
     }
@@ -369,7 +402,11 @@ impl<R: 'static> ErasedGpuKp<R> for GpuKp<R, u32> {
     }
 }
 
-impl<R: 'static> ErasedGpuKp<R> for GpuKp<R, i32> {
+impl<R: 'static, E, I> ErasedGpuKp<R> for GpuKp<R, i32, E, I>
+where
+    E: Fn(&R) -> Option<i32> + Send + Sync,
+    I: Fn(&mut R, i32) + Send + Sync,
+{
     fn extract_f32(&self, root: &R) -> Option<f32> {
         (self.extractor)(root).map(|v| v as f32)
     }
@@ -402,17 +439,29 @@ impl<'ctx, R: 'static + Send + Sync> GpuKpRunner<'ctx, R> {
         }
     }
 
-    pub fn add_f32(mut self, kp: GpuKp<R, f32>) -> Self {
+    pub fn add_f32<E, I>(mut self, kp: GpuKp<R, f32, E, I>) -> Self
+    where
+        E: Fn(&R) -> Option<f32> + Send + Sync + 'static,
+        I: Fn(&mut R, f32) + Send + Sync + 'static,
+    {
         self.gpu_kps.push(Box::new(kp));
         self
     }
 
-    pub fn add_u32(mut self, kp: GpuKp<R, u32>) -> Self {
+    pub fn add_u32<E, I>(mut self, kp: GpuKp<R, u32, E, I>) -> Self
+    where
+        E: Fn(&R) -> Option<u32> + Send + Sync + 'static,
+        I: Fn(&mut R, u32) + Send + Sync + 'static,
+    {
         self.gpu_kps.push(Box::new(kp));
         self
     }
 
-    pub fn add_i32(mut self, kp: GpuKp<R, i32>) -> Self {
+    pub fn add_i32<E, I>(mut self, kp: GpuKp<R, i32, E, I>) -> Self
+    where
+        E: Fn(&R) -> Option<i32> + Send + Sync + 'static,
+        I: Fn(&mut R, i32) + Send + Sync + 'static,
+    {
         self.gpu_kps.push(Box::new(kp));
         self
     }
