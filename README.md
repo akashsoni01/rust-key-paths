@@ -114,6 +114,40 @@ Filter by `value_type_id()` / `root_type_id()` and read with `get_as()`. For wri
 
 See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 
+### GPU / wgpu (key-paths-iter, optional)
+
+The [key-paths-iter](https://github.com/codefonsi/rust-key-paths) crate can run **numeric** keypaths (e.g. `f32`) on the GPU via wgpu and **arbitrary** keypaths on the CPU. Use the **Kp** derive and the **functional** API (reference-based; no unnecessary copy/clone of the root).
+
+1. **Dependency**: add `key-paths-iter` with the `gpu` feature (and `rayon` if you use CPU parallelism elsewhere):
+   ```toml
+   [dependencies]
+   rust-key-paths = "2"
+   key-paths-derive = "2"
+   key-paths-iter = { version = "0.1", features = ["gpu"] }
+   ```
+
+2. **Numeric keypath from Kp**: use [IntoNumericAKp] so the keypath’s **getter is used by reference**; only the numeric value (e.g. one `f32`) is copied into the GPU path:
+   ```rust
+   use key_paths_derive::{Kp, Pkp, Akp};
+   use key_paths_iter::wgpu::{IntoNumericAKp, AKpRunner, AKpTier, WgpuContext};
+   use rust_key_paths::{AKp, KpType};
+
+   #[derive(Kp, Pkp, Akp)]
+   struct User { name: String, score: f32 }
+
+   let score_tier = AKpTier::Numeric(User::score().into_numeric_akp("input * 2.0 + 1.0"));
+   let name_tier = AKpTier::Arbitrary(AKp::new(User::name()));
+   let runner = AKpRunner::new(vec![score_tier, name_tier], WgpuContext::new().ok());
+   let results = runner.run(&user as &dyn std::any::Any);
+   ```
+
+3. **Functional API**: use [Kp::map] for a derived keypath (takes a reference, no copy of the value in the get path), e.g. `User::score().map(|s: &f32| *s * 2.0)`.
+
+4. **Examples and benchmarks**:
+   - `cargo run --example kp_pkp_wgpu` — Kp/Pkp + derive + wgpu runner
+   - `cargo run --example akp_wgpu_runner` — AKp-only runner
+   - `cargo bench --bench akp_cpu_bench` — sequential vs Rayon vs GPU; includes a group using `IntoNumericAKp` from a derived Kp
+
 ### Features
 
 | Feature | Description |
@@ -128,6 +162,9 @@ See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 cargo run --example kp_derive_showcase
 cargo run --example pkp_akp_filter_typeid
 cargo run --example pkp_akp_read_write_convert
+# Kp/Pkp + wgpu (key-paths-iter with gpu feature)
+cargo run --example kp_pkp_wgpu
+cargo run --example akp_wgpu_runner
 # Box and Pin support
 cargo run --example box_and_pin_example
 # pin_project #[pin] fields
