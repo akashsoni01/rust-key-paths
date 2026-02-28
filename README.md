@@ -116,37 +116,21 @@ See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 
 ### GPU / wgpu (key-paths-iter, optional)
 
-The [key-paths-iter](https://github.com/codefonsi/rust-key-paths) crate can run **numeric** keypaths (e.g. `f32`) on the GPU via wgpu and **arbitrary** keypaths on the CPU. Use the **Kp** derive and the **functional** API (reference-based; no unnecessary copy/clone of the root).
+The [key-paths-iter](https://github.com/codefonsi/rust-key-paths) crate can run **numeric** keypaths (e.g. `f32`) on the GPU via wgpu. Two styles:
 
-1. **Dependency**: add `key-paths-iter` with the `gpu` feature (and `rayon` if you use CPU parallelism elsewhere):
-   ```toml
-   [dependencies]
-   rust-key-paths = "2"
-   key-paths-derive = "2"
-   key-paths-iter = { version = "0.1", features = ["gpu"] }
-   ```
+- **AKp runner** (`wgpu` module): `IntoNumericAKp` from Kp, `AKpTier::Numeric` / `Arbitrary`, `AKpRunner`. Examples: `kp_pkp_wgpu`, `akp_wgpu_runner`.
+- **Kp-only** (`kp_gpu` module): no AKp/PKp — `.map_gpu(wgsl)`, `.par_gpu(wgsl, roots, ctx)`, `GpuKpRunner`. Example: `kp_gpu_example`.
 
-2. **Numeric keypath from Kp**: use [IntoNumericAKp] so the keypath’s **getter is used by reference**; only the numeric value (e.g. one `f32`) is copied into the GPU path:
-   ```rust
-   use key_paths_derive::{Kp, Pkp, Akp};
-   use key_paths_iter::wgpu::{IntoNumericAKp, AKpRunner, AKpTier, WgpuContext};
-   use rust_key_paths::{AKp, KpType};
+Run benchmarks: `cargo bench --bench akp_cpu_bench`. Typical results (MacBook Air M1):
 
-   #[derive(Kp, Pkp, Akp)]
-   struct User { name: String, score: f32 }
+| Roots   | Serial (CPU) | Parallel CPU (Rayon) | Parallel GPU (wgpu) |
+|--------|---------------|----------------------|---------------------|
+| 1,000  | ~35 µs        | ~86 µs               | ~1.6 ms             |
+| 10,000 | ~350 µs       | ~425 µs              | ~1.9 ms             |
+| 50,000 | ~1.8 ms       | ~1.8 ms              | ~3.7 ms             |
+| 100,000| ~3.7 ms       | ~3.7 ms              | ~5.5 ms             |
 
-   let score_tier = AKpTier::Numeric(User::score().into_numeric_akp("input * 2.0 + 1.0"));
-   let name_tier = AKpTier::Arbitrary(AKp::new(User::name()));
-   let runner = AKpRunner::new(vec![score_tier, name_tier], WgpuContext::new().ok());
-   let results = runner.run(&user as &dyn std::any::Any);
-   ```
-
-3. **Functional API**: use [Kp::map] for a derived keypath (takes a reference, no copy of the value in the get path), e.g. `User::score().map(|s: &f32| *s * 2.0)`.
-
-4. **Examples and benchmarks**:
-   - `cargo run --example kp_pkp_wgpu` — Kp/Pkp + derive + wgpu runner
-   - `cargo run --example akp_wgpu_runner` — AKp-only runner
-   - `cargo bench --bench akp_cpu_bench` — sequential vs Rayon vs GPU; includes a group using `IntoNumericAKp` from a derived Kp
+For this lightweight transform, CPU wins; GPU pays off for larger batches or heavier per-element math.
 
 ### Features
 
@@ -165,6 +149,7 @@ cargo run --example pkp_akp_read_write_convert
 # Kp/Pkp + wgpu (key-paths-iter with gpu feature)
 cargo run --example kp_pkp_wgpu
 cargo run --example akp_wgpu_runner
+cargo run --example kp_gpu_example
 # Box and Pin support
 cargo run --example box_and_pin_example
 # pin_project #[pin] fields

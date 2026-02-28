@@ -93,6 +93,17 @@ key-paths-iter = { path = "../key-paths-iter", features = ["rayon", "gpu"] }
 
 This adds `GpuCompute::new()` and `execute_reduction()`, and `run_gpu_reduction_pipeline(pipeline, nodes_kp, pairs_kp)` for a full validate → extract → dispatch → read-back flow. Requires a GPU adapter (Vulkan/Metal/DX12). The WGSL shader is in `key-paths-iter/shaders/hvm_reduce.wgsl`.
 
+### kp_gpu: GPU-aware KpType (no AKp/PKp)
+
+With the `gpu` feature, the **`kp_gpu`** module provides GPU extensions on `KpType` only:
+
+- **`.map_gpu(wgsl)`** — attach a WGSL element-wise transform; returns `GpuKp<R, V>`.
+- **`.par_gpu(wgsl, roots, ctx)`** — attach kernel and run over a slice in one GPU dispatch.
+- **`.and_then_gpu(next_wgsl)`** — chain a second kernel (one dispatch).
+- **`GpuKpRunner`** — run a heterogeneous list of `GpuKp`s (f32, u32, i32) on one root or many roots in one dispatch.
+
+Example: `cargo run --example kp_gpu_example` (from the workspace root).
+
 ### Benchmark (scale_par: parallel vs sequential)
 
 From the **workspace root** (rust-key-paths), run:

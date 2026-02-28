@@ -13,6 +13,8 @@ pub mod scale_par;
 
 #[cfg(feature = "gpu")]
 pub mod wgpu;
+#[cfg(feature = "gpu")]
+pub mod kp_gpu;
 
 /// Query builder for collection keypaths (KpType where value is `Vec<Item>`).
 pub struct CollectionQuery<'a, Root, Item> {
