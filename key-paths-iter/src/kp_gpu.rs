@@ -604,6 +604,7 @@ impl WgpuContext {
     }
 
     /// Core GPU dispatch: `input` → WGSL kernel → `output`, same element type.
+    /// Chunks into multiple dispatches when workgroup count would exceed wgpu limit (65535).
     pub fn dispatch_scalar<V: GpuCompatible>(
         &self,
         values: &[V],
@@ -613,9 +614,14 @@ impl WgpuContext {
         if n == 0 {
             return Ok(vec![]);
         }
-        let size = (n * std::mem::size_of::<V>()) as u64;
+        let elem_size = std::mem::size_of::<V>();
+        let size = (n * elem_size) as u64;
         let wgsl_t = V::wgsl_type();
         let ws = kernel.workgroup_size;
+
+        // wgpu limit: each dispatch dimension must be <= 65535 workgroups
+        const MAX_WORKGROUPS: u32 = 65535;
+        let max_chunk_elements = (MAX_WORKGROUPS as usize).saturating_mul(ws as usize);
 
         let shader_src = format!(
             r#"
@@ -678,17 +684,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
             entry_point: "main",
         });
 
-        let input_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("gkp_in"),
-            contents: bytemuck::cast_slice(values),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        });
-        let output_buf = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("gkp_out"),
-            size,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
         let readback_buf = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("gkp_rb"),
             size,
@@ -696,31 +691,60 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
             mapped_at_creation: false,
         });
 
-        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: None,
-            layout: &bgl,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: input_buf.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: output_buf.as_entire_binding(),
-                },
-            ],
-        });
-
         let mut enc = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-        {
-            let mut pass = enc.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
-            pass.set_pipeline(&pipeline);
-            pass.set_bind_group(0, &bind_group, &[]);
-            pass.dispatch_workgroups((n as u32 + ws - 1) / ws, 1, 1);
+
+        let mut offset = 0;
+        while offset < n {
+            let chunk_len = (n - offset).min(max_chunk_elements);
+            let chunk_size = (chunk_len * elem_size) as u64;
+            let workgroups = (chunk_len as u32 + ws - 1) / ws;
+
+            let input_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("gkp_in"),
+                contents: bytemuck::cast_slice(&values[offset..offset + chunk_len]),
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            });
+            let output_buf = self.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("gkp_out"),
+                size: chunk_size,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+                mapped_at_creation: false,
+            });
+
+            let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &bgl,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: input_buf.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: output_buf.as_entire_binding(),
+                    },
+                ],
+            });
+
+            {
+                let mut pass = enc.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+                pass.set_pipeline(&pipeline);
+                pass.set_bind_group(0, &bind_group, &[]);
+                pass.dispatch_workgroups(workgroups, 1, 1);
+            }
+            enc.copy_buffer_to_buffer(
+                &output_buf,
+                0,
+                &readback_buf,
+                (offset * elem_size) as u64,
+                chunk_size,
+            );
+
+            offset += chunk_len;
         }
-        enc.copy_buffer_to_buffer(&output_buf, 0, &readback_buf, 0, size);
+
         self.queue.submit(Some(enc.finish()));
 
         let slice = readback_buf.slice(..);
