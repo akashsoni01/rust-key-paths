@@ -23,6 +23,7 @@ resolver = "3" # or "3"
 members = [
     "key-paths-derive",
     "key-paths-iter",
+    "key-paths-macros",
 ]
 
 # Use local rust-key-paths when developing (remove or override when publishing dependents)

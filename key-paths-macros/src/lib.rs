@@ -1,274 +1,255 @@
-use proc_macro::TokenStream;
-use quote::{format_ident, quote};
-use syn::{Data, DeriveInput, Fields, Type, parse_macro_input};
+//! Ergonomic keypath macros for [rust-key-paths].
+//!
+//! Use with [key-paths-derive]: derive `Kp` on your types, then build keypaths with
+//! dot notation. Each segment is `Type.field`; the macro expands to
+//! `Type::field().then(NextType::next_field()).then(...)`.
+//!
+//! [rust-key-paths]: https://docs.rs/rust-key-paths
+//! [key-paths-derive]: https://docs.rs/key-paths-derive
+//!
+//! # Examples
+//!
+//! ```ignore
+//! use key_paths_derive::Kp;
+//! use key_paths_macros::keypath;
+//! use rust_key_paths::KpType;
+//!
+//! #[derive(Kp)]
+//! struct User { name: String, age: u32 }
+//!
+//! let kp = keypath!(User.name);
+//! let kp = keypath!(User.name);  // same with braces
+//!
+//! // Nested: alternate Type.field. Type.field (types required for chaining)
+//! keypath!(App.user.User.name).get(&app);
+//! keypath!(App.user.User.name).get_mut(&mut app);
+//! ```
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum WrapperKind {
-    None,
-    // Error handling containers
-    Result,
-    Option,
-    Box,
-    Rc,
-    Arc,
-    Vec,
-    HashMap,
-    BTreeMap,
-    HashSet,
-    BTreeSet,
-    VecDeque,
-    LinkedList,
-    BinaryHeap,
-    // Synchronization primitives
-    Mutex,
-    RwLock,
-    // Reference counting with weak references
-    Weak,
-    // String types (currently unused)
-    // String,
-    // OsString,
-    // PathBuf,
-    // Nested container support
-    OptionBox,
-    OptionRc,
-    OptionArc,
-    BoxOption,
-    RcOption,
-    ArcOption,
-    VecOption,
-    OptionVec,
-    HashMapOption,
-    OptionHashMap,
-    // Arc with synchronization primitives
-    ArcMutex,
-    ArcRwLock,
-    // Tagged types
-    Tagged,
-}
-
-struct SomeStruct {
-    abc: String,
-}
-
-#[proc_macro_derive(Keypath)]
-pub fn derive_keypaths(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as DeriveInput);
-
-    // Get name
-    let name = &ast.ident;
-
-    // Get generics
-    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
-
-    // Process based on data type
-    let methods = match &ast.data {
-        Data::Struct(data) => {
-            match &data.fields {
-                Fields::Named(fields) => {
-                    let mut tokens = proc_macro2::TokenStream::new();
-                    for field in &fields.named {
-                        if let Some(field_name) = &field.ident {
-                            let field_type = &field.ty;
-                            let (kind, inner_ty) = extract_wrapper_inner_type(field_type);
-                            match (kind, inner_ty.clone()) {
-                                // Non-Options - simple one
-                                (WrapperKind::None, None) => {
-                                    tokens.extend(quote! {
-                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #field_type> {
-                                    key_paths_core::KeyPaths::readable(|s: &#name| &s.#field_name)
-                                }
-                            });
-                                }
-                                // Option types 
-                                (WrapperKind::Option, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_name.as_ref())
-                                }
-                            });
-                                }
-                                (WrapperKind::Result, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                pub fn #field_name() -> key_paths_core::KeyPaths<#name, #inner_ty> {
-                                    key_paths_core::KeyPaths::failable_readable(|s: &#name| s.#field_name.as_ref().ok())
-                                }
-                            });
-                                }
-
-                                _ => {}
-                            }
-                        }
-                    }
-
-                    tokens
-                }
-                Fields::Unnamed(fields) => {
-                    let mut tokens = proc_macro2::TokenStream::new();
-                    for (i, field) in fields.unnamed.iter().enumerate() {
-                        let field_type = &field.ty;
-                        // Process tuple field
-                    }
-                    tokens
-                }
-                Fields::Unit => {
-                    let mut tokens = proc_macro2::TokenStream::new();
-                    // Unit struct
-                    tokens
-                }
-            }
-        }
-        Data::Enum(data) => {
-            let mut tokens = proc_macro2::TokenStream::new();
-            for variant in &data.variants {
-                let variant_name = &variant.ident;
-                // Process variant
-            }
-            tokens
-        }
-        Data::Union(_) => {
-            let mut tokens = proc_macro2::TokenStream::new();
-            panic!("Unions not supported");
-            tokens
-        }
+/// Build a keypath from a path of `Type.field` segments.
+///
+/// Expands to `Root::field1().then(Type2::field2()).then(...)`. Use with types
+/// that implement keypath accessors (e.g. via `#[derive(Kp)]` from key-paths-derive).
+///
+/// Supports both `keypath!(...)` and `keypath!{...}`. For a single segment use
+/// `keypath!(Type.field)`. For multiple segments you must specify the type at each
+/// step: `keypath!(Type1.f1.Type2.f2.Type3.f3)` so the macro can generate
+/// `Type1::f1().then(Type2::f2()).then(Type3::f3())`.
+///
+/// # Examples
+///
+/// ```ignore
+/// // Single field
+/// keypath!(User.name)
+/// keypath!{ User.name }
+///
+/// // Nested path (type before each field)
+/// keypath!(SomeComplexStruct.scsf.SomeOtherStruct.sosf.OneMoreStruct.omse.SomeEnum.b.DarkStruct.dsf)
+///
+/// // Usage with get / get_mut
+/// keypath!(User.name).get(&user);
+/// keypath!(User.name).get_mut(&mut user);
+/// ```
+#[macro_export]
+macro_rules! keypath {
+    // Braces: duplicate rules to avoid recursion (same patterns as parens)
+    { $root:ident . $field:ident } => {
+        $root::$field()
+    };
+    { $root:ident . $field:ident () } => {
+        $root::$field()
+    };
+    { $root:ident . $field:ident . $($ty:ident . $f:ident).+ } => {
+        $root::$field()
+            $(.then($ty::$f()))+
+    };
+    { $root:ident . $field:ident () . $($ty:ident . $f:ident).+ } => {
+        $root::$field()
+            $(.then($ty::$f()))+
     };
 
-    // // Generate code
-    // quote! {
-    //     impl #impl_generics MyTrait for #name #ty_generics #where_clause {
-    //         // Implementation
-    //         #methods
-    //     }
-    // }
-    // .into()
-
-    let expanded = quote! {
-        impl #name {
-            #methods
-        }
+    // Parens: single segment
+    ($root:ident . $field:ident) => {
+        $root::$field()
     };
-
-    TokenStream::from(expanded)
+    ($root:ident . $field:ident ()) => {
+        $root::$field()
+    };
+    // Two or more segments
+    ($root:ident . $field:ident . $($ty:ident . $f:ident).+) => {
+        $root::$field()
+            $(.then($ty::$f()))+
+    };
+    ($root:ident . $field:ident () . $($ty:ident . $f:ident).+) => {
+        $root::$field()
+            $(.then($ty::$f()))+
+    };
+    ($root:ident . $field:ident . $($ty:ident . $f:ident).+ () . $($rest:ident . $r:ident).*) => {
+        $root::$field()
+            $(.then($ty::$f()))+
+            $(.then($rest::$r()))*
+    };
 }
 
-fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
-    use syn::{GenericArgument, PathArguments};
+/// Shorthand for `keypath!(...).get(root)`.
+///
+/// # Example
+///
+/// ```ignore
+/// let name = get!(user => User.name);
+/// let deep = get!(app => App.settings.Settings.theme.Theme::Dark);
+/// ```
+#[macro_export]
+macro_rules! get {
+    ($root:expr => $($path:tt)*) => {
+        $crate::keypath!($($path)*).get($root)
+    };
+}
 
-    if let Type::Path(tp) = ty {
-        if let Some(seg) = tp.path.segments.last() {
-            let ident_str = seg.ident.to_string();
+/// Shorthand for `keypath!(...).get_mut(root)` and optionally set a value.
+///
+/// # Examples
+///
+/// ```ignore
+/// get_mut!(user => User.name);                    // returns Option<&mut String>
+/// set!(user => User.name = "Alice".to_string());  // set value
+/// ```
+#[macro_export]
+macro_rules! get_mut {
+    ($root:expr => $($path:tt)*) => {
+        $crate::keypath!($($path)*).get_mut($root)
+    };
+}
 
-            if let PathArguments::AngleBracketed(ab) = &seg.arguments {
-                let args: Vec<_> = ab.args.iter().collect();
+/// Set a value through a keypath: `keypath!(...).get_mut(root).map(|x| *x = value)`.
+///
+/// Path must be in parentheses so the macro can tell where the path ends and the value begins.
+///
+/// # Example
+///
+/// ```ignore
+/// set!(user => (User.name) = "Alice".to_string());
+/// set!(instance => (SomeComplexStruct.scsf.SomeOtherStruct.sosf.OneMoreStruct.omse.SomeEnum.b.DarkStruct.dsf) = "new".to_string());
+/// ```
+#[macro_export]
+macro_rules! set {
+    ($root:expr => ($($path:tt)*) = $value:expr) => {
+        $crate::keypath!($($path)*).get_mut($root).map(|x| *x = $value)
+    };
+}
 
-                // Handle map types (HashMap, BTreeMap) - they have K, V parameters
-                if ident_str == "HashMap" || ident_str == "BTreeMap" {
-                    if let (Some(_key_arg), Some(value_arg)) = (args.get(0), args.get(1)) {
-                        if let GenericArgument::Type(inner) = value_arg {
-                            eprintln!("Detected {} type, extracting value type", ident_str);
-                            // Check for nested Option in map values
-                            let (inner_kind, inner_inner) = extract_wrapper_inner_type(inner);
-                            match (ident_str.as_str(), inner_kind) {
-                                ("HashMap", WrapperKind::Option) => {
-                                    return (WrapperKind::HashMapOption, inner_inner);
-                                }
-                                _ => {
-                                    return match ident_str.as_str() {
-                                        "HashMap" => (WrapperKind::HashMap, Some(inner.clone())),
-                                        "BTreeMap" => (WrapperKind::BTreeMap, Some(inner.clone())),
-                                        _ => (WrapperKind::None, None),
-                                    };
-                                }
-                            }
-                        }
-                    }
-                }
-                // Handle single-parameter container types
-                else if let Some(arg) = args.get(0) {
-                    if let GenericArgument::Type(inner) = arg {
-                        // Check for nested containers first
-                        let (inner_kind, inner_inner) = extract_wrapper_inner_type(inner);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-                        // Handle nested combinations
-                        match (ident_str.as_str(), inner_kind) {
-                            ("Option", WrapperKind::Box) => {
-                                return (WrapperKind::OptionBox, inner_inner);
-                            }
-                            ("Option", WrapperKind::Rc) => {
-                                return (WrapperKind::OptionRc, inner_inner);
-                            }
-                            ("Option", WrapperKind::Arc) => {
-                                return (WrapperKind::OptionArc, inner_inner);
-                            }
-                            ("Option", WrapperKind::Vec) => {
-                                return (WrapperKind::OptionVec, inner_inner);
-                            }
-                            ("Option", WrapperKind::HashMap) => {
-                                return (WrapperKind::OptionHashMap, inner_inner);
-                            }
-                            ("Box", WrapperKind::Option) => {
-                                return (WrapperKind::BoxOption, inner_inner);
-                            }
-                            ("Rc", WrapperKind::Option) => {
-                                return (WrapperKind::RcOption, inner_inner);
-                            }
-                            ("Arc", WrapperKind::Option) => {
-                                return (WrapperKind::ArcOption, inner_inner);
-                            }
-                            ("Vec", WrapperKind::Option) => {
-                                return (WrapperKind::VecOption, inner_inner);
-                            }
-                            ("HashMap", WrapperKind::Option) => {
-                                return (WrapperKind::HashMapOption, inner_inner);
-                            }
-                            ("Arc", WrapperKind::Mutex) => {
-                                return (WrapperKind::ArcMutex, inner_inner);
-                            }
-                            ("Arc", WrapperKind::RwLock) => {
-                                return (WrapperKind::ArcRwLock, inner_inner);
-                            }
-                            _ => {
-                                // Handle single-level containers
-                                return match ident_str.as_str() {
-                                    "Option" => (WrapperKind::Option, Some(inner.clone())),
-                                    "Box" => (WrapperKind::Box, Some(inner.clone())),
-                                    "Rc" => (WrapperKind::Rc, Some(inner.clone())),
-                                    "Arc" => (WrapperKind::Arc, Some(inner.clone())),
-                                    "Vec" => (WrapperKind::Vec, Some(inner.clone())),
-                                    "HashSet" => (WrapperKind::HashSet, Some(inner.clone())),
-                                    "BTreeSet" => (WrapperKind::BTreeSet, Some(inner.clone())),
-                                    "VecDeque" => (WrapperKind::VecDeque, Some(inner.clone())),
-                                    "LinkedList" => (WrapperKind::LinkedList, Some(inner.clone())),
-                                    "BinaryHeap" => (WrapperKind::BinaryHeap, Some(inner.clone())),
-                                    "Result" => (WrapperKind::Result, Some(inner.clone())),
-                                    "Mutex" => (WrapperKind::Mutex, Some(inner.clone())),
-                                    "RwLock" => (WrapperKind::RwLock, Some(inner.clone())),
-                                    "Weak" => (WrapperKind::Weak, Some(inner.clone())),
-                                    "Tagged" => (WrapperKind::Tagged, Some(inner.clone())),
-                                    _ => (WrapperKind::None, None),
-                                };
-                            }
-                        }
-                    }
-                }
-            }
+    // Minimal types with keypath-style methods (no derive in this crate)
+    struct User {
+        name: String,
+        age: u32,
+    }
+    struct Address {
+        city: String,
+    }
+    struct App {
+        user: User,
+        address: Address,
+    }
+
+    impl User {
+        fn name() -> rust_key_paths::KpType<'static, User, String> {
+            rust_key_paths::Kp::new(
+                |u: &User| Some(&u.name),
+                |u: &mut User| Some(&mut u.name),
+            )
+        }
+        fn age() -> rust_key_paths::KpType<'static, User, u32> {
+            rust_key_paths::Kp::new(
+                |u: &User| Some(&u.age),
+                |u: &mut User| Some(&mut u.age),
+            )
         }
     }
-    (WrapperKind::None, None)
-}
-
-fn to_snake_case(name: &str) -> String {
-    let mut out = String::new();
-    for (i, c) in name.chars().enumerate() {
-        if c.is_uppercase() {
-            if i != 0 {
-                out.push('_');
-            }
-            out.push(c.to_ascii_lowercase());
-        } else {
-            out.push(c);
+    impl Address {
+        fn city() -> rust_key_paths::KpType<'static, Address, String> {
+            rust_key_paths::Kp::new(
+                |a: &Address| Some(&a.city),
+                |a: &mut Address| Some(&mut a.city),
+            )
         }
     }
-    out
+    impl App {
+        fn user() -> rust_key_paths::KpType<'static, App, User> {
+            rust_key_paths::Kp::new(
+                |a: &App| Some(&a.user),
+                |a: &mut App| Some(&mut a.user),
+            )
+        }
+        fn address() -> rust_key_paths::KpType<'static, App, Address> {
+            rust_key_paths::Kp::new(
+                |a: &App| Some(&a.address),
+                |a: &mut App| Some(&mut a.address),
+            )
+        }
+    }
+
+    #[test]
+    fn keypath_single() {
+        let user = User {
+            name: "Alice".to_string(),
+            age: 30,
+        };
+        let kp = keypath!(User.name);
+        assert_eq!(kp.get(&user), Some(&"Alice".to_string()));
+        let kp_braces = keypath! { User.name };
+        assert_eq!(kp_braces.get(&user), Some(&"Alice".to_string()));
+    }
+
+    #[test]
+    fn keypath_chain() {
+        let app = App {
+            user: User {
+                name: "Bob".to_string(),
+                age: 25,
+            },
+            address: Address {
+                city: "NYC".to_string(),
+            },
+        };
+        let kp = keypath!(App.user.User.name);
+        assert_eq!(kp.get(&app), Some(&"Bob".to_string()));
+        let kp_city = keypath!(App.address.Address.city);
+        assert_eq!(kp_city.get(&app), Some(&"NYC".to_string()));
+    }
+
+    #[test]
+    fn get_macro() {
+        let user = User {
+            name: "Carol".to_string(),
+            age: 40,
+        };
+        let name = get!(&user => User.name);
+        assert_eq!(name, Some(&"Carol".to_string()));
+    }
+
+    #[test]
+    fn set_macro() {
+        let mut user = User {
+            name: "Dave".to_string(),
+            age: 22,
+        };
+        set!(&mut user => (User.name) = "David".to_string());
+        assert_eq!(user.name, "David");
+    }
+
+    #[test]
+    fn get_mut_macro() {
+        let mut user = User {
+            name: "Eve".to_string(),
+            age: 28,
+        };
+        let m = get_mut!(&mut user => User.name);
+        if let Some(n) = m {
+            *n = "Eva".to_string();
+        }
+        assert_eq!(user.name, "Eva");
+    }
 }
-
-

@@ -1,39 +1,55 @@
-use key_paths_macros::Keypath;
-use key_paths_core::KeyPaths;
+//! Integration test: keypath! with rust_key_paths and key_paths_derive.
 
-#[derive(Keypath)]
+use key_paths_derive::Kp;
+use key_paths_macros::{get, get_mut, keypath, set};
+
+#[derive(Kp, Debug)]
 struct Person {
-    name: Option<String>,
-    result_name: Result<String, String>,
-    age: i32,
+    name: String,
+    age: u32,
+}
+
+#[derive(Kp, Debug)]
+struct App {
+    person: Person,
 }
 
 #[test]
-fn test_keypath_generation() {
-    let person = Person {
-        name: Some("Akash".to_string()),
-        result_name: Ok("Bob".to_string()),
+fn test_keypath_get_set() {
+    let mut person = Person {
+        name: "Akash".to_string(),
         age: 30,
     };
 
-    // Test that generated keypath methods work
-    let name_keypath = Person::name();
-    let age_keypath = Person::age();
-    let name_result = Person::result_name();
+    let kp = keypath!(Person.name);
+    assert_eq!(kp.get(&person), Some(&"Akash".to_string()));
 
-    // Verify we can read values using the keypaths
-    // For failable_readable, get() returns Option<&Value>
-    let name_value = name_keypath.get(&person);
-    let age_value = age_keypath.get(&person);
-    let name_result = name_result.get(&person);
+    let name = get!(&person => Person.name);
+    assert_eq!(name, Some(&"Akash".to_string()));
 
-    assert_eq!(name_value, Some(&"Akash".to_string()));
-    assert_eq!(age_value, Some(&30));
-    assert_eq!(name_result, Some(&"Bob".to_string()));
-    
-    // Verify the keypaths are the correct type
-    let _: KeyPaths<Person, String> = name_keypath;
-    let _: KeyPaths<Person, i32> = age_keypath;
-    let _: KeyPaths<Person, String> = name_keypath;
+    set!(&mut person => (Person.name) = "Bob".to_string());
+    assert_eq!(person.name, "Bob");
+
+    let m = get_mut!(&mut person => Person.age);
+    if let Some(a) = m {
+        *a = 31;
+    }
+    assert_eq!(person.age, 31);
 }
 
+#[test]
+fn test_keypath_braces_and_chain() {
+    let mut app = App {
+        person: Person {
+            name: "Carol".to_string(),
+            age: 25,
+        },
+    };
+
+    let kp_braces = keypath! { App.person.Person.name };
+    assert_eq!(kp_braces.get(&app), Some(&"Carol".to_string()));
+    drop(kp_braces);
+
+    keypath!(App.person.Person.name).get_mut(&mut app).map(|s| *s = "Dave".to_string());
+    assert_eq!(app.person.name, "Dave");
+}
