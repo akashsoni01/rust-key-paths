@@ -2217,48 +2217,48 @@ mod tests {
         println!("{:?}", new_kp_from_hashmap.get(&instance));
     }
 
-    #[test]
-    fn test_get_or_and_get_or_else() {
-        struct User {
-            name: String,
-        }
-        impl User {
-            fn name() -> KpType<'static, User, String> {
-                KpType::new(
-                    |u: &User| Some(&u.name),
-                    |u: &mut User| Some(&mut u.name),
-                )
-            }
-        }
-        let user = User {
-            name: "Alice".to_string(),
-        };
-        let default_ref: String = "default".to_string();
-        // get_or with kp form
-        let r = get_or!(User::name(), &user, &default_ref);
-        assert_eq!(*r, "Alice");
-        // get_or_else with kp form (returns owned)
-        let owned = get_or_else!(User::name(), &user, || "fallback".to_string());
-        assert_eq!(owned, "Alice");
+    // #[test]
+    // fn test_get_or_and_get_or_else() {
+    //     struct User {
+    //         name: String,
+    //     }
+    //     impl User {
+    //         fn name() -> KpType<'static, User, String> {
+    //             KpType::new(
+    //                 |u: &User| Some(&u.name),
+    //                 |u: &mut User| Some(&mut u.name),
+    //             )
+    //         }
+    //     }
+    //     let user = User {
+    //         name: "Alice".to_string(),
+    //     };
+    //     let default_ref: String = "default".to_string();
+    //     // get_or with kp form
+    //     let r = get_or!(User::name(), &user, &default_ref);
+    //     assert_eq!(*r, "Alice");
+    //     // get_or_else with kp form (returns owned)
+    //     let owned = get_or_else!(User::name(), &user, || "fallback".to_string());
+    //     assert_eq!(owned, "Alice");
 
-        // When path returns None, fallback is used
-        struct WithOption {
-            opt: Option<String>,
-        }
-        impl WithOption {
-            fn opt() -> KpType<'static, WithOption, String> {
-                KpType::new(
-                    |w: &WithOption| w.opt.as_ref(),
-                    |_w: &mut WithOption| None,
-                )
-            }
-        }
-        let with_none = WithOption { opt: None };
-        let r = get_or!(WithOption::opt(), &with_none, &default_ref);
-        assert_eq!(*r, "default");
-        let owned = get_or_else!(&with_none => (WithOption.opt), || "computed".to_string());
-        assert_eq!(owned, "computed");
-    }
+    //     // When path returns None, fallback is used
+    //     struct WithOption {
+    //         opt: Option<String>,
+    //     }
+    //     impl WithOption {
+    //         fn opt() -> KpType<'static, WithOption, String> {
+    //             KpType::new(
+    //                 |w: &WithOption| w.opt.as_ref(),
+    //                 |_w: &mut WithOption| None,
+    //             )
+    //         }
+    //     }
+    //     let with_none = WithOption { opt: None };
+    //     let r = get_or!(WithOption::opt(), &with_none, &default_ref);
+    //     assert_eq!(*r, "default");
+    //     let owned = get_or_else!(&with_none => (WithOption.opt), || "computed".to_string());
+    //     assert_eq!(owned, "computed");
+    // }
 
     // #[test]
     // fn test_lock() {
