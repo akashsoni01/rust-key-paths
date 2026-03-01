@@ -1,3 +1,64 @@
+//! Keypath macros and derive for keypath access.
+//!
+//! - **Declarative macros** `keypath!`, `get!`, `get_mut!`, `set!`, `get_or!`, `get_or_else!`
+//!   work with [rust-key-paths] `KpType` (use with [key-paths-derive] `Kp`).
+//! - **Proc-macro** `#[derive(Keypath)]` for [key-paths-core].
+
+// ─── Declarative macros for KpType (rust-key-paths) ─────────────────────────
+
+/// Build a keypath from `Type.field` segments. Use with types that have keypath accessors (e.g. `#[derive(Kp)]`).
+#[macro_export]
+macro_rules! keypath {
+    { $root:ident . $field:ident } => { $root::$field() };
+    { $root:ident . $field:ident . $($ty:ident . $f:ident).+ } => {
+        $root::$field() $(.then($ty::$f()))+
+    };
+    ($root:ident . $field:ident) => { $root::$field() };
+    ($root:ident . $field:ident . $($ty:ident . $f:ident).+) => {
+        $root::$field() $(.then($ty::$f()))+
+    };
+}
+
+/// Shorthand for `keypath!(path).get(root)`.
+#[macro_export]
+macro_rules! get {
+    ($root:expr => $($path:tt)*) => { $crate::keypath!($($path)*).get($root) };
+}
+
+/// Shorthand for `keypath!(path).get_mut(root)`.
+#[macro_export]
+macro_rules! get_mut {
+    ($root:expr => $($path:tt)*) => { $crate::keypath!($($path)*).get_mut($root) };
+}
+
+/// Set value through keypath. Path in parentheses: `set!(root => (Type.field) = value)`.
+#[macro_export]
+macro_rules! set {
+    ($root:expr => ($($path:tt)*) = $value:expr) => {
+        $crate::keypath!($($path)*).get_mut($root).map(|x| *x = $value)
+    };
+}
+
+/// Get value at path or a default reference when the path returns `None`.
+/// Returns `&T`. Use when you have a fallback reference: `get_or!(&root => Type.field, &default)`.
+#[macro_export]
+macro_rules! get_or {
+    ($root:expr => $($path:tt)*, $default:expr) => {
+        $crate::keypath!($($path)*).get($root).unwrap_or($default)
+    };
+}
+
+/// Get value at path, or compute an owned fallback when the path returns `None`.
+/// Returns `T` (owned). Path value type must be `Clone`. Closure is only called when path is `None`.
+#[macro_export]
+macro_rules! get_or_else {
+    ($root:expr => $($path:tt)*, $closure:expr) => {
+        $crate::keypath!($($path)*).get($root).map(|r| r.clone()).unwrap_or_else($closure)
+    };
+}
+
+// ─── Proc-macro derive ─────────────────────────────────────────────────────
+
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, Type, parse_macro_input};
