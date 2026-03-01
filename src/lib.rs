@@ -90,6 +90,46 @@ impl<T> KeyPathValueTarget for &mut T {
     type Target = T;
 }
 
+/// Build a keypath from `Type.field` segments. Use with types that have keypath accessors (e.g. `#[derive(Kp)]` from key-paths-derive).
+#[macro_export]
+macro_rules! keypath {
+    { $root:ident . $field:ident } => { $root::$field() };
+    { $root:ident . $field:ident . $($ty:ident . $f:ident).+ } => {
+        $root::$field() $(.then($ty::$f()))+
+    };
+    ($root:ident . $field:ident) => { $root::$field() };
+    ($root:ident . $field:ident . $($ty:ident . $f:ident).+) => {
+        $root::$field() $(.then($ty::$f()))+
+    };
+}
+
+/// Get value through a keypath or a default reference when the path returns `None`.
+/// Use with `KpType`: `get_or!(User::name(), &user, &default)` where `default` is `&T` (same type as the path value). Returns `&T`.
+/// Path syntax: `get_or!(&user => User.name, &default)`.
+#[macro_export]
+macro_rules! get_or {
+    ($kp:expr, $root:expr, $default:expr) => {
+        $kp.get($root).unwrap_or($default)
+    };
+    ($root:expr => $($path:tt)*, $default:expr) => {
+        $crate::get_or!($crate::keypath!($($path)*), $root, $default)
+    };
+}
+
+/// Get value through a keypath, or compute an owned fallback when the path returns `None`.
+/// Use with `KpType`: `get_or_else!(User::name(), &user, || "default".to_string())`.
+/// Returns `T` (owned). The keypath's value type must be `Clone`. The closure is only called when the path is `None`.
+/// Path syntax: `get_or_else!(&user => (User.name), || "default".to_string())` — path in parentheses.
+#[macro_export]
+macro_rules! get_or_else {
+    ($kp:expr, $root:expr, $closure:expr) => {
+        $kp.get($root).map(|r| r.clone()).unwrap_or_else($closure)
+    };
+    ($root:expr => ($($path:tt)*), $closure:expr) => {
+        $crate::get_or_else!($crate::keypath!($($path)*), $root, $closure)
+    };
+}
+
 pub type KpDynamic<R, V> = Kp<
     R,
     V,
@@ -2175,6 +2215,49 @@ mod tests {
 
         let new_kp_from_hashmap = TestKP::g(0).then(TestKP2::a());
         println!("{:?}", new_kp_from_hashmap.get(&instance));
+    }
+
+    #[test]
+    fn test_get_or_and_get_or_else() {
+        struct User {
+            name: String,
+        }
+        impl User {
+            fn name() -> KpType<'static, User, String> {
+                KpType::new(
+                    |u: &User| Some(&u.name),
+                    |u: &mut User| Some(&mut u.name),
+                )
+            }
+        }
+        let user = User {
+            name: "Alice".to_string(),
+        };
+        let default_ref: String = "default".to_string();
+        // get_or with kp form
+        let r = get_or!(User::name(), &user, &default_ref);
+        assert_eq!(*r, "Alice");
+        // get_or_else with kp form (returns owned)
+        let owned = get_or_else!(User::name(), &user, || "fallback".to_string());
+        assert_eq!(owned, "Alice");
+
+        // When path returns None, fallback is used
+        struct WithOption {
+            opt: Option<String>,
+        }
+        impl WithOption {
+            fn opt() -> KpType<'static, WithOption, String> {
+                KpType::new(
+                    |w: &WithOption| w.opt.as_ref(),
+                    |_w: &mut WithOption| None,
+                )
+            }
+        }
+        let with_none = WithOption { opt: None };
+        let r = get_or!(WithOption::opt(), &with_none, &default_ref);
+        assert_eq!(*r, "default");
+        let owned = get_or_else!(&with_none => (WithOption.opt), || "computed".to_string());
+        assert_eq!(owned, "computed");
     }
 
     // #[test]
