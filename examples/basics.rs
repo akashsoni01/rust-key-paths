@@ -50,6 +50,7 @@ impl Rectangle {
     // }
 }
 
+// const rec_to_width: KpType<'static, Rectangle, Size> = crate::Rectangle::size().then(Size::width());
 
 fn main() {
     let mut rect = Rectangle {
@@ -60,21 +61,21 @@ fn main() {
         name: "MyRect".into(),
     };
 
-    // Read: compose keypaths with then()
-    {
-        let width_path = Rectangle::size().then(Size::width());
-        if let Some(w) = width_path.get(&rect) {
-            println!("Width: {}", w);
-        }
-        println!("Width (direct): {:?}", width_path.get(&rect));
-    }
-
-    // Writable: get_mut and modify
-    {
-        let width_mut_kp = Rectangle::size().then(Size::width());
-        if let Some(w) = width_mut_kp.get_mut(&mut rect) {
-            *w += 50;
-        }
-    }
-    println!("Updated rectangle: {:?}", rect);
+    // // Read: compose keypaths with then()
+    // {
+    //     let width_path = Rectangle::size().then(Size::width());
+    //     if let Some(w) = width_path.get(&rect) {
+    //         println!("Width: {}", w);
+    //     }
+    //     println!("Width (direct): {:?}", width_path.get(&rect));
+    // }
+    //
+    // // Writable: get_mut and modify
+    // {
+    //     let width_mut_kp = Rectangle::size().then(Size::width());
+    //     if let Some(w) = width_mut_kp.get_mut(&mut rect) {
+    //         *w += 50;
+    //     }
+    // }
+    // println!("Updated rectangle: {:?}", rec_to_width.get(&rect));
 }

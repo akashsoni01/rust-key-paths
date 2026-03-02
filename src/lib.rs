@@ -837,6 +837,32 @@ where
         (self.set)(root)
     }
 
+    // pub const fn then_const<SV, SubValue, MutSubValue, G2, S2>(
+    //     self,
+    //     next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
+    // ) -> Kp<
+    //     R,
+    //     SV,
+    //     Root,
+    //     SubValue,
+    //     MutRoot,
+    //     MutSubValue,
+    //     impl Fn(Root) -> Option<SubValue> + use<SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
+    //     impl Fn(MutRoot) -> Option<MutSubValue> + use<SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
+    // >
+    // where
+    //     SubValue: std::borrow::Borrow<SV>,
+    //     MutSubValue: std::borrow::BorrowMut<SV>,
+    //     G2: Fn(Value) -> Option<SubValue>,
+    //     S2: Fn(MutValue) -> Option<MutSubValue>,
+    //     V: 'static,
+    // {
+    //     Kp::new_const(
+    //         move |root: Root| (self.get)(root).and_then(|value| (next.get)(value)),
+    //         move |root: MutRoot| (self.set)(root).and_then(|value| (next.set)(value)),
+    //     )
+    // }
+
     pub fn then<SV, SubValue, MutSubValue, G2, S2>(
         self,
         next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,

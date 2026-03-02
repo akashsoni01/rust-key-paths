@@ -669,13 +669,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     match (kind, inner_ty) {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             // For Option<T>, unwrap and access inner type
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#inner_ty> { r.#field_ident.as_ref() }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #inner_ty> { r.#field_ident.as_mut() }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
@@ -686,25 +687,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionBTreeSet, Some(_inner_ty))
                         | (WrapperKind::OptionResult, Some(_inner_ty))
                         | (WrapperKind::OptionBTreeMap, Some(_inner_ty)) => {
-                            // Keypath to the Option container (reference), like Vec/HashSet
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 #[inline(always)]
                                 pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
@@ -716,14 +718,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::HashMap, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        )
+                                    pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                        const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                        rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                     }
                                     #[inline(always)]
                                     pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
@@ -740,24 +743,24 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        )
+                                    pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                        const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                        rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                     }
                                 });
                             }
                         }
                         (WrapperKind::BTreeMap, Some(inner_ty)) | (WrapperKind::BTreeMapOption, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        )
+                                    pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                        const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                        rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                     }
                                     #[inline(always)]
                                     pub fn #kp_at_fn(key: #key_ty) -> rust_key_paths::KpDynamic<#name, #inner_ty>
@@ -774,11 +777,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        )
+                                    pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                        const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                        const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                        rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                     }
                                 });
                             }
@@ -796,14 +798,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Pin, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_inner_fn = format_ident!("{}_inner", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 #[inline(always)]
                                 pub fn #kp_inner_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty>
@@ -817,20 +820,20 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::PinBox, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_inner_fn = format_ident!("{}_inner", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 #[inline(always)]
                                 pub fn #kp_inner_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty>
                                 where #inner_ty: std::marker::Unpin
                                 {
-                                    // Pin::as_ref on Pin<Box<T>> returns Pin<&T> (Box Deref target), so get_ref() already gives &T
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref()),
                                         |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut()),
@@ -839,14 +842,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::PinnedField, _) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 /// Pinned projection for #[pin] field. Requires #[pin_project] on struct.
                                 #[inline(always)]
@@ -856,17 +860,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::PinnedFuture, _) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
                             let kp_await_fn = format_ident!("{}_await", field_ident);
                             let kp_pin_future_fn = format_ident!("{}_pin_future_kp", field_ident);
                             let output_ty = quote! { <#ty as std::future::Future>::Output };
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 /// Pinned projection for #[pin] Future field. Requires #[pin_project] on struct.
                                 #[inline(always)]
@@ -888,16 +893,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::PinnedBoxFuture, Some(output_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
                             let kp_await_fn = format_ident!("{}_await", field_ident);
                             let kp_pin_future_fn = format_ident!("{}_pin_future_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 /// Pinned projection for #[pin] Box<dyn Future> field. Requires #[pin_project] on struct.
                                 #[inline(always)]
@@ -989,15 +995,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::HashSet, Some(inner_ty)) | (WrapperKind::HashSetOption, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_at_fn = format_ident!("{}_at", field_ident);
 
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
 
                                 /// _at: check if element exists and get reference.
@@ -1015,15 +1022,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::BTreeSet, Some(inner_ty)) | (WrapperKind::BTreeSetOption, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_at_fn = format_ident!("{}_at", field_ident);
 
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
 
                                 /// _at: check if element exists and get reference.
@@ -1041,13 +1049,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::VecDeque, Some(inner_ty)) | (WrapperKind::VecDequeOption, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 #[inline(always)]
                                 pub fn #kp_at_fn(index: usize) -> rust_key_paths::KpDynamic<#name, #inner_ty> {
@@ -1059,29 +1068,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::LinkedList, Some(_inner_ty)) | (WrapperKind::LinkedListOption, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::BinaryHeap, Some(_inner_ty)) | (WrapperKind::BinaryHeapOption, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::Result, Some(inner_ty)) => {
-                            // For Result<T, E>, access Ok value
+                            // Result::as_ref().ok() / as_mut().ok() are not const fn in stable
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
@@ -1093,22 +1104,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::StdArcMutex, Some(inner_ty)) => {
-                            // For Arc<std::sync::Mutex<T>>
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpArcMutexFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::lock::LockKp::new(
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        ),
+                                        Self::#kp_fn(),
                                         rust_key_paths::lock::ArcMutexAccess::new(),
                                         rust_key_paths::Kp::new(
                                             |v: &#inner_ty| Some(v),
@@ -1119,22 +1127,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::StdArcRwLock, Some(inner_ty)) => {
-                            // For Arc<std::sync::RwLock<T>>
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpArcRwLockFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::lock::LockKp::new(
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        ),
+                                        Self::#kp_fn(),
                                         rust_key_paths::lock::ArcRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
                                             |v: &#inner_ty| Some(v),
@@ -1145,22 +1150,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::ArcRwLock, Some(inner_ty)) => {
-                            // For Arc<parking_lot::RwLock<T>> (requires rust-key-paths "parking_lot" feature)
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpParkingLotRwLockFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::lock::LockKp::new(
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        ),
+                                        Self::#kp_fn(),
                                         rust_key_paths::lock::ParkingLotRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
                                             |v: &#inner_ty| Some(v),
@@ -1171,22 +1173,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::ArcMutex, Some(inner_ty)) => {
-                            // For Arc<parking_lot::Mutex<T>> (requires rust-key-paths "parking_lot" feature)
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_lock_fn() -> rust_key_paths::lock::LockKpParkingLotMutexFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::lock::LockKp::new(
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        ),
+                                        Self::#kp_fn(),
                                         rust_key_paths::lock::ParkingLotMutexAccess::new(),
                                         rust_key_paths::Kp::new(
                                             |v: &#inner_ty| Some(v),
@@ -1198,46 +1197,44 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Mutex, Some(_inner_ty))
                         | (WrapperKind::StdMutex, Some(_inner_ty)) => {
-                            // For Mutex<T>, return keypath to container
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::RwLock, Some(_inner_ty))
                         | (WrapperKind::StdRwLock, Some(_inner_ty)) => {
-                            // For RwLock<T>, return keypath to container
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_async_fn = format_ident!("{}_async", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        ),
+                                        Self::#kp_fn(),
                                         rust_key_paths::async_lock::TokioMutexAccess::new(),
                                         rust_key_paths::Kp::new(
                                             |v: &#inner_ty| Some(v),
@@ -1248,21 +1245,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_async_fn = format_ident!("{}_async", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
-                                        rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
-                                        ),
+                                        Self::#kp_fn(),
                                         rust_key_paths::async_lock::TokioRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
                                             |v: &#inner_ty| Some(v),
@@ -1273,14 +1268,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_async_fn = format_ident!("{}_async", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
@@ -1298,14 +1294,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_async_fn = format_ident!("{}_async", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
@@ -1323,15 +1320,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionStdArcMutex, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::Mutex<#inner_ty>>> {
                                     rust_key_paths::Kp::new(
@@ -1355,15 +1353,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionArcMutex, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>> {
                                     rust_key_paths::Kp::new(
@@ -1387,15 +1386,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionStdArcRwLock, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::RwLock<#inner_ty>>> {
                                     rust_key_paths::Kp::new(
@@ -1419,15 +1419,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionArcRwLock, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_lock", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>> {
                                     rust_key_paths::Kp::new(
@@ -1452,14 +1453,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::OptionStdMutex, Some(inner_ty))
                         | (WrapperKind::OptionMutex, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Mutex<#inner_ty>> {
                                     rust_key_paths::Kp::new(
@@ -1471,14 +1473,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::OptionStdRwLock, Some(inner_ty))
                         | (WrapperKind::OptionRwLock, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                                 pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::RwLock<#inner_ty>> {
                                     rust_key_paths::Kp::new(
@@ -1489,81 +1492,86 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Weak, Some(_inner_ty)) => {
-                            // For Weak<T>, return keypath to container
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |_root: &mut #name| None, // Weak doesn't support mutable access
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(_r: &mut #name) -> Option<&mut #ty> { None }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::Atomic, None | Some(_)) => {
-                            // For atomic types: return keypath to the atomic (user calls .load()/.store())
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::OptionAtomic, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#inner_ty> { r.#field_ident.as_ref() }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #inner_ty> { r.#field_ident.as_mut() }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::String, None) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::OptionString, None) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, std::string::String> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, std::string::String> {
+                                    const fn #get_fn(r: &#name) -> Option<&std::string::String> { r.#field_ident.as_ref() }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut std::string::String> { r.#field_ident.as_mut() }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::Cell, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::RefCell, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
@@ -1592,46 +1600,50 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::PhantomData, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::Range, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::OptionCell, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::OptionRefCell, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
@@ -1658,61 +1670,64 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionPhantomData, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::OptionRange, Some(_inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::Reference, Some(_inner_ty)) => {
-                            // For reference types (&T, &str, &[T]): read-only, setter returns None
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |_root: &mut #name| None, // references: read-only
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(_r: &mut #name) -> Option<&mut #ty> { None }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         (WrapperKind::None, None) => {
                             // For basic types, direct access
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         _ => {
-                            // For unknown/complex nested types, return keypath to field itself
+                            let get_fn = format_ident!("__kp_get_{}", field_ident);
+                            let set_fn = format_ident!("__kp_set_{}", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                            rust_key_paths::Kp::new(
-                                |root: &#name| Some(&root.#field_ident),
-                                |root: &mut #name| Some(&mut root.#field_ident),
-                            )
-                        }
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#field_ident) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#field_ident) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
+                                }
                             });
                         }
                     }
@@ -1768,13 +1783,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     match (kind, inner_ty.clone()) {
                         (WrapperKind::Option, Some(inner_ty)) => {
+                            let get_fn = format_ident!("__kp_get_f{}", idx);
+                            let set_fn = format_ident!("__kp_set_f{}", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#inner_ty> { r.#idx_lit.as_ref() }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #inner_ty> { r.#idx_lit.as_mut() }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
@@ -2465,24 +2481,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::None, None) => {
+                            let get_fn = format_ident!("__kp_get_f{}", idx);
+                            let set_fn = format_ident!("__kp_set_f{}", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#idx_lit) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#idx_lit) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
                         _ => {
+                            let get_fn = format_ident!("__kp_get_f{}", idx);
+                            let set_fn = format_ident!("__kp_set_f{}", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
-                                    rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
-                                    )
+                                pub const fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    const fn #get_fn(r: &#name) -> Option<&#ty> { Some(&r.#idx_lit) }
+                                    const fn #set_fn(r: &mut #name) -> Option<&mut #ty> { Some(&mut r.#idx_lit) }
+                                    rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                 }
                             });
                         }
@@ -2540,20 +2558,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                 match &variant.fields {
                     Fields::Unit => {
-                        // Unit variant - return keypath that checks if enum matches variant
+                        let get_fn = format_ident!("__kp_get_{}", snake);
+                        let set_fn = format_ident!("__kp_set_{}", snake);
                         tokens.extend(quote! {
                             #[inline(always)]
-                            pub fn #snake() -> rust_key_paths::KpType<'static, #name, ()> {
-                                rust_key_paths::Kp::new(
-                                    |root: &#name| match root {
-                                        #name::#v_ident => {
-                                            static UNIT: () = ();
-                                            Some(&UNIT)
-                                        },
-                                        _ => None,
-                                    },
-                                    |_root: &mut #name| None, // Can't mutate unit variant
-                                )
+                            pub const fn #snake() -> rust_key_paths::KpType<'static, #name, ()> {
+                                const fn #get_fn(r: &#name) -> Option<&()> {
+                                    static UNIT: () = ();
+                                    match r { #name::#v_ident => Some(&UNIT), _ => None }
+                                }
+                                const fn #set_fn(_r: &mut #name) -> Option<&mut ()> { None }
+                                rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                             }
                         });
                     }
@@ -3372,38 +3387,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     });
                                 }
                                 (WrapperKind::None, None) => {
-                                    // Basic type
+                                    let get_fn = format_ident!("__kp_get_{}", snake);
+                                    let set_fn = format_ident!("__kp_set_{}", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
-                                            rust_key_paths::Kp::new(
-                                                |root: &#name| match root {
-                                                    #name::#v_ident(inner) => Some(inner),
-                                                    _ => None,
-                                                },
-                                                |root: &mut #name| match root {
-                                                    #name::#v_ident(inner) => Some(inner),
-                                                    _ => None,
-                                                },
-                                            )
+                                        pub const fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            const fn #get_fn(r: &#name) -> Option<&#field_ty> {
+                                                match r { #name::#v_ident(inner) => Some(inner), _ => None }
+                                            }
+                                            const fn #set_fn(r: &mut #name) -> Option<&mut #field_ty> {
+                                                match r { #name::#v_ident(inner) => Some(inner), _ => None }
+                                            }
+                                            rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                         }
                                     });
                                 }
                                 _ => {
-                                    // Other wrapper types - return keypath to field
+                                    let get_fn = format_ident!("__kp_get_{}", snake);
+                                    let set_fn = format_ident!("__kp_set_{}", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
-                                            rust_key_paths::Kp::new(
-                                                |root: &#name| match root {
-                                                    #name::#v_ident(inner) => Some(inner),
-                                                    _ => None,
-                                                },
-                                                |root: &mut #name| match root {
-                                                    #name::#v_ident(inner) => Some(inner),
-                                                    _ => None,
-                                                },
-                                            )
+                                        pub const fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            const fn #get_fn(r: &#name) -> Option<&#field_ty> {
+                                                match r { #name::#v_ident(inner) => Some(inner), _ => None }
+                                            }
+                                            const fn #set_fn(r: &mut #name) -> Option<&mut #field_ty> {
+                                                match r { #name::#v_ident(inner) => Some(inner), _ => None }
+                                            }
+                                            rust_key_paths::Kp::new_const(#get_fn, #set_fn)
                                         }
                                     });
                                 }
