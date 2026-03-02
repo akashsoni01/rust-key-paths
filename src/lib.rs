@@ -179,6 +179,144 @@ where
     pub fn to_dynamic(self) -> KpDynamic<R, V> {
         self.into()
     }
+
+    /// Const-capable composition: chain with another keypath without closures.
+    /// Returns a [ThenKp] that composes `self` then `next`; use [ThenKp::get] / [ThenKp::get_mut]
+    /// or [ThenKp::to_dynamic] for storage.
+    #[inline]
+    pub const fn then_const<SV>(self, next: KpType<'static, V, SV>) -> ThenKp<R, V, SV> {
+        ThenKp::new(self, next)
+    }
+}
+
+/// Keypath that composes two [KpType]s (R → V → SV). Created by [KpType::then_const].
+pub struct ThenKp<R, V, SV>
+where
+    R: 'static,
+    V: 'static,
+    SV: 'static,
+{
+    first: KpType<'static, R, V>,
+    second: KpType<'static, V, SV>,
+}
+
+impl<R, V, SV> ThenKp<R, V, SV>
+where
+    R: 'static,
+    V: 'static,
+    SV: 'static,
+{
+    /// Creates a composed keypath (first then second). Used by [KpType::then_const].
+    #[inline]
+    pub const fn new(first: KpType<'static, R, V>, second: KpType<'static, V, SV>) -> Self {
+        ThenKp { first, second }
+    }
+
+    #[inline]
+    pub fn get<'a>(&self, root: &'a R) -> Option<&'a SV> {
+        self.first.get(root).and_then(|v| self.second.get(v))
+    }
+
+    #[inline]
+    pub fn get_mut<'a>(&self, root: &'a mut R) -> Option<&'a mut SV> {
+        self.first.get_mut(root).and_then(|v| self.second.get_mut(v))
+    }
+
+    /// Convert to [KpDynamic] for type-erased storage.
+    #[inline]
+    pub fn to_dynamic(self) -> KpDynamic<R, SV>
+    where
+        R: 'static,
+        SV: 'static,
+    {
+        self.into()
+    }
+
+    /// Chain with another keypath (const-capable).
+    #[inline]
+    pub const fn then_const<SV2>(self, next: KpType<'static, SV, SV2>) -> ThenKp3<R, V, SV, SV2> {
+        ThenKp3::new(self, next)
+    }
+}
+
+impl<R, V, SV> From<ThenKp<R, V, SV>> for KpDynamic<R, SV>
+where
+    R: 'static,
+    SV: 'static,
+{
+    #[inline]
+    fn from(t: ThenKp<R, V, SV>) -> Self {
+        let t = std::sync::Arc::new(t);
+        let t2 = std::sync::Arc::clone(&t);
+        Kp::new(
+            Box::new(move |r: &R| t.first.get(r).and_then(|v| t.second.get(v))),
+            Box::new(move |r: &mut R| t2.first.get_mut(r).and_then(|v| t2.second.get_mut(v))),
+        )
+    }
+}
+
+/// Keypath composing three segments (R → V → SV → SV2). From [ThenKp::then_const].
+pub struct ThenKp3<R, V, SV, SV2>
+where
+    R: 'static,
+    V: 'static,
+    SV: 'static,
+    SV2: 'static,
+{
+    first: ThenKp<R, V, SV>,
+    second: KpType<'static, SV, SV2>,
+}
+
+impl<R, V, SV, SV2> ThenKp3<R, V, SV, SV2>
+where
+    R: 'static,
+    V: 'static,
+    SV: 'static,
+    SV2: 'static,
+{
+    #[inline]
+    pub const fn new(first: ThenKp<R, V, SV>, second: KpType<'static, SV, SV2>) -> Self {
+        ThenKp3 { first, second }
+    }
+
+    #[inline]
+    pub fn get<'a>(&self, root: &'a R) -> Option<&'a SV2>
+    where
+        SV: 'a,
+    {
+        self.first.get(root).and_then(|v| self.second.get(v))
+    }
+
+    #[inline]
+    pub fn get_mut<'a>(&self, root: &'a mut R) -> Option<&'a mut SV2>
+    where
+        SV: 'a,
+    {
+        self.first.get_mut(root).and_then(|v| self.second.get_mut(v))
+    }
+
+    #[inline]
+    pub fn to_dynamic(self) -> KpDynamic<R, SV2> {
+        self.into()
+    }
+}
+
+impl<R, V, SV, SV2> From<ThenKp3<R, V, SV, SV2>> for KpDynamic<R, SV2>
+where
+    R: 'static,
+    V: 'static,
+    SV: 'static,
+    SV2: 'static,
+{
+    #[inline]
+    fn from(t: ThenKp3<R, V, SV, SV2>) -> Self {
+        let t = std::sync::Arc::new(t);
+        let t2 = std::sync::Arc::clone(&t);
+        Kp::new(
+            Box::new(move |r: &R| t.first.get(r).and_then(|v| t.second.get(v))),
+            Box::new(move |r: &mut R| t2.first.get_mut(r).and_then(|v| t2.second.get_mut(v))),
+        )
+    }
 }
 
 impl<'a, R, V> From<KpType<'a, R, V>> for KpDynamic<R, V>
@@ -836,32 +974,6 @@ where
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
         (self.set)(root)
     }
-
-    // pub const fn then_const<SV, SubValue, MutSubValue, G2, S2>(
-    //     self,
-    //     next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
-    // ) -> Kp<
-    //     R,
-    //     SV,
-    //     Root,
-    //     SubValue,
-    //     MutRoot,
-    //     MutSubValue,
-    //     impl Fn(Root) -> Option<SubValue> + use<SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
-    //     impl Fn(MutRoot) -> Option<MutSubValue> + use<SV, SubValue, MutSubValue, G2, S2, R, V, Root, Value, MutRoot, MutValue, G, S>,
-    // >
-    // where
-    //     SubValue: std::borrow::Borrow<SV>,
-    //     MutSubValue: std::borrow::BorrowMut<SV>,
-    //     G2: Fn(Value) -> Option<SubValue>,
-    //     S2: Fn(MutValue) -> Option<MutSubValue>,
-    //     V: 'static,
-    // {
-    //     Kp::new_const(
-    //         move |root: Root| (self.get)(root).and_then(|value| (next.get)(value)),
-    //         move |root: MutRoot| (self.set)(root).and_then(|value| (next.set)(value)),
-    //     )
-    // }
 
     pub fn then<SV, SubValue, MutSubValue, G2, S2>(
         self,
