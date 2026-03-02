@@ -3,7 +3,24 @@
 //! Run with: `cargo run --example basics`
 
 use key_paths_derive::Kp;
+use rust_key_paths::{Kp, KpDynamic, KpType};
 
+pub struct Service {
+    rect_to_width_kp: KpDynamic<
+        Rectangle,
+        u32,
+    >,
+
+}
+
+impl Service {
+    pub fn new() -> Self {
+        let x= Rectangle::size().then(Size::width());
+        Self {
+            rect_to_width_kp: Rectangle::size().then(Size::width()).into(),
+        }
+    }
+}
 #[derive(Debug, Kp)]
 struct Size {
     width: u32,
