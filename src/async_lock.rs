@@ -31,7 +31,6 @@
 
 use crate::Kp;
 use async_trait::async_trait;
-use std::sync::Arc;
 
 // Re-export tokio sync types for convenience
 #[cfg(feature = "tokio")]
@@ -430,7 +429,7 @@ where
         let lock_clone = lock.clone(); // SHALLOW: Arc refcount++
 
         // Async lock and get the mid value
-        let mut mid_value = self
+        let mid_value = self
             .mid
             .lock_read(&lock_clone)
             .await

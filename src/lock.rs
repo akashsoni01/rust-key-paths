@@ -286,7 +286,7 @@ where
     /// No longer needs `Lock: Clone` because `lock_write` now takes `&Lock` instead of `&mut Lock`
     #[inline]
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
-        (self.prev.set)(root).and_then(|mut lock_value| {
+        (self.prev.set)(root).and_then(|lock_value| {
             let lock: &Lock = lock_value.borrow();
             self.mid
                 .lock_write(lock)

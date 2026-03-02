@@ -10,7 +10,7 @@
 // type Getter<R, V, Root, Value> where Root: std::borrow::Borrow<R>, Value: std::borrow::Borrow<V> = fn(Root) -> Option<Value>;
 // type Setter<R, V> = fn(&'r mut R) -> Option<&'r mut V>;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 
 // Export the lock module
 pub mod lock;
@@ -813,16 +813,16 @@ where
 {
     pub fn new(get: G, set: S) -> Self {
         Self {
-            get: get,
-            set: set,
+            get,
+            set,
             _p: std::marker::PhantomData,
         }
     }
 
     pub const fn new_const(get: G, set: S) -> Self {
         Self {
-            get: get,
-            set: set,
+            get,
+            set,
             _p: std::marker::PhantomData,
         }
     }
