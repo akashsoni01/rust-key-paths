@@ -606,7 +606,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                 tokens.extend(quote! {
                     /// Returns a generic identity keypath for this type
                     #[inline(always)]
-                    pub fn identity_typed<Root, MutRoot>() -> rust_key_paths::Kp<
+                    pub fn _identity<Root, MutRoot>() -> rust_key_paths::Kp<
                         #name,
                         #name,
                         Root,
@@ -626,14 +626,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         )
                     }
 
-                    /// Returns a simple identity keypath for this type
-                    #[inline(always)]
-                    pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
-                        rust_key_paths::Kp::new(
-                            |r: &#name| Some(r),
-                            |r: &mut #name| Some(r)
-                        )
-                    }
+                    // /// Returns a simple identity keypath for this type
+                    // #[inline(always)]
+                    // pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
+                    //     rust_key_paths::Kp::new(
+                    //         |r: &#name| Some(r),
+                    //         |r: &mut #name| Some(r)
+                    //     )
+                    // }
                 });
                 
                 // When struct has #[pin] fields, generated code calls this.project() which must

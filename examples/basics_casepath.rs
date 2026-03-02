@@ -4,6 +4,7 @@ use key_paths_derive::Kp;
 #[derive(Debug, Kp)]
 struct SomeComplexStruct {
     scsf: Option<SomeOtherStruct>,
+    identity: String,
     scfs2: Arc<std::sync::RwLock<SomeOtherStruct>>,
 }
 
@@ -40,6 +41,7 @@ impl SomeComplexStruct {
                     }))),
                 }),
             }),
+            identity: String::from("SomeComplexStruct"),
             scfs2: Arc::new(std::sync::RwLock::new(SomeOtherStruct {
                 sosf: Some(OneMoreStruct {
                     omsf: Some(String::from("no value for now")),
