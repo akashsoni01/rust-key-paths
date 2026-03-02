@@ -15,9 +15,8 @@ pub struct Service {
 
 impl Service {
     pub fn new() -> Self {
-        let x= Rectangle::size().then(Size::width());
         Self {
-            rect_to_width_kp: Rectangle::size().then(Size::width()).into(),
+            rect_to_width_kp: Rectangle::test().into(),
         }
     }
 }
@@ -32,6 +31,23 @@ struct Rectangle {
     size: Size,
     name: String,
 }
+
+// Standalone fn pointers for keypath (reference: lib.rs identity_typed / Kp with fn types)
+
+impl Rectangle {
+    /// Keypath to `size.width`, built with fn pointers (same pattern as lib.rs `identity_typed`).
+    pub const fn size() -> KpType<'static, Rectangle, Size> {
+        const fn g(r: &Rectangle) -> Option<&Size> {
+            Some(&r.size)
+        }
+        const fn s(r: &mut Rectangle) -> Option<&mut Size> {
+            Some(&mut r.size)
+        }
+
+        Kp::new_const(g, s)
+    }
+}
+
 
 fn main() {
     let mut rect = Rectangle {
