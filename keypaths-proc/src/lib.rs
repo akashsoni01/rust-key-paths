@@ -325,7 +325,7 @@ fn method_scope_from_attrs(attrs: &[Attribute]) -> syn::Result<Option<MethodScop
 ///     settings: Option<Settings>,
 /// }
 /// ```
-#[proc_macro_derive(Kp, attributes(Readable, Writable, Owned, All))]
+#[proc_macro_derive(Kps, attributes(Readable, Writable, Owned, All))]
 pub fn derive_keypaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -5061,10 +5061,10 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
 ///
 /// // Usage:
 /// let point = Point { x: 1.0, y: 2.0 };
-/// let x_path = Point::x_r();
+/// let x_path = Point::x();
 /// let x_value = x_path.get(&point);  // &f64
 /// ```
-#[proc_macro_derive(Keypath)]
+#[proc_macro_derive(Kp)]
 pub fn derive_keypath(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;

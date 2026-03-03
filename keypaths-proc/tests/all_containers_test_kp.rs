@@ -1,6 +1,6 @@
 //! Integration test: Kp derive with Option, Box, Rc, Arc, Vec, Option<Vec> and AllContainersTest.
 
-use keypaths_proc::{Kp};
+use keypaths_proc::{Kps};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
 use rust_keypaths::{KeyPath, WritableKeyPath};
 
-#[derive(Debug, Clone, Kp)]
+#[derive(Debug, Clone, Kps)]
 struct ContainerFields {
     name: String,
     age: Option<u32>,
@@ -24,7 +24,7 @@ struct ContainerFields {
     opt_vec: Option<Vec<String>>,
 }
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Kps)]
 struct AllContainersTest {
     // Basic containers
     option_field: Option<String>,
@@ -59,7 +59,7 @@ struct AllContainersTest {
     option_vecdeque_field: Option<VecDeque<String>>,
     vecdeque_option_field: VecDeque<Option<String>>,
     option_hashset_field: Option<HashSet<String>>,
-    // optionesult_field: Option<Result<i32, String>>,  // Kp macro currently generates wrong type for Option<Result<>> fr
+    // option_result_field: Option<Result<i32, String>>,  // Kp macro currently generates wrong type for Option<Result<>> fr
 
     // Interior mutability
     cell_field: Cell<i32>,
@@ -93,21 +93,29 @@ fn test_container_keypaths() {
         opt_vec: Some(vec!["one".into(), "two".into()]),
     };
 
-    ContainerFields::arc_lock_at(KeyPath::identity()).get(&value, |x| {
+    ContainerFields::arc_lock_fr_at(KeyPath::identity()).get(&value, |x| {
         println!("{:?}", x);
     });
-    
-    assert_eq!(ContainerFields::name().get(&value), "Alice");
-    assert_eq!(ContainerFields::age().get(&value), Some(&30u32));
-    assert_eq!(ContainerFields::boxed().get(&value).as_str(), "boxed");
-    assert_eq!(*ContainerFields::rc().get(&value), 42);
-    assert!(*ContainerFields::arc().get(&value));
-    assert_eq!(ContainerFields::vec().get(&value).len(), 3);
-    assert_eq!(ContainerFields::vec().get(&value)[0], "a");
-    assert_eq!(ContainerFields::vec().get(&value), Some(&"a".to_string()));
-    assert_eq!(ContainerFields::vec_at(1).get(&value), Some(&"b".to_string()));
-    assert_eq!(ContainerFields::opt_vec().get(&value), Some(&"one".to_string()));
-    assert_eq!(ContainerFields::opt_vec_at(1).get(&value), Some(&"two".to_string()));
+
+    ContainerFields::arc_lock_write_fw_at(WritableKeyPath::identity()).get_mut(&value, |x| {
+        *x = false;
+    });
+
+    ContainerFields::arc_lock_write_fr_at(KeyPath::identity()).get(&value, |x| {
+        println!("update working for lock {:?}", x);
+    });
+
+    assert_eq!(ContainerFields::name_r().get(&value), "Alice");
+    assert_eq!(ContainerFields::age_fr().get(&value), Some(&30u32));
+    assert_eq!(ContainerFields::boxed_r().get(&value).as_str(), "boxed");
+    assert_eq!(*ContainerFields::rc_r().get(&value), 42);
+    assert!(*ContainerFields::arc_r().get(&value));
+    assert_eq!(ContainerFields::vec_r().get(&value).len(), 3);
+    assert_eq!(ContainerFields::vec_r().get(&value)[0], "a");
+    assert_eq!(ContainerFields::vec_fr().get(&value), Some(&"a".to_string()));
+    assert_eq!(ContainerFields::vec_fr_at(1).get(&value), Some(&"b".to_string()));
+    assert_eq!(ContainerFields::opt_vec_fr().get(&value), Some(&"one".to_string()));
+    assert_eq!(ContainerFields::opt_vec_fr_at(1).get(&value), Some(&"two".to_string()));
 }
 
 #[test]
@@ -144,32 +152,32 @@ fn test_all_containers_keypaths() {
     };
 
     // Basic containers
-    assert_eq!(AllContainersTest::string_field().get(&value), "string");
-    assert_eq!(AllContainersTest::vec_field().get(&value).len(), 2);
-    assert_eq!(AllContainersTest::box_field().get(&value).as_str(), "box");
-    assert_eq!(AllContainersTest::rc_field().get(&value).as_str(), "rc");
-    assert_eq!(AllContainersTest::arc_field().get(&value).as_str(), "arc");
-    assert_eq!(AllContainersTest::option_field().get(&value).asef(), Some(&"opt".to_string()));
+    assert_eq!(AllContainersTest::string_field_r().get(&value), "string");
+    assert_eq!(AllContainersTest::vec_field_r().get(&value).len(), 2);
+    assert_eq!(AllContainersTest::box_field_r().get(&value).as_str(), "box");
+    assert_eq!(AllContainersTest::rc_field_r().get(&value).as_str(), "rc");
+    assert_eq!(AllContainersTest::arc_field_r().get(&value).as_str(), "arc");
+    assert_eq!(AllContainersTest::option_field_r().get(&value).as_ref(), Some(&"opt".to_string()));
 
     // Reference types
-    assert_eq!(*AllContainersTest::static_str_field().get(&value), "static");
-    assert_eq!(AllContainersTest::opt_static_str().get(&value), Some(&"opt_static"));
+    assert_eq!(*AllContainersTest::static_str_field_r().get(&value), "static");
+    assert_eq!(AllContainersTest::opt_static_str_fr().get(&value), Some(&"opt_static"));
 
-    let x = crate::AllContainersTest::vec_field().map_optional(|x| { x.first() });
+    let x = crate::AllContainersTest::vec_field_r().map_optional(|x| { x.first() });
     // Collections
-    assert_eq!(AllContainersTest::vecdeque_field().get(&value).len(), 2);
-    assert_eq!(AllContainersTest::hashmap_field().get(&value).len(), 2);
-    assert_eq!(AllContainersTest::btreemap_field().get(&value).len(), 2);
+    assert_eq!(AllContainersTest::vecdeque_field_r().get(&value).len(), 2);
+    assert_eq!(AllContainersTest::hashmap_field_r().get(&value).len(), 2);
+    assert_eq!(AllContainersTest::btreemap_field_r().get(&value).len(), 2);
 
     // Result
-    assert_eq!(AllContainersTest::result_field().get(&value), Some(&100));
+    assert_eq!(AllContainersTest::result_field_fr().get(&value), Some(&100));
 
     // Cell / RefCell (reference to container)
-    assert_eq!(AllContainersTest::cell_field().get(&value).get(), 7);
-    assert_eq!(AllContainersTest::refcell_field().get(&value).borrow().as_str(), "refcell");
+    assert_eq!(AllContainersTest::cell_field_r().get(&value).get(), 7);
+    assert_eq!(AllContainersTest::refcell_field_r().get(&value).borrow().as_str(), "refcell");
 
     // Range, PhantomData, empty tuple
-    assert_eq!(AllContainersTest::range_field().get(&value).start, 0);
-    assert_eq!(AllContainersTest::range_field().get(&value).end, 10);
-    assert_eq!(*AllContainersTest::empty_tuple().get(&value), ());
+    assert_eq!(AllContainersTest::range_field_r().get(&value).start, 0);
+    assert_eq!(AllContainersTest::range_field_r().get(&value).end, 10);
+    assert_eq!(*AllContainersTest::empty_tuple_r().get(&value), ());
 }
