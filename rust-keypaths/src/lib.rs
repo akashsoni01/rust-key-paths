@@ -5203,6 +5203,32 @@ where
         (self.getter)(root)
     }
 
+    /// Higher-order function: map the value reference through a function.
+    /// Returns a new `KeyPath<Root, U, _>` that gets the value and applies `f` to the reference.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_keypaths::KeyPath;
+    /// let kp = KeyPath::new(|s: &String| s);
+    /// let len_kp = kp.map(|s: &String| &s.len());
+    /// let s = "hello".to_string();
+    /// assert_eq!(*len_kp.get(&s), 5);
+    /// ```
+    pub fn map<U, G>(self, f: G) -> KeyPath<Root, U, impl for<'r> Fn(&'r Root) -> &'r U>
+    where
+        G: for<'r> Fn(&'r Value) -> &'r U,
+        F: 'static,
+        G: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        KeyPath {
+            getter: move |root| f(getter(root)),
+            _phantom: PhantomData,
+        }
+    }
+
     // Using fn pointer - works for identity
     // pub fn identity() -> KeyPath<Root, Root, fn(&Root) -> &Root> {
     //     KeyPath {
@@ -6689,6 +6715,33 @@ where
         (self.getter)(root)
     }
 
+    /// Higher-order function: map the optional value reference through a function.
+    /// Returns a new `OptionalKeyPath<Root, U, _>` that gets the value and applies `f` to the reference when present.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_keypaths::OptionalKeyPath;
+    /// let kp = OptionalKeyPath::new(|o: &Option<String>| o.as_ref());
+    /// let len_kp = kp.map(|s: &String| &s.len());
+    /// let some_s = Some("hello".to_string());
+    /// assert_eq!(*len_kp.get(&some_s).unwrap(), 5);
+    /// assert!(len_kp.get(&None::<String>).is_none());
+    /// ```
+    pub fn map<U, G>(self, f: G) -> OptionalKeyPath<Root, U, impl for<'r> Fn(&'r Root) -> Option<&'r U>>
+    where
+        G: for<'r> Fn(&'r Value) -> &'r U,
+        F: 'static,
+        G: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        OptionalKeyPath {
+            getter: move |root| getter(root).map(|v| f(v)),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Chain this optional keypath with an inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get() time
     ///
@@ -7614,6 +7667,23 @@ where
         (self.getter)(root)
     }
 
+    /// Higher-order function: map the mutable value reference through a function.
+    /// Returns a new `WritableKeyPath<Root, U, _>` that gets the value and applies `f` to the mutable reference.
+    pub fn map<U, G>(self, f: G) -> WritableKeyPath<Root, U, impl for<'r> Fn(&'r mut Root) -> &'r mut U>
+    where
+        G: for<'r> Fn(&'r mut Value) -> &'r mut U,
+        F: 'static,
+        G: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        WritableKeyPath {
+            getter: move |root| f(getter(root)),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Adapt this keypath to work with Result<Root, E> instead of Root
     /// This unwraps the Result and applies the keypath to the Ok value
     pub fn for_result<E>(
@@ -8014,6 +8084,26 @@ where
 
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut Value> {
         (self.getter)(root)
+    }
+
+    /// Higher-order function: map the optional mutable value reference through a function.
+    /// Returns a new `WritableOptionalKeyPath<Root, U, _>` that gets the value and applies `f` when present.
+    pub fn map<U, G>(
+        self,
+        f: G,
+    ) -> WritableOptionalKeyPath<Root, U, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut U>>
+    where
+        G: for<'r> Fn(&'r mut Value) -> &'r mut U,
+        F: 'static,
+        G: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        WritableOptionalKeyPath {
+            getter: move |root| getter(root).map(|v| f(v)),
+            _phantom: PhantomData,
+        }
     }
 
     /// Trace the chain to find where it breaks
@@ -10678,6 +10768,84 @@ mod tests {
             *metadata = "super_admin".to_string();
         }
         assert_eq!(user.metadata, Some("super_admin".to_string()));
+    }
+
+    // ========== map HOF tests ==========
+
+    #[test]
+    fn test_keypath_map() {
+        #[derive(Debug)]
+        struct WithLen {
+            name: String,
+            len: usize,
+        }
+        let w = WithLen {
+            name: "world".to_string(),
+            len: 5,
+        };
+        let kp = KeyPath::new(|w: &WithLen| w);
+        let len_kp = kp.map(|w: &WithLen| &w.len);
+        assert_eq!(*len_kp.get(&w), 5);
+
+        let kp2 = KeyPath::new(|w: &WithLen| w);
+        let name_kp = kp2.map(|w: &WithLen| &w.name);
+        assert_eq!(name_kp.get(&w).as_str(), "world");
+    }
+
+    #[test]
+    fn test_optional_keypath_map() {
+        #[derive(Debug)]
+        struct WithLen {
+            len: usize,
+        }
+        let kp = OptionalKeyPath::new(|o: &Option<WithLen>| o.as_ref());
+        let len_kp = kp.map(|w: &WithLen| &w.len);
+        assert_eq!(*len_kp.get(&Some(WithLen { len: 42 })).unwrap(), 42);
+        assert!(len_kp.get(&None::<WithLen>).is_none());
+
+        #[derive(Debug)]
+        struct WithName {
+            name: String,
+        }
+        let kp2 = OptionalKeyPath::new(|o: &Option<WithName>| o.as_ref());
+        let name_kp = kp2.map(|w: &WithName| &w.name);
+        assert_eq!(
+            name_kp.get(&Some(WithName { name: "foo".to_string() })),
+            Some(&"foo".to_string())
+        );
+    }
+
+    #[test]
+    fn test_writable_keypath_map() {
+        #[derive(Debug)]
+        struct Pair {
+            x: u32,
+            y: u32,
+        }
+        let kp = WritableKeyPath::new(|p: &mut Pair| p);
+        let y_kp = kp.map(|p: &mut Pair| &mut p.y);
+        let mut p = Pair { x: 1, y: 2 };
+        *y_kp.get_mut(&mut p) = 42;
+        assert_eq!(p.y, 42);
+        assert_eq!(p.x, 1);
+    }
+
+    #[test]
+    fn test_writable_optional_keypath_map() {
+        #[derive(Debug)]
+        struct Item {
+            value: i32,
+        }
+        let kp = WritableOptionalKeyPath::new(|o: &mut Option<Item>| o.as_mut());
+        let value_kp = kp.map(|item: &mut Item| &mut item.value);
+        let mut some_item = Some(Item { value: 10 });
+        if let Some(v) = value_kp.get_mut(&mut some_item) {
+            *v = 20;
+        }
+        assert_eq!(some_item.unwrap().value, 20);
+
+        let mut none_item: Option<Item> = None;
+        assert!(value_kp.get_mut(&mut none_item).is_none());
     }
 }
 
