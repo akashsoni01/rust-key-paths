@@ -5155,6 +5155,21 @@ macro_rules! writable_opt_keypath {
     };
 }
 // ========== BASE KEYPATH TYPES ==========
+
+// Identity getters for keypath identity() constructors (fn pointers for concrete F type).
+fn identity_ref<Root>(r: &Root) -> &Root {
+    r
+}
+fn identity_opt_ref<Root>(r: &Root) -> Option<&Root> {
+    Some(r)
+}
+fn identity_mut<Root>(r: &mut Root) -> &mut Root {
+    r
+}
+fn identity_opt_mut<Root>(r: &mut Root) -> Option<&mut Root> {
+    Some(r)
+}
+
 // Base KeyPath
 #[derive(Clone)]
 pub struct KeyPath<Root, Value, F>
@@ -5185,6 +5200,16 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)
+    }
+}
+
+impl<Root> KeyPath<Root, Root, fn(&Root) -> &Root> {
+    /// Identity keypath: projects `Root` to itself (`get(root) == root`).
+    pub fn identity() -> Self {
+        KeyPath {
+            getter: identity_ref::<Root>,
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -5254,21 +5279,6 @@ where
             _phantom: PhantomData,
         }
     }
-
-    // Using fn pointer - works for identity
-    // pub fn identity() -> KeyPath<Root, Root, fn(&Root) -> &Root> {
-    //     KeyPath {
-    //         getter: (|x: &Root| x) as fn(&Root) -> &Root,
-    //         _phantom: PhantomData,
-    //     }
-    // }
-
-    // pub fn leaf() -> KeyPath<Value, Value, fn(&Value) -> &Value> {
-    //     KeyPath {
-    //         getter: (|x: &Value| x) as fn(&Value) -> &Value,
-    //         _phantom: PhantomData,
-    //     }
-    // }
 
     /// Chain this keypath with an inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get() time
@@ -6726,6 +6736,16 @@ where
     }
 }
 
+impl<Root> OptionalKeyPath<Root, Root, fn(&Root) -> Option<&Root>> {
+    /// Identity optional keypath: projects `Root` to `Some(root)`.
+    pub fn identity() -> Self {
+        OptionalKeyPath {
+            getter: identity_opt_ref::<Root>,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 impl<Root, Value, F> OptionalKeyPath<Root, Value, F>
 where
     F: for<'r> Fn(&'r Root) -> Option<&'r Value>,
@@ -7698,6 +7718,16 @@ where
     }
 }
 
+impl<Root> WritableKeyPath<Root, Root, fn(&mut Root) -> &mut Root> {
+    /// Identity writable keypath: projects `&mut Root` to itself.
+    pub fn identity() -> Self {
+        WritableKeyPath {
+            getter: identity_mut::<Root>,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 impl<Root, Value, F> WritableKeyPath<Root, Value, F>
 where
     F: for<'r> Fn(&'r mut Root) -> &'r mut Value,
@@ -8133,6 +8163,16 @@ where
                 "WritableOptionalKeyPath<{} -> Option<{}>>",
                 root_short, value_short
             )
+        }
+    }
+}
+
+impl<Root> WritableOptionalKeyPath<Root, Root, fn(&mut Root) -> Option<&mut Root>> {
+    /// Identity writable optional keypath: projects `&mut Root` to `Some(root)`.
+    pub fn identity() -> Self {
+        WritableOptionalKeyPath {
+            getter: identity_opt_mut::<Root>,
+            _phantom: PhantomData,
         }
     }
 }
@@ -10967,6 +11007,39 @@ mod tests {
             Some(&"x".to_string())
         );
         assert!(first_kp.get(&None::<WithVec>).is_none());
+    }
+
+    #[test]
+    fn test_keypath_identity() {
+        let kp = KeyPath::<i32, i32, _>::identity();
+        let x = 42;
+        assert!(std::ptr::eq(kp.get(&x), &x));
+        let s = "hello".to_string();
+        let kp_s = KeyPath::<String, String, _>::identity();
+        assert!(std::ptr::eq(kp_s.get(&s), &s));
+    }
+
+    #[test]
+    fn test_optional_keypath_identity() {
+        let kp = OptionalKeyPath::<i32, i32, _>::identity();
+        let x = 42;
+        assert_eq!(kp.get(&x), Some(&x));
+        assert!(std::ptr::eq(kp.get(&x).unwrap(), &x));
+    }
+
+    #[test]
+    fn test_writable_keypath_identity() {
+        let kp = WritableKeyPath::<i32, i32, _>::identity();
+        let mut x = 42;
+        assert!(std::ptr::eq(kp.get_mut(&mut x), &mut x));
+    }
+
+    #[test]
+    fn test_writable_optional_keypath_identity() {
+        let kp = WritableOptionalKeyPath::<i32, i32, _>::identity();
+        let mut x = 42;
+        assert_eq!(kp.get_mut(&mut x).map(|r| *r), Some(42));
+        assert!(std::ptr::eq(kp.get_mut(&mut x).unwrap(), &mut x));
     }
 }
 
