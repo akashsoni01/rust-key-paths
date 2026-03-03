@@ -142,11 +142,11 @@ pub type KpDynamic<R, V> = Kp<
 >;
 
 pub type KpBox<'a, R, V> = Kp<
-R, V,
-&'a R, &'a V,
-&'a mut R, &'a mut V,
-Box<dyn Fn(&'a R) -> Option<&'a V> + 'a>,
-Box<dyn Fn(&'a mut R) -> Option<&'a mut V> + 'a>,
+    R, V,
+    &'a R, &'a V,
+    &'a mut R, &'a mut V,
+    Box<dyn Fn(&'a R) -> Option<&'a V> + 'a>,
+    Box<dyn Fn(&'a mut R) -> Option<&'a mut V> + 'a>,
 >;
 
 pub type KpArc<'a, R, V> = Kp<

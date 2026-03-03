@@ -6,8 +6,20 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
 use key_paths_derive::Kp;
-use rust_key_paths::KpType;
+use rust_key_paths::{KpBox, KpDynamic, KpType};
 
+struct Service {
+    kp: KpDynamic<AllContainersTest, String>,
+}
+
+impl Service {
+    fn new() -> Service {
+        Service{
+            kp: AllContainersTest::option_field()
+                .to_dynamic()
+        }
+    }
+}
 #[derive(Debug, Kp)]
 struct AllContainersTest {
     // Basic containers
@@ -160,5 +172,7 @@ fn main() {
     assert_eq!(cow_kp.get(&data).map(|c| c.as_str()), Some("cow"));
 
     let _empty_tuple = AllContainersTest::empty_tuple();
+
+    println!("===={:?}", crate::Service::new().kp.get(&data));
     println!("All containers (including &'static and reference types) generated successfully!");
 }
