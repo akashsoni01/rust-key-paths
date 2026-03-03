@@ -139,15 +139,17 @@ Compose keypaths through synchronization primitives with a functional, compose-f
 
 ```rust
 use std::sync::{Arc, Mutex, RwLock};
-use keypaths_proc::{Kp, WritableKeypaths};
+use keypaths_proc::{Kp, Kps};
 
-#[derive(Debug, Kp, WritableKeypaths)]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct Container {
     mutex_data: Arc<Mutex<DataStruct>>,
     rwlock_data: Arc<RwLock<DataStruct>>,
 }
 
-#[derive(Debug, Kp, WritableKeypaths)]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct DataStruct {
     name: String,
     optional_value: Option<String>,

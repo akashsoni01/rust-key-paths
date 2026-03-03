@@ -22,7 +22,7 @@ struct ContainerTest {
 }
 
 fn main() {
-    println!("=== WritableKeypaths Macro New Container Types Test ===");
+    println!("=== Kps Macro New Container Types Test ===");
 
     let mut container = ContainerTest {
         result: Ok("Success!".to_string()),
@@ -34,12 +34,12 @@ fn main() {
         age: 30,
     };
 
-    // Test Result<T, E> with WritableKeypaths
+    // Test Result<T, E> with Kps
     if let Some(result_ref) = ContainerTest::result_fr().get(&mut container) {
         println!("✅ Result reference: {:?}", result_ref);
     }
 
-    // Test Mutex<T> with WritableKeypaths
+    // Test Mutex<T> with Kps
     if let Some(mutex_ref) = ContainerTest::mutex_data_r()
         .to_optional()
         .get(&mut container)
@@ -47,7 +47,7 @@ fn main() {
         println!("✅ Mutex reference: {:?}", mutex_ref);
     }
 
-    // Test RwLock<T> with WritableKeypaths
+    // Test RwLock<T> with Kps
     // if let Some(rwlock_ref) = ContainerTest::rwlock_data_rwlock_fr_at(KeyPath::).get(&container) {
     //     println!("✅ RwLock reference: {:?}", rwlock_ref);
     // }
@@ -63,6 +63,6 @@ fn main() {
         println!("✅ Age reference: {:?}", age_ref);
     }
 
-    println!("\n=== WritableKeypaths Macro - All new container types supported! ===");
+    println!("\n=== Kps Macro - All new container types supported! ===");
     println!("Note: Weak<T> doesn't support writable access (it's immutable)");
 }

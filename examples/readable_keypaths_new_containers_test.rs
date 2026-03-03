@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --example readable_keypaths_new_containers_test
 
-use keypaths_proc::{Kp, Kps, WritableKeypaths};
+use keypaths_proc::{Kp, Kps};
 use rust_keypaths::KeyPath;
 use std::rc::Weak;
 use std::sync::Arc;
@@ -54,7 +54,8 @@ impl ContainerTest {
     }
 }
 
-#[derive(Debug, Kp, WritableKeypaths)]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct SomeStruct {
     data: String,
     optional_field: Option<String>,

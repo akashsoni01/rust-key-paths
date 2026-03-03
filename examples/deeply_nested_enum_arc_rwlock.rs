@@ -2,13 +2,14 @@
 //!
 //! Run with: cargo run --example deeply_nested_enum_arc_rwlock
 
-use keypaths_proc::{Casepaths, Kp, WritableKeypaths};
+use keypaths_proc::{Casepaths, Kp, Kps};
 use std::sync::{Arc, RwLock};
 
 // ========== DATA STRUCTURES ==========
 
 /// Top-level application state
-#[derive(Debug, Kp, WritableKeypaths)]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct AppState {
     current_mode: AppMode,
 }
@@ -26,7 +27,8 @@ enum AppMode {
 }
 
 /// A user session that can be accessed from multiple threads
-#[derive(Debug, Kp, WritableKeypaths)]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct Session {
     user_name: String,
     user_email: Option<String>,
@@ -44,7 +46,8 @@ enum Theme {
 }
 
 /// Custom theme configuration
-#[derive(Debug, Clone, Kp, WritableKeypaths)]
+#[derive(Debug, Clone, Kp, Kps)]
+#[All]
 struct CustomTheme {
     primary_color: String,
     font_size: u32,

@@ -1,6 +1,7 @@
-use keypaths_proc::WritableKeypaths;
+use keypaths_proc::Kps;
 
-#[derive(Debug, WritableKeypaths)]
+#[derive(Debug, Kps)]
+#[Writable]
 struct Person {
     name: String,
     age: u32,

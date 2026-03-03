@@ -1,9 +1,10 @@
-// use keypaths_proc::WritableKeypaths;
+// use keypaths_proc::Kps;
 // use std::collections::{HashMap, HashSet, BTreeMap, VecDeque, LinkedList, BinaryHeap};
 // use std::rc::Rc;
 // use std::sync::Arc;
 //
-// #[derive(Debug, WritableKeypaths)]
+// #[derive(Debug, Kps)]
+// #[Writable]
 // struct User {
 //     name: String,
 //     age: u32,
@@ -26,7 +27,8 @@
 //     location: String,
 // }
 //
-// #[derive(Debug, WritableKeypaths)]
+// #[derive(Debug, Kps)]
+// #[Writable]
 // struct TupleStruct(String, Option<i32>, Vec<f64>);
 //
 // fn main() {
