@@ -92,14 +92,14 @@ fn test_all_wrapper_types_identity() {
     };
 
     // Identity keypath returns the struct itself
-    let identity_kp = AllWrapperTypes::identity();
+    let identity_kp = AllWrapperTypes::_identity();
     let result = identity_kp.get(&data);
     assert!(result.is_some());
     assert!(std::ptr::eq(result.unwrap(), &data));
 
     // identity_typed works as well
     let identity_typed_kp =
-        AllWrapperTypes::identity_typed::<&AllWrapperTypes, &mut AllWrapperTypes>();
+        AllWrapperTypes::_identity();
     let result_typed = identity_typed_kp.get(&data);
     assert!(result_typed.is_some());
 }

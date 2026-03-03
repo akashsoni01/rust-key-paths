@@ -595,7 +595,7 @@ Benchmarks include:
 - [x] Optional chaining with failable keypaths
 - [x] Smart pointer adapters (`.for_arc()`, `.for_box()`, `.for_rc()`)
 - [x] Container support for `Result`, `Mutex`, `RwLock`, `Weak`, and collections
-- [x] Helper derive macros (`ReadableKeypaths`, `WritableKeypaths`)
+- [x] Helper derive macros (`Kps` for readable/writable/owned, `WritableKeypaths`)
 - [x] Functional chains for `Arc<Mutex<T>>` and `Arc<RwLock<T>>`
 - [x] `parking_lot` support for faster synchronization primitives
 - [x] **Tokio support** for async keypath chains through `Arc<tokio::sync::Mutex<T>>` and `Arc<tokio::sync::RwLock<T>>`

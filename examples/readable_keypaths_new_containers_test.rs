@@ -5,12 +5,12 @@
 //!
 //! Run with: cargo run --example readable_keypaths_new_containers_test
 
-use keypaths_proc::{Kp, ReadableKp, WritableKeypaths};
+use keypaths_proc::{Kp, Kps, WritableKeypaths};
 use rust_keypaths::KeyPath;
 use std::rc::Weak;
 use std::sync::Arc;
 
-#[derive(Debug, Kp)]
+#[derive(Debug, Kp, Kps)]
 struct ContainerTest {
     // Error handling containers
     result: Result<String, String>,
@@ -65,7 +65,7 @@ fn main() {
 
     let container = ContainerTest::new();
 
-    // Test Result<T, E> with ReadableKeypaths
+    // Test Result<T, E> (Kps provides result_fr() for OptionalKeyPath)
     if let Some(value) = ContainerTest::result_fr().get(&container) {
         println!("✅ Result value: {}", value);
     }

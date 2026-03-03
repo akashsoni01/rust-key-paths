@@ -1,9 +1,9 @@
-use keypaths_proc::ReadableKeypaths;
+use keypaths_proc::Kps;
 use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
-#[derive(Debug, ReadableKeypaths)]
+#[derive(Debug, Kps)]
 struct User {
     name: String,
     age: u32,
@@ -26,7 +26,7 @@ struct UserProfile {
     location: String,
 }
 
-#[derive(Debug, ReadableKeypaths)]
+#[derive(Debug, Kps)]
 struct TupleStruct(String, Option<i32>, Vec<f64>);
 
 fn main() {
