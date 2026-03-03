@@ -70,7 +70,7 @@ struct DarkStruct {
 
 /// Struct that exercises all supported wrapper combinations for struct fields.
 /// Uses Kp only (like AllContainersTest) so all container types work without parking_lot feature.
-#[derive(Debug, Kp)]
+#[derive(Debug, Kp, Kps)]
 struct AllCombinationsStruct {
     // Basic containers
     box_field: Box<String>,
