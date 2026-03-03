@@ -145,6 +145,7 @@ fn test_all_containers_keypaths() {
     assert_eq!(*AllContainersTest::static_str_field_r().get(&value), "static");
     assert_eq!(AllContainersTest::opt_static_str_fr().get(&value), Some(&"opt_static"));
 
+    let x = crate::AllContainersTest::vec_field_r().map_optional(|x| { x.first() });
     // Collections
     assert_eq!(AllContainersTest::vecdeque_field_r().get(&value).len(), 2);
     assert_eq!(AllContainersTest::hashmap_field_r().get(&value).len(), 2);

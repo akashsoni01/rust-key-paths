@@ -5229,6 +5229,32 @@ where
         }
     }
 
+    /// Map through a function that returns `Option<&U>`, producing an `OptionalKeyPath`.
+    /// Use when the projection may fail (e.g. `|v: &Vec<T>| v.first()`).
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let first = struct::vec_field_r().map_optional(|x: &Vec<String>| x.first());
+    /// let opt: Option<&String> = first.get(&value);
+    /// ```
+    pub fn map_optional<U, G>(
+        self,
+        f: G,
+    ) -> OptionalKeyPath<Root, U, impl for<'r> Fn(&'r Root) -> Option<&'r U>>
+    where
+        G: for<'r> Fn(&'r Value) -> Option<&'r U>,
+        F: 'static,
+        G: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        OptionalKeyPath {
+            getter: move |root| f(getter(root)),
+            _phantom: PhantomData,
+        }
+    }
+
     // Using fn pointer - works for identity
     // pub fn identity() -> KeyPath<Root, Root, fn(&Root) -> &Root> {
     //     KeyPath {
@@ -6742,6 +6768,26 @@ where
         }
     }
 
+    /// Map through a function that returns `Option<&U>`, keeping an `OptionalKeyPath`.
+    /// Use when the inner projection may fail (e.g. `|v: &Vec<T>| v.first()`).
+    pub fn map_optional<U, G>(
+        self,
+        f: G,
+    ) -> OptionalKeyPath<Root, U, impl for<'r> Fn(&'r Root) -> Option<&'r U>>
+    where
+        G: for<'r> Fn(&'r Value) -> Option<&'r U>,
+        F: 'static,
+        G: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        OptionalKeyPath {
+            getter: move |root| getter(root).and_then(|v| f(v)),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Chain this optional keypath with an inner keypath through Arc<Mutex<T>> - functional style
     /// Compose first, then apply container at get() time
     ///
@@ -7684,6 +7730,26 @@ where
         }
     }
 
+    /// Map through a function that returns `Option<&mut U>`, producing a `WritableOptionalKeyPath`.
+    /// Use when the projection may fail (e.g. `|v: &mut Vec<T>| v.first_mut()`).
+    pub fn map_optional<U, G>(
+        self,
+        f: G,
+    ) -> WritableOptionalKeyPath<Root, U, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut U>>
+    where
+        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut U>,
+        F: 'static,
+        G: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        WritableOptionalKeyPath {
+            getter: move |root| f(getter(root)),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Adapt this keypath to work with Result<Root, E> instead of Root
     /// This unwraps the Result and applies the keypath to the Ok value
     pub fn for_result<E>(
@@ -8102,6 +8168,26 @@ where
         let getter = self.getter;
         WritableOptionalKeyPath {
             getter: move |root| getter(root).map(|v| f(v)),
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Map through a function that returns `Option<&mut U>`, keeping a `WritableOptionalKeyPath`.
+    /// Use when the inner projection may fail (e.g. `|v: &mut Vec<T>| v.first_mut()`).
+    pub fn map_optional<U, G>(
+        self,
+        f: G,
+    ) -> WritableOptionalKeyPath<Root, U, impl for<'r> Fn(&'r mut Root) -> Option<&'r mut U>>
+    where
+        G: for<'r> Fn(&'r mut Value) -> Option<&'r mut U>,
+        F: 'static,
+        G: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        let getter = self.getter;
+        WritableOptionalKeyPath {
+            getter: move |root| getter(root).and_then(|v| f(v)),
             _phantom: PhantomData,
         }
     }
@@ -10846,6 +10932,41 @@ mod tests {
 
         let mut none_item: Option<Item> = None;
         assert!(value_kp.get_mut(&mut none_item).is_none());
+    }
+
+    #[test]
+    fn test_keypath_map_optional() {
+        #[derive(Debug)]
+        struct WithVec {
+            vec_field: Vec<String>,
+        }
+        let vec_kp = KeyPath::new(|w: &WithVec| &w.vec_field);
+        let first_kp = vec_kp.map_optional(|x: &Vec<String>| x.first());
+        let value = WithVec {
+            vec_field: vec!["a".into(), "b".into()],
+        };
+        assert_eq!(first_kp.get(&value), Some(&"a".to_string()));
+        let empty = WithVec {
+            vec_field: vec![],
+        };
+        assert!(first_kp.get(&empty).is_none());
+    }
+
+    #[test]
+    fn test_optional_keypath_map_optional() {
+        #[derive(Debug)]
+        struct WithVec {
+            vec_field: Vec<String>,
+        }
+        let kp = OptionalKeyPath::new(|o: &Option<WithVec>| o.as_ref());
+        let first_kp = kp.map_optional(|w: &WithVec| w.vec_field.first());
+        assert_eq!(
+            first_kp.get(&Some(WithVec {
+                vec_field: vec!["x".into()]
+            })),
+            Some(&"x".to_string())
+        );
+        assert!(first_kp.get(&None::<WithVec>).is_none());
     }
 }
 
