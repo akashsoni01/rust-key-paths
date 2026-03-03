@@ -1,4 +1,11 @@
 use keypaths_proc::{Kp, Kps};
+use std::borrow::Cow;
+use std::cell::{Cell, RefCell};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
+use std::marker::PhantomData;
+use std::ops::Range;
+use std::rc::Rc;
+use std::sync::{Arc, OnceLock};
 
 #[derive(Debug, Kp, Kps)]
 #[All]
@@ -27,11 +34,25 @@ struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
+/// Enum exercising wrapper combinations for variant payloads (read/write via Kps).
+/// Avoids Arc<Mutex> here so the example runs without the parking_lot feature.
 #[derive(Debug, Kps, Kp)]
 #[All]
 enum SomeEnum {
     A(String),
     B(DarkStruct),
+    C(Option<String>),
+    D(Rc<RefCell<String>>),
+    E(Rc<Box<String>>),
+    F(Option<String>),
+    G(Vec<String>),
+    H(Option<Box<String>>),
+    I(Box<Option<String>>),
+    J(HashSet<String>),
+    K(HashMap<String, i32>),
+    L(VecDeque<String>),
+    M(Result<i32, String>),
+    N(Cow<'static, str>),
 }
 
 #[derive(Debug, Kp, Kps)]
@@ -45,6 +66,47 @@ struct OneMoreStruct {
 #[All]
 struct DarkStruct {
     dsf: String,
+}
+
+/// Struct that exercises all supported wrapper combinations for struct fields.
+/// Uses Kp only (like AllContainersTest) so all container types work without parking_lot feature.
+#[derive(Debug, Kp)]
+struct AllCombinationsStruct {
+    // Basic containers
+    box_field: Box<String>,
+    rc_field: Rc<String>,
+    arc_field: Arc<String>,
+    option_field: Option<String>,
+    vec_field: Vec<String>,
+    string_field: String,
+    // Nested
+    rc_box_field: Rc<Box<String>>,
+    option_box_field: Option<Box<String>>,
+    box_option_field: Box<Option<String>>,
+    // Sets and maps
+    hashset_field: HashSet<String>,
+    btreeset_field: BTreeSet<String>,
+    hashmap_field: HashMap<String, i32>,
+    btreemap_field: BTreeMap<String, i32>,
+    // Queues and lists
+    vecdeque_field: VecDeque<String>,
+    linkedlist_field: LinkedList<String>,
+    binaryheap_field: BinaryHeap<String>,
+    // Option-of-container and container-of-Option
+    option_vecdeque_field: Option<VecDeque<String>>,
+    vecdeque_option_field: VecDeque<Option<String>>,
+    option_hashset_field: Option<HashSet<String>>,
+    option_result_field: Option<Result<i32, String>>,
+    // Interior mutability and lazy
+    cell_field: Cell<i32>,
+    refcell_field: RefCell<String>,
+    once_lock_field: OnceLock<String>,
+    // Marker, range, result, cow
+    phantom_field: PhantomData<()>,
+    range_field: Range<u32>,
+    result_field: Result<i32, String>,
+    cow_str_field: Cow<'static, str>,
+    empty_tuple: (),
 }
 
 fn main() {
@@ -201,10 +263,76 @@ fn main() {
         None => println!("  Result: None\n"),
     }
 
+    // ========== All combinations: struct fields (Kp) ==========
+    println!("=== AllCombinationsStruct (all wrapper combinations, Kp) ===\n");
+    let once = OnceLock::new();
+    let _ = once.set("lazy".to_string());
+    let all_data = AllCombinationsStruct {
+        box_field: Box::new("box".to_string()),
+        rc_field: Rc::new("rc".to_string()),
+        arc_field: Arc::new("arc".to_string()),
+        option_field: Some("opt".to_string()),
+        vec_field: vec!["v".to_string()],
+        string_field: "str".to_string(),
+        rc_box_field: Rc::new(Box::new("rc_box".to_string())),
+        option_box_field: Some(Box::new("opt_box".to_string())),
+        box_option_field: Box::new(Some("box_opt".to_string())),
+        hashset_field: HashSet::from(["h".to_string()]),
+        btreeset_field: BTreeSet::from(["b".to_string()]),
+        hashmap_field: HashMap::from([("k".to_string(), 1)]),
+        btreemap_field: BTreeMap::from([("k".to_string(), 2)]),
+        vecdeque_field: VecDeque::from(["vd".to_string()]),
+        linkedlist_field: LinkedList::from(["ll".to_string()]),
+        binaryheap_field: BinaryHeap::from(["bh".to_string()]),
+        option_vecdeque_field: Some(VecDeque::from(["ovd".to_string()])),
+        vecdeque_option_field: VecDeque::from([Some("vo".to_string())]),
+        option_hashset_field: Some(HashSet::from(["oh".to_string()])),
+        option_result_field: Some(Ok(100)),
+        cell_field: Cell::new(42),
+        refcell_field: RefCell::new("refcell".to_string()),
+        once_lock_field: once,
+        phantom_field: PhantomData,
+        range_field: 0..10,
+        result_field: Ok(200),
+        cow_str_field: Cow::Borrowed("cow"),
+        empty_tuple: (),
+    };
+    let _ = AllCombinationsStruct::box_field().get(&all_data);
+    let _ = AllCombinationsStruct::option_field().get(&all_data);
+    let _ = AllCombinationsStruct::option_box_field().get(&all_data);
+    let _ = AllCombinationsStruct::box_option_field().get(&all_data);
+    let _ = AllCombinationsStruct::option_vecdeque_field().get(&all_data);
+    let _ = AllCombinationsStruct::vecdeque_option_field().get(&all_data);
+    let _ = AllCombinationsStruct::option_result_field().get(&all_data);
+    let _ = AllCombinationsStruct::result_field().get(&all_data);
+    let _ = AllCombinationsStruct::cow_str_field().get(&all_data);
+    let _ = AllCombinationsStruct::once_lock_field().get(&all_data);
+    let _ = AllCombinationsStruct::range_field().get(&all_data);
+    let _ = AllCombinationsStruct::empty_tuple().get(&all_data);
+    println!("  ✓ All struct field keypaths (Kp) work");
+
+    // Enum variant keypaths (Kp read-only: a(), b(), c(), ...; Kps: *_fr(), *_fw(), etc.)
+    let e_c = SomeEnum::C(Some("c_val".to_string()));
+    let e_d = SomeEnum::D(Rc::new(RefCell::new("d_val".to_string())));
+    let e_e = SomeEnum::E(Rc::new(Box::new("e_val".to_string())));
+    let e_f = SomeEnum::F(Some("f_val".to_string()));
+    let e_g = SomeEnum::G(vec!["g_val".to_string()]);
+    let e_m = SomeEnum::M(Ok(300));
+    let e_n = SomeEnum::N(Cow::Borrowed("n_val"));
+    assert!(SomeEnum::c().get(&e_c).is_some());
+    assert!(SomeEnum::d().get(&e_d).is_some());
+    assert!(SomeEnum::e().get(&e_e).is_some());
+    assert!(SomeEnum::f().get(&e_f).is_some());
+    assert!(SomeEnum::g().get(&e_g).is_some());
+    assert!(SomeEnum::m().get(&e_m).is_some());
+    assert!(SomeEnum::n().get(&e_n).is_some());
+    println!("  ✓ All enum variant keypaths (Kp/Kps) work\n");
+    
     println!("=== Summary ===");
     println!("- Display shows: KeyPath type and type information");
     println!("- Debug shows: Same as Display for consistent formatting");
     println!("- Long chains: Each step can be inspected independently");
     println!("- None cases: Display still works, shows the full chain structure");
     println!("- Some cases: Display shows the complete path that succeeded");
+    println!("- AllCombinationsStruct and SomeEnum cover all supported wrapper combinations");
 }

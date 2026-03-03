@@ -143,13 +143,11 @@ impl MethodScope {
 /// True for wrapper kinds that behave like Option<T> (as_ref/as_mut for fr/fw/fo) with no extra index/key accessors.
 /// Includes Option<Vec>, Option<VecDeque>, Option<HashSet>, etc. for Kp/Keypath derive.
 fn is_option_like(kind: WrapperKind) -> bool {
+    // OptionResult/OptionRc/OptionArc excluded: value type must be inner T (handled by dedicated branches)
     matches!(
         kind,
         WrapperKind::Option
             | WrapperKind::OptionBox
-            | WrapperKind::OptionRc
-            | WrapperKind::OptionArc
-            | WrapperKind::OptionResult
             | WrapperKind::OptionVec
             | WrapperKind::OptionVecDeque
             | WrapperKind::OptionLinkedList
@@ -370,6 +368,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
+                        (WrapperKind::OptionResult, Some(inner_ty)) => {
+                            // Option<Result<T,E>>: value type = T (Ok), never Option/Result for chaining
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().and_then(|r| r.as_ref().ok()))
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
+                                        rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#field_ident.as_mut().and_then(|r| r.as_mut().ok()))
+                                    }
+                                },
+                            );
+                        }
                         (kind, Some(inner_ty)) if is_option_like(kind) => {
                             push_method(
                                 &mut tokens,
@@ -2568,6 +2591,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
+                        (WrapperKind::OptionResult, Some(inner_ty)) => {
+                            // Option<Result<T,E>>: value type = T (Ok), never Option/Result for chaining
+                            let inner_ty_fr = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Readable,
+                                quote! {
+                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty_fr, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty_fr>> {
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().and_then(|r| r.as_ref().ok()))
+                                    }
+                                },
+                            );
+                            let inner_ty_fw = inner_ty.clone();
+                            push_method(
+                                &mut tokens,
+                                method_scope,
+                                MethodKind::Writable,
+                                quote! {
+                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty_fw, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty_fw>> {
+                                        rust_keypaths::WritableOptionalKeyPath::new(|s: &mut #name| s.#idx_lit.as_mut().and_then(|r| r.as_mut().ok()))
+                                    }
+                                },
+                            );
+                        }
                         (kind, Some(inner_ty)) if is_option_like(kind) => {
                             push_method(
                                 &mut tokens,
@@ -4235,6 +4283,46 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::OptionBox, Some(inner_ty)) => {
+                            // Option<Box<T>>: value type = T (deref through Box for chaining)
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|b| &**b))
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionRc, Some(inner_ty)) => {
+                            // Option<Rc<T>>: value type = T (deref through Rc for chaining)
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|r| &**r))
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionArc, Some(inner_ty)) => {
+                            // Option<Arc<T>>: value type = T (deref through Arc for chaining)
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().map(|a| &**a))
+                                }
+                            });
+                        }
+                        (WrapperKind::BoxOption, Some(inner_ty)) => {
+                            // Box<Option<T>>: value type = T (inner_ty), .as_ref() -> Option<&T>
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| (*s.#field_ident).as_ref())
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionResult, Some(inner_ty)) => {
+                            // Option<Result<T,E>>: value type = T (Ok), never Option or Result for chaining
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref().and_then(|r| r.as_ref().ok()))
+                                }
+                            });
+                        }
                         (kind, Some(inner_ty)) if is_option_like(kind) => {
                             // For Option<T>, return failable readable keypath to inner type
                             tokens.extend(quote! {
@@ -4405,6 +4493,30 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
+                        (WrapperKind::OptionResult, Some(inner_ty)) => {
+                            // Option<Result<T,E>>: value type = T (Ok), never Option/Result for chaining
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().and_then(|r| r.as_ref().ok()))
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionRc, Some(inner_ty)) => {
+                            // Option<Rc<T>>: value type = T (deref through Rc for chaining)
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().map(|r| &**r))
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionArc, Some(inner_ty)) => {
+                            // Option<Arc<T>>: value type = T (deref through Arc for chaining)
+                            tokens.extend(quote! {
+                                pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref().map(|a| &**a))
+                                }
+                            });
+                        }
                         (kind, Some(inner_ty)) if is_option_like(kind) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
