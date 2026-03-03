@@ -214,7 +214,7 @@ Examples: `pin_project_example`, `pin_project_fair_race` (FairRaceFuture use cas
 
 ## Performance: Kp vs direct unwrap
 
-Benchmark: nested `Option` chains and enum case paths (`cargo bench --bench keypath_vs_unwrap`).
+Benchmark: nested `Option` chains and enum case paths (`cargo bench --features parking_lot --bench keypath_vs_unwrap`).
 
 | Scenario | Keypath | Direct unwrap | Overhead |
 |----------|---------|---------------|----------|
@@ -222,6 +222,17 @@ Benchmark: nested `Option` chains and enum case paths (`cargo bench --bench keyp
 | 100× reuse (5-level) | ~52.3 ns | ~52.5 ns | ~1x |
 
 Access overhead comes from closure indirection in the composed chain. **Reusing a keypath** (build once, use many times) matches direct unwrap; building the chain each time adds ~1–2 ns.
+
+### 10-level deep Option chain (`bench_ten_level`)
+
+Single traversal through 10 levels of `Option<T>` (chain built each iteration). Run: `cargo bench --features parking_lot --bench keypath_vs_unwrap -- ten_level`.
+
+| Variant | Time (median) |
+|---------|----------------|
+| **read** | ~849 ps |
+| **write** | ~21.9 ns |
+| **read_traditional** | ~382 ps |
+| **write_traditional** | ~19.2 ns |
 
 ### Would static keypaths help?
 
