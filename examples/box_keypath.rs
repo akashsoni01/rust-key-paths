@@ -6,6 +6,33 @@ use std::marker::PhantomData;
 use std::ops::Range;
 use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
+use rust_keypaths::{PartialWritableOptionalKeyPath, WritableOptionalKeyPath};
+
+pub struct Service {
+    kp: WritableOptionalKeyPath<SomeComplexStruct, String, dyn Fn(& mut SomeComplexStruct) -> Option<& mut String>>
+}
+
+impl Service {
+    fn new() -> Self {
+        Self {
+            kp: SomeComplexStruct::scsf_fw()
+                .then(SomeOtherStruct::sosf_fw())
+                .then(OneMoreStruct::omse_fw())
+                .then(SomeEnum::b_fw())
+                .then(DarkStruct::dsf_fw())
+        }
+    }
+    
+    // fn get_name(&self, sc: &mut SomeComplexStruct) -> Option<&String> {
+    //     self.kp.get_mut(sc)
+    // }
+    
+    fn set_name(&self, sc: &mut SomeComplexStruct, name: String) {
+        if let Some(value) = self.kp.get_mut(sc) as Option<&mut String>{
+            *value = name;
+        }
+    }
+}
 
 #[derive(Debug, Kp, Kps)]
 #[All]
@@ -110,8 +137,6 @@ struct AllCombinationsStruct {
 }
 
 fn main() {
-    use rust_keypaths::WritableOptionalKeyPath;
-
     println!("=== KeyPath Display and Debug Examples ===\n");
 
     // Note: These fields are NOT Option types, so we use _w() methods, not _fw()
@@ -327,6 +352,13 @@ fn main() {
     assert!(SomeEnum::m().get(&e_m).is_some());
     assert!(SomeEnum::n().get(&e_n).is_some());
     println!("  ✓ All enum variant keypaths (Kp/Kps) work\n");
+
+    // Test the service
+    let service = Service::new();
+    // let name = service.get_name(&mut instance1);
+    // println!("  Name: {:?}", name);
+    service.set_name(&mut instance1, String::from("new name"));
+    println!("  After change: {:?}\n", instance1);
     
     println!("=== Summary ===");
     println!("- Display shows: KeyPath type and type information");

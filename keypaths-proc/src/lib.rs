@@ -407,8 +407,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     }
                                 },
                             );
-                            // OptionRc/OptionArc: value type must be inner T; use deref closure so _fr/_fo return OptionalKeyPath<..., T, ...>
+                            // OptionBox/OptionRc/OptionArc: value type must be inner T; use deref closure so _fr/_fo return OptionalKeyPath<..., T, ...>
                             let (fr_ty, fr_closure, fo_ty, fo_closure) = match kind {
+                                WrapperKind::OptionBox => {
+                                    let inner = inner_ty.clone();
+                                    (inner.clone(), quote! { |s: &#name| s.#field_ident.as_ref().map(|b| &**b) }, inner, quote! { |s: &#name| s.#field_ident.as_ref().map(|b| &**b) })
+                                }
                                 WrapperKind::OptionRc | WrapperKind::OptionArc => {
                                     let inner = inner_ty.clone();
                                     (inner.clone(), quote! { |s: &#name| s.#field_ident.as_ref().map(|r| &**r) }, inner, quote! { |s: &#name| s.#field_ident.as_ref().map(|r| &**r) })
