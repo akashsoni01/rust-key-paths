@@ -5169,6 +5169,9 @@ fn identity_mut<Root>(r: &mut Root) -> &mut Root {
 fn identity_opt_mut<Root>(r: &mut Root) -> Option<&mut Root> {
     Some(r)
 }
+fn identity_value<E>(e: E) -> E {
+    e
+}
 
 // Base KeyPath
 #[derive(Clone)]
@@ -8618,6 +8621,14 @@ where
 
 // Static factory methods for EnumKeyPath
 impl EnumKeyPath {
+    /// Identity enum keypath: `Enum = Variant`, extract returns `Some(&e)`, embed returns the value unchanged.
+    pub fn identity<E>() -> EnumKeyPath<E, E, fn(&E) -> Option<&E>, fn(E) -> E> {
+        EnumKeyPath {
+            extractor: OptionalKeyPath::new(identity_opt_ref::<E>),
+            embedder: identity_value::<E>,
+        }
+    }
+
     /// Create a readable enum keypath with both extraction and embedding
     /// Returns an EnumKeyPath that supports both get() and embed() operations
     pub fn readable_enum<Enum, Variant, ExtractFn, EmbedFn>(
@@ -11040,6 +11051,15 @@ mod tests {
         let mut x = 42;
         assert_eq!(kp.get_mut(&mut x).map(|r| *r), Some(42));
         assert!(std::ptr::eq(kp.get_mut(&mut x).unwrap(), &mut x));
+    }
+
+    #[test]
+    fn test_enum_keypath_identity() {
+        let kp = EnumKeyPath::identity::<i32>();
+        let x = 42;
+        assert_eq!(kp.get(&x), Some(&x));
+        assert!(std::ptr::eq(kp.get(&x).unwrap(), &x));
+        assert_eq!(kp.embed(100), 100);
     }
 }
 
