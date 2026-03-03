@@ -1,6 +1,6 @@
 [package]
 name = "rust-keypaths"
-version = "1.9.1"
+version = "1.9.2"
 edition = "2024"
 description = "A static dispatch, faster alternative to rust-key-paths - Type-safe, composable keypaths for Rust with superior performance"
 authors = ["Your Name <your.email@example.com>"]
@@ -23,7 +23,7 @@ nightly = []
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-keypaths-proc = { path = "../keypaths-proc", version = "1.9.1" }
+keypaths-proc = { path = "../keypaths-proc", version = "1.9.2" }
 
 [[bench]]
 name = "deeply_nested"

@@ -5231,6 +5231,21 @@ where
         (self.getter)(root)
     }
 
+    /// Type-erase the getter into a `Box<dyn Fn>`, so the keypath can be stored without the concrete closure type.
+    pub fn boxed(
+        self,
+    ) -> KeyPath<Root, Value, Box<dyn for<'r> Fn(&'r Root) -> &'r Value + 'static>>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        KeyPath {
+            getter: Box::new(self.getter),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Higher-order function: map the value reference through a function.
     /// Returns a new `KeyPath<Root, U, _>` that gets the value and applies `f` to the reference.
     ///
@@ -6764,6 +6779,21 @@ where
         (self.getter)(root)
     }
 
+    /// Type-erase the getter into a `Box<dyn Fn>`, so the keypath can be stored without the concrete closure type.
+    pub fn boxed(
+        self,
+    ) -> OptionalKeyPath<Root, Value, Box<dyn for<'r> Fn(&'r Root) -> Option<&'r Value> + 'static>>
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        OptionalKeyPath {
+            getter: Box::new(self.getter),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Higher-order function: map the optional value reference through a function.
     /// Returns a new `OptionalKeyPath<Root, U, _>` that gets the value and applies `f` to the reference when present.
     ///
@@ -7746,6 +7776,25 @@ where
         (self.getter)(root)
     }
 
+    /// Type-erase the getter into a `Box<dyn Fn>`, so the keypath can be stored without the concrete closure type.
+    pub fn boxed(
+        self,
+    ) -> WritableKeyPath<
+        Root,
+        Value,
+        Box<dyn for<'r> Fn(&'r mut Root) -> &'r mut Value + 'static>,
+    >
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        WritableKeyPath {
+            getter: Box::new(self.getter),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Higher-order function: map the mutable value reference through a function.
     /// Returns a new `WritableKeyPath<Root, U, _>` that gets the value and applies `f` to the mutable reference.
     pub fn map<U, G>(self, f: G) -> WritableKeyPath<Root, U, impl for<'r> Fn(&'r mut Root) -> &'r mut U>
@@ -8193,6 +8242,25 @@ where
 
     pub fn get_mut<'r>(&self, root: &'r mut Root) -> Option<&'r mut Value> {
         (self.getter)(root)
+    }
+
+    /// Type-erase the getter into a `Box<dyn Fn>`, so the keypath can be stored without the concrete closure type.
+    pub fn boxed(
+        self,
+    ) -> WritableOptionalKeyPath<
+        Root,
+        Value,
+        Box<dyn for<'r> Fn(&'r mut Root) -> Option<&'r mut Value> + 'static>,
+    >
+    where
+        F: 'static,
+        Root: 'static,
+        Value: 'static,
+    {
+        WritableOptionalKeyPath {
+            getter: Box::new(self.getter),
+            _phantom: PhantomData,
+        }
     }
 
     /// Higher-order function: map the optional mutable value reference through a function.

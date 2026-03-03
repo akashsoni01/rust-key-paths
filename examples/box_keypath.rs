@@ -9,7 +9,7 @@ use std::sync::{Arc, OnceLock};
 use rust_keypaths::{PartialWritableOptionalKeyPath, WritableOptionalKeyPath};
 
 pub struct Service {
-    kp: WritableOptionalKeyPath<SomeComplexStruct, String, dyn Fn(& mut SomeComplexStruct) -> Option<& mut String>>
+    kp: WritableOptionalKeyPath<SomeComplexStruct, String, Box<dyn Fn(& mut SomeComplexStruct) -> Option<& mut String>>>
 }
 
 impl Service {
@@ -20,13 +20,14 @@ impl Service {
                 .then(OneMoreStruct::omse_fw())
                 .then(SomeEnum::b_fw())
                 .then(DarkStruct::dsf_fw())
+                .boxed()
         }
     }
-    
+
     // fn get_name(&self, sc: &mut SomeComplexStruct) -> Option<&String> {
     //     self.kp.get_mut(sc)
     // }
-    
+
     fn set_name(&self, sc: &mut SomeComplexStruct, name: String) {
         if let Some(value) = self.kp.get_mut(sc) as Option<&mut String>{
             *value = name;
