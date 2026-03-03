@@ -75,7 +75,7 @@ fn test_identity_keypath() {
     };
 
     // Test identity keypath returns the struct itself
-    let identity_kp = Collections::identity();
+    let identity_kp = Collections::_identity();
     let result = identity_kp.get(&collections);
     assert!(result.is_some());
     assert_eq!(result.unwrap().items.len(), 3);
@@ -89,7 +89,7 @@ fn test_identity_mutable() {
     };
 
     // Test identity keypath can mutate the struct
-    let identity_kp = Collections::identity();
+    let identity_kp = Collections::_identity();
     identity_kp.get_mut(&mut collections).map(|c| {
         c.items.push(4);
     });
@@ -106,7 +106,7 @@ fn test_identity_typed() {
     };
 
     // Test typed identity keypath
-    let identity_kp = SmartPointers::identity_typed::<&SmartPointers, &mut SmartPointers>();
+    let identity_kp = SmartPointers::_identity::<&SmartPointers, &mut SmartPointers>();
     let result = identity_kp.get(&smart);
     assert!(result.is_some());
 }

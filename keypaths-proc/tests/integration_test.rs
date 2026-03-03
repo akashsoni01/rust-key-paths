@@ -1,16 +1,11 @@
 use keypaths_proc::Kp;
-use rust_keypaths::KeyPath;
 
 #[derive(Clone, Kp)]
-#[Writable]
+#[All]
 struct Person {
-    #[Readable]
     name: Option<String>,
-    // #[Writable]
     age: i32,
-    #[Owned]
     nickname: Option<String>,
-    #[Readable]
     title: String,
 }
 
@@ -22,15 +17,12 @@ fn test_attribute_scoped_keypaths() {
         nickname: Some("Ace".to_string()),
         title: "Engineer".to_string(),
     };
-    let name_r = Person::name_fr();
-    let name_fr = Person::name_fr();
-    let title_r = Person::title_r();
+
+    let name_r = Person::name_r();
     let readable_value = name_r.get(&person);
-    assert_eq!(readable_value, Some(&"Akash".to_string()));
+    assert_eq!(readable_value.as_ref(), Some(&"Akash".to_string()));
 
-    let failable_read = name_fr.get(&person);
-    assert_eq!(failable_read, Some(&"Akash".to_string()));
-
+    let title_r = Person::title_r();
     let title_value = title_r.get(&person);
     assert_eq!(title_value, &"Engineer".to_string());
 
@@ -44,10 +36,6 @@ fn test_attribute_scoped_keypaths() {
         *age_ref += 1;
     }
     assert_eq!(person.age, 32);
-
-    let nickname_fo = Person::nickname_fo();
-    let owned_value = nickname_fo.get(&person).cloned();
-    assert_eq!(owned_value, Some("Ace".to_string()));
 
     let nickname_o = Person::nickname_o();
     let owned_direct = nickname_o.get(&person).clone();

@@ -9,6 +9,8 @@ repository = "https://github.com/akashsoni01/rust-key-paths"
 keywords = ["keypath", "type-safe", "composable", "static-dispatch", "zero-cost"]
 categories = ["data-structures"]
 
+[workspace]
+
 [dependencies]
 tagged-core = { version = "1.0.1", optional = true }
 parking_lot = { version = "0.12", optional = true }
@@ -23,6 +25,7 @@ nightly = []
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+keypaths-proc = { path = "../keypaths-proc", version = "1.9.0" }
 
 [[bench]]
 name = "deeply_nested"

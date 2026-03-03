@@ -30,10 +30,25 @@ enum WrapperKind {
     TokioRwLock,
     // Reference counting with weak references
     Weak,
-    // String types (currently unused)
-    // String,
-    // OsString,
-    // PathBuf,
+    // String and owned text
+    String,
+    OptionString,
+    // Interior mutability (std::cell)
+    Cell,
+    RefCell,
+    OptionCell,
+    OptionRefCell,
+    // Lazy init (once_cell, std::sync::OnceLock, std::sync::LazyLock)
+    OnceCell,
+    Lazy,
+    OptionOnceCell,
+    OptionLazy,
+    // Marker / zero-size
+    PhantomData,
+    OptionPhantomData,
+    // Range iterators (std::ops::Range, RangeInclusive)
+    Range,
+    OptionRange,
     // Nested container support
     OptionBox,
     OptionRc,
@@ -43,19 +58,64 @@ enum WrapperKind {
     ArcOption,
     VecOption,
     OptionVec,
+    VecDequeOption,
+    OptionVecDeque,
+    LinkedListOption,
+    OptionLinkedList,
+    BinaryHeapOption,
+    OptionBinaryHeap,
+    HashSetOption,
+    OptionHashSet,
+    BTreeSetOption,
+    OptionBTreeSet,
+    ResultOption,
+    OptionResult,
     HashMapOption,
     OptionHashMap,
+    BTreeMapOption,
+    OptionBTreeMap,
     // Arc with synchronization primitives (std::sync - requires explicit std::sync:: prefix)
     StdArcMutex,
     StdArcRwLock,
+    OptionStdArcMutex,
+    OptionStdArcRwLock,
+    // Synchronization primitives (std::sync)
+    OptionStdMutex,
+    OptionStdRwLock,
+    // Synchronization primitives (parking_lot)
+    OptionMutex,
+    OptionRwLock,
     // Arc with synchronization primitives (parking_lot - default when no prefix)
     ArcMutex,
     ArcRwLock,
+    OptionArcMutex,
+    OptionArcRwLock,
     // Arc with synchronization primitives (tokio::sync - requires tokio feature)
     TokioArcMutex,
     TokioArcRwLock,
+    OptionTokioArcMutex,
+    OptionTokioArcRwLock,
     // Tagged types
     Tagged,
+    OptionTagged,
+    // Clone-on-write (std::borrow::Cow)
+    Cow,
+    OptionCow,
+    // Reference types (&T, &str, &[T], etc.)
+    Reference,
+    OptionReference,
+    // Atomic types (std::sync::atomic::*)
+    Atomic,
+    OptionAtomic,
+    // Pin types
+    Pin,
+    PinBox,
+    /// Field marked with #[pin] - plain type (pin_project pattern)
+    PinnedField,
+    /// Field marked with #[pin] - Future type (pin_project pattern)
+    PinnedFuture,
+    /// Field marked with #[pin] - Box<dyn Future> (pin_project pattern)
+    PinnedBoxFuture,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,6 +138,37 @@ impl MethodScope {
     fn includes_owned(self) -> bool {
         matches!(self, MethodScope::All | MethodScope::Owned)
     }
+}
+
+/// True for wrapper kinds that behave like Option<T> (as_ref/as_mut for fr/fw/fo) with no extra index/key accessors.
+/// Excludes OptionVec, OptionHashMap, OptionBTreeMap, OptionVecDeque, etc., which have their own arms with fr_at/fw_at.
+fn is_option_like(kind: WrapperKind) -> bool {
+    matches!(
+        kind,
+        WrapperKind::Option
+            | WrapperKind::OptionBox
+            | WrapperKind::OptionRc
+            | WrapperKind::OptionArc
+            | WrapperKind::OptionResult
+            | WrapperKind::OptionStdArcMutex
+            | WrapperKind::OptionStdArcRwLock
+            | WrapperKind::OptionStdMutex
+            | WrapperKind::OptionStdRwLock
+            | WrapperKind::OptionMutex
+            | WrapperKind::OptionRwLock
+            | WrapperKind::OptionTokioArcMutex
+            | WrapperKind::OptionTokioArcRwLock
+            | WrapperKind::OptionTagged
+            | WrapperKind::OptionCow
+            | WrapperKind::OptionReference
+            | WrapperKind::OptionAtomic
+            | WrapperKind::OptionCell
+            | WrapperKind::OptionRefCell
+            | WrapperKind::OptionOnceCell
+            | WrapperKind::OptionLazy
+            | WrapperKind::OptionPhantomData
+            | WrapperKind::OptionRange
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -273,7 +364,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -2439,7 +2530,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             push_method(
                                 &mut tokens,
                                 method_scope,
@@ -3572,7 +3663,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         let (kind, inner_ty_opt) = extract_wrapper_inner_type(field_ty);
 
                         match (kind, inner_ty_opt) {
-                            (WrapperKind::Option, Some(inner_ty)) => {
+                            (kind, Some(inner_ty)) if is_option_like(kind) => {
                                 tokens.extend(quote! {
                                     pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
                                         rust_keypaths::EnumKeyPath::readable_enum(
@@ -4105,8 +4196,27 @@ fn is_tokio_sync_type(path: &syn::Path) -> bool {
         && segments.contains(&"sync".to_string())
 }
 
+/// Helper function to check if a type path includes std::sync::atomic module
+fn is_std_sync_atomic_type(path: &syn::Path) -> bool {
+    let segments: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
+    segments.contains(&"std".to_string())
+        && segments.contains(&"sync".to_string())
+        && segments.contains(&"atomic".to_string())
+}
+
+/// Atomic type idents (no type params): AtomicBool, AtomicI8, etc.
+const ATOMIC_TYPE_IDENTS: &[&str] = &[
+    "AtomicBool", "AtomicI8", "AtomicI16", "AtomicI32", "AtomicI64", "AtomicI128", "AtomicIsize",
+    "AtomicU8", "AtomicU16", "AtomicU32", "AtomicU64", "AtomicU128", "AtomicUsize",
+];
+
 fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
     use syn::{GenericArgument, PathArguments};
+
+    // Handle reference types: &T, &'a str, &[T], etc.
+    if let Type::Reference(tr) = ty {
+        return (WrapperKind::Reference, Some((*tr.elem).clone()));
+    }
 
     if let Type::Path(tp) = ty {
         // Check if this is explicitly a std::sync type
@@ -4124,12 +4234,14 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                 if ident_str == "HashMap" || ident_str == "BTreeMap" {
                     if let (Some(_key_arg), Some(value_arg)) = (args.get(0), args.get(1)) {
                         if let GenericArgument::Type(inner) = value_arg {
-                            eprintln!("Detected {} type, extracting value type", ident_str);
                             // Check for nested Option in map values
                             let (inner_kind, inner_inner) = extract_wrapper_inner_type(inner);
                             match (ident_str.as_str(), inner_kind) {
                                 ("HashMap", WrapperKind::Option) => {
                                     return (WrapperKind::HashMapOption, inner_inner);
+                                }
+                                ("BTreeMap", WrapperKind::Option) => {
+                                    return (WrapperKind::BTreeMapOption, inner_inner);
                                 }
                                 _ => {
                                     return match ident_str.as_str() {
@@ -4140,6 +4252,18 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                 }
                             }
                         }
+                    }
+                }
+                // Handle Cow<'a, B> - has lifetime then type parameter
+                else if ident_str == "Cow" {
+                    if let Some(inner) = args.iter().find_map(|arg| {
+                        if let GenericArgument::Type(t) = arg {
+                            Some(t.clone())
+                        } else {
+                            None
+                        }
+                    }) {
+                        return (WrapperKind::Cow, Some(inner));
                     }
                 }
                 // Handle single-parameter container types
@@ -4165,6 +4289,93 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             ("Option", WrapperKind::HashMap) => {
                                 return (WrapperKind::OptionHashMap, inner_inner);
                             }
+                            ("Option", WrapperKind::BTreeMap) => {
+                                return (WrapperKind::OptionBTreeMap, inner_inner);
+                            }
+                            ("Option", WrapperKind::VecDeque) => {
+                                return (WrapperKind::OptionVecDeque, inner_inner);
+                            }
+                            ("Option", WrapperKind::LinkedList) => {
+                                return (WrapperKind::OptionLinkedList, inner_inner);
+                            }
+                            ("Option", WrapperKind::BinaryHeap) => {
+                                return (WrapperKind::OptionBinaryHeap, inner_inner);
+                            }
+                            ("Option", WrapperKind::HashSet) => {
+                                return (WrapperKind::OptionHashSet, inner_inner);
+                            }
+                            ("Option", WrapperKind::BTreeSet) => {
+                                return (WrapperKind::OptionBTreeSet, inner_inner);
+                            }
+                            ("Option", WrapperKind::Result) => {
+                                return (WrapperKind::OptionResult, inner_inner);
+                            }
+                            ("Option", WrapperKind::StdArcMutex) => {
+                                return (WrapperKind::OptionStdArcMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::StdArcRwLock) => {
+                                return (WrapperKind::OptionStdArcRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::ArcMutex) => {
+                                return (WrapperKind::OptionArcMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::ArcRwLock) => {
+                                return (WrapperKind::OptionArcRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::StdMutex) => {
+                                return (WrapperKind::OptionStdMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::StdRwLock) => {
+                                return (WrapperKind::OptionStdRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::Mutex) => {
+                                return (WrapperKind::OptionMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::RwLock) => {
+                                return (WrapperKind::OptionRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::TokioArcMutex) => {
+                                return (WrapperKind::OptionTokioArcMutex, inner_inner);
+                            }
+                            ("Option", WrapperKind::TokioArcRwLock) => {
+                                return (WrapperKind::OptionTokioArcRwLock, inner_inner);
+                            }
+                            ("Option", WrapperKind::Cow) => {
+                                return (WrapperKind::OptionCow, inner_inner);
+                            }
+                            ("Option", WrapperKind::Tagged) => {
+                                return (WrapperKind::OptionTagged, inner_inner);
+                            }
+                            ("Option", WrapperKind::Reference) => {
+                                return (WrapperKind::OptionReference, Some(inner.clone()));
+                            }
+                            ("Option", WrapperKind::Atomic) => {
+                                return (WrapperKind::OptionAtomic, Some(inner.clone()));
+                            }
+                            ("Option", WrapperKind::String) => {
+                                return (WrapperKind::OptionString, None);
+                            }
+                            ("Option", WrapperKind::Cell) => {
+                                return (WrapperKind::OptionCell, inner_inner);
+                            }
+                            ("Option", WrapperKind::RefCell) => {
+                                return (WrapperKind::OptionRefCell, inner_inner);
+                            }
+                            ("Option", WrapperKind::OnceCell) => {
+                                return (WrapperKind::OptionOnceCell, inner_inner);
+                            }
+                            ("Option", WrapperKind::Lazy) => {
+                                return (WrapperKind::OptionLazy, inner_inner);
+                            }
+                            ("Option", WrapperKind::PhantomData) => {
+                                return (WrapperKind::OptionPhantomData, inner_inner);
+                            }
+                            ("Option", WrapperKind::Range) => {
+                                return (WrapperKind::OptionRange, inner_inner);
+                            }
+                            ("Pin", WrapperKind::Box) => {
+                                return (WrapperKind::PinBox, inner_inner);
+                            }
                             ("Box", WrapperKind::Option) => {
                                 return (WrapperKind::BoxOption, inner_inner);
                             }
@@ -4176,6 +4387,24 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             }
                             ("Vec", WrapperKind::Option) => {
                                 return (WrapperKind::VecOption, inner_inner);
+                            }
+                            ("VecDeque", WrapperKind::Option) => {
+                                return (WrapperKind::VecDequeOption, inner_inner);
+                            }
+                            ("LinkedList", WrapperKind::Option) => {
+                                return (WrapperKind::LinkedListOption, inner_inner);
+                            }
+                            ("BinaryHeap", WrapperKind::Option) => {
+                                return (WrapperKind::BinaryHeapOption, inner_inner);
+                            }
+                            ("HashSet", WrapperKind::Option) => {
+                                return (WrapperKind::HashSetOption, inner_inner);
+                            }
+                            ("BTreeSet", WrapperKind::Option) => {
+                                return (WrapperKind::BTreeSetOption, inner_inner);
+                            }
+                            ("Result", WrapperKind::Option) => {
+                                return (WrapperKind::ResultOption, inner_inner);
                             }
                             ("HashMap", WrapperKind::Option) => {
                                 return (WrapperKind::HashMapOption, inner_inner);
@@ -4237,11 +4466,31 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     "RwLock" => (WrapperKind::RwLock, Some(inner.clone())),
                                     "Weak" => (WrapperKind::Weak, Some(inner.clone())),
                                     "Tagged" => (WrapperKind::Tagged, Some(inner.clone())),
+                                    "Cow" => (WrapperKind::Cow, Some(inner.clone())),
+                                    "AtomicPtr" if is_std_sync_atomic_type(&tp.path) => (WrapperKind::Atomic, None),
+                                    "Pin" => (WrapperKind::Pin, Some(inner.clone())),
+                                    "Cell" => (WrapperKind::Cell, Some(inner.clone())),
+                                    "RefCell" => (WrapperKind::RefCell, Some(inner.clone())),
+                                    "OnceCell" | "OnceLock" => (WrapperKind::OnceCell, Some(inner.clone())),
+                                    "Lazy" | "LazyLock" => (WrapperKind::Lazy, Some(inner.clone())),
+                                    "PhantomData" => (WrapperKind::PhantomData, Some(inner.clone())),
+                                    "Range" | "RangeInclusive" => (WrapperKind::Range, Some(inner.clone())),
                                     _ => (WrapperKind::None, None),
                                 };
                             }
                         }
                     }
+                }
+            }
+            // Handle types with no angle bracket args (String, AtomicBool, etc.)
+            if matches!(seg.arguments, PathArguments::None) {
+                if ident_str == "String" {
+                    return (WrapperKind::String, None);
+                }
+                if is_std_sync_atomic_type(&tp.path)
+                    && ATOMIC_TYPE_IDENTS.contains(&ident_str.as_str())
+                {
+                    return (WrapperKind::Atomic, None);
                 }
             }
         }
@@ -4313,7 +4562,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#field_ident)
@@ -4551,7 +4800,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             tokens.extend(quote! {
                                 pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #ty> {
                                     rust_keypaths::WritableKeyPath::new(|s: &mut #name| &mut s.#idx_lit)
@@ -4831,7 +5080,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             // For Option<T>, return failable readable keypath to inner type
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
@@ -4981,7 +5230,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             tokens.extend(quote! {
                                 pub fn #field_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#idx_lit.as_ref())
@@ -5136,7 +5385,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
 
                             match (kind, inner_ty.clone()) {
-                                (WrapperKind::Option, Some(inner_ty)) => {
+                                (kind, Some(inner_ty)) if is_option_like(kind) => {
                                     tokens.extend(quote! {
                                         pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                             rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
@@ -5408,7 +5657,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
@@ -5601,7 +5850,7 @@ pub fn derive_readable_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
                                     rust_keypaths::KeyPath::new(|s: &#name| &s.#idx_lit)
@@ -6093,7 +6342,7 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::PartialOptionalKeyPath<#name> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref()).to_partial()
@@ -6268,7 +6517,7 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
-                        (WrapperKind::Option, Some(inner_ty)) => {
+                        (kind, Some(inner_ty)) if is_option_like(kind) => {
                             tokens.extend(quote! {
                                 pub fn #r_fn() -> rust_keypaths::AnyKeyPath {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref()).to_any()

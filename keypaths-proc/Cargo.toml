@@ -12,6 +12,8 @@ keywords = ["keypaths", "type-safe", "macros", "proc", "static-dispatch"]
 readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
+[workspace]
+
 [lib]
 proc-macro = true
 
