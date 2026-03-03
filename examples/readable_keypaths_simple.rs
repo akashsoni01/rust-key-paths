@@ -29,7 +29,7 @@ fn main() {
 
     // Failable readable keypaths
     if let Some(email) = Person::email_fr().get(&person) {
-        println!("Email: {}", email);
+        println!("Email: {:?}", email);
     }
 
     if let Some(hobby) = Person::hobbies_fr().get(&person) {

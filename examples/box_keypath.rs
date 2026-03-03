@@ -1,7 +1,7 @@
 use keypaths_proc::{Kp, Kps};
 
-#[derive(Debug, Kp)]
-#[Writable]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct SomeComplexStruct {
     scsf: Box<SomeOtherStruct>,
 }
@@ -21,28 +21,28 @@ impl SomeComplexStruct {
     }
 }
 
-#[derive(Debug, Kp)]
-#[Writable]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
 #[derive(Debug, Kps)]
-#[Writable]
+#[All]
 enum SomeEnum {
     A(String),
     B(DarkStruct),
 }
 
-#[derive(Debug, Kp)]
-#[Writable]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct OneMoreStruct {
     omsf: String,
     omse: SomeEnum,
 }
 
-#[derive(Debug, Kp)]
-#[Writable]
+#[derive(Debug, Kp, Kps)]
+#[All]
 struct DarkStruct {
     dsf: String,
 }

@@ -1,6 +1,6 @@
 use keypaths_proc::{Kp, Kps};
 
-#[derive(Debug, Clone, Kp)]
+#[derive(Debug, Clone, Kp, Kps)]
 struct User {
     id: u32,
     name: String,

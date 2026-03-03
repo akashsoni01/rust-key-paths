@@ -120,7 +120,7 @@ fn main() {
         .then(AppMode::active_r())
         .chain_arc_rwlock_writable_optional_at_kp(Session::user_email_fw()); // Use _fw() for optional writable
     kp.get_mut(&app_state, |value| {
-        *value = "updated@example.com".to_string();
+        *value = Some("updated@example.com".to_string());
         println!("  ✓ Updated user_email");
     });
 
