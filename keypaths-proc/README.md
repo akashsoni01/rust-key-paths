@@ -28,7 +28,7 @@ keypaths-proc = "1.7.0"
 - ✅ **Enum CasePaths** (readable and writable prisms)
 - ✅ **Composition** across structs, options and enum cases
 - ✅ **Iteration helpers** over collections via keypaths
-- ✅ **Proc-macros**: `#[derive(Kp)]` for structs/tuple-structs and enums, `#[derive(Casepaths)]` for enums
+- ✅ **Proc-macros**: `#[derive(Kp)]` and `#[derive(Kps)]` for structs, tuple-structs, and enums (casepath methods included)
 - ✅ **Functional chains for `Arc<Mutex<T>>` and `Arc<RwLock<T>>`** - Compose-first, apply-later pattern
 - ✅ **parking_lot support** - Feature-gated support for faster synchronization primitives
 - ✅ **Tokio support** - Async keypath chains through `Arc<tokio::sync::Mutex<T>>` and `Arc<tokio::sync::RwLock<T>>`
@@ -135,9 +135,9 @@ cargo run --example basics_casepath
 This example demonstrates keypath composition through deeply nested structures with `Box<T>` and enum variants:
 
 ```rust
-use keypaths_proc::{Casepaths, Kp};
+use keypaths_proc::{Kp, Kps};
 
-#[derive(Debug, Kp)]
+#[derive(Debug, Kps)]
 #[Writable]
 struct SomeComplexStruct {
     scsf: Box<SomeOtherStruct>,
@@ -164,7 +164,7 @@ struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
-#[derive(Debug, Casepaths)]
+#[derive(Debug, Kps)]
 #[Writable]
 enum SomeEnum {
     A(String),
@@ -549,14 +549,14 @@ Benchmarks include:
 |---------|--------------|---------|---------|---------|
 | **Struct Field Access** | ✅ Readable/Writable | ✅ Readable/Writable | ✅ Readable/Writable | ✅ Partial |
 | **Option<T> Chains** | ✅ Built-in (`_fr`/`_fw`) | ❌ Manual composition | ❌ Manual composition | ❌ Manual |
-| **Enum Case Paths** | ✅ Built-in (CasePaths) | ❌ Not supported | ❌ Not supported | ❌ Limited |
+| **Enum Case Paths** | ✅ Built-in (Kps/Kp) | ❌ Not supported | ❌ Not supported | ❌ Limited |
 | **Tuple Structs** | ✅ Full support | ⚠️ Unknown | ❌ Not supported | ❌ Not supported |
 | **Composition** | ✅ `.then()` chaining | ⚠️ Less ergonomic | ⚠️ Manual | ⚠️ Complex |
 | **Result<T, E>** | ✅ Built-in support | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **Mutex/RwLock** | ✅ Built-in (`with_mutex`, etc.) | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **Arc/Box/Rc** | ✅ Built-in support | ⚠️ Unknown | ⚠️ Limited | ⚠️ Limited |
 | **Collections** | ✅ Vec, HashMap, HashSet, etc. | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Derive Macros** | ✅ `#[derive(Kp)]`, `#[derive(Casepaths)]` | ✅ `#[derive(Keypath)]` | ✅ `#[derive(Lenses)]` | ⚠️ Limited |
+| **Derive Macros** | ✅ `#[derive(Kp)]`, `#[derive(Kps)]` | ✅ `#[derive(Keypath)]` | ✅ `#[derive(Lenses)]` | ⚠️ Limited |
 | **Deep Nesting** | ✅ Works seamlessly | ⚠️ May require workarounds | ❌ Requires workarounds | ❌ Complex |
 | **Type Safety** | ✅ Full compile-time checks | ✅ Good | ✅ Good | ⚠️ Moderate |
 | **Performance** | ✅ Optimized (1.46x overhead reads, near-zero writes) | ⚠️ Unknown | ⚠️ Unknown | ⚠️ Unknown |
@@ -574,7 +574,7 @@ Benchmarks include:
 ### Key Advantages of rust-keypaths
 
 1. **✅ Native Option support**: Built-in failable keypaths (`_fr`/`_fw`) that compose seamlessly through `Option<T>` chains (unlike keypath, pl-lens, and lens-rs which require manual composition)
-2. **✅ Enum CasePaths**: First-class support for enum variant access (prisms) with `#[derive(Casepaths)]` (unique feature not found in keypath, pl-lens, or lens-rs)
+2. **✅ Enum CasePaths**: First-class support for enum variant access (prisms) with `#[derive(Kps)]` or `#[derive(Kp)]` (unique feature not found in keypath, pl-lens, or lens-rs)
 3. **✅ Container types**: Built-in support for `Result`, `Mutex`, `RwLock`, `Arc`, `Rc`, `Box`, and all standard collections (comprehensive container support unmatched by alternatives)
 4. **✅ Functional chains for sync primitives**: Compose keypaths through `Arc<Mutex<T>>` and `Arc<RwLock<T>>` with a clean, functional API
 5. **✅ parking_lot support**: Feature-gated support for faster `parking_lot::Mutex` and `parking_lot::RwLock`
@@ -591,7 +591,7 @@ Benchmarks include:
 
 - [x] Inspired by Lenses: [Compositional Data Access And Manipulation](https://www.youtube.com/watch?v=dxGaKn4REaY&list=LL&index=7)
 - [x] Compose across structs, options and enum cases
-- [x] Derive macros for automatic keypath generation (`Keypaths`, `Keypaths`, `Casepaths`)
+- [x] Derive macros for automatic keypath generation (`Kps`, `Kp`; casepaths for enums included)
 - [x] Optional chaining with failable keypaths
 - [x] Smart pointer adapters (`.for_arc()`, `.for_box()`, `.for_rc()`)
 - [x] Container support for `Result`, `Mutex`, `RwLock`, `Weak`, and collections

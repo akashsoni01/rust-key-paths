@@ -1,4 +1,4 @@
-use keypaths_proc::{Casepaths, Kp};
+use keypaths_proc::{Kp, Kps};
 
 #[derive(Debug, Kp)]
 #[Writable]
@@ -27,7 +27,7 @@ struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
-#[derive(Debug, Casepaths)]
+#[derive(Debug, Kps)]
 #[Writable]
 enum SomeEnum {
     A(String),

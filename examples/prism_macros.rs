@@ -1,7 +1,7 @@
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Casepaths;
+// use keypaths_proc::Kps;
 
-// #[derive(Debug, Casepaths)]
+// #[derive(Debug, Kps)]
 // enum Payment {
 //     Cash { amount: u32 },
 //     Card { number: String, cvv: String },

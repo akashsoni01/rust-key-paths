@@ -1,4 +1,4 @@
-use keypaths_proc::{Casepaths, Kp};
+use keypaths_proc::{Kp, Kps};
 
 #[derive(Debug, Clone, Kp)]
 struct User {
@@ -6,7 +6,7 @@ struct User {
     name: String,
 }
 
-#[derive(Debug, Casepaths)]
+#[derive(Debug, Kps)]
 #[All]
 enum Status {
     Active(User),

@@ -1,6 +1,6 @@
 use std::{rc::Rc, sync::Arc};
 
-use keypaths_proc::{Casepaths, Kp};
+use keypaths_proc::{Kp, Kps};
 
 #[derive(Debug, Kp)]
 #[All]
@@ -31,7 +31,7 @@ struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
-#[derive(Debug, Casepaths, Clone)]
+#[derive(Debug, Kps, Clone)]
 #[All]
 enum SomeEnum {
     A(String),

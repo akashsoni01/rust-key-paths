@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-use keypaths_proc::{Casepaths, Kp};
+use keypaths_proc::{Kp, Kps};
 
 #[derive(Debug, Kp)]
 #[All]
@@ -85,7 +85,7 @@ struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
-#[derive(Debug, Casepaths)]
+#[derive(Debug, Kps)]
 #[All]
 enum SomeEnum {
     A(Vec<String>),

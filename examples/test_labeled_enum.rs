@@ -1,7 +1,7 @@
 // use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
-// use keypaths_proc::Casepaths;
+// use keypaths_proc::Kps;
 
-// #[derive(Debug, Clone, Casepaths)]
+// #[derive(Debug, Clone, Kps)]
 // enum TestEnum {
 //     // Unit variant
 //     Unit,

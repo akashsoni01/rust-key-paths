@@ -2,7 +2,7 @@
 //!
 //! Run with: cargo run --example deeply_nested_enum_arc_rwlock
 
-use keypaths_proc::{Casepaths, Kp, Kps};
+use keypaths_proc::{Kp, Kps};
 use std::sync::{Arc, RwLock};
 
 // ========== DATA STRUCTURES ==========
@@ -15,7 +15,7 @@ struct AppState {
 }
 
 /// Application mode - can be in different states
-#[derive(Debug, Casepaths)]
+#[derive(Debug, Kps)]
 #[All]
 enum AppMode {
     /// Idle mode - no active session
@@ -37,7 +37,7 @@ struct Session {
 }
 
 /// Theme selection - nested enum
-#[derive(Debug, Clone, Casepaths)]
+#[derive(Debug, Clone, Kps)]
 #[All]
 enum Theme {
     Light,

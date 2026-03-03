@@ -1,4 +1,4 @@
-use keypaths_proc::{Casepaths, Kp};
+use keypaths_proc::{Kp, Kps};
 use rust_keypaths::{KeyPath, OptionalKeyPath, WritableKeyPath, WritableOptionalKeyPath};
 
 #[derive(Debug, Kp)]
@@ -27,7 +27,7 @@ struct Settings {
     db: Option<DbConfig>,
 }
 
-#[derive(Debug, Casepaths)]
+#[derive(Debug, Kps)]
 #[All]
 enum Connection {
     Disconnected,
@@ -35,7 +35,7 @@ enum Connection {
     Connected(String),
 }
 
-#[derive(Debug, Casepaths)]
+#[derive(Debug, Kps)]
 #[All]
 enum Status {
     Active(User),

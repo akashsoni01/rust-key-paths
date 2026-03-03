@@ -3707,526 +3707,100 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
+                let variant_scope = match method_scope_from_attrs(&variant.attrs) {
+                    Ok(Some(scope)) => scope,
+                    Ok(None) => default_scope.clone(),
+                    Err(_) => default_scope.clone(),
+                };
                 let r_fn = format_ident!("{}_r", snake);
                 let w_fn = format_ident!("{}_w", snake);
-                let _fr_fn = format_ident!("{}_fr", snake);
-                let _fw_fn = format_ident!("{}_fw", snake);
-                let fr_at_fn = format_ident!("{}_fr_at", snake);
-                let fw_at_fn = format_ident!("{}_fw_at", snake);
+                let fr_fn = format_ident!("{}_fr", snake);
+                let fw_fn = format_ident!("{}_fw", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
-                        tokens.extend(quote! {
-                            pub fn #r_fn() -> rust_keypaths::EnumKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>, impl Fn(()) -> #name> {
-                                static UNIT: () = ();
-                                rust_keypaths::EnumKeyPath::readable_enum(
-                                    |_| #name::#v_ident,
-                                    |e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None }
-                                )
-                            }
-                        });
-                    }
-                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
-                        let field_ty = &unnamed.unnamed.first().unwrap().ty;
-                        let (kind, inner_ty_opt) = extract_wrapper_inner_type(field_ty);
-
-                        match (kind, inner_ty_opt) {
-                            (kind, Some(inner_ty)) if is_option_like(kind) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref(), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref(), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.as_mut(), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::Vec, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first(), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut(), _ => None },
-                                        )
-                                    }
-                                    pub fn #fr_at_fn(index: &'static usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.get(*index), _ => None }
-                                        )
-                                    }
-                                    pub fn #fw_at_fn(index: &'static usize) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.get(*index), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.get_mut(*index), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::HashMap, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut().map(|(_, v)| v), _ => None },
-                                        )
-                                    }
-                                    pub fn #fr_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.get(key), _ => None }
-                                        )
-                                    }
-                                    pub fn #fw_at_fn<K: ::std::hash::Hash + ::std::cmp::Eq + 'static>(key: &'static K) -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.get(key), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.get_mut(key), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::Box, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => Some(&mut *v), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::Rc, Some(inner_ty))
-                            | (WrapperKind::Arc, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::BTreeMap, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first().map(|(_, v)| v), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut().map(|(_, v)| v), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::HashSet, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.iter().next(), _ => None }
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::BTreeSet, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.iter().next(), _ => None }
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::VecDeque, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.front_mut(), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::LinkedList, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.front(), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.front_mut(), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::BinaryHeap, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.peek(), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.peek(), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.peek_mut().map(|v| &mut **v), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::Result, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().ok(), _ => None }
-                                        )
-                                    }
-                                    // Note: Result<T, E> doesn't support writable access for inner type
-                                    // Only providing readable access
-                                });
-                            }
-                            (WrapperKind::Mutex, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
-                                        )
-                                    }
-                                    // Note: Mutex<T> doesn't support direct access to inner type due to lifetime constraints
-                                    // Only providing container-level access
-                                });
-                            }
-                            (WrapperKind::RwLock, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
-                                        )
-                                    }
-                                    // Note: RwLock<T> doesn't support direct access to inner type due to lifetime constraints
-                                    // Only providing container-level access
-                                });
-                            }
-                            (WrapperKind::Weak, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
-                                        )
-                                    }
-                                    // Note: Weak<T> doesn't support writable access (it's immutable)
-                                    // Note: Weak<T> doesn't support direct access to inner type due to lifetime constraints
-                                    // Only providing container-level access
-                                });
-                            }
-                            // Nested container combinations for enums - COMMENTED OUT FOR NOW
-                            /*
-                            (WrapperKind::OptionBox, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().map(|b| &**b), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().map(|b| &**b), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.as_mut().map(|b| &mut **b), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::OptionRc, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().map(|r| &**r), _ => None }
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::OptionArc, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().map(|a| &**a), _ => None }
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::BoxOption, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #field_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #field_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => Some(&mut *v), _ => None },
-                                        )
-                                    }
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => (*v).as_ref(), _ => None }
-                                        )
-                                    }
-                                    pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => (*v).as_ref(), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => (*v).as_mut(), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::RcOption, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
-                                        )
-                                    }
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => (*v).as_ref(), _ => None }
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::ArcOption, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&*v), _ => None }
-                                        )
-                                    }
-                                    pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => (*v).as_ref(), _ => None }
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::VecOption, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first().and_then(|opt| opt.as_ref()), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first().and_then(|opt| opt.as_ref()), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut().and_then(|opt| opt.as_mut()), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::OptionVec, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().and_then(|vec| vec.first()), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().and_then(|vec| vec.first()), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.as_mut().and_then(|vec| vec.first_mut()), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::HashMapOption, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first().and_then(|(_, opt)| opt.as_ref()), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.first().and_then(|(_, opt)| opt.as_ref()), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.first_mut().and_then(|(_, opt)| opt.as_mut()), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            (WrapperKind::OptionHashMap, Some(inner_ty)) => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().and_then(|map| map.first().map(|(_, v)| v)), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> &'r mut #inner_ty> {
-                                        rust_keypaths::EnumKeyPath::writable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => v.as_ref().and_then(|map| map.first().map(|(_, v)| v)), _ => None },
-                                            |e: &mut #name| match e { #name::#v_ident(v) => v.as_mut().and_then(|map| map.first_mut().map(|(_, v)| v)), _ => None },
-                                        )
-                                    }
-                                });
-                            }
-                            */
-                            (WrapperKind::None, None) => {
-                                let inner_ty = field_ty;
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::EnumKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>, impl Fn(#inner_ty) -> #name> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
-                                        )
-                                    }
-                                    pub fn #w_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
-                                        rust_keypaths::WritableOptionalKeyPath::new(
-                                            |e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None }
-                                        )
-                                    }
-                                });
-                            }
-                            _ => {
-                                tokens.extend(quote! {
-                                    pub fn #r_fn() -> rust_keypaths::KeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> &'r #field_ty> {
-                                        rust_keypaths::EnumKeyPath::readable_enum(
-                                            #name::#v_ident,
-                                            |e: &#name| match e { #name::#v_ident(v) => Some(&v), _ => None }
-                                        )
-                                    }
-                                });
-                            }
+                        if variant_scope.includes_read() {
+                            tokens.extend(quote! {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>> {
+                                    static UNIT: () = ();
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None })
+                                }
+                            });
                         }
                     }
-                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() > 1 => {
-                        // Multi-field tuple variants - generate methods for each field
-                        for (index, field) in unnamed.unnamed.iter().enumerate() {
-                            let field_ty = &field.ty;
-                            let field_fn = format_ident!("f{}", index);
-                            let r_fn = format_ident!("{}_{}_r", snake, field_fn);
-                            let w_fn = format_ident!("{}_{}_w", snake, field_fn);
-
-                            // Generate pattern matching for this specific field
-                            let mut pattern_parts = Vec::new();
-
-                            for i in 0..unnamed.unnamed.len() {
-                                if i == index {
-                                    pattern_parts.push(quote! { v });
-                                } else {
-                                    pattern_parts.push(quote! { _ });
-                                }
-                            }
-
-                            let pattern = quote! { #name::#v_ident(#(#pattern_parts),*) };
-                            let match_expr = quote! { match e { #pattern => Some(v), _ => None } };
-                            let match_mut_expr =
-                                quote! { match e { #pattern => Some(v), _ => None } };
-
+                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
+                        let inner_ty = &unnamed.unnamed.first().unwrap().ty;
+                        if variant_scope.includes_read() {
+                            let embed_fn = format_ident!("{}_embed", snake);
+                            let enum_kp_fn = format_ident!("{}_enum", snake);
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| #match_expr)
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
                                 }
-                                pub fn #w_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #field_ty>> {
-                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| #match_mut_expr)
+                                pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                                pub fn #enum_kp_fn() -> rust_keypaths::EnumKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty> + 'static, impl Fn(#inner_ty) -> #name + 'static> {
+                                    rust_keypaths::EnumKeyPath::readable_enum(
+                                        |value: #inner_ty| #name::#v_ident(value),
+                                        |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
+                                    )
+                                }
+                                pub fn #embed_fn(value: #inner_ty) -> #name {
+                                    #name::#v_ident(value)
+                                }
+                            });
+                        }
+                        if variant_scope.includes_write() {
+                            tokens.extend(quote! {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                                pub fn #w_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                                }
+                            });
+                        }
+                    }
+                    Fields::Unnamed(unnamed) => {
+                        let field_types: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
+                        let tuple_ty = quote! { (#(#field_types),*) };
+                        let field_patterns: Vec<_> = (0..unnamed.unnamed.len())
+                            .map(|i| format_ident!("f{}", i))
+                            .collect();
+                        if variant_scope.includes_read() {
+                            tokens.extend(quote! {
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(#(#field_patterns),*) => Some(&(#(#field_patterns),*)), _ => None })
+                                }
+                            });
+                        }
+                        if variant_scope.includes_write() {
+                            tokens.extend(quote! {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #tuple_ty>> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None })
                                 }
                             });
                         }
                     }
                     Fields::Named(named) => {
-                        // Labeled enum variants - generate methods for each field
-                        for field in named.named.iter() {
-                            let field_ident = field.ident.as_ref().unwrap();
-                            let field_ty = &field.ty;
-                            let r_fn = format_ident!("{}_{}_r", snake, field_ident);
-                            let w_fn = format_ident!("{}_{}_w", snake, field_ident);
-
+                        let field_names: Vec<_> = named.named.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+                        let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
+                        let tuple_ty = quote! { (#(#field_types),*) };
+                        if variant_scope.includes_read() {
                             tokens.extend(quote! {
-                                pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
-                                }
-                                pub fn #w_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #field_ty>> {
-                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident { #field_ident: v, .. } => Some(v), _ => None })
+                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident { #(#field_names: ref #field_names),* } => Some(&(#(#field_names),*)), _ => None })
                                 }
                             });
                         }
-                    }
-                    _ => {
-                        tokens.extend(quote! {
-                            compile_error!("Keypaths derive supports only unit, single-field, multi-field tuple, and labeled variants");
-                        });
+                        if variant_scope.includes_write() {
+                            tokens.extend(quote! {
+                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #tuple_ty>> {
+                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident { #(#field_names: ref mut #field_names),* } => Some((#(#field_names),*)), _ => None })
+                                }
+                            });
+                        }
                     }
                 }
             }
@@ -4963,223 +4537,59 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
                 let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
+                let fr_fn = format_ident!("{}_fr", snake);
+                let r_fn = format_ident!("{}_r", snake);
 
                 match &variant.fields {
                     Fields::Unit => {
-                        // Unit variant - return failable readable keypath to the variant itself
                         tokens.extend(quote! {
-                            pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>> {
-                                rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                    #name::#v_ident => {
-                                        static UNIT: () = ();
-                                        Some(&UNIT)
-                                    },
-                                    _ => None,
-                                })
+                            pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>> {
+                                static UNIT: () = ();
+                                rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None })
+                            }
+                        });
+                    }
+                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
+                        let inner_ty = &unnamed.unnamed.first().unwrap().ty;
+                        let embed_fn = format_ident!("{}_embed", snake);
+                        let enum_kp_fn = format_ident!("{}_enum", snake);
+                        tokens.extend(quote! {
+                            pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                            }
+                            pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
+                            }
+                            pub fn #enum_kp_fn() -> rust_keypaths::EnumKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty> + 'static, impl Fn(#inner_ty) -> #name + 'static> {
+                                rust_keypaths::EnumKeyPath::readable_enum(
+                                    |value: #inner_ty| #name::#v_ident(value),
+                                    |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
+                                )
+                            }
+                            pub fn #embed_fn(value: #inner_ty) -> #name {
+                                #name::#v_ident(value)
                             }
                         });
                     }
                     Fields::Unnamed(unnamed) => {
-                        if unnamed.unnamed.len() == 1 {
-                            // Single-field tuple variant - smart keypath selection
-                            let field_ty = &unnamed.unnamed[0].ty;
-                            let (kind, inner_ty) = extract_wrapper_inner_type(field_ty);
-
-                            match (kind, inner_ty.clone()) {
-                                (kind, Some(inner_ty)) if is_option_like(kind) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => inner.as_ref(),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::Vec, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => inner.first(),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::HashMap, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::BTreeMap, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::Box, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(&**inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::Rc, Some(inner_ty))
-                                | (WrapperKind::Arc, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(&**inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::HashSet, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => inner.iter().next(),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::BTreeSet, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => inner.iter().next(),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::VecDeque, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => inner.front(),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::LinkedList, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => inner.front(),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::BinaryHeap, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => inner.peek(),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::Result, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => inner.as_ref().ok(),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::Mutex, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::RwLock, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::Weak, Some(inner_ty)) => {
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                (WrapperKind::None, None) => {
-                                    // Basic type - return failable readable keypath
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                                _ => {
-                                    // Unknown type - return failable readable keypath
-                                    tokens.extend(quote! {
-                                        pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #field_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #field_ty>> {
-                                            rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                                #name::#v_ident(inner) => Some(inner),
-                                                _ => None,
-                                            })
-                                        }
-                                    });
-                                }
-                            }
-                        } else {
-                            // Multi-field tuple variant - return failable readable keypath to the variant
-                            tokens.extend(quote! {
-                                pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> Option<&'r #name>> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                        #name::#v_ident(..) => Some(s),
-                                        _ => None,
-                                    })
-                                }
-                            });
-                        }
-                    }
-                    Fields::Named(_named) => {
-                        // Named field variant - return failable readable keypath to the variant
+                        let field_types: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
+                        let tuple_ty = quote! { (#(#field_types),*) };
+                        let field_patterns: Vec<_> = (0..unnamed.unnamed.len())
+                            .map(|i| format_ident!("f{}", i))
+                            .collect();
                         tokens.extend(quote! {
-                            pub fn #snake() -> rust_keypaths::OptionalKeyPath<#name, #name, impl for<'r> Fn(&'r #name) -> Option<&'r #name>> {
-                                rust_keypaths::OptionalKeyPath::new(|s: &#name| match s {
-                                    #name::#v_ident { .. } => Some(s),
-                                    _ => None,
-                                })
+                            pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
+                                rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(#(#field_patterns),*) => Some(&(#(#field_patterns),*)), _ => None })
+                            }
+                        });
+                    }
+                    Fields::Named(named) => {
+                        let field_names: Vec<_> = named.named.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+                        let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
+                        let tuple_ty = quote! { (#(#field_types),*) };
+                        tokens.extend(quote! {
+                            pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
+                                rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident { #(#field_names: ref #field_names),* } => Some(&(#(#field_names),*)), _ => None })
                             }
                         });
                     }
@@ -5201,227 +4611,6 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-
-/// Derives case path methods for enum variants.
-///
-/// Case paths (also known as prisms) provide a way to access and manipulate
-/// enum variants in a composable way. They allow you to extract values from
-/// enum variants and embed values back into variants.
-///
-/// # Generated Methods
-///
-/// For each variant `VariantName` with a single field of type `T`:
-///
-/// - `variant_name_r()` - Returns an `OptionalKeyPath<Enum, T>` for reading
-/// - `variant_name_w()` - Returns a `WritableOptionalKeyPath<Enum, T>` for writing
-/// - `variant_name_fr()` - Alias for `variant_name_r()`
-/// - `variant_name_fw()` - Alias for `variant_name_w()`
-/// - `variant_name_embed(value)` - Returns `Enum` by embedding a value into the variant
-/// - `variant_name_enum()` - Returns an `EnumKeyPath<Enum, T>` with both extraction and embedding
-///
-/// For unit variants (no fields):
-///
-/// - `variant_name_fr()` - Returns an `OptionalKeyPath<Enum, ()>` that checks if variant matches
-///
-/// For multi-field tuple variants:
-///
-/// - `variant_name_fr()` - Returns an `OptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
-/// - `variant_name_fw()` - Returns a `WritableOptionalKeyPath<Enum, (T1, T2, ...)>` for the tuple
-///
-/// # Attributes
-///
-/// ## Enum-level attributes:
-///
-/// - `#[All]` - Generate all methods (readable and writable)
-/// - `#[Readable]` - Generate only readable methods (default)
-/// - `#[Writable]` - Generate only writable methods
-///
-/// ## Variant-level attributes:
-///
-/// - `#[Readable]` - Generate readable methods for this variant only
-/// - `#[Writable]` - Generate writable methods for this variant only
-/// - `#[All]` - Generate all methods for this variant
-///
-/// # Examples
-///
-/// ```rust,ignore
-/// use keypaths_proc::Casepaths;
-///
-/// #[derive(Casepaths)]
-/// #[All]
-/// enum Status {
-///     Active(String),
-///     Inactive,
-///     Pending(u32),
-/// }
-///
-/// // Usage:
-/// let mut status = Status::Active("online".to_string());
-///
-/// // Extract value from variant
-/// let active_path = Status::active_r();
-/// if let Some(value) = active_path.get(&status) {
-///     println!("Status is: {}", value);
-/// }
-///
-/// // Embed value into variant
-/// let new_status = Status::active_embed("offline".to_string());
-///
-/// // Use EnumKeyPath for both extraction and embedding
-/// let active_enum = Status::active_enum();
-/// let extracted = active_enum.extract(&status);  // Option<&String>
-/// let embedded = active_enum.embed("new".to_string());  // Status::Active("new")
-/// ```
-#[proc_macro_derive(Casepaths, attributes(Readable, Writable, All))]
-pub fn derive_casepaths(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = input.ident;
-
-    // Get default scope from attributes
-    let default_scope = match method_scope_from_attrs(&input.attrs) {
-        Ok(Some(scope)) => scope,
-        Ok(None) => MethodScope::Readable, // Default to readable
-        Err(e) => return e.to_compile_error().into(),
-    };
-
-    let tokens = match input.data {
-        Data::Enum(data_enum) => {
-            let mut tokens = proc_macro2::TokenStream::new();
-            for variant in data_enum.variants.iter() {
-                let v_ident = &variant.ident;
-                let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
-
-                // Get variant-specific scope
-                let variant_scope = match method_scope_from_attrs(&variant.attrs) {
-                    Ok(Some(scope)) => scope,
-                    Ok(None) => default_scope.clone(),
-                    Err(_) => default_scope.clone(),
-                };
-
-                let r_fn = format_ident!("{}_r", snake);
-                let w_fn = format_ident!("{}_w", snake);
-                let fr_fn = format_ident!("{}_fr", snake);
-                let fw_fn = format_ident!("{}_fw", snake);
-
-                match &variant.fields {
-                    Fields::Unit => {
-                        // Unit variants - return OptionalKeyPath that checks if variant matches
-                        if variant_scope.includes_read() {
-                            tokens.extend(quote! {
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>> {
-                                    static UNIT: () = ();
-                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None })
-                                }
-                            });
-                        }
-                    }
-                    Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
-                        let inner_ty = &unnamed.unnamed.first().unwrap().ty;
-
-                        // Single-field variant - extract the inner value
-                        // Generate EnumKeyPath for single-field variants to support embedding
-                        if variant_scope.includes_read() {
-                            let embed_fn = format_ident!("{}_embed", snake);
-                            let enum_kp_fn = format_ident!("{}_enum", snake);
-                            tokens.extend(quote! {
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
-                                }
-                                // Alias for fr_fn - returns OptionalKeyPath (enum casepaths are always optional)
-                                pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
-                                }
-                                // EnumKeyPath version with embedding support
-                                pub fn #enum_kp_fn() -> rust_keypaths::EnumKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty> + 'static, impl Fn(#inner_ty) -> #name + 'static> {
-                                    rust_keypaths::EnumKeyPath::readable_enum(
-                                        |value: #inner_ty| #name::#v_ident(value),
-                                        |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
-                                    )
-                                }
-                                // Embed method - creates the enum variant from a value
-                                pub fn #embed_fn(value: #inner_ty) -> #name {
-                                    #name::#v_ident(value)
-                                }
-                            });
-                        }
-                        if variant_scope.includes_write() {
-                            tokens.extend(quote! {
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
-                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None })
-                                }
-                                // Alias for fw_fn - returns WritableOptionalKeyPath (enum casepaths are always optional)
-                                pub fn #w_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #inner_ty>> {
-                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(v) => Some(v), _ => None })
-                                }
-                            });
-                        }
-                    }
-                    // Multi-field tuple variant: Enum::Variant(T1, T2, ...)
-                    Fields::Unnamed(unnamed) => {
-                        let field_types: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
-                        let tuple_ty = quote! { (#(#field_types),*) };
-
-                        // Generate pattern matching for tuple fields
-                        let field_patterns: Vec<_> = (0..unnamed.unnamed.len())
-                            .map(|i| format_ident!("f{}", i))
-                            .collect();
-
-                        if variant_scope.includes_read() {
-                            tokens.extend(quote! {
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(#(#field_patterns),*) => Some(&(#(#field_patterns),*)), _ => None })
-                                }
-                            });
-                        }
-                        if variant_scope.includes_write() {
-                            tokens.extend(quote! {
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #tuple_ty>> {
-                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident(#(#field_patterns),*) => Some((#(#field_patterns),*)), _ => None })
-                                }
-                            });
-                        }
-                    }
-
-                    // Labeled variant: Enum::Variant { field1: T1, field2: T2, ... }
-                    Fields::Named(named) => {
-                        let field_names: Vec<_> = named
-                            .named
-                            .iter()
-                            .map(|f| f.ident.as_ref().unwrap())
-                            .collect();
-                        let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
-                        let tuple_ty = quote! { (#(#field_types),*) };
-
-                        if variant_scope.includes_read() {
-                            tokens.extend(quote! {
-                                pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident { #(#field_names: ref #field_names),* } => Some(&(#(#field_names),*)), _ => None })
-                                }
-                            });
-                        }
-                        if variant_scope.includes_write() {
-                            tokens.extend(quote! {
-                                pub fn #fw_fn() -> rust_keypaths::WritableOptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r mut #name) -> Option<&'r mut #tuple_ty>> {
-                                    rust_keypaths::WritableOptionalKeyPath::new(|e: &mut #name| match e { #name::#v_ident { #(#field_names: ref mut #field_names),* } => Some((#(#field_names),*)), _ => None })
-                                }
-                            });
-                        }
-                    }
-                }
-            }
-            tokens
-        }
-        _ => quote! { compile_error!("Casepaths can only be derived for enums"); },
-    };
-
-    let expanded = quote! {
-        impl #name {
-            #tokens
-        }
-    };
-
-    TokenStream::from(expanded)
-}
 
 /// Derives type-erased keypath methods with known root type.
 ///

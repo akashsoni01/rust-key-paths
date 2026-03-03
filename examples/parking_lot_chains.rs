@@ -4,7 +4,7 @@
 
 #[cfg(feature = "parking_lot")]
 mod parking_lot_example {
-    use keypaths_proc::{Casepaths, Kp, Kps};
+    use keypaths_proc::{Kp, Kps};
     use parking_lot::{Mutex as ParkingMutex, RwLock as ParkingRwLock};
     use rust_keypaths::{KeyPath, OptionalKeyPath, keypath, opt_keypath};
     use std::sync::Arc;
@@ -23,7 +23,7 @@ mod parking_lot_example {
         state: AppState,
     }
 
-    #[derive(Debug, Casepaths)]
+    #[derive(Debug, Kps)]
     enum AppState {
         Idle,
         Active(Arc<ParkingRwLock<Session>>),
