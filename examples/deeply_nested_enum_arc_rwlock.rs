@@ -15,7 +15,7 @@ struct AppState {
 }
 
 /// Application mode - can be in different states
-#[derive(Debug, Kps)]
+#[derive(Debug, Kps, Kp)]
 #[All]
 enum AppMode {
     /// Idle mode - no active session
@@ -83,10 +83,10 @@ fn main() {
     // ========== READING ==========
     // Use _fr() (failable readable) with chain_arc_rwlock_at_kp or chain_arc_rwlock_optional_at_kp
 
-    // Read non-optional field through the chain
+    // Read non-optional field through the chain (Kp: active() = read-only casepath)
     println!("Reading user_name (non-optional field):");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_r())
+        .then(AppMode::active())
         .chain_arc_rwlock_at_kp(Session::user_name_r()); // Use _r() for non-optional
     kp.get(&app_state, |value| {
         println!("  ✓ user_name = {:?}", value);
@@ -95,7 +95,7 @@ fn main() {
     // Read optional field through the chain
     println!("\nReading user_email (optional field):");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_r())
+        .then(AppMode::active())
         .chain_arc_rwlock_optional_at_kp(Session::user_email_fr()); // Use _fr() for optional
     kp.get(&app_state, |value| {
         println!("  ✓ user_email = {:?}", value);
@@ -104,10 +104,10 @@ fn main() {
     // ========== WRITING (with full chain syntax!) ==========
     // Use _w() or _fw() (writable) with chain_arc_rwlock_writable_at_kp or chain_arc_rwlock_writable_optional_at_kp
 
-    // Write to non-optional field through the full chain
+    // Write to non-optional field (chain uses read-only casepath to RwLock; writable is inside)
     println!("\nWriting to user_name (using chain_arc_rwlock_writable_at_kp):");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_r())
+        .then(AppMode::active())
         .chain_arc_rwlock_writable_at_kp(Session::user_name_w()); // Use _w() for non-optional writable
     kp.get_mut(&app_state, |value| {
         *value = "Akash (Updated via chain!)".to_string();
@@ -117,7 +117,7 @@ fn main() {
     // Write to optional field through the full chain
     println!("\nWriting to user_email (using chain_arc_rwlock_writable_optional_at_kp):");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_r())
+        .then(AppMode::active())
         .chain_arc_rwlock_writable_optional_at_kp(Session::user_email_fw()); // Use _fw() for optional writable
     kp.get_mut(&app_state, |value| {
         *value = Some("updated@example.com".to_string());
@@ -127,14 +127,14 @@ fn main() {
     // Verify the writes
     println!("\nVerifying writes:");
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_r())
+        .then(AppMode::active())
         .chain_arc_rwlock_at_kp(Session::user_name_r());
     kp.get(&app_state, |value| {
         println!("  ✓ user_name = {:?}", value);
     });
 
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_r())
+        .then(AppMode::active())
         .chain_arc_rwlock_optional_at_kp(Session::user_email_fr());
     kp.get(&app_state, |value| {
         println!("  ✓ user_email = {:?}", value);
@@ -144,7 +144,7 @@ fn main() {
     println!("\nTesting with Idle state (non-matching variant):");
     let idle_state = AppState::new_idle();
     let kp = AppState::current_mode_fr()
-        .then(AppMode::active_r())
+        .then(AppMode::active())
         .chain_arc_rwlock_at_kp(Session::user_name_r());
     let result = kp.get(&idle_state, |_| ());
     if result.is_none() {
@@ -153,6 +153,7 @@ fn main() {
 
     println!("\n=== Example completed ===");
     println!("\nSyntax summary:");
+    println!("  Enum casepath (Kp): AppMode::active() — one snake_case fn per variant, read-only");
     println!("  READING non-optional:  .chain_arc_rwlock_at_kp(Session::field_r())");
     println!("  READING optional:      .chain_arc_rwlock_optional_at_kp(Session::field_fr())");
     println!("  WRITING non-optional:  .chain_arc_rwlock_writable_at_kp(Session::field_w())");

@@ -27,7 +27,7 @@ struct SomeOtherStruct {
     sosf: OneMoreStruct,
 }
 
-#[derive(Debug, Kps)]
+#[derive(Debug, Kps, Kp)]
 #[All]
 enum SomeEnum {
     A(String),
@@ -72,6 +72,7 @@ fn main() {
     println!("  Display: {}", step3);
     println!("  Debug: {:?}\n", step3);
 
+    // Kp: b() / a() read-only; Kps: b_fw() / a_fw() for write
     println!("--- Step 4: Chain to SomeEnum::B variant ---");
     let step4 = step3.then(SomeEnum::b_fw());
     println!("  Display: {}", step4);

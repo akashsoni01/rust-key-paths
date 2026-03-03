@@ -4536,14 +4536,12 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
             let mut tokens = proc_macro2::TokenStream::new();
             for variant in data_enum.variants.iter() {
                 let v_ident = &variant.ident;
-                let snake = format_ident!("{}", to_snake_case(&v_ident.to_string()));
-                let fr_fn = format_ident!("{}_fr", snake);
-                let r_fn = format_ident!("{}_r", snake);
+                let fn_name = format_ident!("{}", to_snake_case(&v_ident.to_string()));
 
                 match &variant.fields {
                     Fields::Unit => {
                         tokens.extend(quote! {
-                            pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>> {
+                            pub fn #fn_name() -> rust_keypaths::OptionalKeyPath<#name, (), impl for<'r> Fn(&'r #name) -> Option<&'r ()>> {
                                 static UNIT: () = ();
                                 rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident => Some(&UNIT), _ => None })
                             }
@@ -4551,23 +4549,9 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     }
                     Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
                         let inner_ty = &unnamed.unnamed.first().unwrap().ty;
-                        let embed_fn = format_ident!("{}_embed", snake);
-                        let enum_kp_fn = format_ident!("{}_enum", snake);
                         tokens.extend(quote! {
-                            pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                            pub fn #fn_name() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
                                 rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
-                            }
-                            pub fn #r_fn() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None })
-                            }
-                            pub fn #enum_kp_fn() -> rust_keypaths::EnumKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty> + 'static, impl Fn(#inner_ty) -> #name + 'static> {
-                                rust_keypaths::EnumKeyPath::readable_enum(
-                                    |value: #inner_ty| #name::#v_ident(value),
-                                    |e: &#name| match e { #name::#v_ident(v) => Some(v), _ => None }
-                                )
-                            }
-                            pub fn #embed_fn(value: #inner_ty) -> #name {
-                                #name::#v_ident(value)
                             }
                         });
                     }
@@ -4578,7 +4562,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             .map(|i| format_ident!("f{}", i))
                             .collect();
                         tokens.extend(quote! {
-                            pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
+                            pub fn #fn_name() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
                                 rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident(#(#field_patterns),*) => Some(&(#(#field_patterns),*)), _ => None })
                             }
                         });
@@ -4588,7 +4572,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                         let field_types: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
                         let tuple_ty = quote! { (#(#field_types),*) };
                         tokens.extend(quote! {
-                            pub fn #fr_fn() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
+                            pub fn #fn_name() -> rust_keypaths::OptionalKeyPath<#name, #tuple_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #tuple_ty>> {
                                 rust_keypaths::OptionalKeyPath::new(|e: &#name| match e { #name::#v_ident { #(#field_names: ref #field_names),* } => Some(&(#(#field_names),*)), _ => None })
                             }
                         });
