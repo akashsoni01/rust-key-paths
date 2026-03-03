@@ -8,7 +8,6 @@ use std::marker::PhantomData;
 use std::ops::Range;
 use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
-use rust_keypaths::{KeyPath, WritableKeyPath};
 
 #[derive(Debug, Clone, Kp)]
 struct ContainerFields {
@@ -24,7 +23,7 @@ struct ContainerFields {
     opt_vec: Option<Vec<String>>,
 }
 
-#[derive(Debug, Keypath)]
+#[derive(Debug, Kp)]
 struct AllContainersTest {
     // Basic containers
     option_field: Option<String>,
@@ -59,7 +58,6 @@ struct AllContainersTest {
     option_vecdeque_field: Option<VecDeque<String>>,
     vecdeque_option_field: VecDeque<Option<String>>,
     option_hashset_field: Option<HashSet<String>>,
-    // optionesult_field: Option<Result<i32, String>>,  // Kp macro currently generates wrong type for Option<Result<>> fr
 
     // Interior mutability
     cell_field: Cell<i32>,
@@ -93,20 +91,23 @@ fn test_container_keypaths() {
         opt_vec: Some(vec!["one".into(), "two".into()]),
     };
 
-    ContainerFields::arc_lock_at(KeyPath::identity()).get(&value, |x| {
-        println!("{:?}", x);
-    });
-    
-    assert_eq!(ContainerFields::name().get(&value), "Alice");
+    // arc_lock() returns keypath to Arc<Mutex<bool>>
+    let _ = ContainerFields::arc_lock().get(&value);
+
+    // Plain field: KeyPath, .get() returns &T
+    assert_eq!(ContainerFields::name().get(&value).as_str(), "Alice");
+    // Option: .get() returns Option<&T>
     assert_eq!(ContainerFields::age().get(&value), Some(&30u32));
-    assert_eq!(ContainerFields::boxed().get(&value).as_str(), "boxed");
-    assert_eq!(*ContainerFields::rc().get(&value), 42);
-    assert!(*ContainerFields::arc().get(&value));
-    assert_eq!(ContainerFields::vec().get(&value).len(), 3);
-    assert_eq!(ContainerFields::vec().get(&value)[0], "a");
-    assert_eq!(ContainerFields::vec().get(&value), Some(&"a".to_string()));
+    assert_eq!(ContainerFields::boxed().get(&value).unwrap().as_str(), "boxed");
+    assert_eq!(*ContainerFields::rc().get(&value).unwrap(), 42);
+    assert!(*ContainerFields::arc().get(&value).unwrap());
+    // Vec: .get() returns Option<&Vec<T>>, vec_at(i) returns Option<&T>
+    assert_eq!(ContainerFields::vec().get(&value).unwrap().len(), 3);
+    assert_eq!(ContainerFields::vec().get(&value).unwrap()[0], "a");
+    assert_eq!(ContainerFields::vec().get(&value).unwrap().first(), Some(&"a".to_string()));
     assert_eq!(ContainerFields::vec_at(1).get(&value), Some(&"b".to_string()));
-    assert_eq!(ContainerFields::opt_vec().get(&value), Some(&"one".to_string()));
+    // Option<Vec<T>>: .get() returns Option<&Vec<T>>, opt_vec_at(i) returns Option<&T>
+    assert_eq!(ContainerFields::opt_vec().get(&value).unwrap().first(), Some(&"one".to_string()));
     assert_eq!(ContainerFields::opt_vec_at(1).get(&value), Some(&"two".to_string()));
 }
 
@@ -143,33 +144,34 @@ fn test_all_containers_keypaths() {
         empty_tuple: (),
     };
 
-    // Basic containers
-    assert_eq!(AllContainersTest::string_field().get(&value), "string");
-    assert_eq!(AllContainersTest::vec_field().get(&value).len(), 2);
-    assert_eq!(AllContainersTest::box_field().get(&value).as_str(), "box");
-    assert_eq!(AllContainersTest::rc_field().get(&value).as_str(), "rc");
-    assert_eq!(AllContainersTest::arc_field().get(&value).as_str(), "arc");
-    assert_eq!(AllContainersTest::option_field().get(&value).asef(), Some(&"opt".to_string()));
+    // Plain String: KeyPath, .get() returns &String
+    assert_eq!(AllContainersTest::string_field().get(&value).as_str(), "string");
+    // Vec/containers: .get() returns Option<&Container>
+    assert_eq!(AllContainersTest::vec_field().get(&value).unwrap().len(), 2);
+    assert_eq!(AllContainersTest::box_field().get(&value).unwrap().as_str(), "box");
+    assert_eq!(AllContainersTest::rc_field().get(&value).unwrap().as_str(), "rc");
+    assert_eq!(AllContainersTest::arc_field().get(&value).unwrap().as_str(), "arc");
+    assert_eq!(AllContainersTest::option_field().get(&value), Some(&"opt".to_string()));
 
-    // Reference types
-    assert_eq!(*AllContainersTest::static_str_field().get(&value), "static");
+    // Reference types: .get() returns Option<&T>
+    assert_eq!(*AllContainersTest::static_str_field().get(&value).unwrap(), "static");
     assert_eq!(AllContainersTest::opt_static_str().get(&value), Some(&"opt_static"));
 
-    let x = crate::AllContainersTest::vec_field().map_optional(|x| { x.first() });
     // Collections
-    assert_eq!(AllContainersTest::vecdeque_field().get(&value).len(), 2);
-    assert_eq!(AllContainersTest::hashmap_field().get(&value).len(), 2);
-    assert_eq!(AllContainersTest::btreemap_field().get(&value).len(), 2);
+    assert_eq!(AllContainersTest::vecdeque_field().get(&value).unwrap().len(), 2);
+    assert_eq!(AllContainersTest::hashmap_field().get(&value).unwrap().len(), 2);
+    assert_eq!(AllContainersTest::btreemap_field().get(&value).unwrap().len(), 2);
 
     // Result
     assert_eq!(AllContainersTest::result_field().get(&value), Some(&100));
 
-    // Cell / RefCell (reference to container)
-    assert_eq!(AllContainersTest::cell_field().get(&value).get(), 7);
-    assert_eq!(AllContainersTest::refcell_field().get(&value).borrow().as_str(), "refcell");
+    // Cell / RefCell: keypath to container, then .get() / .borrow()
+    assert_eq!(AllContainersTest::cell_field().get(&value).unwrap().get(), 7);
+    assert_eq!(AllContainersTest::refcell_field().get(&value).unwrap().borrow().as_str(), "refcell");
 
-    // Range, PhantomData, empty tuple
-    assert_eq!(AllContainersTest::range_field().get(&value).start, 0);
-    assert_eq!(AllContainersTest::range_field().get(&value).end, 10);
+    // Range, PhantomData: keypath to field
+    assert_eq!(AllContainersTest::range_field().get(&value).unwrap().start, 0);
+    assert_eq!(AllContainersTest::range_field().get(&value).unwrap().end, 10);
+    // Unit tuple: KeyPath, .get() returns &()
     assert_eq!(*AllContainersTest::empty_tuple().get(&value), ());
 }

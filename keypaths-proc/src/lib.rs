@@ -141,7 +141,7 @@ impl MethodScope {
 }
 
 /// True for wrapper kinds that behave like Option<T> (as_ref/as_mut for fr/fw/fo) with no extra index/key accessors.
-/// Excludes OptionVec, OptionHashMap, OptionBTreeMap, OptionVecDeque, etc., which have their own arms with fr_at/fw_at.
+/// Includes Option<Vec>, Option<VecDeque>, Option<HashSet>, etc. for Kp/Keypath derive.
 fn is_option_like(kind: WrapperKind) -> bool {
     matches!(
         kind,
@@ -150,6 +150,12 @@ fn is_option_like(kind: WrapperKind) -> bool {
             | WrapperKind::OptionRc
             | WrapperKind::OptionArc
             | WrapperKind::OptionResult
+            | WrapperKind::OptionVec
+            | WrapperKind::OptionVecDeque
+            | WrapperKind::OptionLinkedList
+            | WrapperKind::OptionBinaryHeap
+            | WrapperKind::OptionHashSet
+            | WrapperKind::OptionBTreeSet
             | WrapperKind::OptionStdArcMutex
             | WrapperKind::OptionStdArcRwLock
             | WrapperKind::OptionStdMutex
@@ -4218,6 +4224,13 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
         return (WrapperKind::Reference, Some((*tr.elem).clone()));
     }
 
+    // Handle unit/empty tuple () so it gets KeyPath/OptionalKeyPath to the field
+    if let Type::Tuple(tuple) = ty {
+        if tuple.elems.is_empty() {
+            return (WrapperKind::None, Some(ty.clone()));
+        }
+    }
+
     if let Type::Path(tp) = ty {
         // Check if this is explicitly a std::sync type
         let is_std_sync = is_std_sync_type(&tp.path);
@@ -4284,7 +4297,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                 return (WrapperKind::OptionArc, inner_inner);
                             }
                             ("Option", WrapperKind::Vec) => {
-                                return (WrapperKind::OptionVec, inner_inner);
+                                return (WrapperKind::OptionVec, Some(inner.clone()));
                             }
                             ("Option", WrapperKind::HashMap) => {
                                 return (WrapperKind::OptionHashMap, inner_inner);
@@ -4293,19 +4306,19 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                 return (WrapperKind::OptionBTreeMap, inner_inner);
                             }
                             ("Option", WrapperKind::VecDeque) => {
-                                return (WrapperKind::OptionVecDeque, inner_inner);
+                                return (WrapperKind::OptionVecDeque, Some(inner.clone()));
                             }
                             ("Option", WrapperKind::LinkedList) => {
-                                return (WrapperKind::OptionLinkedList, inner_inner);
+                                return (WrapperKind::OptionLinkedList, Some(inner.clone()));
                             }
                             ("Option", WrapperKind::BinaryHeap) => {
-                                return (WrapperKind::OptionBinaryHeap, inner_inner);
+                                return (WrapperKind::OptionBinaryHeap, Some(inner.clone()));
                             }
                             ("Option", WrapperKind::HashSet) => {
-                                return (WrapperKind::OptionHashSet, inner_inner);
+                                return (WrapperKind::OptionHashSet, Some(inner.clone()));
                             }
                             ("Option", WrapperKind::BTreeSet) => {
-                                return (WrapperKind::OptionBTreeSet, inner_inner);
+                                return (WrapperKind::OptionBTreeSet, Some(inner.clone()));
                             }
                             ("Option", WrapperKind::Result) => {
                                 return (WrapperKind::OptionResult, inner_inner);
@@ -4353,7 +4366,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                 return (WrapperKind::OptionAtomic, Some(inner.clone()));
                             }
                             ("Option", WrapperKind::String) => {
-                                return (WrapperKind::OptionString, None);
+                                return (WrapperKind::OptionString, Some(inner.clone()));
                             }
                             ("Option", WrapperKind::Cell) => {
                                 return (WrapperKind::OptionCell, inner_inner);
@@ -5064,7 +5077,7 @@ pub fn derive_writable_keypaths(input: TokenStream) -> TokenStream {
 /// let x_path = Point::x();
 /// let x_value = x_path.get(&point);  // &f64
 /// ```
-#[proc_macro_derive(Kp)]
+#[proc_macro_derive(Kp, attributes(All))]
 pub fn derive_keypath(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
@@ -5080,6 +5093,35 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                     let (kind, inner_ty) = extract_wrapper_inner_type(ty);
 
                     match (kind, inner_ty.clone()) {
+                        (WrapperKind::OptionVec, Some(inner_ty)) => {
+                            // Option<Vec<T>>: field() -> Option<&Vec<T>>, field_at(i) -> Option<&T>
+                            let (_, elem_ty) = extract_wrapper_inner_type(&inner_ty);
+                            let at_fn = format_ident!("{}_at", field_ident);
+                            if let Some(elem_ty) = elem_ty {
+                                tokens.extend(quote! {
+                                    pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref())
+                                    }
+                                    pub fn #at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #elem_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #elem_ty>> {
+                                        rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.as_ref().and_then(|v| v.get(index)))
+                                    }
+                                });
+                            } else {
+                                tokens.extend(quote! {
+                                    pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                        rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref())
+                                    }
+                                });
+                            }
+                        }
+                        (WrapperKind::OptionString, Some(inner_ty)) => {
+                            // Option<String>: keypath to inner String via as_ref()
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.as_ref())
+                                }
+                            });
+                        }
                         (kind, Some(inner_ty)) if is_option_like(kind) => {
                             // For Option<T>, return failable readable keypath to inner type
                             tokens.extend(quote! {
@@ -5089,10 +5131,14 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::Vec, Some(inner_ty)) => {
-                            // For Vec<T>, return failable readable keypath to first element
+                            // For Vec<T>, return keypath to container and _at(index) for element access
+                            let at_fn = format_ident!("{}_at", field_ident);
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.first())
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
+                                }
+                                pub fn #at_fn(index: usize) -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(move |s: &#name| s.#field_ident.get(index))
                                 }
                             });
                         }
@@ -5128,43 +5174,43 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::HashSet, Some(inner_ty)) => {
-                            // For HashSet<T>, return failable readable keypath to any element
+                        (WrapperKind::HashSet, Some(_inner_ty)) => {
+                            // For HashSet<T>, return keypath to container
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.iter().next())
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
-                        (WrapperKind::BTreeSet, Some(inner_ty)) => {
-                            // For BTreeSet<T>, return failable readable keypath to any element
+                        (WrapperKind::BTreeSet, Some(_inner_ty)) => {
+                            // For BTreeSet<T>, return keypath to container
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.iter().next())
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
-                        (WrapperKind::VecDeque, Some(inner_ty)) => {
-                            // For VecDeque<T>, return failable readable keypath to front element
+                        (WrapperKind::VecDeque, Some(_inner_ty)) => {
+                            // For VecDeque<T>, return keypath to container
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.front())
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
-                        (WrapperKind::LinkedList, Some(inner_ty)) => {
-                            // For LinkedList<T>, return failable readable keypath to front element
+                        (WrapperKind::LinkedList, Some(_inner_ty)) => {
+                            // For LinkedList<T>, return keypath to container
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.front())
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
-                        (WrapperKind::BinaryHeap, Some(inner_ty)) => {
-                            // For BinaryHeap<T>, return failable readable keypath to peek element
+                        (WrapperKind::BinaryHeap, Some(_inner_ty)) => {
+                            // For BinaryHeap<T>, return keypath to container
                             tokens.extend(quote! {
-                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> Option<&'r #inner_ty>> {
-                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| s.#field_ident.peek())
+                                pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
+                                    rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
                                 }
                             });
                         }
@@ -5200,8 +5246,24 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::None, None) => {
-                            // For basic types, return readable keypath
+                        (WrapperKind::None, None) | (WrapperKind::String, None) => {
+                            // For plain types (no wrapper), return KeyPath so .get() returns &T
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_keypaths::KeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> &'r #ty> {
+                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::None, Some(inner_ty)) => {
+                            // e.g. unit type () from Type::Tuple
+                            tokens.extend(quote! {
+                                pub fn #field_ident() -> rust_keypaths::KeyPath<#name, #inner_ty, impl for<'r> Fn(&'r #name) -> &'r #inner_ty> {
+                                    rust_keypaths::KeyPath::new(|s: &#name| &s.#field_ident)
+                                }
+                            });
+                        }
+                        (WrapperKind::StdArcMutex, Some(_inner_ty)) | (WrapperKind::ArcMutex, Some(_inner_ty)) => {
+                            // Arc<Mutex<T>>: keypath to the field (container)
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))
@@ -5209,7 +5271,7 @@ pub fn derive_keypath(input: TokenStream) -> TokenStream {
                             });
                         }
                         _ => {
-                            // For unknown types, return readable keypath
+                            // For other types (Cell, RefCell, Cow, Reference, etc.), return keypath to field
                             tokens.extend(quote! {
                                 pub fn #field_ident() -> rust_keypaths::OptionalKeyPath<#name, #ty, impl for<'r> Fn(&'r #name) -> Option<&'r #ty>> {
                                     rust_keypaths::OptionalKeyPath::new(|s: &#name| Some(&s.#field_ident))

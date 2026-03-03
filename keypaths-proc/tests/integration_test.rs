@@ -1,6 +1,6 @@
-use keypaths_proc::Kp;
+use keypaths_proc::{Kps};
 
-#[derive(Clone, Kp)]
+#[derive(Clone, Kps)]
 #[All]
 struct Person {
     name: Option<String>,
