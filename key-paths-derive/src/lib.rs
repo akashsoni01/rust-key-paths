@@ -691,6 +691,32 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::OptionRc, Some(inner_ty)) => {
+                            // For Option<Rc<T>>, keypath to T: get returns Option<&T> via as_deref()
+                            // Setter: as_mut() gives Option<&mut Rc<T>>, and_then(Rc::get_mut) gives Option<&mut T>
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_deref(),
+                                        |root: &mut #name| root.#field_ident.as_mut().and_then(std::rc::Rc::get_mut),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionArc, Some(inner_ty)) => {
+                            // For Option<Arc<T>>, keypath to T: get returns Option<&T> via as_deref()
+                            // Setter: as_mut() gives Option<&mut Arc<T>>, and_then(Arc::get_mut) gives Option<&mut T>
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_deref(),
+                                        |root: &mut #name| root.#field_ident.as_mut().and_then(std::sync::Arc::get_mut),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::OptionVecDeque, Some(_inner_ty))
                         | (WrapperKind::OptionLinkedList, Some(_inner_ty))
                         | (WrapperKind::OptionBinaryHeap, Some(_inner_ty))
@@ -1797,6 +1823,28 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_deref(),
                                         |root: &mut #name| root.#idx_lit.as_deref_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionRc, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_deref(),
+                                        |root: &mut #name| root.#idx_lit.as_mut().and_then(std::rc::Rc::get_mut),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionArc, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_deref(),
+                                        |root: &mut #name| root.#idx_lit.as_mut().and_then(std::sync::Arc::get_mut),
                                     )
                                 }
                             });
@@ -3247,6 +3295,40 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                                 |root: &mut #name| match root {
                                                     #name::#v_ident(inner) => inner.as_deref_mut(),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionRc, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_deref(),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => inner.as_mut().and_then(std::rc::Rc::get_mut),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionArc, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_deref(),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => inner.as_mut().and_then(std::sync::Arc::get_mut),
                                                     _ => None,
                                                 },
                                             )

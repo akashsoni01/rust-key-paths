@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::sync::Arc;
 use key_paths_derive::Kp;
 
@@ -10,7 +11,7 @@ struct SomeComplexStruct {
 
 #[derive(Debug, Kp)]
 struct SomeOtherStruct {
-    sosf: Option<Box<OneMoreStruct>>,
+    sosf: Option<Rc<OneMoreStruct>>,
 }
 
 #[derive(Debug, Kp)]
@@ -78,6 +79,6 @@ fn main() {
     // }
 
 
-    println!("instance = {:?}", instance.scsf.unwrap().sosf.unwrap().omse.unwrap());
+    // println!("instance = {:?}", instance.scsf.unwrap().sosf.unwrap().omse.unwrap());
     // output - instance = B(DarkStruct { dsf: Some("🖖🏿🖖🏿🖖🏿🖖🏿") })
 }
