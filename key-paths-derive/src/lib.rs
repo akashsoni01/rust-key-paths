@@ -679,6 +679,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::OptionBox, Some(inner_ty)) => {
+                            // For Option<Box<T>>, keypath to T: get returns Option<&T> via as_deref()
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_deref(),
+                                        |root: &mut #name| root.#field_ident.as_deref_mut(),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::OptionVecDeque, Some(_inner_ty))
                         | (WrapperKind::OptionLinkedList, Some(_inner_ty))
                         | (WrapperKind::OptionBinaryHeap, Some(_inner_ty))
@@ -1774,6 +1786,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref(),
                                         |root: &mut #name| root.#idx_lit.as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionBox, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_deref(),
+                                        |root: &mut #name| root.#idx_lit.as_deref_mut(),
                                     )
                                 }
                             });
@@ -3207,6 +3230,23 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                                 |root: &mut #name| match root {
                                                     #name::#v_ident(inner) => Some(inner.to_mut()),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionBox, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_deref(),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => inner.as_deref_mut(),
                                                     _ => None,
                                                 },
                                             )

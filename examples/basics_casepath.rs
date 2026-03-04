@@ -10,7 +10,7 @@ struct SomeComplexStruct {
 
 #[derive(Debug, Kp)]
 struct SomeOtherStruct {
-    sosf: Option<OneMoreStruct>,
+    sosf: Option<Box<OneMoreStruct>>,
 }
 
 #[derive(Debug, Kp)]
@@ -32,25 +32,26 @@ struct DarkStruct {
 
 impl SomeComplexStruct {
     fn new() -> Self {
-        Self {
-            scsf: Some(SomeOtherStruct {
-                sosf: Some(OneMoreStruct {
-                    omsf: Some(String::from("no value for now")),
-                    omse: Some(SomeEnum::B(Box::new(DarkStruct {
-                        dsf: Some(String::from("dark field")),
-                    }))),
-                }),
-            }),
-            identity: String::from("SomeComplexStruct"),
-            scfs2: Arc::new(std::sync::RwLock::new(SomeOtherStruct {
-                sosf: Some(OneMoreStruct {
-                    omsf: Some(String::from("no value for now")),
-                    omse: Some(SomeEnum::B(Box::new(DarkStruct {
-                        dsf: Some(String::from("dark field")),
-                    }))),
-                }),
-            })),
-        }
+        todo!()
+        // Self {
+        //     scsf: Some(SomeOtherStruct {
+        //         sosf: Some(OneMoreStruct {
+        //             omsf: Some(String::from("no value for now")),
+        //             omse: Some(SomeEnum::B(Box::new(DarkStruct {
+        //                 dsf: Some(String::from("dark field")),
+        //             }))),
+        //         }),
+        //     }),
+        //     identity: String::from("SomeComplexStruct"),
+        //     scfs2: Arc::new(std::sync::RwLock::new(SomeOtherStruct {
+        //         sosf: Some(OneMoreStruct {
+        //             omsf: Some(String::from("no value for now")),
+        //             omse: Some(SomeEnum::B(Box::new(DarkStruct {
+        //                 dsf: Some(String::from("dark field")),
+        //             }))),
+        //         }),
+        //     })),
+        // }
     }
 }
 fn main() {
