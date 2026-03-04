@@ -1297,16 +1297,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
-                            let kp_async_fn = format_ident!("{}_async", field_ident);
+                            let kp_async_fn = format_ident!("{}_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    pub fn #kp_async_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #ty, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -1322,16 +1322,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
-                            let kp_async_fn = format_ident!("{}_async", field_ident);
+                            let kp_async_fn = format_ident!("{}_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    pub fn #kp_async_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #ty, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -1347,16 +1347,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
-                            let kp_async_fn = format_ident!("{}_async", field_ident);
+                            let kp_async_fn = format_ident!("{}_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    pub fn #kp_async_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| root.#field_ident.as_ref(),
@@ -1372,16 +1372,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
-                            let kp_async_fn = format_ident!("{}_async", field_ident);
+                            let kp_async_fn = format_ident!("{}_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    pub fn #kp_async_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#field_ident),
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| root.#field_ident.as_ref(),
@@ -2271,16 +2271,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
-                            let kp_async_fn = format_ident!("f{}_async", idx);
+                            let kp_async_fn = format_ident!("f{}_kp", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    pub fn #kp_async_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #ty, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#idx_lit),
@@ -2296,16 +2296,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
-                            let kp_async_fn = format_ident!("f{}_async", idx);
+                            let kp_async_fn = format_ident!("f{}_kp", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    pub fn #kp_async_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #ty, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#idx_lit),
@@ -2321,16 +2321,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
-                            let kp_async_fn = format_ident!("f{}_async", idx);
+                            let kp_async_fn = format_ident!("f{}_kp", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    pub fn #kp_async_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| root.#idx_lit.as_ref(),
@@ -2346,16 +2346,16 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
-                            let kp_async_fn = format_ident!("f{}_async", idx);
+                            let kp_async_fn = format_ident!("f{}_kp", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                    pub fn #kp_async_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_async_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
+                                pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| root.#idx_lit.as_ref(),
@@ -2992,7 +2992,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     });
                                 }
                                 (WrapperKind::TokioArcMutex, Some(inner_ty)) => {
-                                    let snake_async = format_ident!("{}_async", snake);
+                                    let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
@@ -3020,7 +3020,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     });
                                 }
                                 (WrapperKind::TokioArcRwLock, Some(inner_ty)) => {
-                                    let snake_async = format_ident!("{}_async", snake);
+                                    let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
@@ -3048,7 +3048,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     });
                                 }
                                 (WrapperKind::OptionTokioArcMutex, Some(inner_ty)) => {
-                                    let snake_async = format_ident!("{}_async", snake);
+                                    let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
@@ -3076,7 +3076,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     });
                                 }
                                 (WrapperKind::OptionTokioArcRwLock, Some(inner_ty)) => {
-                                    let snake_async = format_ident!("{}_async", snake);
+                                    let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
