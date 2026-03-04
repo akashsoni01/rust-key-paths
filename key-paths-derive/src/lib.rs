@@ -2995,7 +2995,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake_async() -> rust_key_paths::KpType<'static, #name, #field_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -3007,7 +3007,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_async() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #field_ty, #inner_ty> {
+                                        pub fn #snake() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #field_ty, #inner_ty> {
                                             rust_key_paths::async_lock::AsyncLockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -3023,7 +3023,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake_async() -> rust_key_paths::KpType<'static, #name, #field_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -3035,7 +3035,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_async() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #field_ty, #inner_ty> {
+                                        pub fn #snake() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #field_ty, #inner_ty> {
                                             rust_key_paths::async_lock::AsyncLockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -3051,7 +3051,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake_async() -> rust_key_paths::KpType<'static, #name, #field_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -3063,7 +3063,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_async() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
+                                        pub fn #snake() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
                                             rust_key_paths::async_lock::AsyncLockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
@@ -3079,7 +3079,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake_async() -> rust_key_paths::KpType<'static, #name, #field_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -3091,7 +3091,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_async() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
+                                        pub fn #snake() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
                                             rust_key_paths::async_lock::AsyncLockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
