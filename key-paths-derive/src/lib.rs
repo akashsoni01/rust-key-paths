@@ -833,6 +833,18 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
+                        (WrapperKind::BoxOption, Some(inner_ty)) => {
+                            // For Box<Option<T>>, keypath to T: Box derefs to Option<T>, then as_ref/as_mut
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#field_ident.as_ref(),
+                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                    )
+                                }
+                            });
+                        }
                         (WrapperKind::Pin, Some(inner_ty)) => {
                             let kp_inner_fn = format_ident!("{}_inner", field_ident);
                             tokens.extend(quote! {
@@ -1960,6 +1972,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&*root.#idx_lit),
                                         |root: &mut #name| Some(&mut *root.#idx_lit),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::BoxOption, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref(),
+                                        |root: &mut #name| root.#idx_lit.as_mut(),
                                     )
                                 }
                             });
@@ -3285,6 +3308,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     });
                                 }
                                 (WrapperKind::OptionBox, Some(inner_ty)) => {
+                                    // Option<Box<T>>: keypath to T via as_deref() / as_deref_mut()
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
@@ -3295,6 +3319,24 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                                 |root: &mut #name| match root {
                                                     #name::#v_ident(inner) => inner.as_deref_mut(),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::BoxOption, Some(inner_ty)) => {
+                                    // Box<Option<T>>: keypath to T; Box derefs to Option<T>, then as_ref/as_mut
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_ref(),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => inner.as_mut(),
                                                     _ => None,
                                                 },
                                             )

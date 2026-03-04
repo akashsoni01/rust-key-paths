@@ -4,7 +4,7 @@ use key_paths_derive::Kp;
 
 #[derive(Debug, Kp)]
 struct SomeComplexStruct {
-    scsf: Option<SomeOtherStruct>,
+    scsf: Option<Box<SomeOtherStruct>>,
     identity: String,
     scfs2: Arc<std::sync::RwLock<SomeOtherStruct>>,
 }
@@ -17,7 +17,7 @@ struct SomeOtherStruct {
 #[derive(Debug, Kp)]
 enum SomeEnum {
     A(String),
-    B(Box<DarkStruct>),
+    B(Box<Option<DarkStruct>>),
 }
 
 #[derive(Debug, Kp)]
@@ -57,7 +57,7 @@ impl SomeComplexStruct {
 }
 fn main() {
     let mut instance = SomeComplexStruct::new();
-
+    let x = SomeEnum::b().get(todo!());
     SomeComplexStruct::scsf()
         .then(SomeOtherStruct::sosf())
         .then(OneMoreStruct::omse())
