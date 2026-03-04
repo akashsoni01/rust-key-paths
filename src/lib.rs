@@ -129,6 +129,8 @@ macro_rules! get_or_else {
         $crate::get_or_else!($crate::keypath!($($path)*), $root, $closure)
     };
 }
+
+/// Kp will force dev to create get and set while value will be owned
 pub type KpValue<'a, R, V> = Kp<
     R,
     V,
@@ -139,6 +141,45 @@ pub type KpValue<'a, R, V> = Kp<
     for<'b> fn(&'b R) -> Option<V>,
     for<'b> fn(&'b mut R) -> Option<V>,
 >;
+
+/// Kp will force dev to create get and set while root and value both will be owned
+pub type KpOwned<R, V> = Kp<
+    R,
+    V,
+    R,
+    V,           // Returns owned V, not &V
+    R,
+    V,           // Returns owned V, not &mut V
+    fn(R) -> Option<V>,
+    fn(R) -> Option<V>,
+>;
+
+/// Kp will force dev to create get and set while taking full ownership of the Root while returning Root as value.
+pub type KpRoot<R> = Kp<
+    R,
+    R,
+    R,
+    R,           // Returns owned V, not &V
+    R,
+    R,           // Returns owned V, not &mut V
+    fn(R) -> Option<R>,
+    fn(R) -> Option<R>,
+>;
+
+/// Kp for void - experimental
+pub type KpVoid = Kp<
+    (),
+    (),
+    (),
+    (),
+    (),
+    (),
+    fn() -> Option<()>,
+    fn() -> Option<()>,
+>;
+
+
+
 
 pub type KpDynamic<R, V> = Kp<
     R,
