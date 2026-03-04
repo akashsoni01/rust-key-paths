@@ -1698,13 +1698,14 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                             });
                         }
-                        (WrapperKind::OptionRefCell, Some(_inner_ty)) => {
+                        (WrapperKind::OptionRefCell, Some(inner_ty)) => {
+                            // Option<RefCell<T>>: keypath to T via borrow()/borrow_mut(); get returns Option<Ref<V>> so caller holds guard (deref for &V)
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #ty> {
+                                pub fn #kp_fn() -> rust_key_paths::KpOptionRefCellType<'_, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        |root: &#name| root.#field_ident.as_ref().map(|r| r.borrow()),
+                                        |root: &mut #name| root.#field_ident.as_ref().map(|r| r.borrow_mut()),
                                     )
                                 }
                             });
@@ -2581,7 +2582,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::Cell, Some(_inner_ty)) | (WrapperKind::RefCell, Some(_inner_ty))
                         | (WrapperKind::PhantomData, Some(_inner_ty)) | (WrapperKind::Range, Some(_inner_ty))
-                        | (WrapperKind::OptionCell, Some(_inner_ty)) | (WrapperKind::OptionRefCell, Some(_inner_ty))
+                        | (WrapperKind::OptionCell, Some(_inner_ty))
                         | (WrapperKind::OptionPhantomData, Some(_inner_ty)) | (WrapperKind::OptionRange, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
@@ -2589,6 +2590,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| Some(&root.#idx_lit),
                                         |root: &mut #name| Some(&mut root.#idx_lit),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::OptionRefCell, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpOptionRefCellType<'_, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| root.#idx_lit.as_ref().map(|r| r.borrow()),
+                                        |root: &mut #name| root.#idx_lit.as_ref().map(|r| r.borrow_mut()),
                                     )
                                 }
                             });
@@ -3599,7 +3611,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::Cell, Some(_inner_ty)) | (WrapperKind::RefCell, Some(_inner_ty))
                                 | (WrapperKind::PhantomData, Some(_inner_ty)) | (WrapperKind::Range, Some(_inner_ty))
-                                | (WrapperKind::OptionCell, Some(_inner_ty)) | (WrapperKind::OptionRefCell, Some(_inner_ty))
+                                | (WrapperKind::OptionCell, Some(_inner_ty))
                                 | (WrapperKind::OptionPhantomData, Some(_inner_ty)) | (WrapperKind::OptionRange, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
@@ -3611,6 +3623,23 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                                 |root: &mut #name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::OptionRefCell, Some(inner_ty)) => {
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpOptionRefCellType<'_, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => inner.as_ref().map(|r| r.borrow()),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => inner.as_ref().map(|r| r.borrow_mut()),
                                                     _ => None,
                                                 },
                                             )

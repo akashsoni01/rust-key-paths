@@ -129,6 +129,16 @@ macro_rules! get_or_else {
         $crate::get_or_else!($crate::keypath!($($path)*), $root, $closure)
     };
 }
+pub type KpValue<'a, R, V> = Kp<
+    R,
+    V,
+    &'a R,
+    V,           // Returns owned V, not &V
+    &'a mut R,
+    V,           // Returns owned V, not &mut V
+    for<'b> fn(&'b R) -> Option<V>,
+    for<'b> fn(&'b mut R) -> Option<V>,
+>;
 
 pub type KpDynamic<R, V> = Kp<
     R,
@@ -167,6 +177,19 @@ pub type KpType<'a, R, V> = Kp<
     &'a mut V,
     for<'b> fn(&'b R) -> Option<&'b V>,
     for<'b> fn(&'b mut R) -> Option<&'b mut V>,
+>;
+
+/// Keypath for `Option<RefCell<T>>`: `get` returns `Option<Ref<V>>` so the caller holds the guard.
+/// Use `.get(root).as_ref().map(std::cell::Ref::deref)` to get `Option<&V>` while the `Ref` is in scope.
+pub type KpOptionRefCellType<'a, R, V> = Kp<
+    R,
+    V,
+    &'a R,
+    std::cell::Ref<'a, V>,
+    &'a mut R,
+    std::cell::RefMut<'a, V>,
+    for<'b> fn(&'b R) -> Option<std::cell::Ref<'b, V>>,
+    for<'b> fn(&'b mut R) -> Option<std::cell::RefMut<'b, V>>,
 >;
 
 impl<'a, R, V> KpType<'a, R, V>
