@@ -11,13 +11,13 @@ struct SomeComplexStruct {
 
 #[derive(Debug, Kp)]
 struct SomeOtherStruct {
-    sosf: Option<Rc<OneMoreStruct>>,
+    sosf: Box<Option<OneMoreStruct>>,
 }
 
 #[derive(Debug, Kp)]
 enum SomeEnum {
     A(String),
-    B(Box<Option<DarkStruct>>),
+    B(Option<Arc<DarkStruct>>),
 }
 
 #[derive(Debug, Kp)]

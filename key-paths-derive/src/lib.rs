@@ -834,13 +834,37 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::BoxOption, Some(inner_ty)) => {
-                            // For Box<Option<T>>, keypath to T: Box derefs to Option<T>, then as_ref/as_mut
+                            // For Box<Option<T>>, keypath to T: deref Box to Option<T>, then Option::as_ref/as_mut
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        |root: &#name| (&*root.#field_ident).as_ref(),
+                                        |root: &mut #name| (&mut *root.#field_ident).as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::RcOption, Some(inner_ty)) => {
+                            // For Rc<Option<T>>, keypath to T: deref Rc to &Option<T>, then Option::as_ref; set = Rc::get_mut then as_mut
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| (&*root.#field_ident).as_ref(),
+                                        |root: &mut #name| std::rc::Rc::get_mut(&mut root.#field_ident).and_then(std::option::Option::as_mut),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::ArcOption, Some(inner_ty)) => {
+                            // For Arc<Option<T>>, keypath to T: deref Arc to &Option<T>, then Option::as_ref; set = Arc::get_mut then as_mut
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| (&*root.#field_ident).as_ref(),
+                                        |root: &mut #name| std::sync::Arc::get_mut(&mut root.#field_ident).and_then(std::option::Option::as_mut),
                                     )
                                 }
                             });
@@ -1981,8 +2005,30 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 #[inline(always)]
                                 pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        |root: &#name| (&*root.#idx_lit).as_ref(),
+                                        |root: &mut #name| (&mut *root.#idx_lit).as_mut(),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::RcOption, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| (&*root.#idx_lit).as_ref(),
+                                        |root: &mut #name| std::rc::Rc::get_mut(&mut root.#idx_lit).and_then(std::option::Option::as_mut),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::ArcOption, Some(inner_ty)) => {
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                    rust_key_paths::Kp::new(
+                                        |root: &#name| (&*root.#idx_lit).as_ref(),
+                                        |root: &mut #name| std::sync::Arc::get_mut(&mut root.#idx_lit).and_then(std::option::Option::as_mut),
                                     )
                                 }
                             });
@@ -3326,17 +3372,53 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     });
                                 }
                                 (WrapperKind::BoxOption, Some(inner_ty)) => {
-                                    // Box<Option<T>>: keypath to T; Box derefs to Option<T>, then as_ref/as_mut
+                                    // Box<Option<T>>: keypath to T; inner is &Box<Option<T>>, deref then Option::as_ref/as_mut
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
-                                                    #name::#v_ident(inner) => inner.as_ref(),
+                                                    #name::#v_ident(inner) => (&*inner).as_ref(),
                                                     _ => None,
                                                 },
                                                 |root: &mut #name| match root {
-                                                    #name::#v_ident(inner) => inner.as_mut(),
+                                                    #name::#v_ident(inner) => (&mut *inner).as_mut(),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::RcOption, Some(inner_ty)) => {
+                                    // Rc<Option<T>>: keypath to T; get = (&*inner).as_ref(), set = Rc::get_mut then as_mut
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => (&*inner).as_ref(),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => std::rc::Rc::get_mut(inner).and_then(std::option::Option::as_mut),
+                                                    _ => None,
+                                                },
+                                            )
+                                        }
+                                    });
+                                }
+                                (WrapperKind::ArcOption, Some(inner_ty)) => {
+                                    // Arc<Option<T>>: keypath to T; get = (&*inner).as_ref(), set = Arc::get_mut then as_mut
+                                    tokens.extend(quote! {
+                                        #[inline(always)]
+                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #inner_ty> {
+                                            rust_key_paths::Kp::new(
+                                                |root: &#name| match root {
+                                                    #name::#v_ident(inner) => (&*inner).as_ref(),
+                                                    _ => None,
+                                                },
+                                                |root: &mut #name| match root {
+                                                    #name::#v_ident(inner) => std::sync::Arc::get_mut(inner).and_then(std::option::Option::as_mut),
                                                     _ => None,
                                                 },
                                             )
