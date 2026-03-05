@@ -1,4 +1,3 @@
-@ -1,278 +0,0 @@
 # 🔑 KeyPaths in Rust
 
 Key paths provide a **safe, composable way to access and modify nested data** in Rust.
@@ -12,8 +11,8 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "2.0.8"
-key-paths-derive = "2.0.8"
+rust-key-paths = "2.3.0"
+key-paths-derive = "2.3.0"
 ```
 
 ### Basic usage
