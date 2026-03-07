@@ -901,6 +901,24 @@ where
         (self.set)(root)
     }
 
+    /// Returns the value if the keypath succeeds, otherwise calls `f` and returns its result.
+    #[inline]
+    pub fn get_or_else<F>(&self, root: Root, f: F) -> Value
+    where
+        F: FnOnce() -> Value,
+    {
+        (self.get)(root).unwrap_or_else(f)
+    }
+
+    /// Returns the mutable value if the keypath succeeds, otherwise calls `f` and returns its result.
+    #[inline]
+    pub fn get_mut_or_else<F>(&self, root: MutRoot, f: F) -> MutValue
+    where
+        F: FnOnce() -> MutValue,
+    {
+        (self.set)(root).unwrap_or_else(f)
+    }
+
     pub fn then<SV, SubValue, MutSubValue, G2, S2>(
         self,
         next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
