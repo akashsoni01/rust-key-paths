@@ -159,9 +159,9 @@ struct Person {
     age: i32,
 }
 
-let person = Person { name: "Alice".to_string(), age: 30 };
+let person = Person { name: "Akash".to_string(), age: 30 };
 let name_kp = Person::name();
-let name = name_kp.get(&person); // Some(&"Alice")
+let name = name_kp.get(&person); // Some(&"Akash")
 ```
 
 ### With Option
@@ -185,13 +185,13 @@ struct Company {
 
 let company = Company {
     employees: vec![
-        Person { name: "Alice".to_string(), age: 30 },
+        Person { name: "Akash".to_string(), age: 30 },
         Person { name: "Bob".to_string(), age: 25 },
     ],
 };
 
 let employees_kp = Company::employees();
-let first_employee = employees_kp.get(&company); // Some(&Person { name: "Alice", age: 30 })
+let first_employee = employees_kp.get(&company); // Some(&Person { name: "Akash", age: 30 })
 ```
 
 ### Mutable Access

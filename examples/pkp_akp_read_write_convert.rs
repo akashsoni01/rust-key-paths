@@ -75,7 +75,7 @@ fn main() {
     // ---- 1. READ using PKp ----
     println!("--- 1. Read using PKp::get_as ---");
     let mut person = Person {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
     };
 

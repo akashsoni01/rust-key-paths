@@ -3844,9 +3844,9 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
 ///
 /// let kps = Person::any_kps();
 /// assert_eq!(kps.len(), 2);
-/// let person = Person { name: "Alice".into(), age: 30 };
+/// let person = Person { name: "Akash".into(), age: 30 };
 /// let name: Option<&String> = kps[0].get(&person as &dyn std::any::Any).and_then(|v| v.downcast_ref());
-/// assert_eq!(name, Some(&"Alice".to_string()));
+/// assert_eq!(name, Some(&"Akash".to_string()));
 /// ```
 #[proc_macro_derive(Akp)]
 pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {

@@ -130,6 +130,77 @@ macro_rules! get_or_else {
     };
 }
 
+/// Zip multiple keypaths on the same root and apply a closure to the tuple of values.
+/// Returns `Some(closure((v1, v2, ...)))` when all keypaths succeed, else `None`.
+///
+/// # Example
+/// ```
+/// use rust_key_paths::{Kp, KpType, zip_with_kp};
+/// struct User { name: String, age: u32, city: String }
+/// let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+/// let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+/// let city_kp = KpType::new(|u: &User| Some(&u.city), |u: &mut User| Some(&mut u.city));
+/// let user = User { name: "Akash".into(), age: 30, city: "NYC".into() };
+/// let summary = zip_with_kp!(
+///     &user,
+///     |(name, age, city)| format!("{}, {} from {}", name, age, city) =>
+///     name_kp,
+///     age_kp,
+///     city_kp
+/// );
+/// assert_eq!(summary, Some("Akash, 30 from NYC".to_string()));
+/// ```
+#[macro_export]
+macro_rules! zip_with_kp {
+    ($root:expr, $closure:expr => $kp1:expr, $kp2:expr) => {
+        match ($kp1.get($root), $kp2.get($root)) {
+            (Some(__a), Some(__b)) => Some($closure((__a, __b))),
+            _ => None,
+        }
+    };
+    ($root:expr, $closure:expr => $kp1:expr, $kp2:expr, $kp3:expr) => {
+        match ($kp1.get($root), $kp2.get($root), $kp3.get($root)) {
+            (Some(__a), Some(__b), Some(__c)) => Some($closure((__a, __b, __c))),
+            _ => None,
+        }
+    };
+    ($root:expr, $closure:expr => $kp1:expr, $kp2:expr, $kp3:expr, $kp4:expr) => {
+        match ($kp1.get($root), $kp2.get($root), $kp3.get($root), $kp4.get($root)) {
+            (Some(__a), Some(__b), Some(__c), Some(__d)) => Some($closure((__a, __b, __c, __d))),
+            _ => None,
+        }
+    };
+    ($root:expr, $closure:expr => $kp1:expr, $kp2:expr, $kp3:expr, $kp4:expr, $kp5:expr) => {
+        match (
+            $kp1.get($root),
+            $kp2.get($root),
+            $kp3.get($root),
+            $kp4.get($root),
+            $kp5.get($root),
+        ) {
+            (Some(__a), Some(__b), Some(__c), Some(__d), Some(__e)) => {
+                Some($closure((__a, __b, __c, __d, __e)))
+            }
+            _ => None,
+        }
+    };
+    ($root:expr, $closure:expr => $kp1:expr, $kp2:expr, $kp3:expr, $kp4:expr, $kp5:expr, $kp6:expr) => {
+        match (
+            $kp1.get($root),
+            $kp2.get($root),
+            $kp3.get($root),
+            $kp4.get($root),
+            $kp5.get($root),
+            $kp6.get($root),
+        ) {
+            (Some(__a), Some(__b), Some(__c), Some(__d), Some(__e), Some(__f)) => {
+                Some($closure((__a, __b, __c, __d, __e, __f)))
+            }
+            _ => None,
+        }
+    };
+}
+
 /// Kp will force dev to create get and set while value will be owned
 pub type KpValue<'a, R, V> = Kp<
     R,
@@ -522,7 +593,7 @@ impl AKp {
     /// ```
     /// use rust_key_paths::{AKp, Kp, KpType};
     /// struct User { name: String }
-    /// let user = User { name: "Alice".to_string() };
+    /// let user = User { name: "Akash".to_string() };
     /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
     /// let name_akp = AKp::new(name_kp);
     /// let len_akp = name_akp.map::<User, String, _, _>(|s| s.len());
@@ -739,7 +810,7 @@ where
     /// ```
     /// use rust_key_paths::{Kp, KpType, PKp};
     /// struct User { name: String }
-    /// let user = User { name: "Alice".to_string() };
+    /// let user = User { name: "Akash".to_string() };
     /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
     /// let name_pkp = PKp::new(name_kp);
     /// let len_pkp = name_pkp.map::<String, _, _>(|s| s.len());
@@ -1093,7 +1164,7 @@ where
     /// ```
     /// use rust_key_paths::{Kp, KpType};
     /// struct User { name: String }
-    /// let user = User { name: "Alice".to_string() };
+    /// let user = User { name: "Akash".to_string() };
     /// let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
     /// let len_kp = name_kp.map(|name: &String| name.len());
     /// assert_eq!(len_kp.get(&user), Some(5));
@@ -1131,6 +1202,106 @@ where
                     mapper(v)
                 })
             },
+        )
+    }
+
+    /// Zip two keypaths on the same root: get returns `Some((a, b))` when both succeed, else `None`.
+    /// Like [Option::zip](Option::zip). `get_mut` returns `None` (cannot hand out two mutable refs from one root).
+    ///
+    /// # Example
+    /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { name: String, age: u32 }
+    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+    /// let user = User { name: "Akash".into(), age: 30 };
+    /// let (name, age) = {
+    ///     let zipped = name_kp.zip(age_kp);
+    ///     zipped.get(&user).unwrap()
+    /// };
+    /// assert_eq!(*name, "Akash");
+    /// assert_eq!(*age, 30);
+    /// ```
+    pub fn zip<V2, Value2, MutValue2, G2, S2>(
+        self,
+        other: Kp<R, V2, Root, Value2, MutRoot, MutValue2, G2, S2>,
+    ) -> Kp<
+        R,
+        (Value, Value2),
+        Root,
+        (Value, Value2),
+        MutRoot,
+        (Value, Value2),
+        impl Fn(Root) -> Option<(Value, Value2)>,
+        impl Fn(MutRoot) -> Option<(Value, Value2)>,
+    >
+    where
+        Root: Copy,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        G2: Fn(Root) -> Option<Value2>,
+        S2: Fn(MutRoot) -> Option<MutValue2>,
+        V2: 'static,
+    {
+        let first_get = self.get;
+        let second_get = other.get;
+        Kp::new(
+            move |root: Root| {
+                let a = (first_get)(root);
+                let b = (second_get)(root);
+                match (a, b) {
+                    (Some(a), Some(b)) => Some((a, b)),
+                    _ => None,
+                }
+            },
+            // Cannot hand out two &mut from one root safely; get_mut always returns None.
+            move |_root: MutRoot| None::<(Value, Value2)>,
+        )
+    }
+
+    /// Zip two keypaths and transform the pair with a function. Like [Option::zip_with](Option::zip).
+    /// Get returns `Some(transform(a, b))` when both keypaths succeed. `get_mut` returns `None`.
+    ///
+    /// # Example
+    /// ```
+    /// use rust_key_paths::{Kp, KpType};
+    /// struct User { name: String, age: u32 }
+    /// let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+    /// let age_kp = KpType::new(|u: &User| Some(&u.age), |u: &mut User| Some(&mut u.age));
+    /// let user = User { name: "Akash".into(), age: 30 };
+    /// let info = {
+    ///     let full_info = name_kp.zip_with(age_kp, |name: &String, age: &u32| format!("{} (age {})", name, age));
+    ///     full_info.get(&user)
+    /// };
+    /// assert_eq!(info, Some("Akash (age 30)".to_string()));
+    /// ```
+    pub fn zip_with<V2, Value2, MutValue2, Z, G2, S2, F>(
+        self,
+        other: Kp<R, V2, Root, Value2, MutRoot, MutValue2, G2, S2>,
+        transform: F,
+    ) -> Kp<R, Z, Root, Z, MutRoot, Z, impl Fn(Root) -> Option<Z>, impl Fn(MutRoot) -> Option<Z>>
+    where
+        Root: Copy,
+        Value2: std::borrow::Borrow<V2>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        G2: Fn(Root) -> Option<Value2>,
+        S2: Fn(MutRoot) -> Option<MutValue2>,
+        F: Fn(Value, Value2) -> Z + Copy + 'static,
+        V2: 'static,
+        Z: 'static,
+    {
+        let first_get = self.get;
+        let second_get = other.get;
+        Kp::new(
+            move |root: Root| {
+                let a = (first_get)(root);
+                let b = (second_get)(root);
+                match (a, b) {
+                    (Some(a), Some(b)) => Some(transform(a, b)),
+                    _ => None,
+                }
+            },
+            move |_root: MutRoot| None::<Z>,
         )
     }
 
@@ -1265,7 +1436,7 @@ where
     /// ```
     /// use rust_key_paths::{Kp, KpType};
     /// struct User { name: String }
-    /// let user = User { name: "Alice".to_string() };
+    /// let user = User { name: "Akash".to_string() };
     /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
     /// name_kp.inspect(|name| println!("Name: {}", name)).get(&user);
     /// ```
@@ -1704,11 +1875,11 @@ where
 /// ```
 /// use rust_key_paths::{KpType, zip_kps};
 /// struct User { name: String, age: i32 }
-/// let user = User { name: "Alice".to_string(), age: 30 };
+/// let user = User { name: "Akash".to_string(), age: 30 };
 /// let name_kp = KpType::new(|u: &User| Some(&u.name), |_| None);
 /// let age_kp = KpType::new(|u: &User| Some(&u.age), |_| None);
 /// let zipped_fn = zip_kps(&name_kp, &age_kp);
-/// assert_eq!(zipped_fn(&user), Some((&"Alice".to_string(), &30)));
+/// assert_eq!(zipped_fn(&user), Some((&"Akash".to_string(), &30)));
 /// ```
 pub fn zip_kps<'a, RootType, Value1, Value2>(
     kp1: &'a KpType<'a, RootType, Value1>,
@@ -2351,15 +2522,15 @@ mod tests {
     //         }
     //     }
     //     let user = User {
-    //         name: "Alice".to_string(),
+    //         name: "Akash".to_string(),
     //     };
     //     let default_ref: String = "default".to_string();
     //     // get_or with kp form
     //     let r = get_or!(User::name(), &user, &default_ref);
-    //     assert_eq!(*r, "Alice");
+    //     assert_eq!(*r, "Akash");
     //     // get_or_else with kp form (returns owned)
     //     let owned = get_or_else!(User::name(), &user, || "fallback".to_string());
-    //     assert_eq!(owned, "Alice");
+    //     assert_eq!(owned, "Akash");
 
     //     // When path returns None, fallback is used
     //     struct WithOption {
@@ -2605,7 +2776,7 @@ mod tests {
         }
 
         let user = User {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
         };
 
@@ -2618,7 +2789,7 @@ mod tests {
         let age_pkp = PKp::new(age_kp);
 
         // Test get_as with correct type
-        assert_eq!(name_pkp.get_as::<String>(&user), Some(&"Alice".to_string()));
+        assert_eq!(name_pkp.get_as::<String>(&user), Some(&"Akash".to_string()));
         assert_eq!(age_pkp.get_as::<i32>(&user), Some(&30));
 
         // Test get_as with wrong type returns None
@@ -2876,7 +3047,7 @@ mod tests {
         }
 
         let user = User {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
         };
 
@@ -2906,7 +3077,7 @@ mod tests {
         }
 
         let adult = User {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
         };
 
@@ -3010,7 +3181,7 @@ mod tests {
         }
 
         let adult = User {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
         };
 
@@ -3114,7 +3285,7 @@ mod tests {
         }
 
         let user = User {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
         };
 
         // Simple test - just verify that inspect returns the correct value
@@ -3125,7 +3296,7 @@ mod tests {
         // We can't easily test side effects with Copy constraint,
         // so we'll just test that inspect passes through the value
         let result = name_kp.get(&user);
-        assert_eq!(result, Some(&"Alice".to_string()));
+        assert_eq!(result, Some(&"Akash".to_string()));
 
         // The inspect method works, it just requires Copy closures
         // which limits its usefulness for complex side effects
@@ -3393,7 +3564,7 @@ mod tests {
         }
 
         let user = User {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
         };
 
@@ -3403,7 +3574,7 @@ mod tests {
         let zipped_fn = zip_kps(&name_kp, &age_kp);
         let result = zipped_fn(&user);
 
-        assert_eq!(result, Some((&"Alice".to_string(), &30)));
+        assert_eq!(result, Some((&"Akash".to_string(), &30)));
     }
 
     #[test]
@@ -4002,7 +4173,7 @@ mod tests {
         }
 
         let user = User {
-            name: "Alice".to_string(),
+            name: "Akash".to_string(),
             age: 30,
             score: 95.5,
             active: true,
@@ -4034,7 +4205,7 @@ mod tests {
         assert_eq!(string_kps.len(), 1);
         assert_eq!(
             string_kps[0].get_as::<String>(&user),
-            Some(&"Alice".to_string())
+            Some(&"Akash".to_string())
         );
 
         // Filter for i32 types

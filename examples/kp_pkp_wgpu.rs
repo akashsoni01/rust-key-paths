@@ -18,7 +18,7 @@ struct User {
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let user = User {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         score: 42.0,
     };
 

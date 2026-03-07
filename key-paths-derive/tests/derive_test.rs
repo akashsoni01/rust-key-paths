@@ -17,7 +17,7 @@ struct Company {
 #[test]
 fn test_basic_field_access() {
     let person = Person {
-        name: "Alice".to_string(),
+        name: "Akash".to_string(),
         age: 30,
         email: "alice@example.com".to_string(),
     };
@@ -25,7 +25,7 @@ fn test_basic_field_access() {
     // Test accessing name field
     let name_kp = Person::name();
     let name_value = name_kp.get(&person);
-    assert_eq!(name_value, Some(&"Alice".to_string()));
+    assert_eq!(name_value, Some(&"Akash".to_string()));
 
     // Test accessing age field
     let age_kp = Person::age();
@@ -65,7 +65,7 @@ fn test_keypath_composition() {
         name: "Tech Corp".to_string(),
         employees: vec![
             Person {
-                name: "Alice".to_string(),
+                name: "Akash".to_string(),
                 age: 30,
                 email: "alice@example.com".to_string(),
             },
@@ -89,7 +89,7 @@ fn test_keypath_composition() {
 
     let first_employee_kp = Company::employees_at(0);
     let first_employee = first_employee_kp.get(&company);
-    assert_eq!(first_employee.map(|e| &e.name), Some(&"Alice".to_string()));
+    assert_eq!(first_employee.map(|e| &e.name), Some(&"Akash".to_string()));
 }
 
 #[test]
