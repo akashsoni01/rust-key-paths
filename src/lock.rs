@@ -294,6 +294,40 @@ where
         })
     }
 
+    /// Like [get](LockKp::get), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the getter.
+    #[inline]
+    pub fn get_optional(&self, root: Option<Root>) -> Option<Value>
+    where
+        V: Clone,
+    {
+        root.and_then(|r| self.get(r))
+    }
+
+    /// Like [get_mut](LockKp::get_mut), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the setter.
+    #[inline]
+    pub fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue> {
+        root.and_then(|r| self.get_mut(r))
+    }
+
+    /// Returns the value if the keypath succeeds (root is `Some` and get returns `Some`), otherwise calls `f` and returns its result.
+    #[inline]
+    pub fn get_or_else<F>(&self, root: Option<Root>, f: F) -> Value
+    where
+        V: Clone,
+        F: FnOnce() -> Value,
+    {
+        self.get_optional(root).unwrap_or_else(f)
+    }
+
+    /// Returns the mutable value if the keypath succeeds (root is `Some` and get_mut returns `Some`), otherwise calls `f` and returns its result.
+    #[inline]
+    pub fn get_mut_or_else<F>(&self, root: Option<MutRoot>, f: F) -> MutValue
+    where
+        F: FnOnce() -> MutValue,
+    {
+        self.get_mut_optional(root).unwrap_or_else(f)
+    }
+
     /// Set the value through the lock using an updater function
     ///
     /// # NO CLONING Required!
@@ -590,6 +624,40 @@ where
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
         let mut_v = self.first.sync_get_mut(root)?;
         self.second.sync_get_mut(mut_v)
+    }
+
+    /// Like [get](KpThenLockKp::get), but takes an optional root.
+    #[inline]
+    pub fn get_optional(&self, root: Option<Root>) -> Option<Value2>
+    where
+        Value2: Clone,
+    {
+        root.and_then(|r| self.get(r))
+    }
+
+    /// Like [get_mut](KpThenLockKp::get_mut), but takes an optional root.
+    #[inline]
+    pub fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue2> {
+        root.and_then(|r| self.get_mut(r))
+    }
+
+    /// Returns the value if the keypath succeeds, otherwise calls `f` and returns its result.
+    #[inline]
+    pub fn get_or_else<F>(&self, root: Option<Root>, f: F) -> Value2
+    where
+        Value2: Clone,
+        F: FnOnce() -> Value2,
+    {
+        self.get_optional(root).unwrap_or_else(f)
+    }
+
+    /// Returns the mutable value if the keypath succeeds, otherwise calls `f` and returns its result.
+    #[inline]
+    pub fn get_mut_or_else<F>(&self, root: Option<MutRoot>, f: F) -> MutValue2
+    where
+        F: FnOnce() -> MutValue2,
+    {
+        self.get_mut_optional(root).unwrap_or_else(f)
     }
 }
 

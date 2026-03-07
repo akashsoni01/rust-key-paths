@@ -413,6 +413,50 @@ where
         (self.next.set)(mid_value)
     }
 
+    /// Like [get](AsyncLockKp::get), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the getter.
+    #[inline]
+    pub async fn get_optional(&self, root: Option<Root>) -> Option<Value>
+    where
+        Lock: Clone,
+    {
+        match root {
+            Some(r) => self.get(r).await,
+            None => None,
+        }
+    }
+
+    /// Like [get_mut](AsyncLockKp::get_mut), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the setter.
+    #[inline]
+    pub async fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue>
+    where
+        Lock: Clone,
+    {
+        match root {
+            Some(r) => self.get_mut(r).await,
+            None => None,
+        }
+    }
+
+    /// Returns the value if the keypath succeeds (root is `Some` and get returns `Some`), otherwise calls `f` and returns its result.
+    #[inline]
+    pub async fn get_or_else<F>(&self, root: Option<Root>, f: F) -> Value
+    where
+        Lock: Clone,
+        F: FnOnce() -> Value,
+    {
+        self.get_optional(root).await.unwrap_or_else(f)
+    }
+
+    /// Returns the mutable value if the keypath succeeds (root is `Some` and get_mut returns `Some`), otherwise calls `f` and returns its result.
+    #[inline]
+    pub async fn get_mut_or_else<F>(&self, root: Option<MutRoot>, f: F) -> MutValue
+    where
+        Lock: Clone,
+        F: FnOnce() -> MutValue,
+    {
+        self.get_mut_optional(root).await.unwrap_or_else(f)
+    }
+
     /// Set the value through the lock using an updater function.
     ///
     /// Uses interior mutability—no mutable root required. RwLock/Mutex allow mutation through

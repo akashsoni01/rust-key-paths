@@ -109,4 +109,40 @@ where
         let s: &mut S = mut_value.borrow_mut();
         self.second.get_await(Pin::new(s)).await
     }
+
+    /// Like [get](KpThenPinFuture::get), but takes an optional root.
+    #[inline]
+    pub async fn get_optional(&self, root: Option<Root>) -> Option<Output> {
+        match root {
+            Some(r) => self.get(r).await,
+            None => None,
+        }
+    }
+
+    /// Like [get_mut](KpThenPinFuture::get_mut), but takes an optional root.
+    #[inline]
+    pub async fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<Output> {
+        match root {
+            Some(r) => self.get_mut(r).await,
+            None => None,
+        }
+    }
+
+    /// Returns the value if the keypath succeeds, otherwise calls `f` and returns its result.
+    #[inline]
+    pub async fn get_or_else<F>(&self, root: Option<Root>, f: F) -> Output
+    where
+        F: FnOnce() -> Output,
+    {
+        self.get_optional(root).await.unwrap_or_else(f)
+    }
+
+    /// Returns the value (from get_mut) if the keypath succeeds, otherwise calls `f` and returns its result.
+    #[inline]
+    pub async fn get_mut_or_else<F>(&self, root: Option<MutRoot>, f: F) -> Output
+    where
+        F: FnOnce() -> Output,
+    {
+        self.get_mut_optional(root).await.unwrap_or_else(f)
+    }
 }
