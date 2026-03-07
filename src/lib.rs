@@ -901,6 +901,18 @@ where
         (self.set)(root)
     }
 
+    /// Like [get](Kp::get), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the getter.
+    #[inline]
+    pub fn get_optional(&self, root: Option<Root>) -> Option<Value> {
+        root.and_then(|r| (self.get)(r))
+    }
+
+    /// Like [get_mut](Kp::get_mut), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the setter.
+    #[inline]
+    pub fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue> {
+        root.and_then(|r| (self.set)(r))
+    }
+
     /// Returns the value if the keypath succeeds, otherwise calls `f` and returns its result.
     #[inline]
     pub fn get_or_else<F>(&self, root: Root, f: F) -> Value
