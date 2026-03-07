@@ -1753,6 +1753,47 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_async_lock_kp_get_optional_or_else() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            data: Arc<Mutex<i32>>,
+        }
+
+        let mut root = Root {
+            data: Arc::new(Mutex::new(42)),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, Arc<Mutex<i32>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // get_optional
+        assert!(lock_kp.get_optional(None).await.is_none());
+        assert_eq!(lock_kp.get_optional(Some(&root)).await, Some(&42));
+
+        // get_mut_optional
+        assert!(lock_kp.get_mut_optional(None).await.is_none());
+        if let Some(m) = lock_kp.get_mut_optional(Some(&mut root)).await {
+            *m = 99;
+        }
+        assert_eq!(lock_kp.get(&root).await, Some(&99));
+
+        // get_or_else
+        assert_eq!(*lock_kp.get_or_else(None, || &0).await, 0);
+        assert_eq!(*lock_kp.get_or_else(Some(&root), || &0).await, 99);
+
+        // get_mut_or_else
+        let m = lock_kp.get_mut_or_else(Some(&mut root), || panic!("unexpected")).await;
+        *m = 100;
+        assert_eq!(lock_kp.get(&root).await, Some(&100));
+    }
+
+    #[tokio::test]
     async fn test_async_lock_kp_tokio_rwlock_basic() {
         use tokio::sync::RwLock;
 
@@ -1801,28 +1842,17 @@ mod tests {
             AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
         };
 
-        // Spawn multiple concurrent async reads
-        let mut handles = vec![];
-        for _ in 0..10 {
-            let root_clone = root.clone();
-
-            // Re-create lock_kp for each task since we can't clone it easily
-            let lock_kp_for_task = {
-                let prev: KpType<Root, Arc<RwLock<i32>>> =
-                    Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
-                let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
-                AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
-            };
-
-            let handle = tokio::spawn(async move { lock_kp_for_task.get(&root_clone).await });
-            handles.push(handle);
-        }
-
-        // All reads should succeed
-        for handle in handles {
-            let result = handle.await.unwrap();
-            assert_eq!(result, Some(&42));
-        }
+        // Concurrent async reads in the same task (spawn would require 'static future;
+        // get() returns references so we use join! instead)
+        let lock_kp2 = {
+            let prev: KpType<Root, Arc<RwLock<i32>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
+            AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
+        };
+        let (a, b) = tokio::join!(lock_kp.get(&root), lock_kp2.get(&root));
+        assert_eq!(a, Some(&42));
+        assert_eq!(b, Some(&42));
 
         // Test the original lock_kp as well
         let value = lock_kp.get(&root).await;

@@ -1544,6 +1544,83 @@ mod tests {
     }
 
     #[test]
+    fn test_lock_kp_get_optional_or_else() {
+        #[derive(Debug, Clone)]
+        struct Root {
+            locked_data: Arc<Mutex<Inner>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Inner {
+            value: i32,
+        }
+
+        let mut root = Root {
+            locked_data: Arc::new(Mutex::new(Inner { value: 42 })),
+        };
+
+        let prev_kp: KpType<Root, Arc<Mutex<Inner>>> = Kp::new(
+            |r: &Root| Some(&r.locked_data),
+            |r: &mut Root| Some(&mut r.locked_data),
+        );
+        let next_kp: KpType<Inner, i32> =
+            Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value));
+        let lock_kp = LockKp::new(prev_kp, ArcMutexAccess::new(), next_kp);
+
+        // get_optional
+        assert!(lock_kp.get_optional(None).is_none());
+        assert_eq!(lock_kp.get_optional(Some(&root)), Some(&42));
+
+        // get_mut_optional
+        assert!(lock_kp.get_mut_optional(None).is_none());
+        if let Some(m) = lock_kp.get_mut_optional(Some(&mut root)) {
+            *m = 99;
+        }
+        assert_eq!(lock_kp.get(&root), Some(&99));
+
+        // get_or_else
+        static DEFAULT: i32 = -1;
+        let fallback = || &DEFAULT;
+        assert_eq!(*lock_kp.get_or_else(None, fallback), -1);
+        assert_eq!(*lock_kp.get_or_else(Some(&root), fallback), 99);
+
+        // get_mut_or_else: with Some we get the value; with None the fallback would be used (we only test Some here to avoid static mut)
+        let m_some = lock_kp.get_mut_or_else(Some(&mut root), || panic!("should not use fallback"));
+        *m_some = 100;
+        assert_eq!(lock_kp.get(&root), Some(&100));
+    }
+
+    #[test]
+    fn test_kp_then_lock_kp_get_optional_or_else() {
+        #[derive(Debug, Clone)]
+        struct Root {
+            data: Arc<Mutex<Mid>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Mid {
+            value: i32,
+        }
+
+        let _root = Root {
+            data: Arc::new(Mutex::new(Mid { value: 10 })),
+        };
+
+        let prev: KpType<Root, Arc<Mutex<Mid>>> =
+            Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+        let next: KpType<Mid, i32> =
+            Kp::new(|m: &Mid| Some(&m.value), |m: &mut Mid| Some(&mut m.value));
+        let lock_kp = LockKp::new(prev, ArcMutexAccess::new(), next);
+
+        assert!(lock_kp.get_optional(None).is_none());
+        assert_eq!(lock_kp.get_optional(Some(&_root)), Some(&10));
+
+        static DEF: i32 = -1;
+        assert_eq!(*lock_kp.get_or_else(None, || &DEF), -1);
+        assert_eq!(*lock_kp.get_or_else(Some(&_root), || &DEF), 10);
+    }
+
+    #[test]
     fn test_lock_kp_structure() {
         // This test verifies that the structure has the three required fields
         #[derive(Debug, Clone)]
