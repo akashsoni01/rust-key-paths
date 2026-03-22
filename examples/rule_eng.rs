@@ -1,11 +1,11 @@
 use std::{borrow::Cow, fmt::Debug};
 
 use key_paths_derive::Kp;
-use rust_key_paths::{AccessorTrait, KpTrait, KpType};
+use rust_key_paths::{AccessorTrait, KpType};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuleBuilderError<E: Debug + Clone + 'static + PartialEq + Eq> {
-    Some1Error(Cow<'static, String>),
+    ExampleError(Cow<'static, String>),
     Fail(E),
     Success
 }
@@ -116,7 +116,6 @@ fn main() {
         .rule(iso_pain::iso123rule)
         .rule(iso_pain::iso123rule)
         .madatory_rule(iso_pain::iso123rule),
-
         ];
         // let errors = rules
         // .iter()
