@@ -657,7 +657,9 @@ fn to_snake_case(name: &str) -> String {
     out
 }
 
-// Full `LockKp<…>` return types (same shape as `rust_key_paths::lock::LockKp*For` in `lock.rs`).
+// Full `LockKp<…>` return types. Borrow params match `lock::LockKp*For` (`&'static` on `Root` / `Lock` / …).
+// Getter / setter use `impl for<'b> Fn(…)` (same role as `impl Fn(…)` in the `Kp<…>` derive) instead of
+// `for<'b> fn(…)`; HRTB keeps `get` / `get_mut` usable with stack roots (see `LockKp*For` in `lock.rs`).
 
 fn kp_lock_ty_arc_mutex(
     root: &impl ToTokens,
@@ -678,11 +680,11 @@ fn kp_lock_ty_arc_mutex(
             &'static mut #lock,
             &'static mut #inner,
             &'static mut #inner,
-            for<'b> fn(&'b #root) -> Option<&'b #lock>,
-            for<'b> fn(&'b mut #root) -> Option<&'b mut #lock>,
+            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
+            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ArcMutexAccess<#inner>,
-            for<'b> fn(&'b #inner) -> Option<&'b #inner>,
-            for<'b> fn(&'b mut #inner) -> Option<&'b mut #inner>,
+            impl for<'b> Fn(&'b #inner) -> Option<&'b #inner>,
+            impl for<'b> Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
     }
 }
@@ -706,11 +708,11 @@ fn kp_lock_ty_arc_mutex_option(
             &'static mut #lock,
             &'static mut Option<#inner>,
             &'static mut #inner,
-            for<'b> fn(&'b #root) -> Option<&'b #lock>,
-            for<'b> fn(&'b mut #root) -> Option<&'b mut #lock>,
+            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
+            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ArcMutexAccess<Option<#inner>>,
-            for<'b> fn(&'b Option<#inner>) -> Option<&'b #inner>,
-            for<'b> fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+            impl for<'b> Fn(&'b Option<#inner>) -> Option<&'b #inner>,
+            impl for<'b> Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
     }
 }
@@ -734,11 +736,11 @@ fn kp_lock_ty_arc_rw_lock(
             &'static mut #lock,
             &'static mut #inner,
             &'static mut #inner,
-            for<'b> fn(&'b #root) -> Option<&'b #lock>,
-            for<'b> fn(&'b mut #root) -> Option<&'b mut #lock>,
+            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
+            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ArcRwLockAccess<#inner>,
-            for<'b> fn(&'b #inner) -> Option<&'b #inner>,
-            for<'b> fn(&'b mut #inner) -> Option<&'b mut #inner>,
+            impl for<'b> Fn(&'b #inner) -> Option<&'b #inner>,
+            impl for<'b> Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
     }
 }
@@ -762,11 +764,11 @@ fn kp_lock_ty_arc_rw_lock_option(
             &'static mut #lock,
             &'static mut Option<#inner>,
             &'static mut #inner,
-            for<'b> fn(&'b #root) -> Option<&'b #lock>,
-            for<'b> fn(&'b mut #root) -> Option<&'b mut #lock>,
+            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
+            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ArcRwLockAccess<Option<#inner>>,
-            for<'b> fn(&'b Option<#inner>) -> Option<&'b #inner>,
-            for<'b> fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+            impl for<'b> Fn(&'b Option<#inner>) -> Option<&'b #inner>,
+            impl for<'b> Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
     }
 }
@@ -790,11 +792,11 @@ fn kp_lock_ty_parking_lot_mutex(
             &'static mut #lock,
             &'static mut #inner,
             &'static mut #inner,
-            for<'b> fn(&'b #root) -> Option<&'b #lock>,
-            for<'b> fn(&'b mut #root) -> Option<&'b mut #lock>,
+            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
+            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ParkingLotMutexAccess<#inner>,
-            for<'b> fn(&'b #inner) -> Option<&'b #inner>,
-            for<'b> fn(&'b mut #inner) -> Option<&'b mut #inner>,
+            impl for<'b> Fn(&'b #inner) -> Option<&'b #inner>,
+            impl for<'b> Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
     }
 }
@@ -818,11 +820,11 @@ fn kp_lock_ty_parking_lot_mutex_option(
             &'static mut #lock,
             &'static mut Option<#inner>,
             &'static mut #inner,
-            for<'b> fn(&'b #root) -> Option<&'b #lock>,
-            for<'b> fn(&'b mut #root) -> Option<&'b mut #lock>,
+            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
+            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ParkingLotMutexAccess<Option<#inner>>,
-            for<'b> fn(&'b Option<#inner>) -> Option<&'b #inner>,
-            for<'b> fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+            impl for<'b> Fn(&'b Option<#inner>) -> Option<&'b #inner>,
+            impl for<'b> Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
     }
 }
@@ -846,11 +848,11 @@ fn kp_lock_ty_parking_lot_rw_lock(
             &'static mut #lock,
             &'static mut #inner,
             &'static mut #inner,
-            for<'b> fn(&'b #root) -> Option<&'b #lock>,
-            for<'b> fn(&'b mut #root) -> Option<&'b mut #lock>,
+            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
+            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ParkingLotRwLockAccess<#inner>,
-            for<'b> fn(&'b #inner) -> Option<&'b #inner>,
-            for<'b> fn(&'b mut #inner) -> Option<&'b mut #inner>,
+            impl for<'b> Fn(&'b #inner) -> Option<&'b #inner>,
+            impl for<'b> Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
     }
 }
@@ -874,11 +876,11 @@ fn kp_lock_ty_parking_lot_rw_lock_option(
             &'static mut #lock,
             &'static mut Option<#inner>,
             &'static mut #inner,
-            for<'b> fn(&'b #root) -> Option<&'b #lock>,
-            for<'b> fn(&'b mut #root) -> Option<&'b mut #lock>,
+            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
+            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ParkingLotRwLockAccess<Option<#inner>>,
-            for<'b> fn(&'b Option<#inner>) -> Option<&'b #inner>,
-            for<'b> fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+            impl for<'b> Fn(&'b Option<#inner>) -> Option<&'b #inner>,
+            impl for<'b> Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
     }
 }
