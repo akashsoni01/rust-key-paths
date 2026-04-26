@@ -11,10 +11,10 @@ impl RootMutex {
     fn inner_prev<'a>() -> Kp<
         RootMutex,
         Arc<Mutex<i32>>,
-        &'a RootMutex,
-        &'a Arc<Mutex<i32>>,
-        &'a mut RootMutex,
-        &'a mut Arc<Mutex<i32>>,
+        &'static RootMutex,
+        &'static Arc<Mutex<i32>>,
+        &'static mut RootMutex,
+        &'static mut Arc<Mutex<i32>>,
         impl Fn(&'a RootMutex) -> Option<&'a Arc<Mutex<i32>>>,
         impl Fn(&'a mut RootMutex) -> Option<&'a mut Arc<Mutex<i32>>>,
     > {
