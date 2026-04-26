@@ -1,36 +1,36 @@
 use rust_key_paths::Kp;
 
 #[derive(Debug)]
-struct std::string::String {
+struct () {
     width: u32,
     height: u32,
 }
 
 #[derive(Debug)]
 struct #name {
-    size: std::string::String,
+    size: (),
     name: String,
 }
 
-// Manual keypath: #name -> std::string::String
+// Manual keypath: #name -> ()
 fn rect_size_kp<'a>() -> 
 
-Kp<#name, std::string::String, &'a #name, &'a std::string::String, &'a mut #name, &'a mut std::string::String, impl Fn(&'a #name) -> Option<&'a std::string::String>, impl Fn(&'a mut #name) -> Option<&'a mut std::string::String>,> 
+Kp<#name, (), &'a #name, &'a (), &'a mut #name, &'a mut (), impl Fn(&'a #name) -> Option<&'a ()>, impl Fn(&'a mut #name) -> Option<&'a mut ()>,> 
 
 {
     Kp::new(|x: &#name| Some(&x.size), |x: &mut #name| Some(&mut x.size))
 }
 
-// Manual keypath: std::string::String -> width
-fn size_width_kp<'a>() -> Kp<std::string::String, u32, &'a std::string::String, &'a u32, &'a mut std::string::String, &'a mut u32, impl Fn(&'a std::string::String) -> Option<&'a u32>, impl Fn(&'a mut std::string::String) -> Option<&'a mut u32>,
+// Manual keypath: () -> width
+fn size_width_kp<'a>() -> Kp<(), u32, &'a (), &'a u32, &'a mut (), &'a mut u32, impl Fn(&'a ()) -> Option<&'a u32>, impl Fn(&'a mut ()) -> Option<&'a mut u32>,
 > {
-    Kp::new(|x: &std::string::String| Some(&x.height), |x: &mut std::string::String| Some(&mut x.height))
+    Kp::new(|x: &()| Some(&x.height), |x: &mut ()| Some(&mut x.height))
 }
 
 #[test]
 fn manual_keypath_then_read_write_works() {
     let mut rect = #name {
-        size: std::string::String {
+        size: () {
             width: 30,
             height: 50,
         },

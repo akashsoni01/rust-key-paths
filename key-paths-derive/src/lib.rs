@@ -718,7 +718,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     // /// Returns a simple identity keypath for this type
                     // #[inline(always)]
-                    // pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
+                    // pub fn identity() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
                     //     rust_key_paths::Kp::new(
                     //         |r: &#name| Some(r),
                     //         |r: &mut #name| Some(r)
@@ -2404,7 +2404,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                // pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>> {
+                                // pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
                                 //     rust_key_paths::Kp::new(
                                 //         |root: &#name| root.#field_ident.as_ref(),
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
@@ -2993,7 +2993,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     /// Returns a simple identity keypath for this type
                     #[inline(always)]
-                    pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
+                    pub fn identity() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
                         rust_key_paths::Kp::new(
                             |r: &#name| Some(r),
                             |r: &mut #name| Some(r)
@@ -4212,7 +4212,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>> {
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref(),
                                         |root: &mut #name| root.#idx_lit.as_mut(),
@@ -4672,7 +4672,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                 /// Returns a simple identity keypath for this type
                 #[inline(always)]
-                pub fn identity() -> rust_key_paths::KpType<'static, #name, #name> {
+                pub fn identity() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
                     rust_key_paths::Kp::new(
                         |r: &#name| Some(r),
                         |r: &mut #name| Some(r)
@@ -4689,7 +4689,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         // Unit variant - return keypath that checks if enum matches variant
                         tokens.extend(quote! {
                             #[inline(always)]
-                            pub fn #snake() -> rust_key_paths::KpType<'static, #name, ()> {
+                            pub fn #snake() -> rust_key_paths::Kp<#name, (), &'a #name, &'a (), &'a mut #name, &'a mut (), impl Fn(&'a #name) -> Option<&'a ()>, impl Fn(&'a mut #name) -> Option<&'a mut ()>,>  {
                                 rust_key_paths::Kp::new(
                                     |root: &#name| match root {
                                         #name::#v_ident => {
@@ -5618,7 +5618,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_unlocked() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>> {
+                                        pub fn #snake_unlocked() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
@@ -6215,7 +6215,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // Multi-field tuple variant - return keypath to variant itself
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #snake() -> rust_key_paths::KpType<'static, #name, #name> {
+                                pub fn #snake() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| match root {
                                             #name::#v_ident(..) => Some(root),
@@ -6233,7 +6233,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     Fields::Named(_) => {
                         // Named field variant - return keypath to variant itself
                         tokens.extend(quote! {
-                            pub fn #snake() -> rust_key_paths::KpType<'static, #name, #name> {
+                            pub fn #snake() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
                                 rust_key_paths::Kp::new(
                                     |root: &#name| match root {
                                         #name::#v_ident { .. } => Some(root),
