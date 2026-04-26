@@ -1,4 +1,4 @@
-use rust_key_paths::{Kp};
+use rust_key_paths::{Kp, KpTrait};
 
 #[derive(Debug)]
 struct Size {
@@ -13,42 +13,42 @@ struct Rectangle {
 }
 
 // Manual keypath: Rectangle -> Size
-fn rect_size_kp() -> Kp<
+fn rect_size_kp<'a>() -> Kp<
     Rectangle,
     Size,
-    &'static Rectangle,
-    &'static Size,
-    &'static mut Rectangle,
-    &'static mut Size,
-    for<'a> fn(&'a Rectangle) -> Option<&'a Size>,
-    for<'a> fn(&'a mut Rectangle) -> Option<&'a mut Size>,
+    &'a Rectangle,
+    &'a Size,
+    &'a mut Rectangle,
+    &'a mut Size,
+    impl Fn(&'a Rectangle) -> Option<&'a Size>,
+    impl Fn(&'a mut Rectangle) -> Option<&'a mut Size>
 > {
     Kp::new(
-        |x| { Some(& x.size) },
-        |x| { Some(&mut x.size) }
+        |x: &'a Rectangle| { Some(& x.size) },
+        |x: &'a mut Rectangle| { Some(&mut x.size) }
     )
 }
 
 // Manual keypath: Size -> width
-fn size_width_kp() -> Kp<
+fn size_width_kp<'a>() -> Kp<
     Size,
     u32,
-    &'static Size,
-    &'static u32,
-    &'static mut Size,
-    &'static mut u32,
-    for<'a> fn(&'a Size) -> Option<&'a u32>,
-    for<'a> fn(&'a mut Size) -> Option<&'a mut u32>,
+    &'a Size,
+    &'a u32,
+    &'a mut Size,
+    &'a mut u32,
+    impl Fn(&'a Size) -> Option<&'a u32>,
+    impl Fn(&'a mut Size) -> Option<&'a mut u32>
 > {
     Kp::new(
-        |x| { Some(& x.height) },
-        |x| { Some(&mut x.height) }
+        |x: &Size| { Some(& x.width) },
+        |x: &mut Size| { Some(&mut x.width) }
     )
 }
 
 #[test]
 fn manual_keypath_then_read_write_works() {
-    let mut rect = Rectangle {
+    let rect = Rectangle {
         size: Size {
             width: 30,
             height: 50,
@@ -59,7 +59,7 @@ fn manual_keypath_then_read_write_works() {
     let width_kp = rect_size_kp().then(size_width_kp());
 
     println!("size of concreate kp = {:?}", size_of_val(&width_kp));
-    // assert_eq!((width_kp).get(&rect), Some(&30));
+    assert_eq!(width_kp.get(&rect), Some(&30));
 
     // if let Some(w) = width_kp.get_mut(&mut rect) {
     //     *w += 12;
