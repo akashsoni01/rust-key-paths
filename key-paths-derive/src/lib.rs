@@ -2281,7 +2281,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                // pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::Mutex<#inner_ty>>> {
+                                // pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
                                 //     rust_key_paths::Kp::new(
                                 //         |root: &#name| root.#field_ident.as_ref(),
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
@@ -4131,7 +4131,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::Mutex<#inner_ty>>> {
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref(),
                                         |root: &mut #name| root.#idx_lit.as_mut(),
@@ -4743,7 +4743,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     {
                                         tokens.extend(quote! {
                                             #[inline(always)]
-                                            pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -4776,7 +4776,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     } else {
                                         tokens.extend(quote! {
                                             #[inline(always)]
-                                            pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -4798,7 +4798,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     {
                                         tokens.extend(quote! {
                                             #[inline(always)]
-                                            pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -4831,7 +4831,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     } else {
                                         tokens.extend(quote! {
                                             #[inline(always)]
-                                            pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                            pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -4850,7 +4850,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_at = format_ident!("{}_at", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -4918,7 +4918,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_at = format_ident!("{}_at", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -4949,7 +4949,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_at = format_ident!("{}_at", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -4981,7 +4981,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 | (WrapperKind::OptionResult, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5052,7 +5052,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_inner = format_ident!("{}_inner", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5094,7 +5094,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_inner = format_ident!("{}_inner", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5188,7 +5188,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5216,7 +5216,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5244,7 +5244,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5272,7 +5272,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5300,7 +5300,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5322,7 +5322,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5344,7 +5344,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5366,7 +5366,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5388,7 +5388,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake_async() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake_async() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5416,7 +5416,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake_async() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake_async() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5444,7 +5444,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake_async() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake_async() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5472,7 +5472,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake_async() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake_async() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5501,7 +5501,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5513,7 +5513,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_unlocked() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::Mutex<#inner_ty>>> {
+                                        pub fn #snake_unlocked() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
@@ -5536,7 +5536,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5571,7 +5571,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5606,7 +5606,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_lock = format_ident!("{}_lock", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5642,7 +5642,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 | (WrapperKind::RwLock, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5685,7 +5685,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Atomic, None | Some(_)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5722,7 +5722,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Reference, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5736,7 +5736,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Weak, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6011,7 +6011,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::String, None) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6143,7 +6143,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 | (WrapperKind::OptionRange, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6178,7 +6178,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Basic type
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6196,7 +6196,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Other wrapper types - return keypath to field
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
