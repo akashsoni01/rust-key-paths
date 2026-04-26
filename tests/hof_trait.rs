@@ -1,4 +1,4 @@
-use rust_key_paths::{HofTrait, Kp, KpReadable};
+use rust_key_paths::{HofTrait, Kp};
 
 #[derive(Debug)]
 struct Root {
