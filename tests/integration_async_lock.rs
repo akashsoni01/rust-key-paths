@@ -102,7 +102,11 @@ async fn integration_async_lock_then_lock_then_chain() {
     );
 
     // Write Level2 through async updater.
-    assert!(root_lock.update(&root, |l1| l1.parking.lock().value = 100).await);
+    assert!(
+        root_lock
+            .update(&root, |l1| l1.parking.lock().value = 100)
+            .await
+    );
     assert_eq!(with_parking.get(&root).await.unwrap().value, 100);
 
     // Write Level3.value (inner i32) via async updater + sync lock update.

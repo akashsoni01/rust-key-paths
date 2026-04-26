@@ -29,7 +29,10 @@ fn l2_value_kp() -> KpType<'static, Level2, u32> {
 }
 
 fn l1_l2_kp() -> KpType<'static, Level1, Level2> {
-    Kp::new(|l1: &Level1| Some(&l1.l2), |l1: &mut Level1| Some(&mut l1.l2))
+    Kp::new(
+        |l1: &Level1| Some(&l1.l2),
+        |l1: &mut Level1| Some(&mut l1.l2),
+    )
 }
 
 fn root_plain_kp() -> KpType<'static, Root, Level1> {
@@ -54,7 +57,10 @@ fn box_inner_kp() -> KpType<'static, Box<Level1>, Level1> {
 }
 
 fn root_rc_kp() -> KpType<'static, Root, Rc<Level1>> {
-    Kp::new(|root: &Root| Some(&root.rc), |root: &mut Root| Some(&mut root.rc))
+    Kp::new(
+        |root: &Root| Some(&root.rc),
+        |root: &mut Root| Some(&mut root.rc),
+    )
 }
 
 fn rc_inner_kp() -> KpType<'static, Rc<Level1>, Level1> {

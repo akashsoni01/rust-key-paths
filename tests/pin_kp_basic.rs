@@ -1,6 +1,9 @@
 #![cfg(all(feature = "pin_project", feature = "tokio"))]
 
-use rust_key_paths::{Kp, PinFutureAwaitLike, SyncKeyPathLike, pin::KpThenPinFuture, pin::PinFutureAwaitKp, pin_future_await_kp};
+use rust_key_paths::{
+    Kp, PinFutureAwaitLike, SyncKeyPathLike, pin::KpThenPinFuture, pin::PinFutureAwaitKp,
+    pin_future_await_kp,
+};
 use std::pin::Pin;
 
 #[derive(Default)]
@@ -35,11 +38,9 @@ impl SyncKeyPathLike<Root, State> for FirstNone {
 
 #[tokio::test]
 async fn pin_future_chain_get_mut_reads_value() {
-    let first = Kp::new(
-        |r: &Root| Some(&r.state),
-        |r: &mut Root| Some(&mut r.state),
-    );
-    let chain = KpThenPinFuture::<Root, State, i32, _, _>::new(first, PinFutureAwaitKp::new(AwaitValue));
+    let first = Kp::new(|r: &Root| Some(&r.state), |r: &mut Root| Some(&mut r.state));
+    let chain =
+        KpThenPinFuture::<Root, State, i32, _, _>::new(first, PinFutureAwaitKp::new(AwaitValue));
 
     let mut root = Root {
         state: State { value: 77 },
@@ -50,8 +51,10 @@ async fn pin_future_chain_get_mut_reads_value() {
 
 #[tokio::test]
 async fn pin_future_chain_returns_none_when_first_segment_missing() {
-    let chain =
-        KpThenPinFuture::<Root, State, i32, _, _>::new(FirstNone, PinFutureAwaitKp::new(AwaitValue));
+    let chain = KpThenPinFuture::<Root, State, i32, _, _>::new(
+        FirstNone,
+        PinFutureAwaitKp::new(AwaitValue),
+    );
 
     let mut root = Root::default();
     let out = chain.get_mut(&mut root).await;

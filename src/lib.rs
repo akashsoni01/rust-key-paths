@@ -363,7 +363,7 @@ where
         Kp::new(
             Box::new(move |t: &R| unsafe {
                 // SAFETY: See `into_dynamic` rustdoc. `Root` is `&'_ R` for supported keypaths.
-               // debug_assert_eq!(std::mem::size_of::<Root>(), std::mem::size_of::<&R>());
+                // debug_assert_eq!(std::mem::size_of::<Root>(), std::mem::size_of::<&R>());
                 let root: Root = std::mem::transmute_copy(&t);
                 match g(root) {
                     None => None,
@@ -1025,7 +1025,7 @@ pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S> {
         SubValue: std::borrow::Borrow<SV>,
         MutSubValue: std::borrow::BorrowMut<SV>,
         G2: Fn(Value) -> Option<SubValue>,
-        S2: Fn(MutValue) -> Option<MutSubValue>,;
+        S2: Fn(MutValue) -> Option<MutSubValue>;
 }
 
 pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
@@ -1512,13 +1512,13 @@ where
         F: Fn(&V) -> bool + Copy + 'static,
     {
         Kp::new(
-             move |root: Root| {
+            move |root: Root| {
                 self.get(root).filter(|value| {
                     let v: &V = value.borrow();
                     predicate(v)
                 })
             },
-             move |root: MutRoot| {
+            move |root: MutRoot| {
                 self.get_mut(root).filter(|value| {
                     let v: &V = value.borrow();
                     predicate(v)

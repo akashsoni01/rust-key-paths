@@ -83,12 +83,7 @@ fn hof_inspect_runs_side_effect_and_none_edge_case() {
 #[test]
 fn hof_flat_map_flattens_iterator_and_empty_edge_case() {
     let kp = nums_kp();
-    let flat = kp.flat_map(|v| {
-        v.iter()
-            .copied()
-            .filter(|n| n % 2 == 0)
-            .collect::<Vec<_>>()
-    });
+    let flat = kp.flat_map(|v| v.iter().copied().filter(|n| n % 2 == 0).collect::<Vec<_>>());
     assert_eq!(flat(&root_enabled()), vec![2, 4]);
     assert_eq!(flat(&root_disabled()), Vec::<i32>::new());
 }
@@ -152,11 +147,8 @@ fn hof_skip_skips_n_and_none_edge_case() {
 #[test]
 fn hof_partition_value_partitions_and_none_edge_case() {
     let kp = nums_kp();
-    let partition = kp.partition_value(|v| {
-        v.iter()
-            .copied()
-            .partition::<Vec<_>, _>(|n| n % 2 == 0)
-    });
+    let partition =
+        kp.partition_value(|v| v.iter().copied().partition::<Vec<_>, _>(|n| n % 2 == 0));
     assert_eq!(partition(&root_enabled()), Some((vec![2, 4], vec![1, 3])));
     assert_eq!(partition(&root_disabled()), None);
 }

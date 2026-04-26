@@ -21,11 +21,11 @@ fn rect_size_kp<'a>() -> Kp<
     &'a mut Rectangle,
     &'a mut Size,
     impl Fn(&'a Rectangle) -> Option<&'a Size>,
-    impl Fn(&'a mut Rectangle) -> Option<&'a mut Size>
+    impl Fn(&'a mut Rectangle) -> Option<&'a mut Size>,
 > {
     Kp::new(
-        |x: &'a Rectangle| { Some(& x.size) },
-        |x: &'a mut Rectangle| { Some(&mut x.size) }
+        |x: &'a Rectangle| Some(&x.size),
+        |x: &'a mut Rectangle| Some(&mut x.size),
     )
 }
 
@@ -38,12 +38,9 @@ fn size_width_kp<'a>() -> Kp<
     &'a mut Size,
     &'a mut u32,
     impl Fn(&'a Size) -> Option<&'a u32>,
-    impl Fn(&'a mut Size) -> Option<&'a mut u32>
+    impl Fn(&'a mut Size) -> Option<&'a mut u32>,
 > {
-    Kp::new(
-        |x: &Size| { Some(& x.width) },
-        |x: &mut Size| { Some(&mut x.width) }
-    )
+    Kp::new(|x: &Size| Some(&x.width), |x: &mut Size| Some(&mut x.width))
 }
 
 #[test]
@@ -61,20 +58,26 @@ fn manual_keypath_then_read_write_works() {
     let y = &mut rect.size;
 
     y.height = 234;
-    rect_size_kp().then(size_width_kp()).get(&rect).map(|x| {assert_eq!(x, &30)});
+    rect_size_kp()
+        .then(size_width_kp())
+        .get(&rect)
+        .map(|x| assert_eq!(x, &30));
     if let Some(x) = rect_size_kp().then(size_width_kp()).get(&rect) {
-        println!("{}",x);
+        println!("{}", x);
     }
 
     if let Some(x) = rect_size_kp().then(size_width_kp()).get_mut(&mut rect) {
-        println!("{}",x);
+        println!("{}", x);
     }
 
     // with direct get field ownership getting moved while get, get_mut fn taking &self
-    let x = rect_size_kp().then(size_width_kp()).get(& rect);
+    let x = rect_size_kp().then(size_width_kp()).get(&rect);
     let x = rect_size_kp().then(size_width_kp()).get_mut(&mut rect);
 
-    rect_size_kp().then(size_width_kp()).get_mut(&mut rect).map(|x| { assert_eq!(x, &mut 30)});
+    rect_size_kp()
+        .then(size_width_kp())
+        .get_mut(&mut rect)
+        .map(|x| assert_eq!(x, &mut 30));
     let width_kp = rect_size_kp().then(size_width_kp());
     println!("size of concreate kp = {:?}", size_of_val(&width_kp));
     // assert_eq!((g)(&rect), Some(&30));

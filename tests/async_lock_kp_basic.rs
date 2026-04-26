@@ -24,7 +24,8 @@ async fn async_lock_kp_mutex_get_and_update() {
 
     let prev: KpType<'_, Root, Arc<tokio::sync::Mutex<Inner>>> =
         Kp::new(|r: &Root| Some(&r.m), |r: &mut Root| Some(&mut r.m));
-    let next: KpType<'_, Inner, i32> = Kp::new(|i: &Inner| Some(&i.v), |i: &mut Inner| Some(&mut i.v));
+    let next: KpType<'_, Inner, i32> =
+        Kp::new(|i: &Inner| Some(&i.v), |i: &mut Inner| Some(&mut i.v));
     let kp = AsyncLockKp::new(prev, TokioMutexAccess::new(), next);
 
     assert_eq!(kp.get(&root).await, Some(7));
