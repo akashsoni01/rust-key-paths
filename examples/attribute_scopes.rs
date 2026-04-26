@@ -1,4 +1,5 @@
 use key_paths_derive::Kp;
+use rust_key_paths::KpTrait;
 
 #[derive(Clone, Debug, Kp)]
 struct Account {
@@ -21,12 +22,12 @@ fn main() {
     let balance_w = Account::balance();
     let recovery_token_fr = Account::recovery_token();
 
-    let nickname_value = nickname_fr.get(&account);
-    println!("nickname (readable): {:?}", nickname_value);
+    // let nickname_value = nickname_fr.get(&account);
+    // println!("nickname (readable): {:?}", nickname_value);
 
-    if let Some(balance_ref) = balance_w.get_mut(&mut account) {
-        *balance_ref += 500;
-    }
+    // if let Some(balance_ref) = balance_w.get_mut(&mut account) {
+    //     *balance_ref += 500;
+    // }
     println!("balance after writable update: {}", account.balance);
 
     // Note: The new rust-keypaths API doesn't support owned keypaths.
