@@ -1,8 +1,6 @@
 use key_paths_derive::Kp;
 use parking_lot::{Mutex, RwLock};
-use std::cell::{RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 use std::sync::Arc;
 
 // cargo check --example basics_casepath --features parking_lot
@@ -176,6 +174,47 @@ impl SomeComplexStruct {
         }
     }
 }
+
+/// Exercise every **sync** `LockKp` keypath: `get` and `get_mut` on the `SomeOtherStruct` value
+/// (exercises `rust_key_paths::lock::LockKp<…>` paths produced by the derive).
+fn exercise_all_sync_lock_kps_get(r: &SomeComplexStruct) {
+    // Arc<std::sync::{Mutex,RwLock}<SomeOtherStruct>>
+    assert!(SomeComplexStruct::scfs2().get(r).is_some());
+    assert!(SomeComplexStruct::scfs3().get(r).is_some());
+    // Arc + parking_lot
+    assert!(SomeComplexStruct::scfs_arc_pl_m().get(r).is_some());
+    assert!(SomeComplexStruct::scfs_arc_pl_rw().get(r).is_some());
+    // Arc + Option<…> in the lock (value type is `SomeOtherStruct` after unwrapping)
+    assert!(SomeComplexStruct::scfs_arc_std_mo().get(r).is_some());
+    assert!(SomeComplexStruct::scfs_arc_std_rwo().get(r).is_some());
+    assert!(SomeComplexStruct::scfs_arc_pl_mo().get(r).is_some());
+    assert!(SomeComplexStruct::scfs_arc_pl_rwo().get(r).is_some());
+    // Option<Arc<…>> outer
+    assert!(SomeComplexStruct::scfs_o_arc_std_m().get(r).is_some());
+    assert!(SomeComplexStruct::scfs_o_arc_std_rw().get(r).is_some());
+    assert!(SomeComplexStruct::scfs_o_arc_pl_m().get(r).is_some());
+    assert!(SomeComplexStruct::scfs_o_arc_pl_rw().get(r).is_some());
+    println!("exercise_all_sync_lock_kps_get: ok");
+}
+fn exercise_all_sync_lock_kps_get_mut(m: &mut SomeComplexStruct) {
+    assert!(SomeComplexStruct::scfs2().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs3().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_arc_pl_m().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_arc_pl_rw().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_arc_std_mo().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_arc_std_rwo().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_arc_pl_mo().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_arc_pl_rwo().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_o_arc_std_m().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_o_arc_std_rw().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_o_arc_pl_m().get_mut(m).is_some());
+    assert!(SomeComplexStruct::scfs_o_arc_pl_rw().get_mut(m).is_some());
+    println!("exercise_all_sync_lock_kps_get_mut: ok");
+}
+
+// Async `LockKp` / `Option<Arc<tokio::...>>` combinations: exercise separately with
+// `cargo run --example ... --features tokio` on a type that does not also need `parking_lot`
+// in the same `#[derive(Kp)]` struct, or fix derive classification for `tokio`+`parking_lot` together.
 fn main() {
     let mut instance = SomeComplexStruct::new();
 
@@ -214,10 +253,13 @@ fn main() {
     // And Arc<parking_lot::Mutex<Option<SomeOtherStruct>>>
     let x_pl_m: Option<&SomeOtherStruct> = SomeComplexStruct::scfs_arc_pl_mo().get(&instance);
 
-    let x = SomeComplexStruct::scfs18_at("testing".to_string());
-    let x = SomeComplexStruct::scfs20();
-    let x = SomeComplexStruct::scfs20_at(0);
-    println!("x = {:?}", x);
+    let _x = SomeComplexStruct::scfs18_at("testing".to_string());
+    let _x = SomeComplexStruct::scfs20();
+    let _x = SomeComplexStruct::scfs20_at(0);
+
+    exercise_all_sync_lock_kps_get(&instance);
+    exercise_all_sync_lock_kps_get_mut(&mut instance);
+    println!("x = {:?}", _x);
     assert!(x_pl_rw.is_some());
     assert!(x_std_m.is_some());
     assert!(x_std_rw.is_some());
