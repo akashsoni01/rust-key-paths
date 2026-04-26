@@ -2654,7 +2654,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionString, None) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, std::string::String> {
+                                pub fn #kp_fn() -> rust_key_paths::Kp<#name, std::string::String, &'a #name, &'a std::string::String, &'a mut #name, &'a mut std::string::String, impl Fn(&'a #name) -> Option<&'a std::string::String>, impl Fn(&'a mut #name) -> Option<&'a mut std::string::String>,>  {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#field_ident.as_ref(),
                                         |root: &mut #name| root.#field_ident.as_mut(),
@@ -4447,7 +4447,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionString, None) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn() -> rust_key_paths::KpType<'static, #name, std::string::String> {
+                                pub fn #kp_fn() -> rust_key_paths::Kp<#name, std::string::String, &'a #name, &'a std::string::String, &'a mut #name, &'a mut std::string::String, impl Fn(&'a #name) -> Option<&'a std::string::String>, impl Fn(&'a mut #name) -> Option<&'a mut std::string::String>,>  {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref(),
                                         |root: &mut #name| root.#idx_lit.as_mut(),
@@ -6028,7 +6028,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionString, None) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, std::string::String> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, std::string::String, &'a #name, &'a std::string::String, &'a mut #name, &'a mut std::string::String, impl Fn(&'a #name) -> Option<&'a std::string::String>, impl Fn(&'a mut #name) -> Option<&'a mut std::string::String>,>  {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => inner.as_ref(),
