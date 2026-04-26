@@ -13,31 +13,31 @@ struct Rectangle {
 }
 
 // Manual keypath: Rectangle -> Size
-fn rect_size_kp() -> Kp<
+fn rect_size_kp<'a>() -> Kp<
     Rectangle,
     Size,
-    &'static Rectangle,
-    &'static Size,
-    &'static mut Rectangle,
-    &'static mut Size,
-    for<'a> fn(&'a Rectangle) -> Option<&'a Size>,
-    for<'a> fn(&'a mut Rectangle) -> Option<&'a mut Size>,
+    &'a Rectangle,
+    &'a Size,
+    &'a mut Rectangle,
+    &'a mut Size,
+    impl Fn(&'a Rectangle) -> Option<&'a Size>,
+    impl Fn(&'a mut Rectangle) -> Option<&'a mut Size>,
 > {
-    Kp::new(|x| Some(&x.size), |x| Some(&mut x.size))
+    Kp::new(|x: &Rectangle| Some(&x.size), |x: &mut Rectangle| Some(&mut x.size))
 }
 
 // Manual keypath: Size -> width
-fn size_width_kp() -> Kp<
+fn size_width_kp<'a>() -> Kp<
     Size,
     u32,
-    &'static Size,
-    &'static u32,
-    &'static mut Size,
-    &'static mut u32,
-    for<'a> fn(&'a Size) -> Option<&'a u32>,
-    for<'a> fn(&'a mut Size) -> Option<&'a mut u32>,
+    &'a Size,
+    &'a u32,
+    &'a mut Size,
+    &'a mut u32,
+    impl Fn(&'a Size) -> Option<&'a u32>,
+    impl Fn(&'a mut Size) -> Option<&'a mut u32>,
 > {
-    Kp::new(|x| Some(&x.height), |x| Some(&mut x.height))
+    Kp::new(|x: &Size| Some(&x.height), |x: &mut Size| Some(&mut x.height))
 }
 
 #[test]
