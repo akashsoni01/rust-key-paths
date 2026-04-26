@@ -657,9 +657,8 @@ fn to_snake_case(name: &str) -> String {
     out
 }
 
-// Full `LockKp<…>` return types. Borrow params match `lock::LockKp*For` (`&'static` on `Root` / `Lock` / …).
-// Getter / setter use `impl for<'b> Fn(…)` (same role as `impl Fn(…)` in the `Kp<…>` derive) instead of
-// `for<'b> fn(…)`; HRTB keeps `get` / `get_mut` usable with stack roots (see `LockKp*For` in `lock.rs`).
+// Full `LockKp<…>` return types: borrow slots use `&'b` (paired with `fn …<'b>()` in generated code);
+// HRTB on `G` / `S` uses `for<'c> fn(…)` so it does not clash with `'b`.
 
 fn kp_lock_ty_arc_mutex(
     root: &impl ToTokens,
@@ -672,19 +671,19 @@ fn kp_lock_ty_arc_mutex(
             #lock,
             #inner,
             #inner,
-            &'static #root,
-            &'static #lock,
-            &'static #inner,
-            &'static #inner,
-            &'static mut #root,
-            &'static mut #lock,
-            &'static mut #inner,
-            &'static mut #inner,
-            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
-            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            &'b #root,
+            &'b #lock,
+            &'b #inner,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut #inner,
+            &'b mut #inner,
+            for<'c> fn(&'c #root) -> Option<&'c #lock>,
+            for<'c> fn(&'c mut #root) -> Option<&'c mut #lock>,
             rust_key_paths::lock::ArcMutexAccess<#inner>,
-            impl for<'b> Fn(&'b #inner) -> Option<&'b #inner>,
-            impl for<'b> Fn(&'b mut #inner) -> Option<&'b mut #inner>,
+            for<'c> fn(&'c #inner) -> Option<&'c #inner>,
+            for<'c> fn(&'c mut #inner) -> Option<&'c mut #inner>,
         >
     }
 }
@@ -700,19 +699,19 @@ fn kp_lock_ty_arc_mutex_option(
             #lock,
             Option<#inner>,
             #inner,
-            &'static #root,
-            &'static #lock,
-            &'static Option<#inner>,
-            &'static #inner,
-            &'static mut #root,
-            &'static mut #lock,
-            &'static mut Option<#inner>,
-            &'static mut #inner,
-            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
-            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            &'b #root,
+            &'b #lock,
+            &'b Option<#inner>,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut Option<#inner>,
+            &'b mut #inner,
+            for<'c> fn(&'c #root) -> Option<&'c #lock>,
+            for<'c> fn(&'c mut #root) -> Option<&'c mut #lock>,
             rust_key_paths::lock::ArcMutexAccess<Option<#inner>>,
-            impl for<'b> Fn(&'b Option<#inner>) -> Option<&'b #inner>,
-            impl for<'b> Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+            for<'c> fn(&'c Option<#inner>) -> Option<&'c #inner>,
+            for<'c> fn(&'c mut Option<#inner>) -> Option<&'c mut #inner>,
         >
     }
 }
@@ -728,19 +727,19 @@ fn kp_lock_ty_arc_rw_lock(
             #lock,
             #inner,
             #inner,
-            &'static #root,
-            &'static #lock,
-            &'static #inner,
-            &'static #inner,
-            &'static mut #root,
-            &'static mut #lock,
-            &'static mut #inner,
-            &'static mut #inner,
-            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
-            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            &'b #root,
+            &'b #lock,
+            &'b #inner,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut #inner,
+            &'b mut #inner,
+            for<'c> fn(&'c #root) -> Option<&'c #lock>,
+            for<'c> fn(&'c mut #root) -> Option<&'c mut #lock>,
             rust_key_paths::lock::ArcRwLockAccess<#inner>,
-            impl for<'b> Fn(&'b #inner) -> Option<&'b #inner>,
-            impl for<'b> Fn(&'b mut #inner) -> Option<&'b mut #inner>,
+            for<'c> fn(&'c #inner) -> Option<&'c #inner>,
+            for<'c> fn(&'c mut #inner) -> Option<&'c mut #inner>,
         >
     }
 }
@@ -756,19 +755,19 @@ fn kp_lock_ty_arc_rw_lock_option(
             #lock,
             Option<#inner>,
             #inner,
-            &'static #root,
-            &'static #lock,
-            &'static Option<#inner>,
-            &'static #inner,
-            &'static mut #root,
-            &'static mut #lock,
-            &'static mut Option<#inner>,
-            &'static mut #inner,
-            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
-            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            &'b #root,
+            &'b #lock,
+            &'b Option<#inner>,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut Option<#inner>,
+            &'b mut #inner,
+            for<'c> fn(&'c #root) -> Option<&'c #lock>,
+            for<'c> fn(&'c mut #root) -> Option<&'c mut #lock>,
             rust_key_paths::lock::ArcRwLockAccess<Option<#inner>>,
-            impl for<'b> Fn(&'b Option<#inner>) -> Option<&'b #inner>,
-            impl for<'b> Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+            for<'c> fn(&'c Option<#inner>) -> Option<&'c #inner>,
+            for<'c> fn(&'c mut Option<#inner>) -> Option<&'c mut #inner>,
         >
     }
 }
@@ -784,19 +783,19 @@ fn kp_lock_ty_parking_lot_mutex(
             #lock,
             #inner,
             #inner,
-            &'static #root,
-            &'static #lock,
-            &'static #inner,
-            &'static #inner,
-            &'static mut #root,
-            &'static mut #lock,
-            &'static mut #inner,
-            &'static mut #inner,
-            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
-            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            &'b #root,
+            &'b #lock,
+            &'b #inner,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut #inner,
+            &'b mut #inner,
+            for<'c> fn(&'c #root) -> Option<&'c #lock>,
+            for<'c> fn(&'c mut #root) -> Option<&'c mut #lock>,
             rust_key_paths::lock::ParkingLotMutexAccess<#inner>,
-            impl for<'b> Fn(&'b #inner) -> Option<&'b #inner>,
-            impl for<'b> Fn(&'b mut #inner) -> Option<&'b mut #inner>,
+            for<'c> fn(&'c #inner) -> Option<&'c #inner>,
+            for<'c> fn(&'c mut #inner) -> Option<&'c mut #inner>,
         >
     }
 }
@@ -812,19 +811,19 @@ fn kp_lock_ty_parking_lot_mutex_option(
             #lock,
             Option<#inner>,
             #inner,
-            &'static #root,
-            &'static #lock,
-            &'static Option<#inner>,
-            &'static #inner,
-            &'static mut #root,
-            &'static mut #lock,
-            &'static mut Option<#inner>,
-            &'static mut #inner,
-            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
-            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            &'b #root,
+            &'b #lock,
+            &'b Option<#inner>,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut Option<#inner>,
+            &'b mut #inner,
+            for<'c> fn(&'c #root) -> Option<&'c #lock>,
+            for<'c> fn(&'c mut #root) -> Option<&'c mut #lock>,
             rust_key_paths::lock::ParkingLotMutexAccess<Option<#inner>>,
-            impl for<'b> Fn(&'b Option<#inner>) -> Option<&'b #inner>,
-            impl for<'b> Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+            for<'c> fn(&'c Option<#inner>) -> Option<&'c #inner>,
+            for<'c> fn(&'c mut Option<#inner>) -> Option<&'c mut #inner>,
         >
     }
 }
@@ -840,19 +839,19 @@ fn kp_lock_ty_parking_lot_rw_lock(
             #lock,
             #inner,
             #inner,
-            &'static #root,
-            &'static #lock,
-            &'static #inner,
-            &'static #inner,
-            &'static mut #root,
-            &'static mut #lock,
-            &'static mut #inner,
-            &'static mut #inner,
-            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
-            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            &'b #root,
+            &'b #lock,
+            &'b #inner,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut #inner,
+            &'b mut #inner,
+            for<'c> fn(&'c #root) -> Option<&'c #lock>,
+            for<'c> fn(&'c mut #root) -> Option<&'c mut #lock>,
             rust_key_paths::lock::ParkingLotRwLockAccess<#inner>,
-            impl for<'b> Fn(&'b #inner) -> Option<&'b #inner>,
-            impl for<'b> Fn(&'b mut #inner) -> Option<&'b mut #inner>,
+            for<'c> fn(&'c #inner) -> Option<&'c #inner>,
+            for<'c> fn(&'c mut #inner) -> Option<&'c mut #inner>,
         >
     }
 }
@@ -868,19 +867,19 @@ fn kp_lock_ty_parking_lot_rw_lock_option(
             #lock,
             Option<#inner>,
             #inner,
-            &'static #root,
-            &'static #lock,
-            &'static Option<#inner>,
-            &'static #inner,
-            &'static mut #root,
-            &'static mut #lock,
-            &'static mut Option<#inner>,
-            &'static mut #inner,
-            impl for<'b> Fn(&'b #root) -> Option<&'b #lock>,
-            impl for<'b> Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            &'b #root,
+            &'b #lock,
+            &'b Option<#inner>,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut Option<#inner>,
+            &'b mut #inner,
+            for<'c> fn(&'c #root) -> Option<&'c #lock>,
+            for<'c> fn(&'c mut #root) -> Option<&'c mut #lock>,
             rust_key_paths::lock::ParkingLotRwLockAccess<Option<#inner>>,
-            impl for<'b> Fn(&'b Option<#inner>) -> Option<&'b #inner>,
-            impl for<'b> Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+            for<'c> fn(&'c Option<#inner>) -> Option<&'c #inner>,
+            for<'c> fn(&'c mut Option<#inner>) -> Option<&'c mut #inner>,
         >
     }
 }
@@ -2050,7 +2049,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -2086,7 +2085,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -2122,7 +2121,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -2158,7 +2157,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -2194,7 +2193,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -2230,7 +2229,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -2266,7 +2265,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -2302,7 +2301,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| Some(&root.#field_ident),
@@ -2525,7 +2524,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
                                 //     )
                                 // }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| root.#field_ident.as_ref(),
@@ -2568,7 +2567,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
                                 //     )
                                 // }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| root.#field_ident.as_ref(),
@@ -2611,7 +2610,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
                                 //     )
                                 // }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| root.#field_ident.as_ref(),
@@ -2654,7 +2653,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
                                 //     )
                                 // }
-                                pub fn #kp_fn() -> #lock_kp_return_ty {
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
                                             |root: &#name| root.#field_ident.as_ref(),
@@ -5445,7 +5444,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5474,7 +5473,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5503,7 +5502,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5532,7 +5531,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5555,7 +5554,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5578,7 +5577,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5601,7 +5600,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5624,7 +5623,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
@@ -5773,7 +5772,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
@@ -5810,7 +5809,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
@@ -5847,7 +5846,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
@@ -5884,7 +5883,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
                                             )
                                         }
-                                        pub fn #snake_lock() -> #lock_kp_return_ty {
+                                        pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
