@@ -1,46 +1,84 @@
-use rust_key_paths::Kp;
+use rust_key_paths::{Kp, KpTrait};
 
 #[derive(Debug)]
-struct () {
+struct Size {
     width: u32,
     height: u32,
 }
 
 #[derive(Debug)]
-struct #name {
-    size: (),
+struct Rectangle {
+    size: Size,
     name: String,
 }
 
-// Manual keypath: #name -> ()
-fn rect_size_kp<'a>() -> 
-
-Kp<#name, (), &'a #name, &'a (), &'a mut #name, &'a mut (), impl Fn(&'a #name) -> Option<&'a ()>, impl Fn(&'a mut #name) -> Option<&'a mut ()>,> 
-
-{
-    Kp::new(|x: &#name| Some(&x.size), |x: &mut #name| Some(&mut x.size))
+// Manual keypath: Rectangle -> Size
+fn rect_size_kp<'a>() -> Kp<
+    Rectangle,
+    Size,
+    &'a Rectangle,
+    &'a Size,
+    &'a mut Rectangle,
+    &'a mut Size,
+    impl Fn(&'a Rectangle) -> Option<&'a Size>,
+    impl Fn(&'a mut Rectangle) -> Option<&'a mut Size>
+> {
+    Kp::new(
+        |x: &'a Rectangle| { Some(& x.size) },
+        |x: &'a mut Rectangle| { Some(&mut x.size) }
+    )
 }
 
-// Manual keypath: () -> width
-fn size_width_kp<'a>() -> Kp<(), u32, &'a (), &'a u32, &'a mut (), &'a mut u32, impl Fn(&'a ()) -> Option<&'a u32>, impl Fn(&'a mut ()) -> Option<&'a mut u32>,
+// Manual keypath: Size -> width
+fn size_width_kp<'a>() -> Kp<
+    Size,
+    u32,
+    &'a Size,
+    &'a u32,
+    &'a mut Size,
+    &'a mut u32,
+    impl Fn(&'a Size) -> Option<&'a u32>,
+    impl Fn(&'a mut Size) -> Option<&'a mut u32>
 > {
-    Kp::new(|x: &()| Some(&x.height), |x: &mut ()| Some(&mut x.height))
+    Kp::new(
+        |x: &Size| { Some(& x.width) },
+        |x: &mut Size| { Some(&mut x.width) }
+    )
 }
 
 #[test]
 fn manual_keypath_then_read_write_works() {
-    let mut rect = #name {
-        size: () {
+    let mut rect = Rectangle {
+        size: Size {
             width: 30,
             height: 50,
         },
         name: "MyRect".to_string(),
     };
 
-    let width_kp = rect_size_kp().then(size_width_kp());
+    let x = &rect.name;
 
+    let y = &mut rect.size;
+
+    y.height = 234;
+    rect_size_kp().then(size_width_kp()).get(&rect).map(|x| {assert_eq!(x, &30)});
+    if let Some(x) = rect_size_kp().then(size_width_kp()).get(&rect) {
+        println!("{}",x);
+    }
+
+    if let Some(x) = rect_size_kp().then(size_width_kp()).get_mut(&mut rect) {
+        println!("{}",x);
+    }
+
+    // with direct get field ownership getting moved while get, get_mut fn taking &self
+    let x = rect_size_kp().then(size_width_kp()).get(& rect);
+    let x = rect_size_kp().then(size_width_kp()).get_mut(&mut rect);
+
+    rect_size_kp().then(size_width_kp()).get_mut(&mut rect).map(|x| { assert_eq!(x, &mut 30)});
+    let width_kp = rect_size_kp().then(size_width_kp());
     println!("size of concreate kp = {:?}", size_of_val(&width_kp));
-    // assert_eq!((width_kp).get(&rect), Some(&30));
+    // assert_eq!((g)(&rect), Some(&30));
+    // assert_eq!((s)(&mut rect), Some(&mut 30));
 
     // if let Some(w) = width_kp.get_mut(&mut rect) {
     //     *w += 12;
