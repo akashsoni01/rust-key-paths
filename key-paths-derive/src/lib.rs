@@ -2322,7 +2322,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                // pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>> {
+                                // pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
                                 //     rust_key_paths::Kp::new(
                                 //         |root: &#name| root.#field_ident.as_ref(),
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
@@ -2363,7 +2363,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#field_ident),
                                     )
                                 }
-                                // pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::RwLock<#inner_ty>>> {
+                                // pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
                                 //     rust_key_paths::Kp::new(
                                 //         |root: &#name| root.#field_ident.as_ref(),
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
@@ -4158,7 +4158,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>> {
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref(),
                                         |root: &mut #name| root.#idx_lit.as_mut(),
@@ -4185,7 +4185,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         |root: &mut #name| Some(&mut root.#idx_lit),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::RwLock<#inner_ty>>> {
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| root.#idx_lit.as_ref(),
                                         |root: &mut #name| root.#idx_lit.as_mut(),
@@ -5548,7 +5548,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_unlocked() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>> {
+                                        pub fn #snake_unlocked() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
@@ -5583,7 +5583,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_unlocked() -> rust_key_paths::KpType<'static, #name, std::sync::Arc<std::sync::RwLock<#inner_ty>>> {
+                                        pub fn #snake_unlocked() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
                                                 |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
