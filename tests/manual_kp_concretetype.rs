@@ -1,49 +1,32 @@
 use rust_key_paths::Kp;
 
 #[derive(Debug)]
-struct Size {
+struct std::sync::Arc<std::sync::Mutex<#inner_ty>> {
     width: u32,
     height: u32,
 }
 
 #[derive(Debug)]
-struct Rectangle {
-    size: Size,
+struct #name {
+    size: std::sync::Arc<std::sync::Mutex<#inner_ty>>,
     name: String,
 }
 
-// Manual keypath: Rectangle -> Size
-fn rect_size_kp<'a>() -> Kp<
-    Rectangle,
-    Size,
-    &'a Rectangle,
-    &'a Size,
-    &'a mut Rectangle,
-    &'a mut Size,
-    impl Fn(&'a Rectangle) -> Option<&'a Size>,
-    impl Fn(&'a mut Rectangle) -> Option<&'a mut Size>,
-> {
-    Kp::new(|x: &Rectangle| Some(&x.size), |x: &mut Rectangle| Some(&mut x.size))
+// Manual keypath: #name -> std::sync::Arc<std::sync::Mutex<#inner_ty>>
+fn rect_size_kp<'a>() -> Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
+    Kp::new(|x: &#name| Some(&x.size), |x: &mut #name| Some(&mut x.size))
 }
 
-// Manual keypath: Size -> width
-fn size_width_kp<'a>() -> Kp<
-    Size,
-    u32,
-    &'a Size,
-    &'a u32,
-    &'a mut Size,
-    &'a mut u32,
-    impl Fn(&'a Size) -> Option<&'a u32>,
-    impl Fn(&'a mut Size) -> Option<&'a mut u32>,
+// Manual keypath: std::sync::Arc<std::sync::Mutex<#inner_ty>> -> width
+fn size_width_kp<'a>() -> Kp<std::sync::Arc<std::sync::Mutex<#inner_ty>>, u32, &'a std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a u32, &'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a mut u32, impl Fn(&'a std::sync::Arc<std::sync::Mutex<#inner_ty>>) -> Option<&'a u32>, impl Fn(&'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>) -> Option<&'a mut u32>,
 > {
-    Kp::new(|x: &Size| Some(&x.height), |x: &mut Size| Some(&mut x.height))
+    Kp::new(|x: &std::sync::Arc<std::sync::Mutex<#inner_ty>>| Some(&x.height), |x: &mut std::sync::Arc<std::sync::Mutex<#inner_ty>>| Some(&mut x.height))
 }
 
 #[test]
 fn manual_keypath_then_read_write_works() {
-    let mut rect = Rectangle {
-        size: Size {
+    let mut rect = #name {
+        size: std::sync::Arc<std::sync::Mutex<#inner_ty>> {
             width: 30,
             height: 50,
         },

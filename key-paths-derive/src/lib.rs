@@ -4884,7 +4884,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_at = format_ident!("{}_at", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake() -> rust_key_paths::KpType<'static, #name, #field_ty> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
