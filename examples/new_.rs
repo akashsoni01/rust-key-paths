@@ -1,5 +1,6 @@
 use key_paths_derive::Kp;
 
+
 #[derive(Kp, Debug)]
 struct Size {
     width: u32,
