@@ -1,5 +1,6 @@
 use key_paths_derive::Kp;
-
+use rust_key_paths::KpTrait;
+use std::mem::size_of_val;
 
 #[derive(Kp, Debug)]
 struct Size {
@@ -104,16 +105,24 @@ fn manual_keypath_then_read_write_works2() {
         name: "MyRect".to_string(),
     };
 
-    // let width_kp = Rectangle::rect_size_kp().then(Size::size_width_kp());
+    // Keypath methods use the field names: `size`, `width` (see `format_ident` in key-paths-derive).
+    println!(
+        "size of concreate kp = {:?}",
+        size_of_val(&Rectangle::size().then(Size::width()))
+    );
+    assert_eq!(
+        Rectangle::size().then(Size::width()).get(&rect),
+        Some(&30)
+    );
 
-    println!("size of concreate kp = {:?}", size_of_val(&Rectangle::rect_size_kp().then(Size::size_width_kp())));
-    assert_eq!(Rectangle::rect_size_kp().then(Size::size_width_kp()).get(&rect), Some(&30));
-
-    if let Some(w) = Rectangle::rect_size_kp().then(Size::size_width_kp()).get_mut(&mut rect) {
+    if let Some(w) = Rectangle::size().then(Size::width()).get_mut(&mut rect) {
         *w += 12;
     }
 
-    assert_eq!((Rectangle::rect_size_kp().then(Size::size_width_kp())).get(&rect), Some(&42));
+    assert_eq!(
+        Rectangle::size().then(Size::width()).get(&rect),
+        Some(&42)
+    );
     // assert_eq!(rect.size.height, 50);
     // assert_eq!(rect.name, "MyRect");
 }

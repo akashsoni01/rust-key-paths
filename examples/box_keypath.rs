@@ -1,4 +1,5 @@
 use key_paths_derive::Kp;
+use rust_key_paths::KpTrait;
 
 #[derive(Debug, Kp, Default, Clone)]
 struct SomeComplexStruct {
