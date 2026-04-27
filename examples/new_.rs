@@ -94,7 +94,6 @@ struct Rectangle {
 //     // assert_eq!(rect.name, "MyRect");
 // }
 
-
 #[test]
 fn manual_keypath_then_read_write_works2() {
     let mut rect = Rectangle {
@@ -110,19 +109,13 @@ fn manual_keypath_then_read_write_works2() {
         "size of concreate kp = {:?}",
         size_of_val(&Rectangle::size().then(Size::width()))
     );
-    assert_eq!(
-        Rectangle::size().then(Size::width()).get(&rect),
-        Some(&30)
-    );
+    assert_eq!(Rectangle::size().then(Size::width()).get(&rect), Some(&30));
 
     if let Some(w) = Rectangle::size().then(Size::width()).get_mut(&mut rect) {
         *w += 12;
     }
 
-    assert_eq!(
-        Rectangle::size().then(Size::width()).get(&rect),
-        Some(&42)
-    );
+    assert_eq!(Rectangle::size().then(Size::width()).get(&rect), Some(&42));
     // assert_eq!(rect.size.height, 50);
     // assert_eq!(rect.name, "MyRect");
 }

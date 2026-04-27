@@ -1,5 +1,5 @@
 struct Test {
-    a: String
+    a: String,
 }
 
 impl Test {
@@ -9,21 +9,17 @@ impl Test {
 }
 
 fn main() {
-    let mut ins = Test { a: String::from("test")};
+    let mut ins = Test {
+        a: String::from("test"),
+    };
     let c = Test::a_get();
-    if let Some(s) = (c)(& ins) {
+    if let Some(s) = (c)(&ins) {
         println!("s = {:?}", s);
-
     }
 
-    if let Some(s) = (c)(& ins) {
+    if let Some(s) = (c)(&ins) {
         println!("s = {:?}", s);
-
     }
-
 
     let mut_borrowed = &mut ins;
-
-
 }
-

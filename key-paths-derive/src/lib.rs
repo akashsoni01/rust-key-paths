@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::{Data, DeriveInput, Fields, Type, parse_macro_input, spanned::Spanned};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2105,7 +2105,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::StdArcMutexOption, Some(inner_ty)) => {
                             // For Arc<std::sync::Mutex<Option<T>>> — LockKp value T (extract from Option); guard gives &Option<T>
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
-                            let lock_kp_return_ty = kp_lock_ty_arc_mutex_option(name, ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_arc_mutex_option(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -2141,7 +2142,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::StdArcRwLockOption, Some(inner_ty)) => {
                             // For Arc<std::sync::RwLock<Option<T>>> — LockKp value T (extract from Option); guard gives &Option<T>
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
-                            let lock_kp_return_ty = kp_lock_ty_arc_rw_lock_option(name, ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_arc_rw_lock_option(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -2177,7 +2179,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::ArcRwLock, Some(inner_ty)) => {
                             // For Arc<parking_lot::RwLock<T>> (requires rust-key-paths "parking_lot" feature)
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
-                            let lock_kp_return_ty = kp_lock_ty_parking_lot_rw_lock(name, ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_parking_lot_rw_lock(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -2213,7 +2216,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::ArcMutex, Some(inner_ty)) => {
                             // For Arc<parking_lot::Mutex<T>> (requires rust-key-paths "parking_lot" feature)
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
-                            let lock_kp_return_ty = kp_lock_ty_parking_lot_mutex(name, ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_parking_lot_mutex(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -2249,7 +2253,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::ArcMutexOption, Some(inner_ty)) => {
                             // For Arc<parking_lot::Mutex<Option<T>>> — LockKp value T (extract from Option); guard gives &Option<T>
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
-                            let lock_kp_return_ty = kp_lock_ty_parking_lot_mutex_option(name, ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_parking_lot_mutex_option(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -2285,7 +2290,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::ArcRwLockOption, Some(inner_ty)) => {
                             // For Arc<parking_lot::RwLock<Option<T>>> — LockKp value T (extract from Option); guard gives &Option<T>
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
-                            let lock_kp_return_ty = kp_lock_ty_parking_lot_rw_lock_option(name, ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_parking_lot_rw_lock_option(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -2545,7 +2551,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
                             let lock_ty = quote! { std::sync::Arc<parking_lot::Mutex<#inner_ty>> };
-                            let lock_kp_return_ty = kp_lock_ty_parking_lot_mutex(name, &lock_ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_parking_lot_mutex(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -2588,7 +2595,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
                             let lock_ty = quote! { std::sync::Arc<std::sync::RwLock<#inner_ty>> };
-                            let lock_kp_return_ty = kp_lock_ty_arc_rw_lock(name, &lock_ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_arc_rw_lock(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -2631,7 +2639,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
                             let lock_ty = quote! { std::sync::Arc<parking_lot::RwLock<#inner_ty>> };
-                            let lock_kp_return_ty = kp_lock_ty_parking_lot_rw_lock(name, &lock_ty, &inner_ty);
+                            let lock_kp_return_ty =
+                                kp_lock_ty_parking_lot_rw_lock(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
@@ -5443,7 +5452,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::StdArcRwLock, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_kp_return_ty = kp_lock_ty_arc_rw_lock(name, field_ty, &inner_ty);
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_arc_rw_lock(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5472,7 +5482,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::StdArcMutex, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_kp_return_ty = kp_lock_ty_arc_mutex(name, field_ty, &inner_ty);
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_arc_mutex(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5501,7 +5512,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::ArcRwLock, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_kp_return_ty = kp_lock_ty_parking_lot_rw_lock(name, field_ty, &inner_ty);
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_parking_lot_rw_lock(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5530,7 +5542,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::ArcMutex, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_kp_return_ty = kp_lock_ty_parking_lot_mutex(name, field_ty, &inner_ty);
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_parking_lot_mutex(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5559,7 +5572,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::StdArcMutexOption, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_kp_return_ty = kp_lock_ty_arc_mutex_option(name, field_ty, &inner_ty);
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_arc_mutex_option(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5582,7 +5596,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::StdArcRwLockOption, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_kp_return_ty = kp_lock_ty_arc_rw_lock_option(name, field_ty, &inner_ty);
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_arc_rw_lock_option(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5605,7 +5620,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::ArcMutexOption, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_kp_return_ty = kp_lock_ty_parking_lot_mutex_option(name, field_ty, &inner_ty);
+                                    let lock_kp_return_ty = kp_lock_ty_parking_lot_mutex_option(
+                                        name, field_ty, &inner_ty,
+                                    );
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5628,7 +5645,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::ArcRwLockOption, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_kp_return_ty = kp_lock_ty_parking_lot_rw_lock_option(name, field_ty, &inner_ty);
+                                    let lock_kp_return_ty = kp_lock_ty_parking_lot_rw_lock_option(
+                                        name, field_ty, &inner_ty,
+                                    );
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5764,8 +5783,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionStdArcMutex, Some(inner_ty)) => {
                                     let snake_unlocked = format_ident!("{}_unlocked", snake);
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_ty = quote! { std::sync::Arc<std::sync::Mutex<#inner_ty>> };
-                                    let lock_kp_return_ty = kp_lock_ty_arc_mutex(name, &lock_ty, &inner_ty);
+                                    let lock_ty =
+                                        quote! { std::sync::Arc<std::sync::Mutex<#inner_ty>> };
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_arc_mutex(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5801,8 +5822,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionArcMutex, Some(inner_ty)) => {
                                     let snake_unlocked = format_ident!("{}_unlocked", snake);
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_ty = quote! { std::sync::Arc<parking_lot::Mutex<#inner_ty>> };
-                                    let lock_kp_return_ty = kp_lock_ty_parking_lot_mutex(name, &lock_ty, &inner_ty);
+                                    let lock_ty =
+                                        quote! { std::sync::Arc<parking_lot::Mutex<#inner_ty>> };
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_parking_lot_mutex(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5838,8 +5861,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionStdArcRwLock, Some(inner_ty)) => {
                                     let snake_unlocked = format_ident!("{}_unlocked", snake);
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_ty = quote! { std::sync::Arc<std::sync::RwLock<#inner_ty>> };
-                                    let lock_kp_return_ty = kp_lock_ty_arc_rw_lock(name, &lock_ty, &inner_ty);
+                                    let lock_ty =
+                                        quote! { std::sync::Arc<std::sync::RwLock<#inner_ty>> };
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_arc_rw_lock(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
@@ -5875,8 +5900,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionArcRwLock, Some(inner_ty)) => {
                                     let snake_unlocked = format_ident!("{}_unlocked", snake);
                                     let snake_lock = format_ident!("{}_lock", snake);
-                                    let lock_ty = quote! { std::sync::Arc<parking_lot::RwLock<#inner_ty>> };
-                                    let lock_kp_return_ty = kp_lock_ty_parking_lot_rw_lock(name, &lock_ty, &inner_ty);
+                                    let lock_ty =
+                                        quote! { std::sync::Arc<parking_lot::RwLock<#inner_ty>> };
+                                    let lock_kp_return_ty =
+                                        kp_lock_ty_parking_lot_rw_lock(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
