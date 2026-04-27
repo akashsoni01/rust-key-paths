@@ -136,6 +136,8 @@ pub struct LockKp<
     L: LockAccess<Lock, MidValue> + LockAccess<Lock, MutMid>,
     G2: Fn(MidValue) -> Option<Value>,
     S2: Fn(MutMid) -> Option<MutValue>,
+    LockValue: 'static,
+    Value: 'static
 {
     /// Keypath from Root to Lock container
     pub(crate) prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
