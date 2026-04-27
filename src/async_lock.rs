@@ -291,8 +291,6 @@ pub struct AsyncLockKp<
     L: AsyncLockLike<Lock, MidValue> + AsyncLockLike<Lock, MutMid> + Clone,
     G2: Fn(MidValue) -> Option<Value> + Clone,
     S2: Fn(MutMid) -> Option<MutValue> + Clone,
-    Value: 'static,
-    LockValue: 'static
 {
     /// Keypath from Root to Lock container
     pub(crate) prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
@@ -2173,367 +2171,366 @@ pub type AsyncLockKpRwLockFor<Root, Lock, Inner> = AsyncLockKp<
     for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
 >;
 
-// // 
-// // Tests
-// // ============================================================================
-
-// #[cfg(all(test, feature = "tokio"))]
-// mod tests {
-//     use super::*;
-//     use crate::KpType;
-
-//     #[tokio::test]
-//     async fn test_async_lock_kp_tokio_mutex_basic() {
-//         use tokio::sync::Mutex;
-
-//         #[derive(Clone)]
-//         struct Root {
-//             data: std::sync::Arc<Mutex<String>>,
-//         }
-
-//         let root = Root {
-//             data: std::sync::Arc::new(Mutex::new("hello".to_string())),
-//         };
-
-//         // Create AsyncLockKp
-//         let lock_kp = {
-//             let prev: KpType<Root, std::sync::Arc<Mutex<String>>> =
-//                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
-//             let next: KpType<String, String> =
-//                 Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-
-//         // Test async get
-//         let value = lock_kp.get(&root).await;
-//         assert!(value.is_some());
-//         assert_eq!(value.unwrap(), &"hello".to_string());
-//     }
-
-//     #[tokio::test]
-//     async fn test_async_lock_kp_get_optional_or_else() {
-//         use tokio::sync::Mutex;
-
-//         #[derive(Clone)]
-//         struct Root {
-//             data: std::sync::Arc<Mutex<i32>>,
-//         }
-
-//         let mut root = Root {
-//             data: std::sync::Arc::new(Mutex::new(42)),
-//         };
-
-//         let lock_kp = {
-//             let prev: KpType<Root, std::sync::Arc<Mutex<i32>>> =
-//                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
-//             let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-
-//         // get_optional
-//         assert!(lock_kp.get_optional(None).await.is_none());
-//         assert_eq!(lock_kp.get_optional(Some(&root)).await, Some(&42));
-
-//         // get_mut_optional
-//         assert!(lock_kp.get_mut_optional(None).await.is_none());
-//         if let Some(m) = lock_kp.get_mut_optional(Some(&mut root)).await {
-//             *m = 99;
-//         }
-//         assert_eq!(lock_kp.get(&root).await, Some(&99));
-
-//         // get_or_else
-//         assert_eq!(*lock_kp.get_or_else(None, || &0).await, 0);
-//         assert_eq!(*lock_kp.get_or_else(Some(&root), || &0).await, 99);
-
-//         // get_mut_or_else
-//         let m = lock_kp
-//             .get_mut_or_else(Some(&mut root), || panic!("unexpected"))
-//             .await;
-//         *m = 100;
-//         assert_eq!(lock_kp.get(&root).await, Some(&100));
-//     }
-
-//     #[tokio::test]
-//     async fn test_async_lock_kp_tokio_rwlock_basic() {
-//         use tokio::sync::RwLock;
-
-//         #[derive(Clone)]
-//         struct Root {
-//             data: std::sync::Arc<RwLock<Vec<i32>>>,
-//         }
-
-//         let root = Root {
-//             data: std::sync::Arc::new(RwLock::new(vec![1, 2, 3, 4, 5])),
-//         };
-
-//         // Create AsyncLockKp with RwLock
-//         let lock_kp = {
-//             let prev: KpType<Root, std::sync::Arc<RwLock<Vec<i32>>>> =
-//                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
-//             let next: KpType<Vec<i32>, Vec<i32>> =
-//                 Kp::new(|v: &Vec<i32>| Some(v), |v: &mut Vec<i32>| Some(v));
-//             AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
-//         };
-
-//         // Test async get with RwLock (read lock)
-//         let value = lock_kp.get(&root).await;
-//         assert!(value.is_some());
-//         assert_eq!(value.unwrap().len(), 5);
-//     }
-
-//     #[tokio::test]
-//     async fn test_async_lock_kp_concurrent_reads() {
-//         use tokio::sync::RwLock;
-
-//         #[derive(Clone)]
-//         struct Root {
-//             data: std::sync::Arc<RwLock<i32>>,
-//         }
-
-//         let root = Root {
-//             data: std::sync::Arc::new(RwLock::new(42)),
-//         };
-
-//         // Create AsyncLockKp
-//         let lock_kp = {
-//             let prev: KpType<Root, std::sync::Arc<RwLock<i32>>> =
-//                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
-//             let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
-//             AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
-//         };
-
-//         // Concurrent async reads in the same task (spawn would require 'static future;
-//         // get() returns references so we use join! instead)
-//         let lock_kp2 = {
-//             let prev: KpType<Root, std::sync::Arc<RwLock<i32>>> =
-//                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
-//             let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
-//             AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
-//         };
-//         let (a, b) = tokio::join!(lock_kp.get(&root), lock_kp2.get(&root));
-//         assert_eq!(a, Some(&42));
-//         assert_eq!(b, Some(&42));
-
-//         // Test the original lock_kp as well
-//         let value = lock_kp.get(&root).await;
-//         assert_eq!(value, Some(&42));
-//     }
-
-//     #[tokio::test]
-//     async fn test_async_lock_kp_panic_on_clone_proof() {
-//         use tokio::sync::Mutex;
-
-//         /// This struct PANICS if cloned - proving no deep cloning occurs
-//         struct PanicOnClone {
-//             data: String,
-//         }
-
-//         impl Clone for PanicOnClone {
-//             fn clone(&self) -> Self {
-//                 panic!("❌ ASYNC DEEP CLONE DETECTED! PanicOnClone was cloned!");
-//             }
-//         }
-
-//         #[derive(Clone)]
-//         struct Root {
-//             level1: std::sync::Arc<Mutex<Level1>>,
-//         }
-
-//         struct Level1 {
-//             panic_data: PanicOnClone,
-//             value: i32,
-//         }
-
-//         impl Clone for Level1 {
-//             fn clone(&self) -> Self {
-//                 panic!("❌ Level1 was deeply cloned in async context!");
-//             }
-//         }
-
-//         // Create structure with PanicOnClone
-//         let root = Root {
-//             level1: std::sync::Arc::new(Mutex::new(Level1 {
-//                 panic_data: PanicOnClone {
-//                     data: "test".to_string(),
-//                 },
-//                 value: 123,
-//             })),
-//         };
-
-//         // Create AsyncLockKp
-//         let lock_kp = {
-//             let prev: KpType<Root, std::sync::Arc<Mutex<Level1>>> = Kp::new(
-//                 |r: &Root| Some(&r.level1),
-//                 |r: &mut Root| Some(&mut r.level1),
-//             );
-//             let next: KpType<Level1, i32> = Kp::new(
-//                 |l: &Level1| Some(&l.value),
-//                 |l: &mut Level1| Some(&mut l.value),
-//             );
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-
-//         // CRITICAL TEST: If any deep cloning occurs, PanicOnClone will trigger
-//         let value = lock_kp.get(&root).await;
-
-//         // ✅ SUCCESS: No panic means no deep cloning!
-//         assert_eq!(value, Some(&123));
-//     }
-
-//     #[tokio::test]
-//     async fn test_async_lock_kp_structure() {
-//         use tokio::sync::Mutex;
-
-//         #[derive(Clone)]
-//         struct Root {
-//             data: std::sync::Arc<Mutex<String>>,
-//         }
-
-//         let lock_kp = {
-//             let prev: KpType<Root, std::sync::Arc<Mutex<String>>> =
-//                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
-//             let next: KpType<String, String> =
-//                 Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-
-//         // Verify structure has three fields (prev, mid, next)
-//         let _ = &lock_kp.prev;
-//         let _ = &lock_kp.mid;
-//         let _ = &lock_kp.next;
-//     }
-
-//     #[tokio::test]
-//     async fn test_async_kp_then() {
-//         use tokio::sync::Mutex;
-
-//         #[derive(Clone)]
-//         struct Root {
-//             data: std::sync::Arc<Mutex<Inner>>,
-//         }
-
-//         #[derive(Clone)]
-//         struct Inner {
-//             value: i32,
-//         }
-
-//         let root = Root {
-//             data: std::sync::Arc::new(Mutex::new(Inner { value: 42 })),
-//         };
-
-//         // Create AsyncLockKp to Inner
-//         let async_kp = {
-//             let prev: KpType<Root, std::sync::Arc<Mutex<Inner>>> =
-//                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
-//             let next: KpType<Inner, Inner> = Kp::new(|i: &Inner| Some(i), |i: &mut Inner| Some(i));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-
-//         // Chain with regular Kp to get value field
-//         let value_kp: KpType<Inner, i32> = Kp::new(
-//             |i: &Inner| Some(&i.value),
-//             |i: &mut Inner| Some(&mut i.value),
-//         );
-
-//         let chained = async_kp.then(value_kp);
-//         let result = chained.get(&root).await;
-//         assert_eq!(result, Some(&42));
-//     }
-
-//     #[tokio::test]
-//     async fn test_async_kp_later_then() {
-//         use tokio::sync::Mutex;
-
-//         #[derive(Clone)]
-//         struct Root {
-//             lock1: std::sync::Arc<Mutex<Container>>,
-//         }
-
-//         #[derive(Clone)]
-//         struct Container {
-//             lock2: std::sync::Arc<Mutex<i32>>,
-//         }
-
-//         let root = Root {
-//             lock1: std::sync::Arc::new(Mutex::new(Container {
-//                 lock2: std::sync::Arc::new(Mutex::new(999)),
-//             })),
-//         };
-
-//         // First AsyncLockKp: Root -> Container
-//         let async_kp1 = {
-//             let prev: KpType<Root, std::sync::Arc<Mutex<Container>>> =
-//                 Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
-//             let next: KpType<Container, Container> =
-//                 Kp::new(|c: &Container| Some(c), |c: &mut Container| Some(c));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-
-//         // Second AsyncLockKp: Container -> i32
-//         let async_kp2 = {
-//             let prev: KpType<Container, std::sync::Arc<Mutex<i32>>> = Kp::new(
-//                 |c: &Container| Some(&c.lock2),
-//                 |c: &mut Container| Some(&mut c.lock2),
-//             );
-//             let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-
-//         // Chain with then_async; get with root
-//         let chained = async_kp1.then_async(async_kp2);
-//         let result = chained.get(&root).await;
-//         assert_eq!(result, Some(&999));
-//     }
-
-//     #[tokio::test]
-//     async fn test_async_kp_then_async_three_levels() {
-//         use tokio::sync::Mutex;
-
-//         #[derive(Clone)]
-//         struct Root {
-//             a: std::sync::Arc<Mutex<Level1>>,
-//         }
-//         #[derive(Clone)]
-//         struct Level1 {
-//             b: std::sync::Arc<Mutex<Level2>>,
-//         }
-//         #[derive(Clone)]
-//         struct Level2 {
-//             c: std::sync::Arc<Mutex<i32>>,
-//         }
-
-//         let root = Root {
-//             a: std::sync::Arc::new(Mutex::new(Level1 {
-//                 b: std::sync::Arc::new(Mutex::new(Level2 {
-//                     c: std::sync::Arc::new(Mutex::new(42)),
-//                 })),
-//             })),
-//         };
-
-//         let kp1 = {
-//             let prev: KpType<Root, std::sync::Arc<Mutex<Level1>>> =
-//                 Kp::new(|r: &Root| Some(&r.a), |r: &mut Root| Some(&mut r.a));
-//             let next: KpType<Level1, Level1> =
-//                 Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-//         let kp2 = {
-//             let prev: KpType<Level1, std::sync::Arc<Mutex<Level2>>> =
-//                 Kp::new(|l: &Level1| Some(&l.b), |l: &mut Level1| Some(&mut l.b));
-//             let next: KpType<Level2, Level2> =
-//                 Kp::new(|l: &Level2| Some(l), |l: &mut Level2| Some(l));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-//         let kp3 = {
-//             let prev: KpType<Level2, std::sync::Arc<Mutex<i32>>> =
-//                 Kp::new(|l: &Level2| Some(&l.c), |l: &mut Level2| Some(&mut l.c));
-//             let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
-//             AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
-//         };
-
-//         let chained = kp1.then_async(kp2).then_async(kp3);
-//         let result = chained.get(&root).await;
-//         assert_eq!(result, Some(&42));
-//     }
-// }
 // ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(all(test, feature = "tokio"))]
+mod tests {
+    use super::*;
+    use crate::KpType;
+
+    #[tokio::test]
+    async fn test_async_lock_kp_tokio_mutex_basic() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            data: std::sync::Arc<Mutex<String>>,
+        }
+
+        let root = Root {
+            data: std::sync::Arc::new(Mutex::new("hello".to_string())),
+        };
+
+        // Create AsyncLockKp
+        let lock_kp = {
+            let prev: KpType<Root, std::sync::Arc<Mutex<String>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<String, String> =
+                Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Test async get
+        let value = lock_kp.get(&root).await;
+        assert!(value.is_some());
+        assert_eq!(value.unwrap(), &"hello".to_string());
+    }
+
+    #[tokio::test]
+    async fn test_async_lock_kp_get_optional_or_else() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            data: std::sync::Arc<Mutex<i32>>,
+        }
+
+        let mut root = Root {
+            data: std::sync::Arc::new(Mutex::new(42)),
+        };
+
+        let lock_kp = {
+            let prev: KpType<Root, std::sync::Arc<Mutex<i32>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // get_optional
+        assert!(lock_kp.get_optional(None).await.is_none());
+        assert_eq!(lock_kp.get_optional(Some(&root)).await, Some(&42));
+
+        // get_mut_optional
+        assert!(lock_kp.get_mut_optional(None).await.is_none());
+        if let Some(m) = lock_kp.get_mut_optional(Some(&mut root)).await {
+            *m = 99;
+        }
+        assert_eq!(lock_kp.get(&root).await, Some(&99));
+
+        // get_or_else
+        assert_eq!(*lock_kp.get_or_else(None, || &0).await, 0);
+        assert_eq!(*lock_kp.get_or_else(Some(&root), || &0).await, 99);
+
+        // get_mut_or_else
+        let m = lock_kp
+            .get_mut_or_else(Some(&mut root), || panic!("unexpected"))
+            .await;
+        *m = 100;
+        assert_eq!(lock_kp.get(&root).await, Some(&100));
+    }
+
+    #[tokio::test]
+    async fn test_async_lock_kp_tokio_rwlock_basic() {
+        use tokio::sync::RwLock;
+
+        #[derive(Clone)]
+        struct Root {
+            data: std::sync::Arc<RwLock<Vec<i32>>>,
+        }
+
+        let root = Root {
+            data: std::sync::Arc::new(RwLock::new(vec![1, 2, 3, 4, 5])),
+        };
+
+        // Create AsyncLockKp with RwLock
+        let lock_kp = {
+            let prev: KpType<Root, std::sync::Arc<RwLock<Vec<i32>>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<Vec<i32>, Vec<i32>> =
+                Kp::new(|v: &Vec<i32>| Some(v), |v: &mut Vec<i32>| Some(v));
+            AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
+        };
+
+        // Test async get with RwLock (read lock)
+        let value = lock_kp.get(&root).await;
+        assert!(value.is_some());
+        assert_eq!(value.unwrap().len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_async_lock_kp_concurrent_reads() {
+        use tokio::sync::RwLock;
+
+        #[derive(Clone)]
+        struct Root {
+            data: std::sync::Arc<RwLock<i32>>,
+        }
+
+        let root = Root {
+            data: std::sync::Arc::new(RwLock::new(42)),
+        };
+
+        // Create AsyncLockKp
+        let lock_kp = {
+            let prev: KpType<Root, std::sync::Arc<RwLock<i32>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
+            AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
+        };
+
+        // Concurrent async reads in the same task (spawn would require 'static future;
+        // get() returns references so we use join! instead)
+        let lock_kp2 = {
+            let prev: KpType<Root, std::sync::Arc<RwLock<i32>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
+            AsyncLockKp::new(prev, TokioRwLockAccess::new(), next)
+        };
+        let (a, b) = tokio::join!(lock_kp.get(&root), lock_kp2.get(&root));
+        assert_eq!(a, Some(&42));
+        assert_eq!(b, Some(&42));
+
+        // Test the original lock_kp as well
+        let value = lock_kp.get(&root).await;
+        assert_eq!(value, Some(&42));
+    }
+
+    #[tokio::test]
+    async fn test_async_lock_kp_panic_on_clone_proof() {
+        use tokio::sync::Mutex;
+
+        /// This struct PANICS if cloned - proving no deep cloning occurs
+        struct PanicOnClone {
+            data: String,
+        }
+
+        impl Clone for PanicOnClone {
+            fn clone(&self) -> Self {
+                panic!("❌ ASYNC DEEP CLONE DETECTED! PanicOnClone was cloned!");
+            }
+        }
+
+        #[derive(Clone)]
+        struct Root {
+            level1: std::sync::Arc<Mutex<Level1>>,
+        }
+
+        struct Level1 {
+            panic_data: PanicOnClone,
+            value: i32,
+        }
+
+        impl Clone for Level1 {
+            fn clone(&self) -> Self {
+                panic!("❌ Level1 was deeply cloned in async context!");
+            }
+        }
+
+        // Create structure with PanicOnClone
+        let root = Root {
+            level1: std::sync::Arc::new(Mutex::new(Level1 {
+                panic_data: PanicOnClone {
+                    data: "test".to_string(),
+                },
+                value: 123,
+            })),
+        };
+
+        // Create AsyncLockKp
+        let lock_kp = {
+            let prev: KpType<Root, std::sync::Arc<Mutex<Level1>>> = Kp::new(
+                |r: &Root| Some(&r.level1),
+                |r: &mut Root| Some(&mut r.level1),
+            );
+            let next: KpType<Level1, i32> = Kp::new(
+                |l: &Level1| Some(&l.value),
+                |l: &mut Level1| Some(&mut l.value),
+            );
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // CRITICAL TEST: If any deep cloning occurs, PanicOnClone will trigger
+        let value = lock_kp.get(&root).await;
+
+        // ✅ SUCCESS: No panic means no deep cloning!
+        assert_eq!(value, Some(&123));
+    }
+
+    #[tokio::test]
+    async fn test_async_lock_kp_structure() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            data: std::sync::Arc<Mutex<String>>,
+        }
+
+        let lock_kp = {
+            let prev: KpType<Root, std::sync::Arc<Mutex<String>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<String, String> =
+                Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Verify structure has three fields (prev, mid, next)
+        let _ = &lock_kp.prev;
+        let _ = &lock_kp.mid;
+        let _ = &lock_kp.next;
+    }
+
+    #[tokio::test]
+    async fn test_async_kp_then() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            data: std::sync::Arc<Mutex<Inner>>,
+        }
+
+        #[derive(Clone)]
+        struct Inner {
+            value: i32,
+        }
+
+        let root = Root {
+            data: std::sync::Arc::new(Mutex::new(Inner { value: 42 })),
+        };
+
+        // Create AsyncLockKp to Inner
+        let async_kp = {
+            let prev: KpType<Root, std::sync::Arc<Mutex<Inner>>> =
+                Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+            let next: KpType<Inner, Inner> = Kp::new(|i: &Inner| Some(i), |i: &mut Inner| Some(i));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Chain with regular Kp to get value field
+        let value_kp: KpType<Inner, i32> = Kp::new(
+            |i: &Inner| Some(&i.value),
+            |i: &mut Inner| Some(&mut i.value),
+        );
+
+        let chained = async_kp.then(value_kp);
+        let result = chained.get(&root).await;
+        assert_eq!(result, Some(&42));
+    }
+
+    #[tokio::test]
+    async fn test_async_kp_later_then() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            lock1: std::sync::Arc<Mutex<Container>>,
+        }
+
+        #[derive(Clone)]
+        struct Container {
+            lock2: std::sync::Arc<Mutex<i32>>,
+        }
+
+        let root = Root {
+            lock1: std::sync::Arc::new(Mutex::new(Container {
+                lock2: std::sync::Arc::new(Mutex::new(999)),
+            })),
+        };
+
+        // First AsyncLockKp: Root -> Container
+        let async_kp1 = {
+            let prev: KpType<Root, std::sync::Arc<Mutex<Container>>> =
+                Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
+            let next: KpType<Container, Container> =
+                Kp::new(|c: &Container| Some(c), |c: &mut Container| Some(c));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Second AsyncLockKp: Container -> i32
+        let async_kp2 = {
+            let prev: KpType<Container, std::sync::Arc<Mutex<i32>>> = Kp::new(
+                |c: &Container| Some(&c.lock2),
+                |c: &mut Container| Some(&mut c.lock2),
+            );
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        // Chain with then_async; get with root
+        let chained = async_kp1.then_async(async_kp2);
+        let result = chained.get(&root).await;
+        assert_eq!(result, Some(&999));
+    }
+
+    #[tokio::test]
+    async fn test_async_kp_then_async_three_levels() {
+        use tokio::sync::Mutex;
+
+        #[derive(Clone)]
+        struct Root {
+            a: std::sync::Arc<Mutex<Level1>>,
+        }
+        #[derive(Clone)]
+        struct Level1 {
+            b: std::sync::Arc<Mutex<Level2>>,
+        }
+        #[derive(Clone)]
+        struct Level2 {
+            c: std::sync::Arc<Mutex<i32>>,
+        }
+
+        let root = Root {
+            a: std::sync::Arc::new(Mutex::new(Level1 {
+                b: std::sync::Arc::new(Mutex::new(Level2 {
+                    c: std::sync::Arc::new(Mutex::new(42)),
+                })),
+            })),
+        };
+
+        let kp1 = {
+            let prev: KpType<Root, std::sync::Arc<Mutex<Level1>>> =
+                Kp::new(|r: &Root| Some(&r.a), |r: &mut Root| Some(&mut r.a));
+            let next: KpType<Level1, Level1> =
+                Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+        let kp2 = {
+            let prev: KpType<Level1, std::sync::Arc<Mutex<Level2>>> =
+                Kp::new(|l: &Level1| Some(&l.b), |l: &mut Level1| Some(&mut l.b));
+            let next: KpType<Level2, Level2> =
+                Kp::new(|l: &Level2| Some(l), |l: &mut Level2| Some(l));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+        let kp3 = {
+            let prev: KpType<Level2, std::sync::Arc<Mutex<i32>>> =
+                Kp::new(|l: &Level2| Some(&l.c), |l: &mut Level2| Some(&mut l.c));
+            let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
+            AsyncLockKp::new(prev, TokioMutexAccess::new(), next)
+        };
+
+        let chained = kp1.then_async(kp2).then_async(kp3);
+        let result = chained.get(&root).await;
+        assert_eq!(result, Some(&42));
+    }
+}
