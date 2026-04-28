@@ -15,7 +15,11 @@ where
     S: for<'a> Fn(&'a mut R) -> Option<&'a mut V>,
 {
     pub fn new(get: G, set: S) -> Self {
-        Self { get, set, _p: std::marker::PhantomData }
+        Self {
+            get,
+            set,
+            _p: std::marker::PhantomData,
+        }
     }
 
     #[inline]
@@ -40,7 +44,7 @@ where
     where
         G2: for<'a> Fn(&'a V) -> Option<&'a W>,
         S2: for<'a> Fn(&'a mut V) -> Option<&'a mut W>,
-        V: 'static
+        V: 'static,
     {
         let first_get = self.get;
         let first_set = self.set;
@@ -84,16 +88,16 @@ fn size_width_kp() -> Kp<
     impl for<'a> Fn(&'a Size) -> Option<&'a u32>,
     impl for<'a> Fn(&'a mut Size) -> Option<&'a mut u32>,
 > {
-    Kp::new(
-        |x: &Size| Some(&x.width),
-        |x: &mut Size| Some(&mut x.width),
-    )
+    Kp::new(|x: &Size| Some(&x.width), |x: &mut Size| Some(&mut x.width))
 }
 
 #[test]
 fn manual_keypath_then_read_write_works() {
     let mut rect = Rectangle {
-        size: Size { width: 30, height: 50 },
+        size: Size {
+            width: 30,
+            height: 50,
+        },
         name: "MyRect".to_string(),
     };
 
