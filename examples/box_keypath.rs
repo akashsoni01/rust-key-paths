@@ -66,7 +66,7 @@ fn init_via_keypaths() -> SomeComplexStruct {
 }
 
 fn main() {
-    let instance = init_via_keypaths();
+    let mut instance = init_via_keypaths();
 
     // Read back via same keypaths to verify
     let omsf = SomeComplexStruct::scsf()
@@ -75,6 +75,13 @@ fn main() {
         .get(&instance);
     assert_eq!(omsf, Some(&"omsf_value".to_string()));
 
+    let kp = SomeComplexStruct::scsf()
+        .then(SomeOtherStruct::sosf())
+        .then(OneMoreStruct::omse())
+        .then(SomeEnum::b())
+        .then(DarkStruct::dsf());
+
+        println!("size of kp = {:?}", size_of_val(&kp));
     let dsf = SomeComplexStruct::scsf()
         .then(SomeOtherStruct::sosf())
         .then(OneMoreStruct::omse())
@@ -82,6 +89,22 @@ fn main() {
         .then(DarkStruct::dsf())
         .get(&instance);
     assert_eq!(dsf, Some(&"dark_value".to_string()));
+
+    if let Some(val) = kp.get_mut_ref(&mut instance) {
+        *val = "changed".to_string()
+    }
+
+    if let Some(val) = kp.get_mut_ref(&mut instance) {
+                *val = "changed".to_string()
+
+    }
+
+    if let Some(val) = kp.get_mut_ref(&mut instance) {
+                *val = "changed3".to_string()
+
+    }
+
+        println!("size of kp = {:?}", size_of_val(&kp));
 
     /*
             Kp - struct 8 genric
