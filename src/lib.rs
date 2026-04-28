@@ -2002,9 +2002,7 @@ where
     }
 }
 
-/// AKp (AnyKeyPath) - Hides both Root and Value types
-/// Most flexible keypath type for heterogeneous collections
-/// Uses dynamic dispatch and type checking at runtime
+/// `Kp` — typed keypath with getter/setter closures. See also [AKp] for type-erased keypaths.
 ///
 /// # Mutation: get vs get_mut (setter path)
 ///
@@ -2013,6 +2011,9 @@ where
 ///
 /// When mutating through a Kp, the **setter path** is used—`get_mut` invokes the `set` closure,
 /// not the `get` closure. The getter is for read-only access only.
+///
+/// For manual reference-shaped paths, [`constrain_get`] and [`constrain_set`] help closures satisfy
+/// `for<'b> Fn(&'b R) -> Option<&'b V>`; use [`Kp::get_ref`] / [`Kp::get_mut_ref`] to call them explicitly.
 #[derive(Clone)]
 pub struct Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
@@ -2022,11 +2023,29 @@ where
     G: Fn(Root) -> Option<Value>,
     S: Fn(MutRoot) -> Option<MutValue>,
 {
-    /// Getter closure: used by [Kp::get] for read-only access.
-    get: G,
-    /// Setter closure: used by [Kp::get_mut] for mutation.
-    set: S,
-    _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
+    /// Getter closure: used by [`Kp::get`] for read-only access when `G` satisfies the HRTB.
+    pub get: G,
+    /// Setter closure: used by [`Kp::get_mut`] for mutation when `S` satisfies the HRTB.
+    pub set: S,
+    pub _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
+}
+
+/// Forces the compiler to treat a closure as `for<'b> Fn(&'b R) -> Option<&'b V>`.
+#[inline]
+pub fn constrain_get<R, V, F>(f: F) -> F
+where
+    F: for<'b> Fn(&'b R) -> Option<&'b V>,
+{
+    f
+}
+
+/// Forces the compiler to treat a closure as `for<'b> Fn(&'b mut R) -> Option<&'b mut V>`.
+#[inline]
+pub fn constrain_set<R, V, F>(f: F) -> F
+where
+    F: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+{
+    f
 }
 
 impl<R, V, Root, Value, MutRoot, MutValue, G, S> Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
@@ -2040,41 +2059,72 @@ where
 {
     pub fn new(get: G, set: S) -> Self {
         Self {
-            get: get,
-            set: set,
+            get,
+            set,
             _p: std::marker::PhantomData,
         }
     }
 
-    // #[inline]
-    // pub fn get(&self, root: Root) -> Option<Value> {
-    //     (self.get)(root)
-    // }
+    /// Read through the getter closure. For reference-shaped keypaths built with [`constrain_get`]
+    /// / [`constrain_set`], you can also call this as `kp.get(root)` with `root: Root` (often `&R`).
+    #[inline]
+    pub fn get(&self, root: Root) -> Option<Value> {
+        (self.get)(root)
+    }
 
-    // #[inline]
-    // pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
-    //     (self.set)(root)
-    // }
+    /// Mutate through the setter closure.
+    #[inline]
+    pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
+        (self.set)(root)
+    }
+
+    /// Higher-ranked read when `G: for<'b> Fn(&'b R) -> Option<&'b V>` (e.g. manual keypaths using
+    /// [`constrain_get`]). Prefer [`get`](Kp::get) for generic [`Kp`] including mapped values.
+    #[inline]
+    pub fn get_ref<'a>(&self, root: &'a R) -> Option<&'a V>
+    where
+        G: for<'b> Fn(&'b R) -> Option<&'b V>,
+    {
+        (self.get)(root)
+    }
+
+    /// Higher-ranked write when `S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>`.
+    #[inline]
+    pub fn get_mut_ref<'a>(&self, root: &'a mut R) -> Option<&'a mut V>
+    where
+        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+    {
+        (self.set)(root)
+    }
 
     #[inline]
-    pub fn then<SV, SubValue, MutSubValue, G2, S2>(
+    pub fn then<SV, G2, S2>(
         self,
-        next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
+        next: Kp<
+            V,
+            SV,
+            &'static V, // ← concrete ref types, not free Value/SubValue/MutSubValue
+            &'static SV,
+            &'static mut V,
+            &'static mut SV,
+            G2,
+            S2,
+        >,
     ) -> Kp<
         R,
         SV,
-        Root,
-        SubValue,
-        MutRoot,
-        MutSubValue,
-        impl Fn(Root) -> Option<SubValue>,
-        impl Fn(MutRoot) -> Option<MutSubValue>,
+        &'static R,
+        &'static SV,
+        &'static mut R,
+        &'static mut SV,
+        impl for<'b> Fn(&'b R) -> Option<&'b SV>,
+        impl for<'b> Fn(&'b mut R) -> Option<&'b mut SV>,
     >
     where
-        SubValue: std::borrow::Borrow<SV>,
-        MutSubValue: std::borrow::BorrowMut<SV>,
-        G2: Fn(Value) -> Option<SubValue>,
-        S2: Fn(MutValue) -> Option<MutSubValue>,
+        G: for<'b> Fn(&'b R) -> Option<&'b V>,
+        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+        G2: for<'b> Fn(&'b V) -> Option<&'b SV>,
+        S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV>,
     {
         let first_get = self.get;
         let first_set = self.set;
@@ -2082,10 +2132,11 @@ where
         let second_set = next.set;
 
         Kp::new(
-            move |root: Root| first_get(root).and_then(|value| second_get(value)),
-            move |root: MutRoot| first_set(root).and_then(|value| second_set(value)),
+            constrain_get(move |root: &R| first_get(root).and_then(|value| second_get(value))),
+            constrain_set(move |root: &mut R| first_set(root).and_then(|value| second_set(value))),
         )
     }
+
 }
 
 impl<R, V, Root, Value, MutRoot, MutValue, G, S> fmt::Debug

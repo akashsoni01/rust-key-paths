@@ -47,33 +47,25 @@ where
         (self.set)(root)
     }
 
-    pub fn then<SV, G2, S2>(
+    #[inline]
+    pub fn then<SV, SubValue, MutSubValue, G2, S2>(
         self,
-        next: Kp<
-            V,
-            SV,
-            &'static V, // ← concrete ref types, not free Value/SubValue/MutSubValue
-            &'static SV,
-            &'static mut V,
-            &'static mut SV,
-            G2,
-            S2,
-        >,
+        next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
     ) -> Kp<
         R,
         SV,
-        &'static R,
-        &'static SV,
-        &'static mut R,
-        &'static mut SV,
-        impl for<'b> Fn(&'b R) -> Option<&'b SV>,
-        impl for<'b> Fn(&'b mut R) -> Option<&'b mut SV>,
+        Root,
+        SubValue,
+        MutRoot,
+        MutSubValue,
+        impl Fn(Root) -> Option<SubValue>,
+        impl Fn(MutRoot) -> Option<MutSubValue>,
     >
     where
-        G: for<'b> Fn(&'b R) -> Option<&'b V>,
-        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
-        G2: for<'b> Fn(&'b V) -> Option<&'b SV>,
-        S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV>,
+        SubValue: std::borrow::Borrow<SV>,
+        MutSubValue: std::borrow::BorrowMut<SV>,
+        G2: Fn(Value) -> Option<SubValue>,
+        S2: Fn(MutValue) -> Option<MutSubValue>,
     {
         let first_get = self.get;
         let first_set = self.set;

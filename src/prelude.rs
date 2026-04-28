@@ -1,5 +1,7 @@
 // src/prelude.rs
 pub use crate::CoercionTrait;
+pub use crate::constrain_get;
+pub use crate::constrain_set;
 pub use crate::Kp;
 pub use crate::KpTrait;
 pub use crate::KpType;

@@ -2701,7 +2701,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
                                     #name,
     std::sync::Mutex<#inner_ty>,
-    std::sync::Mutex<#inner_ty>,
     &'a #name,
     &'a std::sync::Mutex<#inner_ty>,
     &'a mut #name,
@@ -2737,7 +2736,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
                                     #name,
-    parking_lot::Mutex<#inner_ty>,
     parking_lot::Mutex<#inner_ty>,
     &'a #name,
     &'a parking_lot::Mutex<#inner_ty>,
@@ -2775,7 +2773,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
                                     #name,
     std::sync::RwLock<#inner_ty>,
-    std::sync::RwLock<#inner_ty>,
     &'a #name,
     &'a std::sync::RwLock<#inner_ty>,
     &'a mut #name,
@@ -2811,7 +2808,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
                                     #name,
-    parking_lot::RwLock<#inner_ty>,
     parking_lot::RwLock<#inner_ty>,
     &'a #name,
     &'a parking_lot::RwLock<#inner_ty>,
@@ -4502,7 +4498,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
                                     #name,
     std::sync::Mutex<#inner_ty>,
-    std::sync::Mutex<#inner_ty>,
     &'a #name,
     &'a std::sync::Mutex<#inner_ty>,
     &'a mut #name,
@@ -4538,7 +4533,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
                                     #name,
-    parking_lot::Mutex<#inner_ty>,
     parking_lot::Mutex<#inner_ty>,
     &'a #name,
     &'a parking_lot::Mutex<#inner_ty>,
@@ -4576,7 +4570,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
                                     #name,
     std::sync::RwLock<#inner_ty>,
-    std::sync::RwLock<#inner_ty>,
     &'a #name,
     &'a std::sync::RwLock<#inner_ty>,
     &'a mut #name,
@@ -4612,7 +4605,6 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
                                     #name,
-    parking_lot::RwLock<#inner_ty>,
     parking_lot::RwLock<#inner_ty>,
     &'a #name,
     &'a parking_lot::RwLock<#inner_ty>,
