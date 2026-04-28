@@ -126,23 +126,9 @@ fn rect_size_kp() -> Kp<
     impl Fn(&mut Rectangle) -> Option<&mut Size>,
 > {
     Kp::new(
-        get_ref(|x: &Rectangle| Some(&x.size)),
-        set_ref(|x: &mut Rectangle| Some(&mut x.size)),
+        constrain_get(|x: &Rectangle| Some(&x.size)),
+        constrain_set(|x: &mut Rectangle| Some(&mut x.size)),
     )
-}
-
-fn get_ref<T, U, F>(f: F) -> F
-where
-    F: Fn(&T) -> Option<&U>,
-{
-    f
-}
-
-fn set_ref<T, U, F>(f: F) -> F
-where
-    F: Fn(&mut T) -> Option<&mut U>,
-{
-    f
 }
 
 // Manual keypath: Size -> width
