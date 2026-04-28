@@ -3,16 +3,14 @@
 Key paths provide a **safe, composable way to access and modify nested data** in Rust.
 Inspired by **KeyPath and Functional Lenses** system, this feature rich crate lets you work with **struct fields** and **enum variants** as *first-class values*.
 
-## Starter Guide
-
 ### Installation
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "2.0.6"
-key-paths-derive = "2.0.6"
+rust-key-paths = "2.9.8"
+key-paths-derive = "2.6.2"
 ```
 
 ### Basic usage
@@ -114,24 +112,6 @@ Filter by `value_type_id()` / `root_type_id()` and read with `get_as()`. For wri
 
 See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 
-### GPU / wgpu (key-paths-iter, optional)
-
-The [key-paths-iter](https://github.com/codefonsi/rust-key-paths) crate can run **numeric** keypaths (e.g. `f32`) on the GPU via wgpu. Two styles:
-
-- **AKp runner** (`wgpu` module): `IntoNumericAKp` from Kp, `AKpTier::Numeric` / `Arbitrary`, `AKpRunner`. Examples: `kp_pkp_wgpu`, `akp_wgpu_runner`.
-- **Kp-only** (`kp_gpu` module): no AKp/PKp — `.map_gpu(wgsl)`, `.par_gpu(wgsl, roots, ctx)`, `GpuKpRunner`. Examples: `kp_gpu_example`, `kp_gpu_vec_example`, `kp_gpu_practical_app` (finance: Monte Carlo, batch options, stress-test). Kp with value `Vec<V>`: `.map_gpu_vec(wgsl)` for one dispatch over the vector.
-
-Run benchmarks: `cargo bench --bench akp_cpu_bench`. Typical results (MacBook Air M1):
-
-| Roots   | Serial (CPU) | Parallel CPU (Rayon) | Parallel GPU (wgpu) |
-|--------|---------------|----------------------|---------------------|
-| 1,000  | ~35 µs        | ~86 µs               | ~1.6 ms             |
-| 10,000 | ~350 µs       | ~425 µs              | ~1.9 ms             |
-| 50,000 | ~1.8 ms       | ~1.8 ms              | ~3.7 ms             |
-| 100,000| ~3.7 ms       | ~3.7 ms              | ~5.5 ms             |
-
-For this lightweight transform, CPU wins; GPU pays off for larger batches or heavier per-element math.
-
 ### Features
 
 | Feature | Description |
@@ -143,23 +123,7 @@ For this lightweight transform, CPU wins; GPU pays off for larger batches or hea
 ### More examples
 
 ```bash
-cargo run --example kp_derive_showcase
-cargo run --example pkp_akp_filter_typeid
-cargo run --example pkp_akp_read_write_convert
-# Kp/Pkp + wgpu (key-paths-iter with gpu feature)
-cargo run --example kp_pkp_wgpu
-cargo run --example akp_wgpu_runner
-cargo run --example kp_gpu_example
-cargo run --example kp_gpu_vec_example
-cargo run --example kp_gpu_practical_app
-# Box and Pin support
-cargo run --example box_and_pin_example
-# pin_project #[pin] fields
-cargo run --example pin_project_example --features pin_project
-cargo run --example pin_project_fair_race --features "pin_project,tokio"
-# Deadlock prevention (parallel execution)
-cargo run --example deadlock_prevention_sync --features parking_lot
-cargo run --example deadlock_prevention_async --features tokio
+
 ```
 
 ---
@@ -212,78 +176,48 @@ struct WithPinnedFuture {
 
 Examples: `pin_project_example`, `pin_project_fair_race` (FairRaceFuture use case).
 
-## Performance: Kp vs direct unwrap
+## Performance: `box_keypath` benchmark
 
-Benchmark: nested `Option` chains and enum case paths (`cargo bench --bench keypath_vs_unwrap`).
+Benchmark file: `benches/box_keypath_bench.rs`
 
-| Scenario | Keypath | Direct unwrap | Overhead |
-|----------|---------|---------------|----------|
-| 100× reuse (3-level) | ~36.6 ns | ~36.7 ns | ~1x |
-| 100× reuse (5-level) | ~52.3 ns | ~52.5 ns | ~1x |
+Run with:
 
-Access overhead comes from closure indirection in the composed chain. **Reusing a keypath** (build once, use many times) matches direct unwrap; building the chain each time adds ~1–2 ns.
+```bash
+cargo bench --bench box_keypath_bench
+```
 
-### Would static keypaths help?
+### Read path (`scsf -> sosf -> omse -> B -> dsf`)
 
-Yes. Static/const keypaths would:
-- Remove creation cost entirely (no closure chain construction per use)
-- Allow the compiler to inline the full traversal
-- Likely close the gap to near-zero overhead vs manual unwrap
+| Variant | Time (approx) |
+|---------|---------------|
+| keypath | 996.46-997.18 ps |
+| unwrap | 944.10-946.59 ps |
+| as_ref().map | 996.31-997.39 ps |
+| `?` operator | 996.33-997.24 ps |
 
-Currently, `Kp::then()` composes via closures that capture the previous step, so each access goes through a chain of function calls. A static keypath could flatten this to direct field offsets.
+### Write path (`scsf -> sosf -> omse -> B -> dsf`)
 
----
+| Variant | Time (approx) |
+|---------|---------------|
+| keypath | 147.44-149.09 ns |
+| unwrap | 143.13-145.02 ns |
+| as_ref().map | 141.04-142.65 ns |
+| `?` operator | 141.41-150.25 ns |
 
-## Performance: LockKp (Arc&lt;Mutex&gt;, Arc&lt;RwLock&gt;)
+These numbers are from Criterion's reported confidence ranges on this machine. In this benchmark, keypaths are very close to direct traversal for reads and only slightly slower for writes.
 
-| Operation | Keypath | Direct Locks | Overhead |
-|-----------|---------|--------------|----------|
-| **Read**  | ~241 ns | ~117 ns      | ~2.1x    |
-| **Write** | ~239 ns | ~114 ns      | ~2.1x    |
+### Keypath size
 
-The keypath approach builds the chain each iteration and traverses through `LockKp.then().then().then_async().then()`; direct locks use `sync_mutex.lock()` then `tokio_mutex.lock().await`. Hot-path functions are annotated with `#[inline]` for improved performance.
+From `examples/box_keypath.rs`, the composed keypath prints:
 
-### 10-level deep Arc&lt;RwLock&gt; benchmarks (leaf: f64)
+```text
+size of kp = 0
+```
 
-Benchmark: 10 levels of nested `Arc<RwLock<Next>>`, reading/writing leaf `f64`. Run with:
-- `cargo bench --features parking_lot --bench ten_level_arc_rwlock`
-- `cargo bench --bench ten_level_std_rwlock`
-- `cargo bench --features tokio --bench ten_level_tokio_rwlock`
-
-**Incr** (write: leaf += 0.25):
-
-| RwLock implementation | keypath_static | keypath_dynamic | direct_lock |
-|-----------------------|----------------|-----------------|-------------|
-| **parking_lot**       | ~34 ns         | ~41 ns          | ~39 ns      |
-| **std::sync**         | ~46 ns         | ~54 ns          | ~46 ns      |
-| **tokio::sync**       | ~1.79 µs       | ~1.78 µs        | ~278 ns     |
-
-Static keypath (chain built once, reused) matches or beats direct lock for sync RwLocks. For tokio, async keypath has higher overhead than direct `.read().await`/`.write().await`; direct lock is fastest.
+So this composed `kp` is zero-sized (no captured runtime state).
 
 ---
 
 ## 📜 License
 
 * Mozilla Public License 2.0
-
-Todos 
-1. pub fn zip_kps - Done
-2. pub fn to_dynamic, - Done
-2. impl<'a, R, V> From<KpType<'a, R, V>> for KpDynamic<R, V>, - Done
-2. pub fn into_dynamic(self) -> KpDynamic<R, V> - Done
-2. pub fn from_closures - Done
-3. KpType, KpDynamic, - Done
-3. pub type KpComposed<R, V> - Done
-4. lock
-5. async_lock
-6. pin
-7. PKP - Done
-8. AKP - Done
-9. pub trait ChainExt
-10. pub trait AccessorTrait - Done
-11. pub trait CoercionTrait - Done
-12. pub trait HofTrait - fn map - Done
-13. Helper functions + enum_variant - Done
-14. Send + Sync for Kp and EnumKP - X
-15. HOF enumkp - X
-16. Trait seprated and moved to new file - Done

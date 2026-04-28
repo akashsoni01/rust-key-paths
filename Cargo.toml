@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "2.9.7"
+version = "2.9.8"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -41,3 +41,8 @@ tokio = ["dep:tokio"]
 tagged-core = "1.0.3"
 pin-project = "1.1"
 key-paths-derive = { path = "key-paths-derive" }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "box_keypath_bench"
+harness = false
