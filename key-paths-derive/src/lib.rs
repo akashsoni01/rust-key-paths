@@ -945,7 +945,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     // /// Returns a simple identity keypath for this type
                     // #[inline(always)]
-                    // pub fn identity<'a>() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
+                    // pub fn identity() -> rust_key_paths::Kp<#name, #name, &'static #name, &'static #name, &'static mut #name, &'static mut #name, impl Fn(&#name) -> Option<&#name>, impl Fn(&mut #name) -> Option<&mut #name>,> {
                     //     rust_key_paths::Kp::new(
                     //         |r: &#name| Some(r),
                     //         |r: &mut #name| Some(r)
@@ -988,19 +988,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Option<T>, unwrap and access inner type
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                     )
                                 }
                             });
@@ -1009,19 +1009,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Option<Box<T>>, keypath to T: get returns Option<&T> via as_deref()
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_deref(),
-                                        |root: &mut #name| root.#field_ident.as_deref_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_deref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_deref_mut()),
                                     )
                                 }
                             });
@@ -1031,19 +1031,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // Setter: as_mut() gives Option<&mut Rc<T>>, and_then(Rc::get_mut) gives Option<&mut T>
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_deref(),
-                                        |root: &mut #name| root.#field_ident.as_mut().and_then(std::rc::Rc::get_mut),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_deref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut().and_then(std::rc::Rc::get_mut)),
                                     )
                                 }
                             });
@@ -1053,19 +1053,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // Setter: as_mut() gives Option<&mut Arc<T>>, and_then(Arc::get_mut) gives Option<&mut T>
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_deref(),
-                                        |root: &mut #name| root.#field_ident.as_mut().and_then(std::sync::Arc::get_mut),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_deref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut().and_then(std::sync::Arc::get_mut)),
                                     )
                                 }
                             });
@@ -1084,19 +1084,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 tokens.extend(quote! {
                                     #[doc = #whole_doc]
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         )
                                     }
                                     #[doc = #at_doc]
@@ -1115,19 +1115,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         )
                                     }
                                 });
@@ -1147,19 +1147,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 tokens.extend(quote! {
                                     #[doc = #whole_doc]
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         )
                                     }
                                     #[doc = #at_doc]
@@ -1178,19 +1178,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         )
                                     }
                                 });
@@ -1199,19 +1199,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionHashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
 
@@ -1232,19 +1232,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionBTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
 
@@ -1265,19 +1265,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionVec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 #[inline(always)]
@@ -1292,19 +1292,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionVecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 #[inline(always)]
@@ -1322,19 +1322,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // Keypath to the Option container (reference), like Vec/HashSet
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -1342,19 +1342,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 #[inline(always)]
@@ -1370,19 +1370,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         )
                                     }
                                     #[inline(always)]
@@ -1400,19 +1400,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         )
                                     }
                                 });
@@ -1423,19 +1423,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         )
                                     }
                                     #[inline(always)]
@@ -1453,19 +1453,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         )
                                     }
                                 });
@@ -1475,19 +1475,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Box<T>, deref to inner type (returns &T / &mut T, not &Box<T>)
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&*root.#field_ident),
-                                        |root: &mut #name| Some(&mut *root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&*root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut *root.#field_ident)),
                                     )
                                 }
                             });
@@ -1496,19 +1496,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Box<Option<T>>, keypath to T: deref Box to Option<T>, then Option::as_ref/as_mut
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| (&*root.#field_ident).as_ref(),
-                                        |root: &mut #name| (&mut *root.#field_ident).as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| (&*root.#field_ident).as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| (&mut *root.#field_ident).as_mut()),
                                     )
                                 }
                             });
@@ -1517,19 +1517,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Rc<Option<T>>, keypath to T: deref Rc to &Option<T>, then Option::as_ref; set = Rc::get_mut then as_mut
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| (&*root.#field_ident).as_ref(),
-                                        |root: &mut #name| std::rc::Rc::get_mut(&mut root.#field_ident).and_then(std::option::Option::as_mut),
+                                        rust_key_paths::constrain_get(|root: &#name| (&*root.#field_ident).as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| std::rc::Rc::get_mut(&mut root.#field_ident).and_then(std::option::Option::as_mut)),
                                     )
                                 }
                             });
@@ -1538,19 +1538,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Arc<Option<T>>, keypath to T: deref Arc to &Option<T>, then Option::as_ref; set = Arc::get_mut then as_mut
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| (&*root.#field_ident).as_ref(),
-                                        |root: &mut #name| std::sync::Arc::get_mut(&mut root.#field_ident).and_then(std::option::Option::as_mut),
+                                        rust_key_paths::constrain_get(|root: &#name| (&*root.#field_ident).as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| std::sync::Arc::get_mut(&mut root.#field_ident).and_then(std::option::Option::as_mut)),
                                     )
                                 }
                             });
@@ -1559,38 +1559,38 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_inner_fn = format_ident!("{}_inner", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 #[inline(always)]
-                                pub fn #kp_inner_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_inner_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
 >
 >
                                 where #inner_ty: std::marker::Unpin
                                 {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref()),
-                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut())),
                                     )
                                 }
                             });
@@ -1599,39 +1599,39 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_inner_fn = format_ident!("{}_inner", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 #[inline(always)]
-                                pub fn #kp_inner_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_inner_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
 >
 >
                                 where #inner_ty: std::marker::Unpin
                                 {
                                     // Pin::as_ref on Pin<Box<T>> returns Pin<&T> (Box Deref target), so get_ref() already gives &T
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref()),
-                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(std::pin::Pin::as_ref(&root.#field_ident).get_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#field_ident).get_mut())),
                                     )
                                 }
                             });
@@ -1640,19 +1640,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_pinned_fn = format_ident!("{}_pinned", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 /// Pinned projection for #[pin] field. Requires #[pin_project] on struct.
@@ -1669,19 +1669,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let output_ty = quote! { <#ty as std::future::Future>::Output };
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 /// Pinned projection for #[pin] Future field. Requires #[pin_project] on struct.
@@ -1709,19 +1709,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_pin_future_fn = format_ident!("{}_pin_future_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 /// Pinned projection for #[pin] Box<dyn Future> field. Requires #[pin_project] on struct.
@@ -1744,19 +1744,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Rc<T>, deref to inner type (returns &T; get_mut when uniquely owned)
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(root.#field_ident.as_ref()),
-                                        |root: &mut #name| std::rc::Rc::get_mut(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(root.#field_ident.as_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| std::rc::Rc::get_mut(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -1765,19 +1765,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Arc<T>, deref to inner type (returns &T; get_mut when uniquely owned)
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(root.#field_ident.as_ref()),
-                                        |root: &mut #name| std::sync::Arc::get_mut(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(root.#field_ident.as_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| std::sync::Arc::get_mut(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -1786,19 +1786,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Cow<'_, B>, deref to inner type (as_ref/to_mut)
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(root.#field_ident.as_ref()),
-                                        |root: &mut #name| Some(root.#field_ident.to_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(root.#field_ident.as_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(root.#field_ident.to_mut())),
                                     )
                                 }
                             });
@@ -1808,19 +1808,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Option<Cow<'_, B>>
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref().map(|c| c.as_ref()),
-                                        |root: &mut #name| root.#field_ident.as_mut().map(|c| c.to_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref().map(|c| c.as_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut().map(|c| c.to_mut())),
                                     )
                                 }
                             });
@@ -1829,19 +1829,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Option<Tagged<Tag, T>> - Tagged implements Deref/DerefMut
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref().map(|t| std::ops::Deref::deref(t)),
-                                        |root: &mut #name| root.#field_ident.as_mut().map(|t| std::ops::DerefMut::deref_mut(t)),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref().map(|t| std::ops::Deref::deref(t))),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut().map(|t| std::ops::DerefMut::deref_mut(t))),
                                     )
                                 }
                             });
@@ -1850,19 +1850,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Option<&T>, Option<&str>, Option<&[T]> - read-only, setter returns None
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -1873,19 +1873,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
 
@@ -1909,19 +1909,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
 
@@ -1943,19 +1943,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::VecDequeOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 #[inline(always)]
@@ -1971,19 +1971,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::LinkedListOption, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -1992,19 +1992,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::BinaryHeapOption, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -2013,19 +2013,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Result<T, E>, access Ok value
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref().ok(),
-                                        |root: &mut #name| root.#field_ident.as_mut().ok(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref().ok()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut().ok()),
                                     )
                                 }
                             });
@@ -2036,31 +2036,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let lock_kp_return_ty = kp_lock_ty_arc_mutex(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::lock::ArcMutexAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2072,31 +2072,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let lock_kp_return_ty = kp_lock_ty_arc_rw_lock(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::lock::ArcRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2109,26 +2109,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_arc_mutex_option(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::lock::ArcMutexAccess::<Option<#inner_ty>>::new(),
                                         rust_key_paths::Kp::new(
@@ -2146,26 +2146,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_arc_rw_lock_option(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::lock::ArcRwLockAccess::<Option<#inner_ty>>::new(),
                                         rust_key_paths::Kp::new(
@@ -2183,31 +2183,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_parking_lot_rw_lock(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::lock::ParkingLotRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2220,31 +2220,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_parking_lot_mutex(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::lock::ParkingLotMutexAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2257,26 +2257,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_parking_lot_mutex_option(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::lock::ParkingLotMutexAccess::<Option<#inner_ty>>::new(),
                                         rust_key_paths::Kp::new(
@@ -2294,26 +2294,26 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_parking_lot_rw_lock_option(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::lock::ParkingLotRwLockAccess::<Option<#inner_ty>>::new(),
                                         rust_key_paths::Kp::new(
@@ -2329,19 +2329,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Mutex<T>, return keypath to container
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -2351,19 +2351,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For RwLock<T>, return keypath to container
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -2372,31 +2372,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_async_fn = format_ident!("{}_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_async_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_async_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::async_lock::TokioMutexAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2406,31 +2406,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_async_fn = format_ident!("{}_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_async_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_async_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#field_ident),
-                                            |root: &mut #name| Some(&mut root.#field_ident),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
                                         rust_key_paths::async_lock::TokioRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2440,31 +2440,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_async_fn = format_ident!("{}_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_async_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_async_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| root.#field_ident.as_ref(),
-                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                            rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                            rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
                                         rust_key_paths::async_lock::TokioMutexAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2474,31 +2474,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_async_fn = format_ident!("{}_kp", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_async_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_async_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                                 pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| root.#field_ident.as_ref(),
-                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                            rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                            rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
                                         rust_key_paths::async_lock::TokioRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2511,22 +2511,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let lock_kp_return_ty = kp_lock_ty_arc_mutex(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
-                                // pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
+                                // pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'static #name, &'static std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
                                 //     rust_key_paths::Kp::new(
                                 //         |root: &#name| root.#field_ident.as_ref(),
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
@@ -2535,13 +2535,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| root.#field_ident.as_ref(),
-                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                            rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                            rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
                                         rust_key_paths::lock::ArcMutexAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2555,22 +2555,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_parking_lot_mutex(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
-                                // pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
+                                // pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'static #name, &'static std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
                                 //     rust_key_paths::Kp::new(
                                 //         |root: &#name| root.#field_ident.as_ref(),
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
@@ -2579,13 +2579,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| root.#field_ident.as_ref(),
-                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                            rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                            rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
                                         rust_key_paths::lock::ParkingLotMutexAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2599,22 +2599,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_arc_rw_lock(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
-                                // pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
+                                // pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'static #name, &'static std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
                                 //     rust_key_paths::Kp::new(
                                 //         |root: &#name| root.#field_ident.as_ref(),
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
@@ -2623,13 +2623,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| root.#field_ident.as_ref(),
-                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                            rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                            rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
                                         rust_key_paths::lock::ArcRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2643,22 +2643,22 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 kp_lock_ty_parking_lot_rw_lock(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_lock_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
-                                // pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
+                                // pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'static #name, &'static std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
                                 //     rust_key_paths::Kp::new(
                                 //         |root: &#name| root.#field_ident.as_ref(),
                                 //         |root: &mut #name| root.#field_ident.as_mut(),
@@ -2667,13 +2667,13 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
                                     rust_key_paths::lock::LockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| root.#field_ident.as_ref(),
-                                            |root: &mut #name| root.#field_ident.as_mut(),
+                                            rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                            rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
                                         rust_key_paths::lock::ParkingLotRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -2683,34 +2683,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<
                                     #name,
     std::sync::Mutex<#inner_ty>,
-    &'a #name,
-    &'a std::sync::Mutex<#inner_ty>,
-    &'a mut #name,
-    &'a mut std::sync::Mutex<#inner_ty>,
-    impl Fn(&'a #name) -> Option<&'a std::sync::Mutex<#inner_ty>>,
-    impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Mutex<#inner_ty>>,
+    &'static #name,
+    &'static std::sync::Mutex<#inner_ty>,
+    &'static mut #name,
+    &'static mut std::sync::Mutex<#inner_ty>,
+    impl Fn(&#name) -> Option<&std::sync::Mutex<#inner_ty>>,
+    impl Fn(&mut #name) -> Option<&mut std::sync::Mutex<#inner_ty>>,
 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                     )
                                 }
                             });
@@ -2719,34 +2719,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<
                                     #name,
     parking_lot::Mutex<#inner_ty>,
-    &'a #name,
-    &'a parking_lot::Mutex<#inner_ty>,
-    &'a mut #name,
-    &'a mut parking_lot::Mutex<#inner_ty>,
-    impl Fn(&'a #name) -> Option<&'a parking_lot::Mutex<#inner_ty>>,
-    impl Fn(&'a mut #name) -> Option<&'a mut parking_lot::Mutex<#inner_ty>>,
+    &'static #name,
+    &'static parking_lot::Mutex<#inner_ty>,
+    &'static mut #name,
+    &'static mut parking_lot::Mutex<#inner_ty>,
+    impl Fn(&#name) -> Option<&parking_lot::Mutex<#inner_ty>>,
+    impl Fn(&mut #name) -> Option<&mut parking_lot::Mutex<#inner_ty>>,
 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                     )
                                 }
                             });
@@ -2755,34 +2755,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<
                                     #name,
     std::sync::RwLock<#inner_ty>,
-    &'a #name,
-    &'a std::sync::RwLock<#inner_ty>,
-    &'a mut #name,
-    &'a mut std::sync::RwLock<#inner_ty>,
-    impl Fn(&'a #name) -> Option<&'a std::sync::RwLock<#inner_ty>>,
-    impl Fn(&'a mut #name) -> Option<&'a mut std::sync::RwLock<#inner_ty>>,
+    &'static #name,
+    &'static std::sync::RwLock<#inner_ty>,
+    &'static mut #name,
+    &'static mut std::sync::RwLock<#inner_ty>,
+    impl Fn(&#name) -> Option<&std::sync::RwLock<#inner_ty>>,
+    impl Fn(&mut #name) -> Option<&mut std::sync::RwLock<#inner_ty>>,
 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                     )
                                 }
                             });
@@ -2791,34 +2791,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("{}_unlocked", field_ident);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<
                                     #name,
     parking_lot::RwLock<#inner_ty>,
-    &'a #name,
-    &'a parking_lot::RwLock<#inner_ty>,
-    &'a mut #name,
-    &'a mut parking_lot::RwLock<#inner_ty>,
-    impl Fn(&'a #name) -> Option<&'a parking_lot::RwLock<#inner_ty>>,
-    impl Fn(&'a mut #name) -> Option<&'a mut parking_lot::RwLock<#inner_ty>>,
+    &'static #name,
+    &'static parking_lot::RwLock<#inner_ty>,
+    &'static mut #name,
+    &'static mut parking_lot::RwLock<#inner_ty>,
+    impl Fn(&#name) -> Option<&parking_lot::RwLock<#inner_ty>>,
+    impl Fn(&mut #name) -> Option<&mut parking_lot::RwLock<#inner_ty>>,
 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                     )
                                 }
                             });
@@ -2827,19 +2827,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For Weak<T>, return keypath to container
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |_root: &mut #name| None, // Weak doesn't support mutable access
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None), // Weak doesn't support mutable access
                                     )
                                 }
                             });
@@ -2848,19 +2848,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For atomic types: return keypath to the atomic (user calls .load()/.store())
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -2868,19 +2868,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionAtomic, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                     )
                                 }
                             });
@@ -2888,19 +2888,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::String, None) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -2908,10 +2908,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionString, None) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<#name, std::string::String, &'a #name, &'a std::string::String, &'a mut #name, &'a mut std::string::String, impl Fn(&'a #name) -> Option<&'a std::string::String>, impl Fn(&'a mut #name) -> Option<&'a mut std::string::String>,>  {
+                                pub fn #kp_fn() -> rust_key_paths::Kp<#name, std::string::String, &'static #name, &'static std::string::String, &'static mut #name, &'static mut std::string::String, impl Fn(&#name) -> Option<&std::string::String>, impl Fn(&mut #name) -> Option<&mut std::string::String>,>  {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref(),
-                                        |root: &mut #name| root.#field_ident.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                     )
                                 }
                             });
@@ -2919,19 +2919,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Cell, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -2939,19 +2939,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::RefCell, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -2960,19 +2960,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // OnceLock/OnceCell: keypath to inner value; get = .get() -> Option<&T>, set = None
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.get(),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.get()),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -2981,19 +2981,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // Lazy/LazyLock: keypath to inner value; get = .get() -> &T wrapped in Some, set = None
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(root.#field_ident.get()),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| Some(root.#field_ident.get())),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -3001,19 +3001,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::PhantomData, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -3021,19 +3021,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Range, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -3041,19 +3041,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionCell, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -3064,8 +3064,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 #[inline(always)]
                                 pub fn #kp_fn() -> rust_key_paths::KpOptionRefCellType<'_, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref().map(|r| r.borrow()),
-                                        |root: &mut #name| root.#field_ident.as_ref().map(|r| r.borrow_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref().map(|r| r.borrow())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_ref().map(|r| r.borrow_mut())),
                                     )
                                 }
                             });
@@ -3073,19 +3073,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionOnceCell, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref().and_then(|c| c.get()),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref().and_then(|c| c.get())),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -3093,19 +3093,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionLazy, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#field_ident.as_ref().map(|c| c.get()),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref().map(|c| c.get())),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -3113,19 +3113,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionPhantomData, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -3133,19 +3133,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionRange, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -3154,19 +3154,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For reference types (&T, &str, &[T]): read-only, setter returns None
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |_root: &mut #name| None, // references: read-only
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None), // references: read-only
                                     )
                                 }
                             });
@@ -3175,19 +3175,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For basic types, direct access
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -3196,19 +3196,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // For unknown/complex nested types, return keypath to field itself
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#field_ident),
-                                        |root: &mut #name| Some(&mut root.#field_ident),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                     )
                                 }
                             });
@@ -3247,10 +3247,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                     /// Returns a simple identity keypath for this type
                     #[inline(always)]
-                    pub fn identity<'a>() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
+                    pub fn identity() -> rust_key_paths::Kp<#name, #name, &'static #name, &'static #name, &'static mut #name, &'static mut #name, impl Fn(&#name) -> Option<&#name>, impl Fn(&mut #name) -> Option<&mut #name>,> {
                         rust_key_paths::Kp::new(
-                            |r: &#name| Some(r),
-                            |r: &mut #name| Some(r)
+                            rust_key_paths::constrain_get(|r: &#name| Some(r)),
+                            rust_key_paths::constrain_set(|r: &mut #name| Some(r))
                         )
                     }
                 });
@@ -3268,19 +3268,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Option, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -3288,19 +3288,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionBox, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_deref(),
-                                        |root: &mut #name| root.#idx_lit.as_deref_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_deref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_deref_mut()),
                                     )
                                 }
                             });
@@ -3308,19 +3308,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionRc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_deref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut().and_then(std::rc::Rc::get_mut),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_deref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut().and_then(std::rc::Rc::get_mut)),
                                     )
                                 }
                             });
@@ -3328,19 +3328,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionArc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_deref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut().and_then(std::sync::Arc::get_mut),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_deref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut().and_then(std::sync::Arc::get_mut)),
                                     )
                                 }
                             });
@@ -3359,19 +3359,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 tokens.extend(quote! {
                                     #[doc = #whole_doc]
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         )
                                     }
                                     #[doc = #at_doc]
@@ -3390,19 +3390,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         )
                                     }
                                 });
@@ -3422,19 +3422,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 tokens.extend(quote! {
                                     #[doc = #whole_doc]
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         )
                                     }
                                     #[doc = #at_doc]
@@ -3453,19 +3453,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         )
                                     }
                                 });
@@ -3474,19 +3474,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionHashSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
 
@@ -3507,19 +3507,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionBTreeSet, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
 
@@ -3540,19 +3540,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionVec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 #[inline(always)]
@@ -3567,19 +3567,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionVecDeque, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 #[inline(always)]
@@ -3596,19 +3596,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionResult, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -3616,19 +3616,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Vec, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 #[inline(always)]
@@ -3644,19 +3644,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         )
                                     }
                                     #[inline(always)]
@@ -3674,19 +3674,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         )
                                     }
                                 });
@@ -3697,19 +3697,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             if let Some((key_ty, _)) = extract_map_key_value(ty) {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         )
                                     }
                                     #[inline(always)]
@@ -3727,19 +3727,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             } else {
                                 tokens.extend(quote! {
                                     #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         )
                                     }
                                 });
@@ -3749,19 +3749,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // Box: deref to inner (returns &T / &mut T)
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&*root.#idx_lit),
-                                        |root: &mut #name| Some(&mut *root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&*root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut *root.#idx_lit)),
                                     )
                                 }
                             });
@@ -3769,19 +3769,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::BoxOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| (&*root.#idx_lit).as_ref(),
-                                        |root: &mut #name| (&mut *root.#idx_lit).as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| (&*root.#idx_lit).as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| (&mut *root.#idx_lit).as_mut()),
                                     )
                                 }
                             });
@@ -3789,19 +3789,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::RcOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| (&*root.#idx_lit).as_ref(),
-                                        |root: &mut #name| std::rc::Rc::get_mut(&mut root.#idx_lit).and_then(std::option::Option::as_mut),
+                                        rust_key_paths::constrain_get(|root: &#name| (&*root.#idx_lit).as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| std::rc::Rc::get_mut(&mut root.#idx_lit).and_then(std::option::Option::as_mut)),
                                     )
                                 }
                             });
@@ -3809,19 +3809,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::ArcOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| (&*root.#idx_lit).as_ref(),
-                                        |root: &mut #name| std::sync::Arc::get_mut(&mut root.#idx_lit).and_then(std::option::Option::as_mut),
+                                        rust_key_paths::constrain_get(|root: &#name| (&*root.#idx_lit).as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| std::sync::Arc::get_mut(&mut root.#idx_lit).and_then(std::option::Option::as_mut)),
                                     )
                                 }
                             });
@@ -3830,38 +3830,38 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_inner_fn = format_ident!("{}_inner", kp_fn);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 #[inline(always)]
-                                pub fn #kp_inner_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_inner_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
 >
 >
                                 where #inner_ty: std::marker::Unpin
                                 {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#idx_lit).get_ref()),
-                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#idx_lit).get_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(std::pin::Pin::as_ref(&root.#idx_lit).get_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#idx_lit).get_mut())),
                                     )
                                 }
                             });
@@ -3870,38 +3870,38 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_inner_fn = format_ident!("{}_inner", kp_fn);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 #[inline(always)]
-                                pub fn #kp_inner_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_inner_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
 >
 >
                                 where #inner_ty: std::marker::Unpin
                                 {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(std::pin::Pin::as_ref(&root.#idx_lit).get_ref()),
-                                        |root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#idx_lit).get_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(std::pin::Pin::as_ref(&root.#idx_lit).get_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(std::pin::Pin::as_mut(&mut root.#idx_lit).get_mut())),
                                     )
                                 }
                             });
@@ -3909,19 +3909,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Rc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(root.#idx_lit.as_ref()),
-                                        |root: &mut #name| std::rc::Rc::get_mut(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(root.#idx_lit.as_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| std::rc::Rc::get_mut(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -3929,19 +3929,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Arc, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(root.#idx_lit.as_ref()),
-                                        |root: &mut #name| std::sync::Arc::get_mut(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(root.#idx_lit.as_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| std::sync::Arc::get_mut(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -3950,19 +3950,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Cow, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(root.#idx_lit.as_ref()),
-                                        |root: &mut #name| Some(root.#idx_lit.to_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(root.#idx_lit.as_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(root.#idx_lit.to_mut())),
                                     )
                                 }
                             });
@@ -3971,19 +3971,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionCow, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref().map(|c| c.as_ref()),
-                                        |root: &mut #name| root.#idx_lit.as_mut().map(|c| c.to_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref().map(|c| c.as_ref())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut().map(|c| c.to_mut())),
                                     )
                                 }
                             });
@@ -3991,19 +3991,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionTagged, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref().map(|t| std::ops::Deref::deref(t)),
-                                        |root: &mut #name| root.#idx_lit.as_mut().map(|t| std::ops::DerefMut::deref_mut(t)),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref().map(|t| std::ops::Deref::deref(t))),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut().map(|t| std::ops::DerefMut::deref_mut(t))),
                                     )
                                 }
                             });
@@ -4011,19 +4011,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionReference, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -4034,19 +4034,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
 
@@ -4070,19 +4070,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
 
@@ -4104,19 +4104,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::VecDequeOption, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 #[inline(always)]
@@ -4132,19 +4132,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::LinkedListOption, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4153,19 +4153,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::BinaryHeapOption, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4173,19 +4173,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Result, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref().ok(),
-                                        |root: &mut #name| root.#idx_lit.as_mut().ok(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref().ok()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut().ok()),
                                     )
                                 }
                             });
@@ -4194,19 +4194,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::StdMutex, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4215,19 +4215,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::StdRwLock, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4236,31 +4236,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_async_fn = format_ident!("f{}_kp", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_async_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_async_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         ),
                                         rust_key_paths::async_lock::TokioMutexAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -4270,31 +4270,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_async_fn = format_ident!("f{}_kp", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_async_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_async_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #ty, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| Some(&root.#idx_lit),
-                                            |root: &mut #name| Some(&mut root.#idx_lit),
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                         ),
                                         rust_key_paths::async_lock::TokioRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -4304,31 +4304,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_async_fn = format_ident!("f{}_kp", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_async_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_async_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| root.#idx_lit.as_ref(),
-                                            |root: &mut #name| root.#idx_lit.as_mut(),
+                                            rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                            rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                         ),
                                         rust_key_paths::async_lock::TokioMutexAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -4338,31 +4338,31 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_async_fn = format_ident!("f{}_kp", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_async_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_async_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                                 pub fn #kp_fn() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
                                     rust_key_paths::async_lock::AsyncLockKp::new(
                                         rust_key_paths::Kp::new(
-                                            |root: &#name| root.#idx_lit.as_ref(),
-                                            |root: &mut #name| root.#idx_lit.as_mut(),
+                                            rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                            rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                         ),
                                         rust_key_paths::async_lock::TokioRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
-                                            |v: &#inner_ty| Some(v),
-                                            |v: &mut #inner_ty| Some(v),
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
                                         ),
                                     )
                                 }
@@ -4372,25 +4372,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'static #name, &'static std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4399,25 +4399,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'static #name, &'static std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4426,25 +4426,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'static #name, &'static std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4453,25 +4453,25 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'static #name, &'static std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4480,34 +4480,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<
                                     #name,
     std::sync::Mutex<#inner_ty>,
-    &'a #name,
-    &'a std::sync::Mutex<#inner_ty>,
-    &'a mut #name,
-    &'a mut std::sync::Mutex<#inner_ty>,
-    impl Fn(&'a #name) -> Option<&'a std::sync::Mutex<#inner_ty>>,
-    impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Mutex<#inner_ty>>,
+    &'static #name,
+    &'static std::sync::Mutex<#inner_ty>,
+    &'static mut #name,
+    &'static mut std::sync::Mutex<#inner_ty>,
+    impl Fn(&#name) -> Option<&std::sync::Mutex<#inner_ty>>,
+    impl Fn(&mut #name) -> Option<&mut std::sync::Mutex<#inner_ty>>,
 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4516,34 +4516,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<
                                     #name,
     parking_lot::Mutex<#inner_ty>,
-    &'a #name,
-    &'a parking_lot::Mutex<#inner_ty>,
-    &'a mut #name,
-    &'a mut parking_lot::Mutex<#inner_ty>,
-    impl Fn(&'a #name) -> Option<&'a parking_lot::Mutex<#inner_ty>>,
-    impl Fn(&'a mut #name) -> Option<&'a mut parking_lot::Mutex<#inner_ty>>,
+    &'static #name,
+    &'static parking_lot::Mutex<#inner_ty>,
+    &'static mut #name,
+    &'static mut parking_lot::Mutex<#inner_ty>,
+    impl Fn(&#name) -> Option<&parking_lot::Mutex<#inner_ty>>,
+    impl Fn(&mut #name) -> Option<&mut parking_lot::Mutex<#inner_ty>>,
 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4552,34 +4552,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<
                                     #name,
     std::sync::RwLock<#inner_ty>,
-    &'a #name,
-    &'a std::sync::RwLock<#inner_ty>,
-    &'a mut #name,
-    &'a mut std::sync::RwLock<#inner_ty>,
-    impl Fn(&'a #name) -> Option<&'a std::sync::RwLock<#inner_ty>>,
-    impl Fn(&'a mut #name) -> Option<&'a mut std::sync::RwLock<#inner_ty>>,
+    &'static #name,
+    &'static std::sync::RwLock<#inner_ty>,
+    &'static mut #name,
+    &'static mut std::sync::RwLock<#inner_ty>,
+    impl Fn(&#name) -> Option<&std::sync::RwLock<#inner_ty>>,
+    impl Fn(&mut #name) -> Option<&mut std::sync::RwLock<#inner_ty>>,
 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4588,34 +4588,34 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             let kp_unlocked_fn = format_ident!("f{}_unlocked", idx);
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
-                                pub fn #kp_unlocked_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_unlocked_fn() -> rust_key_paths::Kp<
                                     #name,
     parking_lot::RwLock<#inner_ty>,
-    &'a #name,
-    &'a parking_lot::RwLock<#inner_ty>,
-    &'a mut #name,
-    &'a mut parking_lot::RwLock<#inner_ty>,
-    impl Fn(&'a #name) -> Option<&'a parking_lot::RwLock<#inner_ty>>,
-    impl Fn(&'a mut #name) -> Option<&'a mut parking_lot::RwLock<#inner_ty>>,
+    &'static #name,
+    &'static parking_lot::RwLock<#inner_ty>,
+    &'static mut #name,
+    &'static mut parking_lot::RwLock<#inner_ty>,
+    impl Fn(&#name) -> Option<&parking_lot::RwLock<#inner_ty>>,
+    impl Fn(&mut #name) -> Option<&mut parking_lot::RwLock<#inner_ty>>,
 > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4623,19 +4623,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Weak, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -4643,19 +4643,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Atomic, None | Some(_)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4663,19 +4663,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionAtomic, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4683,19 +4683,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::String, None) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4703,10 +4703,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionString, None) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<#name, std::string::String, &'a #name, &'a std::string::String, &'a mut #name, &'a mut std::string::String, impl Fn(&'a #name) -> Option<&'a std::string::String>, impl Fn(&'a mut #name) -> Option<&'a mut std::string::String>,>  {
+                                pub fn #kp_fn() -> rust_key_paths::Kp<#name, std::string::String, &'static #name, &'static std::string::String, &'static mut #name, &'static mut std::string::String, impl Fn(&#name) -> Option<&std::string::String>, impl Fn(&mut #name) -> Option<&mut std::string::String>,>  {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref(),
-                                        |root: &mut #name| root.#idx_lit.as_mut(),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref()),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_mut()),
                                     )
                                 }
                             });
@@ -4714,19 +4714,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OnceCell, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.get(),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.get()),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -4734,19 +4734,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Lazy, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(root.#idx_lit.get()),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| Some(root.#idx_lit.get())),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -4754,19 +4754,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionOnceCell, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref().and_then(|c| c.get()),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref().and_then(|c| c.get())),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -4774,19 +4774,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::OptionLazy, Some(inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #inner_ty,
-                                    &'a #name,
-                                    &'a #inner_ty,
-                                    &'a mut #name,
-                                    &'a mut #inner_ty,
-                                    impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                    &'static #name,
+                                    &'static #inner_ty,
+                                    &'static mut #name,
+                                    &'static mut #inner_ty,
+                                    impl Fn(&#name) -> Option<&#inner_ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref().map(|c| c.get()),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref().map(|c| c.get())),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -4800,19 +4800,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         | (WrapperKind::OptionRange, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4822,8 +4822,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 #[inline(always)]
                                 pub fn #kp_fn() -> rust_key_paths::KpOptionRefCellType<'_, #name, #inner_ty> {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| root.#idx_lit.as_ref().map(|r| r.borrow()),
-                                        |root: &mut #name| root.#idx_lit.as_ref().map(|r| r.borrow_mut()),
+                                        rust_key_paths::constrain_get(|root: &#name| root.#idx_lit.as_ref().map(|r| r.borrow())),
+                                        rust_key_paths::constrain_set(|root: &mut #name| root.#idx_lit.as_ref().map(|r| r.borrow_mut())),
                                     )
                                 }
                             });
@@ -4831,19 +4831,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::Reference, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |_root: &mut #name| None,
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|_root: &mut #name| None),
                                     )
                                 }
                             });
@@ -4851,19 +4851,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::None, None) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                pub fn #kp_fn() -> rust_key_paths::Kp<
                                     #name,
                                     #ty,
-                                    &'a #name,
-                                    &'a #ty,
-                                    &'a mut #name,
-                                    &'a mut #ty,
-                                    impl Fn(&'a #name) -> Option<&'a #ty>,
-                                    impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                    &'static #name,
+                                    &'static #ty,
+                                    &'static mut #name,
+                                    &'static mut #ty,
+                                    impl Fn(&#name) -> Option<&#ty>,
+                                    impl Fn(&mut #name) -> Option<&mut #ty>,
                                     > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4871,19 +4871,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         _ => {
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                    pub fn #kp_fn<'a>() -> rust_key_paths::Kp<
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
                                         #name,
                                         #ty,
-                                        &'a #name,
-                                        &'a #ty,
-                                        &'a mut #name,
-                                        &'a mut #ty,
-                                        impl Fn(&'a #name) -> Option<&'a #ty>,
-                                        impl Fn(&'a mut #name) -> Option<&'a mut #ty>,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
                                         > {
                                     rust_key_paths::Kp::new(
-                                        |root: &#name| Some(&root.#idx_lit),
-                                        |root: &mut #name| Some(&mut root.#idx_lit),
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#idx_lit)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#idx_lit)),
                                     )
                                 }
                             });
@@ -4928,7 +4928,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
 
                 /// Returns a simple identity keypath for this type
                 #[inline(always)]
-                pub fn identity<'a>() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
+                pub fn identity() -> rust_key_paths::Kp<#name, #name, &'static #name, &'static #name, &'static mut #name, &'static mut #name, impl Fn(&#name) -> Option<&#name>, impl Fn(&mut #name) -> Option<&mut #name>,> {
                     rust_key_paths::Kp::new(
                         |r: &#name| Some(r),
                         |r: &mut #name| Some(r)
@@ -4945,7 +4945,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         // Unit variant - return keypath that checks if enum matches variant
                         tokens.extend(quote! {
                             #[inline(always)]
-                            pub fn #snake<'a>() -> rust_key_paths::Kp<#name, (), &'a #name, &'a (), &'a mut #name, &'a mut (), impl Fn(&'a #name) -> Option<&'a ()>, impl Fn(&'a mut #name) -> Option<&'a mut ()>,>  {
+                            pub fn #snake() -> rust_key_paths::Kp<#name, (), &'static #name, &'static (), &'static mut #name, &'static mut (), impl Fn(&#name) -> Option<&()>, impl Fn(&mut #name) -> Option<&mut ()>,>  {
                                 rust_key_paths::Kp::new(
                                     |root: &#name| match root {
                                         #name::#v_ident => {
@@ -4969,15 +4969,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Option, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -4999,7 +4999,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     {
                                         tokens.extend(quote! {
                                             #[inline(always)]
-                                            pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                            pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -5032,7 +5032,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     } else {
                                         tokens.extend(quote! {
                                             #[inline(always)]
-                                            pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                            pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -5054,7 +5054,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     {
                                         tokens.extend(quote! {
                                             #[inline(always)]
-                                            pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                            pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -5087,7 +5087,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     } else {
                                         tokens.extend(quote! {
                                             #[inline(always)]
-                                            pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                            pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                                 rust_key_paths::Kp::new(
                                                     |root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -5106,7 +5106,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_at = format_ident!("{}_at", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5140,7 +5140,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_at = format_ident!("{}_at", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5174,7 +5174,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_at = format_ident!("{}_at", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5205,7 +5205,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_at = format_ident!("{}_at", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5237,7 +5237,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 | (WrapperKind::OptionResult, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5254,15 +5254,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Vec, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -5281,15 +5281,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Box in enum: deref to inner (&T / &mut T)
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -5308,7 +5308,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_inner = format_ident!("{}_inner", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5321,15 +5321,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         #[inline(always)]
-                                        pub fn #snake_inner<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake_inner() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
 >
 >
                                         where #inner_ty: std::marker::Unpin
@@ -5351,7 +5351,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_inner = format_ident!("{}_inner", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5364,15 +5364,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         #[inline(always)]
-                                        pub fn #snake_inner<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake_inner() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
 >
 >
                                         where #inner_ty: std::marker::Unpin
@@ -5393,15 +5393,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Rc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -5419,15 +5419,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Arc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -5448,7 +5448,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_arc_rw_lock(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5463,8 +5463,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ArcRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5478,7 +5478,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_arc_mutex(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5493,8 +5493,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ArcMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5508,7 +5508,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_parking_lot_rw_lock(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5523,8 +5523,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ParkingLotRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5538,7 +5538,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_parking_lot_mutex(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5553,8 +5553,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ParkingLotMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5568,17 +5568,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_arc_mutex_option(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ArcMutexAccess::<Option<#inner_ty>>::new(),
                                                 rust_key_paths::Kp::new(Option::<#inner_ty>::as_ref, Option::<#inner_ty>::as_mut),
@@ -5592,17 +5592,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_arc_rw_lock_option(name, field_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ArcRwLockAccess::<Option<#inner_ty>>::new(),
                                                 rust_key_paths::Kp::new(Option::<#inner_ty>::as_ref, Option::<#inner_ty>::as_mut),
@@ -5617,17 +5617,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     );
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ParkingLotMutexAccess::<Option<#inner_ty>>::new(),
                                                 rust_key_paths::Kp::new(Option::<#inner_ty>::as_ref, Option::<#inner_ty>::as_mut),
@@ -5642,17 +5642,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     );
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ParkingLotRwLockAccess::<Option<#inner_ty>>::new(),
                                                 rust_key_paths::Kp::new(Option::<#inner_ty>::as_ref, Option::<#inner_ty>::as_mut),
@@ -5664,7 +5664,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake_async<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake_async() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5679,8 +5679,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         pub fn #snake() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, #field_ty, #inner_ty> {
                                             rust_key_paths::async_lock::AsyncLockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::async_lock::TokioMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5692,7 +5692,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake_async<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake_async() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5707,8 +5707,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         pub fn #snake() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, #field_ty, #inner_ty> {
                                             rust_key_paths::async_lock::AsyncLockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
                                                 rust_key_paths::async_lock::TokioRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5720,7 +5720,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake_async<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake_async() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5735,8 +5735,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         pub fn #snake() -> rust_key_paths::async_lock::AsyncLockKpMutexFor<#name, std::sync::Arc<tokio::sync::Mutex<#inner_ty>>, #inner_ty> {
                                             rust_key_paths::async_lock::AsyncLockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
                                                 rust_key_paths::async_lock::TokioMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5748,7 +5748,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     let snake_async = format_ident!("{}_kp", snake);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake_async<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake_async() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5763,8 +5763,8 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         pub fn #snake() -> rust_key_paths::async_lock::AsyncLockKpRwLockFor<#name, std::sync::Arc<tokio::sync::RwLock<#inner_ty>>, #inner_ty> {
                                             rust_key_paths::async_lock::AsyncLockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
                                                 rust_key_paths::async_lock::TokioRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5781,7 +5781,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_arc_mutex(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5793,17 +5793,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_unlocked<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
+                                        pub fn #snake_unlocked() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'static #name, &'static std::sync::Arc<std::sync::Mutex<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<std::sync::Mutex<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<std::sync::Mutex<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<std::sync::Mutex<#inner_ty>>>,> {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ArcMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5820,7 +5820,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_parking_lot_mutex(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5832,17 +5832,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_unlocked<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
+                                        pub fn #snake_unlocked() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'static #name, &'static std::sync::Arc<parking_lot::Mutex<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<parking_lot::Mutex<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<parking_lot::Mutex<#inner_ty>>>,> {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ParkingLotMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5859,7 +5859,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_arc_rw_lock(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5871,17 +5871,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_unlocked<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
+                                        pub fn #snake_unlocked() -> rust_key_paths::Kp<#name, std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'static #name, &'static std::sync::Arc<std::sync::RwLock<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<std::sync::RwLock<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<std::sync::RwLock<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<std::sync::RwLock<#inner_ty>>>,> {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ArcRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5898,7 +5898,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                         kp_lock_ty_parking_lot_rw_lock(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5910,17 +5910,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                 },
                                             )
                                         }
-                                        pub fn #snake_unlocked<'a>() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a #name, &'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'a mut #name, &'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&'a #name) -> Option<&'a std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&'a mut #name) -> Option<&'a mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
+                                        pub fn #snake_unlocked() -> rust_key_paths::Kp<#name, std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'static #name, &'static std::sync::Arc<parking_lot::RwLock<#inner_ty>>, &'static mut #name, &'static mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>, impl Fn(&#name) -> Option<&std::sync::Arc<parking_lot::RwLock<#inner_ty>>>, impl Fn(&mut #name) -> Option<&mut std::sync::Arc<parking_lot::RwLock<#inner_ty>>>,> {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
                                             rust_key_paths::lock::LockKp::new(
                                                 rust_key_paths::Kp::new(
-                                                    |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                    |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                    rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                    rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
                                                 rust_key_paths::lock::ParkingLotRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
@@ -5934,7 +5934,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 | (WrapperKind::RwLock, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5951,15 +5951,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Tagged, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -5977,7 +5977,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Atomic, None | Some(_)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -5994,19 +5994,19 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionAtomic, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
-                                                |root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None },
-                                                |root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None },
+                                                rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
+                                                rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                             )
                                         }
                                     });
@@ -6014,7 +6014,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Reference, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6028,7 +6028,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Weak, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6042,15 +6042,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Cow, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6069,15 +6069,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Option<Box<T>>: keypath to T via as_deref() / as_deref_mut()
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6096,15 +6096,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Box<Option<T>>: keypath to T; inner is &Box<Option<T>>, deref then Option::as_ref/as_mut
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6123,15 +6123,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Rc<Option<T>>: keypath to T; get = (&*inner).as_ref(), set = Rc::get_mut then as_mut
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6150,15 +6150,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Arc<Option<T>>: keypath to T; get = (&*inner).as_ref(), set = Arc::get_mut then as_mut
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6176,15 +6176,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionRc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6202,15 +6202,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionArc, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6228,15 +6228,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionCow, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6254,15 +6254,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionTagged, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6280,15 +6280,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionReference, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6303,7 +6303,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::String, None) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6320,7 +6320,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionString, None) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, std::string::String, &'a #name, &'a std::string::String, &'a mut #name, &'a mut std::string::String, impl Fn(&'a #name) -> Option<&'a std::string::String>, impl Fn(&'a mut #name) -> Option<&'a mut std::string::String>,>  {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, std::string::String, &'static #name, &'static std::string::String, &'static mut #name, &'static mut std::string::String, impl Fn(&#name) -> Option<&std::string::String>, impl Fn(&mut #name) -> Option<&mut std::string::String>,>  {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => inner.as_ref(),
@@ -6337,15 +6337,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OnceCell, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6360,15 +6360,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::Lazy, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6383,15 +6383,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionOnceCell, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6406,15 +6406,15 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::OptionLazy, Some(inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<
+                                        pub fn #snake() -> rust_key_paths::Kp<
                                             #name,
                                             #inner_ty,
-                                            &'a #name,
-                                            &'a #inner_ty,
-                                            &'a mut #name,
-                                            &'a mut #inner_ty,
-                                            impl Fn(&'a #name) -> Option<&'a #inner_ty>,
-                                            impl Fn(&'a mut #name) -> Option<&'a mut #inner_ty>,
+                                            &'static #name,
+                                            &'static #inner_ty,
+                                            &'static mut #name,
+                                            &'static mut #inner_ty,
+                                            impl Fn(&#name) -> Option<&#inner_ty>,
+                                            impl Fn(&mut #name) -> Option<&mut #inner_ty>,
                                             > {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
@@ -6435,7 +6435,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 | (WrapperKind::OptionRange, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6470,7 +6470,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Basic type
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6488,7 +6488,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     // Other wrapper types - return keypath to field
                                     tokens.extend(quote! {
                                         #[inline(always)]
-                                        pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #field_ty, &'a #name, &'a #field_ty, &'a mut #name, &'a mut #field_ty, impl Fn(&'a #name) -> Option<&'a #field_ty>, impl Fn(&'a mut #name) -> Option<&'a mut #field_ty>,> {
+                                        pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {
                                             rust_key_paths::Kp::new(
                                                 |root: &#name| match root {
                                                     #name::#v_ident(inner) => Some(inner),
@@ -6507,7 +6507,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             // Multi-field tuple variant - return keypath to variant itself
                             tokens.extend(quote! {
                                 #[inline(always)]
-                                pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
+                                pub fn #snake() -> rust_key_paths::Kp<#name, #name, &'static #name, &'static #name, &'static mut #name, &'static mut #name, impl Fn(&#name) -> Option<&#name>, impl Fn(&mut #name) -> Option<&mut #name>,> {
                                     rust_key_paths::Kp::new(
                                         |root: &#name| match root {
                                             #name::#v_ident(..) => Some(root),
@@ -6525,7 +6525,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                     Fields::Named(_) => {
                         // Named field variant - return keypath to variant itself
                         tokens.extend(quote! {
-                            pub fn #snake<'a>() -> rust_key_paths::Kp<#name, #name, &'a #name, &'a #name, &'a mut #name, &'a mut #name, impl Fn(&'a #name) -> Option<&'a #name>, impl Fn(&'a mut #name) -> Option<&'a mut #name>,> {
+                            pub fn #snake() -> rust_key_paths::Kp<#name, #name, &'static #name, &'static #name, &'static mut #name, &'static mut #name, impl Fn(&#name) -> Option<&#name>, impl Fn(&mut #name) -> Option<&mut #name>,> {
                                 rust_key_paths::Kp::new(
                                     |root: &#name| match root {
                                         #name::#v_ident { .. } => Some(root),
@@ -6643,7 +6643,7 @@ pub fn derive_partial_keypaths(input: TokenStream) -> TokenStream {
 
 /// Derive macro that generates `any_kps() -> Vec<AKp>` returning all field/variant keypaths as any keypaths.
 /// **Requires `#[derive(Kp)]`** so the keypath accessor methods exist.
-/// AKp type-erases both Root and Value, enabling heterogeneous collections of keypaths.
+/// AKp type-erases both Root and Value), enabling heterogeneous collections of keypaths.
 ///
 /// For structs: returns keypaths for each field. For enums: returns keypaths for each variant
 /// (using the same methods Kp generates, e.g. `some_variant()`).
