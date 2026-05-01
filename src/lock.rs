@@ -936,6 +936,113 @@ where
     {
         self.get_mut_optional(root).unwrap_or_else(f)
     }
+
+}
+
+impl<
+    R,
+    V,
+    V2,
+    Root,
+    Value,
+    Value2,
+    MutRoot,
+    MutValue,
+    MutValue2,
+    First,
+    Lock,
+    Mid,
+    LockValue,
+    MidValue,
+    MutLock,
+    MutMid,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+>
+    KpThenLockKp<
+        R,
+        V,
+        V2,
+        Root,
+        Value,
+        Value2,
+        MutRoot,
+        MutValue,
+        MutValue2,
+        First,
+        LockKp<
+            V,
+            Lock,
+            Mid,
+            V2,
+            Value,
+            LockValue,
+            MidValue,
+            Value2,
+            MutValue,
+            MutLock,
+            MutMid,
+            MutValue2,
+            G1,
+            S1,
+            L,
+            G2,
+            S2,
+        >,
+    >
+where
+    First: crate::async_lock::SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    V2: 'static,
+    Value: std::borrow::Borrow<V>,
+    Value2: std::borrow::Borrow<V2>,
+    MutValue: std::borrow::BorrowMut<V>,
+    MutValue2: std::borrow::BorrowMut<V2>,
+    LockValue: std::borrow::Borrow<Lock>,
+    MidValue: std::borrow::Borrow<Mid>,
+    MutLock: std::borrow::BorrowMut<Lock>,
+    MutMid: std::borrow::BorrowMut<Mid>,
+    G1: Fn(Value) -> Option<LockValue>,
+    S1: Fn(MutValue) -> Option<MutLock>,
+    L: LockAccess<Lock, MidValue> + LockAccess<Lock, MutMid>,
+    G2: Fn(MidValue) -> Option<Value2>,
+    S2: Fn(MutMid) -> Option<MutValue2>,
+{
+    /// Chain a plain [crate::Kp] after a `Kp.then_lock(...)` segment.
+    ///
+    /// This enables ergonomic forms like:
+    /// `root_kp.then_lock(lock_kp).then(next_kp)`.
+    pub fn then<V3, Value3, MutValue3, G3, S3>(
+        self,
+        next_kp: crate::Kp<V2, V3, Value2, Value3, MutValue2, MutValue3, G3, S3>,
+    ) -> KpThenLockKp<
+        R,
+        V,
+        V3,
+        Root,
+        Value,
+        Value3,
+        MutRoot,
+        MutValue,
+        MutValue3,
+        First,
+        impl crate::async_lock::SyncKeyPathLike<Value, Value3, MutValue, MutValue3>,
+    >
+    where
+        V3: 'static + Clone,
+        Value3: std::borrow::Borrow<V3>,
+        MutValue3: std::borrow::BorrowMut<V3>,
+        G3: Fn(Value2) -> Option<Value3> + 'static,
+        S3: Fn(MutValue2) -> Option<MutValue3> + 'static,
+    {
+        KpThenLockKp {
+            first: self.first,
+            second: self.second.then(next_kp),
+            _p: std::marker::PhantomData,
+        }
+    }
 }
 
 // ============================================================================

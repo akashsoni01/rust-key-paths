@@ -201,25 +201,47 @@ For the optional ArcSwap variant (`sosf` wrapped in `arc_swap::ArcSwap`; adds gr
 cargo bench --bench box_keypath_bench --features arc_swap_1_9_1
 ```
 
-### Read path (`scsf -> sosf -> omse -> B -> dsf`)
+### Latest run (`cargo bench --bench box_keypath_bench --features arc_swap_1_9_1`)
+
+Criterion ranges from the most recent run on this machine:
+
+### Box Read path (`scsf -> sosf -> omse -> B -> dsf`)
 
 | Variant | Time (approx) |
 |---------|---------------|
-| keypath | 996.46-997.18 ps |
-| unwrap | 944.10-946.59 ps |
-| as_ref().map | 996.31-997.39 ps |
-| `?` operator | 996.33-997.24 ps |
+| keypath | 1.4185-1.4367 ns |
+| unwrap | 1.3430-1.3603 ns |
+| as_ref().map | 1.4161-1.4338 ns |
+| `?` operator | 1.4262-1.4427 ns |
 
-### Write path (`scsf -> sosf -> omse -> B -> dsf`)
+### Box Write path (`scsf -> sosf -> omse -> B -> dsf`)
 
 | Variant | Time (approx) |
 |---------|---------------|
-| keypath | 147.44-149.09 ns |
-| unwrap | 143.13-145.02 ns |
-| as_ref().map | 141.04-142.65 ns |
-| `?` operator | 141.41-150.25 ns |
+| keypath | 216.26-222.24 ns |
+| unwrap | 212.00-217.44 ns |
+| as_ref().map | 211.39-215.47 ns |
+| `?` operator | 208.91-214.44 ns |
 
-These numbers are from Criterion's reported confidence ranges on this machine. In this benchmark, keypaths are very close to direct traversal for reads and only slightly slower for writes.
+### ArcSwap Read path (`scsf -> sosf(ArcSwap) -> omse -> B -> dsf`)
+
+| Variant | Time (approx) |
+|---------|---------------|
+| keypath | 14.034-14.198 ns |
+| unwrap | 43.735-44.836 ns |
+| as_ref().map | 46.999-50.404 ns |
+| `?` operator | 46.672-50.916 ns |
+
+### ArcSwap Write path (`scsf -> sosf(ArcSwap) -> omse -> B -> dsf`)
+
+| Variant | Time (approx) |
+|---------|---------------|
+| keypath | 394.42-403.46 ns |
+| unwrap | 732.06-745.78 ns |
+| as_ref().map | 736.06-752.64 ns |
+| `?` operator | 736.32-792.05 ns |
+
+These numbers are Criterion confidence ranges from one local run and can vary by machine/load.
 
 ### Keypath size
 

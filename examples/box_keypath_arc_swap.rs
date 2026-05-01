@@ -64,25 +64,25 @@ struct DarkStruct {
 fn init_via_keypaths() -> SomeComplexStruct {
     let mut root = SomeComplexStruct::default();
 
-    SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-        SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
-    )
+    SomeComplexStruct::scsf()
+        .then_lock(
+            SomeOtherStruct::sosf(),
+        )
+        .then(OneMoreStruct::omsf())
         .get_mut(&mut root)
         .map(|s| *s = "omsf_value".to_string());
 
-    SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+    SomeComplexStruct::scsf().then_lock(
         SomeOtherStruct::sosf().then(OneMoreStruct::omse()),
     )
         .get_mut(&mut root)
         .map(|e| *e = SomeEnum::B(DarkStruct::default()));
 
-    SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-        SomeOtherStruct::sosf().then(
-            OneMoreStruct::omse()
-                .then(SomeEnum::b())
-                .then(DarkStruct::dsf()),
-        ),
-    )
+    SomeComplexStruct::scsf()
+    .then_lock(SomeOtherStruct::sosf())
+        .then(OneMoreStruct::omse())
+        .then(SomeEnum::b())
+        .then(DarkStruct::dsf())
         .get_mut(&mut root)
         .map(|s| *s = "dark_value".to_string());
 
@@ -92,7 +92,7 @@ fn init_via_keypaths() -> SomeComplexStruct {
 fn main() {
     let mut instance = init_via_keypaths();
 
-    let kp = SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+    let kp = SomeComplexStruct::scsf().then_lock(
         SomeOtherStruct::sosf().then(
             OneMoreStruct::omse()
                 .then(SomeEnum::b())
@@ -103,7 +103,7 @@ fn main() {
     println!("size of kp = {}", size_of_val(&kp));
 
     let omsf = SomeComplexStruct::scsf()
-        .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+        .then_lock(
             SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
         )
         .get(&instance);
@@ -114,7 +114,7 @@ fn main() {
     drop(kp);
 
     SomeComplexStruct::scsf()
-        .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+        .then_lock(
             SomeOtherStruct::sosf().then(
                 OneMoreStruct::omse()
                     .then(SomeEnum::b())
@@ -126,7 +126,7 @@ fn main() {
 
     assert_eq!(
         SomeComplexStruct::scsf()
-            .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+            .then_lock(
                 SomeOtherStruct::sosf().then(
                     OneMoreStruct::omse()
                         .then(SomeEnum::b())
