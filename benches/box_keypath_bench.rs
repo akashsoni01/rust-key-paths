@@ -206,23 +206,27 @@ mod arc_swap_keypath {
 
     fn init_via_keypaths() -> SomeComplexStruct {
         let mut root = SomeComplexStruct::default();
-        SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-            SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
-        )
+        SomeComplexStruct::scsf()
+            .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+                SomeOtherStruct::sosf(),
+            )
+            .then(OneMoreStruct::omsf())
             .get_mut(&mut root)
             .map(|s| *s = "omsf_value".to_string());
-        SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-            SomeOtherStruct::sosf().then(OneMoreStruct::omse()),
-        )
+        SomeComplexStruct::scsf()
+            .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+                SomeOtherStruct::sosf(),
+            )
+            .then(OneMoreStruct::omse())
             .get_mut(&mut root)
             .map(|e| *e = SomeEnum::B(DarkStruct::default()));
-        SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-            SomeOtherStruct::sosf().then(
-                OneMoreStruct::omse()
-                    .then(SomeEnum::b())
-                    .then(DarkStruct::dsf()),
-            ),
-        )
+        SomeComplexStruct::scsf()
+            .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+                SomeOtherStruct::sosf(),
+            )
+            .then(OneMoreStruct::omse())
+            .then(SomeEnum::b())
+            .then(DarkStruct::dsf())
             .get_mut(&mut root)
             .map(|s| *s = "dark_value".to_string());
         root
@@ -231,12 +235,11 @@ mod arc_swap_keypath {
     fn read_keypath(instance: &SomeComplexStruct) -> Option<&String> {
         SomeComplexStruct::scsf()
             .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-                SomeOtherStruct::sosf().then(
-                    OneMoreStruct::omse()
-                        .then(SomeEnum::b())
-                        .then(DarkStruct::dsf()),
-                ),
+                SomeOtherStruct::sosf(),
             )
+            .then(OneMoreStruct::omse())
+            .then(SomeEnum::b())
+            .then(DarkStruct::dsf())
             .get(instance)
     }
 
@@ -268,12 +271,11 @@ mod arc_swap_keypath {
     fn write_keypath(instance: &mut SomeComplexStruct) -> bool {
         SomeComplexStruct::scsf()
             .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-                SomeOtherStruct::sosf().then(
-                    OneMoreStruct::omse()
-                        .then(SomeEnum::b())
-                        .then(DarkStruct::dsf()),
-                ),
+                SomeOtherStruct::sosf(),
             )
+            .then(OneMoreStruct::omse())
+            .then(SomeEnum::b())
+            .then(DarkStruct::dsf())
             .get_mut(instance)
             .map(|val| {
                 *val = "changed".to_string();
@@ -329,13 +331,13 @@ mod arc_swap_keypath {
     pub fn bench_arc_swap_keypath(c: &mut Criterion) {
         let mut read_group = c.benchmark_group("arc_swap_keypath_read");
         let instance = init_via_keypaths();
-        let kp = SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-            SomeOtherStruct::sosf().then(
-                OneMoreStruct::omse()
-                    .then(SomeEnum::b())
-                    .then(DarkStruct::dsf()),
-            ),
-        );
+        let kp = SomeComplexStruct::scsf()
+            .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+                SomeOtherStruct::sosf(),
+            )
+            .then(OneMoreStruct::omse())
+            .then(SomeEnum::b())
+            .then(DarkStruct::dsf());
 
         read_group.bench_function("keypath", |b| {
             b.iter(|| black_box(read_keypath(black_box(&instance))))
