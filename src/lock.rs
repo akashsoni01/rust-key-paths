@@ -1093,6 +1093,67 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
 }
 
 // ============================================================================
+// ArcSwap Access Implementation
+// ============================================================================
+
+#[cfg(feature = "arc_swap_1_9_1")]
+/// Lock access implementation for Arc<arc_swap::ArcSwap<T>>
+///
+/// `arc-swap` is designed for read-heavy workloads where reads should avoid
+/// lock contention. It publishes new `Arc<T>` snapshots on writes and allows
+/// lock-free reads on the hot path.
+#[derive(Clone)]
+pub struct ArcSwapAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "arc_swap_1_9_1")]
+impl<T> ArcSwapAccess<T> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "arc_swap_1_9_1")]
+impl<T> Default for ArcSwapAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "arc_swap_1_9_1")]
+impl<'a, T: 'static> LockAccess<Arc<arc_swap::ArcSwap<T>>, &'a T> for ArcSwapAccess<T> {
+    fn lock_read(&self, lock: &Arc<arc_swap::ArcSwap<T>>) -> Option<&'a T> {
+        let guard = lock.load();
+        let ptr = std::sync::Arc::as_ptr(&guard);
+        unsafe { Some(&*ptr) }
+    }
+
+    fn lock_write(&self, lock: &Arc<arc_swap::ArcSwap<T>>) -> Option<&'a T> {
+        let guard = lock.load();
+        let ptr = std::sync::Arc::as_ptr(&guard);
+        unsafe { Some(&*ptr) }
+    }
+}
+
+#[cfg(feature = "arc_swap_1_9_1")]
+impl<'a, T: 'static> LockAccess<Arc<arc_swap::ArcSwap<T>>, &'a mut T> for ArcSwapAccess<T> {
+    fn lock_read(&self, lock: &Arc<arc_swap::ArcSwap<T>>) -> Option<&'a mut T> {
+        let guard = lock.load();
+        let ptr = std::sync::Arc::as_ptr(&guard) as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+
+    fn lock_write(&self, lock: &Arc<arc_swap::ArcSwap<T>>) -> Option<&'a mut T> {
+        let guard = lock.load();
+        let ptr = std::sync::Arc::as_ptr(&guard) as *mut T;
+        unsafe { Some(&mut *ptr) }
+    }
+}
+
+// ============================================================================
 // Direct Mutex Access Implementation (without Arc)
 // ============================================================================
 
@@ -1753,6 +1814,50 @@ pub type LockKpArcRwLockOptionFor<Root, Lock, Inner> = LockKp<
     for<'b> fn(&'b mut Option<Inner>) -> Option<&'b mut Inner>,
 >;
 
+#[cfg(feature = "arc_swap_1_9_1")]
+/// Type alias for LockKp over Arc<arc_swap::ArcSwap<T>>.
+pub type LockKpArcSwapFor<Root, Lock, Inner> = LockKp<
+    Root,
+    Lock,
+    Inner,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Inner,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Inner,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    ArcSwapAccess<Inner>,
+    for<'b> fn(&'b Inner) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
+>;
+
+#[cfg(feature = "arc_swap_1_9_1")]
+/// Type alias for LockKp over Arc<arc_swap::ArcSwap<Option<T>>>; value is T (extract from Option).
+pub type LockKpArcSwapOptionFor<Root, Lock, Inner> = LockKp<
+    Root,
+    Lock,
+    Option<Inner>,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Option<Inner>,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Option<Inner>,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    ArcSwapAccess<Option<Inner>>,
+    for<'b> fn(&'b Option<Inner>) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Option<Inner>) -> Option<&'b mut Inner>,
+>;
+
 #[cfg(feature = "parking_lot")]
 /// Type alias for LockKp over Arc<parking_lot::Mutex<T>>. Use with derive macro's `_lock()` methods.
 pub type LockKpParkingLotMutexFor<Root, Lock, Inner> = LockKp<
@@ -2346,6 +2451,80 @@ mod tests {
         // Test get (read lock)
         let value = rwlock_kp.get(&root);
         assert!(value.is_some());
+    }
+
+    #[cfg(feature = "arc_swap_1_9_1")]
+    #[test]
+    fn test_arcswap_basic() {
+        use arc_swap::ArcSwap;
+
+        #[derive(Debug, Clone)]
+        struct Root {
+            data: Arc<ArcSwap<Inner>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Inner {
+            value: String,
+        }
+
+        let mut root = Root {
+            data: Arc::new(ArcSwap::from_pointee(Inner {
+                value: "arcswap_value".to_string(),
+            })),
+        };
+
+        let prev: KpType<Root, Arc<ArcSwap<Inner>>> =
+            Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+        let next: KpType<Inner, String> = Kp::new(
+            |i: &Inner| Some(&i.value),
+            |i: &mut Inner| Some(&mut i.value),
+        );
+
+        let lock_kp = LockKp::new(prev, ArcSwapAccess::new(), next);
+
+        let value = lock_kp.get(&root);
+        assert_eq!(value, Some(&"arcswap_value".to_string()));
+
+        lock_kp.get_mut(&mut root).map(|v| *v = "updated".to_string());
+        let updated = lock_kp.get(&root);
+        assert_eq!(updated, Some(&"updated".to_string()));
+    }
+
+    #[cfg(feature = "arc_swap_1_9_1")]
+    #[test]
+    fn test_arcswap_option_basic() {
+        use arc_swap::ArcSwap;
+
+        #[derive(Debug, Clone)]
+        struct Root {
+            data: Arc<ArcSwap<Option<Inner>>>,
+        }
+
+        #[derive(Debug, Clone)]
+        struct Inner {
+            value: i32,
+        }
+
+        let mut root = Root {
+            data: Arc::new(ArcSwap::from_pointee(Some(Inner { value: 42 }))),
+        };
+
+        let prev: KpType<Root, Arc<ArcSwap<Option<Inner>>>> =
+            Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
+        let next: KpType<Option<Inner>, i32> = Kp::new(
+            |o: &Option<Inner>| o.as_ref().map(|inner| &inner.value),
+            |o: &mut Option<Inner>| o.as_mut().map(|inner| &mut inner.value),
+        );
+
+        let lock_kp = LockKp::new(prev, ArcSwapAccess::new(), next);
+
+        let value = lock_kp.get(&root);
+        assert_eq!(value, Some(&42));
+
+        lock_kp.get_mut(&mut root).map(|v| *v = 100);
+        let updated = lock_kp.get(&root);
+        assert_eq!(updated, Some(&100));
     }
 
     #[test]
