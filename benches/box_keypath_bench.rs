@@ -181,24 +181,6 @@ mod arc_swap_keypath {
         }
     }
 
-    macro_rules! kp_to_dsf {
-        () => {
-            OneMoreStruct::omse()
-                .then(SomeEnum::b())
-                .then(DarkStruct::dsf())
-        };
-    }
-
-    /// Pins [`ChainExt::then_lock`]'s `Mid` to [`OneMoreStruct`] so `MidValue: Borrow<Mid>` does not
-    /// ambiguously resolve between `Borrow<OneMoreStruct>` for `OneMoreStruct` vs `&OneMoreStruct`.
-    macro_rules! scsf_then_lock_sosf {
-        ($tail:expr) => {
-            SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-                SomeOtherStruct::sosf().then($tail),
-            )
-        };
-    }
-
     #[derive(Debug, Kp, Clone)]
     enum SomeEnum {
         A(String),
@@ -224,20 +206,38 @@ mod arc_swap_keypath {
 
     fn init_via_keypaths() -> SomeComplexStruct {
         let mut root = SomeComplexStruct::default();
-        scsf_then_lock_sosf!(OneMoreStruct::omsf())
+        SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+            SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
+        )
             .get_mut(&mut root)
             .map(|s| *s = "omsf_value".to_string());
-        scsf_then_lock_sosf!(OneMoreStruct::omse())
+        SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+            SomeOtherStruct::sosf().then(OneMoreStruct::omse()),
+        )
             .get_mut(&mut root)
             .map(|e| *e = SomeEnum::B(DarkStruct::default()));
-        scsf_then_lock_sosf!(kp_to_dsf!())
+        SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+            SomeOtherStruct::sosf().then(
+                OneMoreStruct::omse()
+                    .then(SomeEnum::b())
+                    .then(DarkStruct::dsf()),
+            ),
+        )
             .get_mut(&mut root)
             .map(|s| *s = "dark_value".to_string());
         root
     }
 
     fn read_keypath(instance: &SomeComplexStruct) -> Option<&String> {
-        scsf_then_lock_sosf!(kp_to_dsf!()).get(instance)
+        SomeComplexStruct::scsf()
+            .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+                SomeOtherStruct::sosf().then(
+                    OneMoreStruct::omse()
+                        .then(SomeEnum::b())
+                        .then(DarkStruct::dsf()),
+                ),
+            )
+            .get(instance)
     }
 
     /// Materializes the leaf string (snapshot from [`ArcSwap`] does not outlive this call).
@@ -266,7 +266,15 @@ mod arc_swap_keypath {
     }
 
     fn write_keypath(instance: &mut SomeComplexStruct) -> bool {
-        scsf_then_lock_sosf!(kp_to_dsf!()).get_mut(instance)
+        SomeComplexStruct::scsf()
+            .then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+                SomeOtherStruct::sosf().then(
+                    OneMoreStruct::omse()
+                        .then(SomeEnum::b())
+                        .then(DarkStruct::dsf()),
+                ),
+            )
+            .get_mut(instance)
             .map(|val| {
                 *val = "changed".to_string();
                 val.is_empty()
@@ -321,7 +329,13 @@ mod arc_swap_keypath {
     pub fn bench_arc_swap_keypath(c: &mut Criterion) {
         let mut read_group = c.benchmark_group("arc_swap_keypath_read");
         let instance = init_via_keypaths();
-        let kp = scsf_then_lock_sosf!(kp_to_dsf!());
+        let kp = SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
+            SomeOtherStruct::sosf().then(
+                OneMoreStruct::omse()
+                    .then(SomeEnum::b())
+                    .then(DarkStruct::dsf()),
+            ),
+        );
 
         read_group.bench_function("keypath", |b| {
             b.iter(|| black_box(read_keypath(black_box(&instance))))
