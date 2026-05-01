@@ -154,17 +154,15 @@ mod arc_swap_keypath {
     use criterion::{black_box, Criterion};
     use key_paths_derive::Kp;
     use rust_key_paths::ChainExt;
-    use rust_key_paths::lock::{ArcSwapAccess, LockKp};
-    use rust_key_paths::{Kp, constrain_get, constrain_set};
 
     #[derive(Debug, Kp, Default)]
     struct SomeComplexStruct {
         scsf: Box<SomeOtherStruct>,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Kp)]
     struct SomeOtherStruct {
-        sosf: ArcSwap<OneMoreStruct>,
+        sosf: arc_swap::ArcSwap<OneMoreStruct>,
     }
 
     impl Default for SomeOtherStruct {
@@ -183,23 +181,6 @@ mod arc_swap_keypath {
         }
     }
 
-    /// Root → [`ArcSwap`] → [`OneMoreStruct`] (same shape as `#[derive(Kp)]` for `ArcSwap` fields).
-    macro_rules! lock_through_sosf {
-        () => {
-            LockKp::new(
-                Kp::new(
-                    constrain_get(|s: &SomeOtherStruct| Some(&s.sosf)),
-                    constrain_set(|s: &mut SomeOtherStruct| Some(&mut s.sosf)),
-                ),
-                ArcSwapAccess::new(),
-                Kp::new(
-                    constrain_get(|v: &OneMoreStruct| Some(v)),
-                    constrain_set(|v: &mut OneMoreStruct| Some(v)),
-                ),
-            )
-        };
-    }
-
     macro_rules! kp_to_dsf {
         () => {
             OneMoreStruct::omse()
@@ -213,7 +194,7 @@ mod arc_swap_keypath {
     macro_rules! scsf_then_lock_sosf {
         ($tail:expr) => {
             SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-                lock_through_sosf!().then($tail),
+                SomeOtherStruct::sosf().then($tail),
             )
         };
     }

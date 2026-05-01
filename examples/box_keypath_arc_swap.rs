@@ -11,17 +11,15 @@ use std::mem::size_of_val;
 use arc_swap::ArcSwap;
 use key_paths_derive::Kp;
 use rust_key_paths::ChainExt;
-use rust_key_paths::lock::{ArcSwapAccess, LockKp};
-use rust_key_paths::{Kp, constrain_get, constrain_set};
 
 #[derive(Debug, Kp, Default)]
 struct SomeComplexStruct {
     scsf: Box<SomeOtherStruct>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Kp)]
 struct SomeOtherStruct {
-    sosf: ArcSwap<OneMoreStruct>,
+    sosf: arc_swap::ArcSwap<OneMoreStruct>,
 }
 
 impl Default for SomeOtherStruct {
@@ -40,23 +38,6 @@ impl Clone for SomeOtherStruct {
     }
 }
 
-/// Same wiring as `#[derive(Kp)]` on an `ArcSwap<OneMoreStruct>` field (`LockKp` + `ArcSwapAccess`).
-macro_rules! lock_through_sosf {
-    () => {
-        LockKp::new(
-            Kp::new(
-                constrain_get(|s: &SomeOtherStruct| Some(&s.sosf)),
-                constrain_set(|s: &mut SomeOtherStruct| Some(&mut s.sosf)),
-            ),
-            ArcSwapAccess::new(),
-            Kp::new(
-                constrain_get(|v: &OneMoreStruct| Some(v)),
-                constrain_set(|v: &mut OneMoreStruct| Some(v)),
-            ),
-        )
-    };
-}
-
 macro_rules! kp_to_dsf {
     () => {
         OneMoreStruct::omse()
@@ -68,7 +49,7 @@ macro_rules! kp_to_dsf {
 macro_rules! scsf_then_lock_sosf {
     ($tail:expr) => {
         SomeComplexStruct::scsf().then_lock::<_, OneMoreStruct, _, _, _, _, _, _, _, _, _, _, _, _>(
-            lock_through_sosf!().then($tail),
+            SomeOtherStruct::sosf().then($tail),
         )
     };
 }
@@ -124,12 +105,15 @@ fn main() {
     let omsf = scsf_then_lock_sosf!(OneMoreStruct::omsf()).get(&instance);
     assert_eq!(omsf, Some(&"omsf_value".to_string()));
 
-    let dsf = kp.get(&instance);
-    assert_eq!(dsf, Some(&"dark_value".to_string()));
+    let dsf = kp.get(&instance).cloned();
+    assert_eq!(dsf, Some("dark_value".to_string()));
+    drop(kp);
 
-    kp.get_mut(&mut instance).map(|v| *v = "changed".to_string());
+    scsf_then_lock_sosf!(kp_to_dsf!())
+        .get_mut(&mut instance)
+        .map(|v| *v = "changed".to_string());
 
-    assert_eq!(kp.get(&instance), Some(&"changed".to_string()));
+    assert_eq!(scsf_then_lock_sosf!(kp_to_dsf!()).get(&instance), Some(&"changed".to_string()));
 
     println!("{:?}", instance);
 }
