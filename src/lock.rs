@@ -1097,7 +1097,7 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
 // ============================================================================
 
 #[cfg(feature = "arc_swap_1_9_1")]
-/// Lock access implementation for Arc<arc_swap::ArcSwap<T>>
+/// Lock access implementation for arc_swap::ArcSwap<T>
 ///
 /// `arc-swap` is designed for read-heavy workloads where reads should avoid
 /// lock contention. It publishes new `Arc<T>` snapshots on writes and allows
@@ -1124,14 +1124,14 @@ impl<T> Default for ArcSwapAccess<T> {
 }
 
 #[cfg(feature = "arc_swap_1_9_1")]
-impl<'a, T: 'static> LockAccess<Arc<arc_swap::ArcSwap<T>>, &'a T> for ArcSwapAccess<T> {
-    fn lock_read(&self, lock: &Arc<arc_swap::ArcSwap<T>>) -> Option<&'a T> {
+impl<'a, T: 'static> LockAccess<arc_swap::ArcSwap<T>, &'a T> for ArcSwapAccess<T> {
+    fn lock_read(&self, lock: &arc_swap::ArcSwap<T>) -> Option<&'a T> {
         let guard = lock.load();
         let ptr = std::sync::Arc::as_ptr(&guard);
         unsafe { Some(&*ptr) }
     }
 
-    fn lock_write(&self, lock: &Arc<arc_swap::ArcSwap<T>>) -> Option<&'a T> {
+    fn lock_write(&self, lock: &arc_swap::ArcSwap<T>) -> Option<&'a T> {
         let guard = lock.load();
         let ptr = std::sync::Arc::as_ptr(&guard);
         unsafe { Some(&*ptr) }
@@ -1139,14 +1139,14 @@ impl<'a, T: 'static> LockAccess<Arc<arc_swap::ArcSwap<T>>, &'a T> for ArcSwapAcc
 }
 
 #[cfg(feature = "arc_swap_1_9_1")]
-impl<'a, T: 'static> LockAccess<Arc<arc_swap::ArcSwap<T>>, &'a mut T> for ArcSwapAccess<T> {
-    fn lock_read(&self, lock: &Arc<arc_swap::ArcSwap<T>>) -> Option<&'a mut T> {
+impl<'a, T: 'static> LockAccess<arc_swap::ArcSwap<T>, &'a mut T> for ArcSwapAccess<T> {
+    fn lock_read(&self, lock: &arc_swap::ArcSwap<T>) -> Option<&'a mut T> {
         let guard = lock.load();
         let ptr = std::sync::Arc::as_ptr(&guard) as *mut T;
         unsafe { Some(&mut *ptr) }
     }
 
-    fn lock_write(&self, lock: &Arc<arc_swap::ArcSwap<T>>) -> Option<&'a mut T> {
+    fn lock_write(&self, lock: &arc_swap::ArcSwap<T>) -> Option<&'a mut T> {
         let guard = lock.load();
         let ptr = std::sync::Arc::as_ptr(&guard) as *mut T;
         unsafe { Some(&mut *ptr) }
@@ -1815,7 +1815,7 @@ pub type LockKpArcRwLockOptionFor<Root, Lock, Inner> = LockKp<
 >;
 
 #[cfg(feature = "arc_swap_1_9_1")]
-/// Type alias for LockKp over Arc<arc_swap::ArcSwap<T>>.
+/// Type alias for LockKp over arc_swap::ArcSwap<T>.
 pub type LockKpArcSwapFor<Root, Lock, Inner> = LockKp<
     Root,
     Lock,
@@ -1837,7 +1837,7 @@ pub type LockKpArcSwapFor<Root, Lock, Inner> = LockKp<
 >;
 
 #[cfg(feature = "arc_swap_1_9_1")]
-/// Type alias for LockKp over Arc<arc_swap::ArcSwap<Option<T>>>; value is T (extract from Option).
+/// Type alias for LockKp over arc_swap::ArcSwap<Option<T>>; value is T (extract from Option).
 pub type LockKpArcSwapOptionFor<Root, Lock, Inner> = LockKp<
     Root,
     Lock,
@@ -2458,9 +2458,9 @@ mod tests {
     fn test_arcswap_basic() {
         use arc_swap::ArcSwap;
 
-        #[derive(Debug, Clone)]
+        #[derive(Debug)]
         struct Root {
-            data: Arc<ArcSwap<Inner>>,
+            data: ArcSwap<Inner>,
         }
 
         #[derive(Debug, Clone)]
@@ -2469,12 +2469,12 @@ mod tests {
         }
 
         let mut root = Root {
-            data: Arc::new(ArcSwap::from_pointee(Inner {
+            data: ArcSwap::from_pointee(Inner {
                 value: "arcswap_value".to_string(),
-            })),
+            }),
         };
 
-        let prev: KpType<Root, Arc<ArcSwap<Inner>>> =
+        let prev: KpType<Root, ArcSwap<Inner>> =
             Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
         let next: KpType<Inner, String> = Kp::new(
             |i: &Inner| Some(&i.value),
@@ -2496,9 +2496,9 @@ mod tests {
     fn test_arcswap_option_basic() {
         use arc_swap::ArcSwap;
 
-        #[derive(Debug, Clone)]
+        #[derive(Debug)]
         struct Root {
-            data: Arc<ArcSwap<Option<Inner>>>,
+            data: ArcSwap<Option<Inner>>,
         }
 
         #[derive(Debug, Clone)]
@@ -2507,10 +2507,10 @@ mod tests {
         }
 
         let mut root = Root {
-            data: Arc::new(ArcSwap::from_pointee(Some(Inner { value: 42 }))),
+            data: ArcSwap::from_pointee(Some(Inner { value: 42 })),
         };
 
-        let prev: KpType<Root, Arc<ArcSwap<Option<Inner>>>> =
+        let prev: KpType<Root, ArcSwap<Option<Inner>>> =
             Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
         let next: KpType<Option<Inner>, i32> = Kp::new(
             |o: &Option<Inner>| o.as_ref().map(|inner| &inner.value),

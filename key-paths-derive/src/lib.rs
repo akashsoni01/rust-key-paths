@@ -96,6 +96,9 @@ enum WrapperKind {
     OptionArcRwLock,
     MutexOption,
     RwLockOption,
+    ArcSwap,
+    ArcSwapOption,
+    ArcSwapWeak,
     // Arc with synchronization primitives (tokio::sync - requires tokio feature)
     TokioArcMutex,
     TokioArcRwLock,
@@ -145,6 +148,10 @@ fn is_tokio_sync_type(path: &syn::Path) -> bool {
 /// Use so we never treat parking_lot::RwLock as std::sync::RwLock.
 fn is_parking_lot_type(path: &syn::Path) -> bool {
     path.segments.first().map(|s| s.ident == "parking_lot") == Some(true)
+}
+
+fn is_arc_swap_type(path: &syn::Path) -> bool {
+    path.segments.first().map(|s| s.ident == "arc_swap") == Some(true)
 }
 
 /// Helper function to check if a type path is under std::sync::atomic (strict prefix).
@@ -421,6 +428,9 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                             ("Arc", WrapperKind::TokioRwLock) => {
                                 return (WrapperKind::TokioArcRwLock, inner_inner);
                             }
+                            ("ArcSwapOption", WrapperKind::Arc) if is_arc_swap_type(&tp.path) => {
+                                return (WrapperKind::ArcSwapOption, inner_inner);
+                            }
                             _ => {
                                 // Handle single-level containers
                                 // For Mutex and RwLock:
@@ -469,6 +479,15 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                         (WrapperKind::Atomic, None)
                                     }
                                     "Pin" => (WrapperKind::Pin, Some(inner.clone())),
+                                    "ArcSwap" if is_arc_swap_type(&tp.path) => {
+                                        (WrapperKind::ArcSwap, Some(inner.clone()))
+                                    }
+                                    "ArcSwapOption" if is_arc_swap_type(&tp.path) => {
+                                        (WrapperKind::ArcSwapOption, Some(inner.clone()))
+                                    }
+                                    "ArcSwapWeak" if is_arc_swap_type(&tp.path) => {
+                                        (WrapperKind::ArcSwapWeak, Some(inner.clone()))
+                                    }
                                     "Cell" => (WrapperKind::Cell, Some(inner.clone())),
                                     "RefCell" => (WrapperKind::RefCell, Some(inner.clone())),
                                     "OnceCell" | "OnceLock" => {
@@ -766,6 +785,62 @@ fn kp_lock_ty_arc_rw_lock_option(
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
             rust_key_paths::lock::ArcRwLockAccess<Option<#inner>>,
+            impl Fn(&'b Option<#inner>) -> Option<&'b #inner>,
+            impl Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
+        >
+    }
+}
+
+fn kp_lock_ty_arc_swap(
+    root: &impl ToTokens,
+    lock: &impl ToTokens,
+    inner: &impl ToTokens,
+) -> proc_macro2::TokenStream {
+    quote! {
+        rust_key_paths::lock::LockKp<
+            #root,
+            #lock,
+            #inner,
+            #inner,
+            &'b #root,
+            &'b #lock,
+            &'b #inner,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut #inner,
+            &'b mut #inner,
+            impl Fn(&'b #root) -> Option<&'b #lock>,
+            impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            rust_key_paths::lock::ArcSwapAccess<#inner>,
+            impl Fn(&'b #inner) -> Option<&'b #inner>,
+            impl Fn(&'b mut #inner) -> Option<&'b mut #inner>,
+        >
+    }
+}
+
+fn kp_lock_ty_arc_swap_option(
+    root: &impl ToTokens,
+    lock: &impl ToTokens,
+    inner: &impl ToTokens,
+) -> proc_macro2::TokenStream {
+    quote! {
+        rust_key_paths::lock::LockKp<
+            #root,
+            #lock,
+            Option<#inner>,
+            #inner,
+            &'b #root,
+            &'b #lock,
+            &'b Option<#inner>,
+            &'b #inner,
+            &'b mut #root,
+            &'b mut #lock,
+            &'b mut Option<#inner>,
+            &'b mut #inner,
+            impl Fn(&'b #root) -> Option<&'b #lock>,
+            impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
+            rust_key_paths::lock::ArcSwapAccess<Option<#inner>>,
             impl Fn(&'b Option<#inner>) -> Option<&'b #inner>,
             impl Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
@@ -2349,6 +2424,96 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         (WrapperKind::RwLock, Some(_inner_ty))
                         | (WrapperKind::StdRwLock, Some(_inner_ty)) => {
                             // For RwLock<T>, return keypath to container
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                    pub fn #kp_fn() -> rust_key_paths::Kp<
+                                        #name,
+                                        #ty,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
+                                        > {
+                                    rust_key_paths::Kp::new(
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::ArcSwap, Some(inner_ty)) => {
+                            let kp_lock_fn = format_ident!("{}_kp", field_ident);
+                            let lock_kp_return_ty = kp_lock_ty_arc_swap(name, ty, &inner_ty);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
+                                        #name,
+                                        #ty,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
+                                        > {
+                                    rust_key_paths::Kp::new(
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
+                                    )
+                                }
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
+                                    rust_key_paths::lock::LockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
+                                        ),
+                                        rust_key_paths::lock::ArcSwapAccess::new(),
+                                        rust_key_paths::Kp::new(
+                                            rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
+                                            rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
+                                        ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::ArcSwapOption, Some(inner_ty)) => {
+                            let kp_lock_fn = format_ident!("{}_kp", field_ident);
+                            let lock_kp_return_ty = kp_lock_ty_arc_swap_option(name, ty, &inner_ty);
+                            tokens.extend(quote! {
+                                #[inline(always)]
+                                    pub fn #kp_lock_fn() -> rust_key_paths::Kp<
+                                        #name,
+                                        #ty,
+                                        &'static #name,
+                                        &'static #ty,
+                                        &'static mut #name,
+                                        &'static mut #ty,
+                                        impl Fn(&#name) -> Option<&#ty>,
+                                        impl Fn(&mut #name) -> Option<&mut #ty>,
+                                        > {
+                                    rust_key_paths::Kp::new(
+                                        rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                        rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
+                                    )
+                                }
+                                pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
+                                    rust_key_paths::lock::LockKp::new(
+                                        rust_key_paths::Kp::new(
+                                            rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
+                                            rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
+                                        ),
+                                        rust_key_paths::lock::ArcSwapAccess::<Option<#inner_ty>>::new(),
+                                        rust_key_paths::Kp::new(
+                                            Option::<#inner_ty>::as_ref,
+                                            Option::<#inner_ty>::as_mut,
+                                        ),
+                                    )
+                                }
+                            });
+                        }
+                        (WrapperKind::ArcSwapWeak, Some(_inner_ty)) => {
                             tokens.extend(quote! {
                                 #[inline(always)]
                                     pub fn #kp_fn() -> rust_key_paths::Kp<
@@ -5931,7 +6096,10 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 (WrapperKind::StdMutex, Some(_inner_ty))
                                 | (WrapperKind::Mutex, Some(_inner_ty))
                                 | (WrapperKind::StdRwLock, Some(_inner_ty))
-                                | (WrapperKind::RwLock, Some(_inner_ty)) => {
+                                | (WrapperKind::RwLock, Some(_inner_ty))
+                                | (WrapperKind::ArcSwap, Some(_inner_ty))
+                                | (WrapperKind::ArcSwapOption, Some(_inner_ty))
+                                | (WrapperKind::ArcSwapWeak, Some(_inner_ty)) => {
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake() -> rust_key_paths::Kp<#name, #field_ty, &'static #name, &'static #field_ty, &'static mut #name, &'static mut #field_ty, impl Fn(&#name) -> Option<&#field_ty>, impl Fn(&mut #name) -> Option<&mut #field_ty>,> {

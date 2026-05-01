@@ -22,6 +22,9 @@ pub use lock::{
     StdMutexAccess, StdRwLockAccess,
 };
 
+#[cfg(feature = "arc_swap_1_9_1")]
+pub use lock::ArcSwapAccess;
+
 #[cfg(feature = "parking_lot")]
 pub use lock::{
     DirectParkingLotMutexAccess, DirectParkingLotRwLockAccess, ParkingLotMutexAccess,

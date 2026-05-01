@@ -147,10 +147,19 @@ The `#[derive(Kp)]` macro (from `key-paths-derive`) generates keypath accessors 
 | `Option<Cow<'_, T>>` | `field()` | Optional Cow unwrap |
 | `std::sync::Mutex<T>`, `std::sync::RwLock<T>` | `field()` | Container (use `LockKp` for lock-through) |
 | `Arc<Mutex<T>>`, `Arc<RwLock<T>>` | `field()`, `field_lock()` | Lock-through via `LockKp` |
+| `arc_swap::ArcSwap<T>`, `ArcSwapOption<T>`, `ArcSwapWeak<T>` | `field()` | Container access; `ArcSwap` / `ArcSwapOption` also support lock-through keypaths |
 | `tokio::sync::Mutex`, `tokio::sync::RwLock` | `field_async()` | Async lock-through (tokio feature) |
 | `parking_lot::Mutex`, `parking_lot::RwLock` | `field()`, `field_lock()` | parking_lot feature |
 
 Nested combinations (e.g. `Option<Box<T>>`, `Option<Vec<T>>`, `Vec<Option<T>>`) are supported.
+
+### Which sync wrapper to use
+
+- `Arc<Mutex<T>>`: balanced default for mixed read/write workloads and simple ownership.
+- `Arc<RwLock<T>>`: read-heavy access with relatively infrequent writes.
+- `arc_swap::ArcSwap<T>`: read-mostly snapshots with cheap lock-free reads and occasional whole-value swaps.
+- `arc_swap::ArcSwapOption<T>`: same as `ArcSwap`, but when the value may be temporarily absent.
+- `arc_swap::ArcSwapWeak<T>`: keep weak references in the swap cell to avoid extending strong ownership lifetimes.
 
 ### pin_project `#[pin]` fields (optional feature)
 
@@ -184,6 +193,12 @@ Run with:
 
 ```bash
 cargo bench --bench box_keypath_bench
+```
+
+For the optional ArcSwap variant (`sosf` wrapped in `arc_swap::ArcSwap`; adds groups `arc_swap_keypath_read` / `arc_swap_keypath_write`):
+
+```bash
+cargo bench --bench box_keypath_bench --features arc_swap_1_9_1
 ```
 
 ### Read path (`scsf -> sosf -> omse -> B -> dsf`)
