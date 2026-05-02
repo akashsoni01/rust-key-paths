@@ -71,12 +71,12 @@ fn main() {
     println!("size_of_val(&kp_dsf) = {}", std::mem::size_of_val(&kp_dsf));
     assert_eq!(kp_dsf.get(&instance).map(|s| s.as_str()), Some("dark_value"));
 
-    let kp_hot = SomeComplexStruct::scsf().then_lock(
-        SomeOtherStruct::sosf()
-            .then(OneMoreStruct::omse())
-            .then_lock(SomeEnum::b_lock())
-            .then_lock(DarkStruct::hot()),
-    );
+    let kp_hot = SomeComplexStruct::scsf()
+    .then_lock(SomeOtherStruct::sosf())
+    .then(OneMoreStruct::omse())
+    .then_lock(SomeEnum::b_lock())
+    .then_lock(DarkStruct::hot());
+
     println!("size_of_val(&kp_hot) = {}", std::mem::size_of_val(&kp_hot));
     assert_eq!(kp_hot.get(&instance).map(|s| s.as_str()), Some("hot_value"));
 
