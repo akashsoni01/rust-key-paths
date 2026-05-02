@@ -10,7 +10,7 @@ struct SomeComplexStruct {
 
 #[derive(Debug, Kp, Clone)]
 struct SomeOtherStruct {
-    sosf: Arc<arcswap::ArcSwap<OneMoreStruct>>,
+    sosf: Arc<arc_swap::ArcSwap<OneMoreStruct>>,
 }
 
 #[derive(Debug, Kp, Clone)]
@@ -39,7 +39,7 @@ fn init_fixture() -> SomeComplexStruct {
     };
     SomeComplexStruct {
         scsf: Box::new(SomeOtherStruct {
-            sosf: Arc::new(arcswap::ArcSwap::from_pointee(inner)),
+            sosf: Arc::new(arc_swap::ArcSwap::from_pointee(inner)),
         }),
     }
 }

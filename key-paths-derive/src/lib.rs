@@ -101,13 +101,13 @@ enum WrapperKind {
     TokioArcRwLock,
     OptionTokioArcMutex,
     OptionTokioArcRwLock,
-    /// `arcswap::ArcSwap<T>` (bare; nested under `Arc<…>`)
+    /// `arc_swap::ArcSwap<T>` (bare; nested under `Arc<…>`)
     BareArcSwap,
-    /// `arcswap::ArcSwapOption<T>` (bare)
+    /// `arc_swap::ArcSwapOption<T>` (bare)
     BareArcSwapOption,
-    /// `Arc<arcswap::ArcSwap<T>>` (requires rust-key-paths `arcswap` feature)
+    /// `Arc<arc_swap::ArcSwap<T>>` (requires rust-key-paths `arc-swap` feature)
     ArcArcSwap,
-    /// `Arc<arcswap::ArcSwapOption<T>>`
+    /// `Arc<arc_swap::ArcSwapOption<T>>`
     ArcArcSwapOption,
     OptionArcArcSwap,
     OptionArcArcSwapOption,
@@ -157,12 +157,54 @@ fn is_parking_lot_type(path: &syn::Path) -> bool {
     path.segments.first().map(|s| s.ident == "parking_lot") == Some(true)
 }
 
-/// `arc-swap` crate is exposed under the dependency key `arcswap` in `rust-key-paths`.
+/// True if `path` starts with the `arc_swap` or `arcswap` crate alias (hyphenated dep `arc-swap` → `arc_swap`).
 fn is_arcswap_crate_path(path: &syn::Path) -> bool {
-    path.segments
-        .first()
-        .map(|s| s.ident == "arcswap")
-        .unwrap_or(false)
+    path.segments.first().is_some_and(|s| {
+        matches!(
+            s.ident.to_string().as_str(),
+            "arc_swap" | "arcswap"
+        )
+    })
+}
+
+fn angle_bracket_first_type(args: &syn::PathArguments) -> Option<&syn::Type> {
+    match args {
+        syn::PathArguments::AngleBracketed(ab) => ab.args.iter().find_map(|a| match a {
+            syn::GenericArgument::Type(t) => Some(t),
+            _ => None,
+        }),
+        _ => None,
+    }
+}
+
+/// First path segment before `ArcSwap` / `ArcSwapOption` in `Arc<…>` or `Option<Arc<…>>` fields.
+fn arc_swap_crate_ident_from_container_ty(ty: &syn::Type) -> syn::Ident {
+    fn peel(ty: &syn::Type) -> Option<syn::Ident> {
+        let syn::Type::Path(tp) = ty else {
+            return None;
+        };
+        let seg = tp.path.segments.last()?;
+        match seg.ident.to_string().as_str() {
+            "Option" => {
+                let inner = angle_bracket_first_type(&seg.arguments)?;
+                peel(inner)
+            }
+            "Arc" => {
+                let inner = angle_bracket_first_type(&seg.arguments)?;
+                let syn::Type::Path(inner_tp) = inner else {
+                    return None;
+                };
+                let inner_seg = inner_tp.path.segments.last()?;
+                if inner_seg.ident == "ArcSwap" || inner_seg.ident == "ArcSwapOption" {
+                    inner_tp.path.segments.first().map(|s| s.ident.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+    peel(ty).unwrap_or_else(|| format_ident!("arc_swap"))
 }
 
 /// Helper function to check if a type path is under std::sync::atomic (strict prefix).
@@ -2804,8 +2846,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::OptionArcArcSwap, Some(inner_ty)) => {
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
+                            let arc_mod = arc_swap_crate_ident_from_container_ty(ty);
                             let lock_ty =
-                                quote! { ::std::sync::Arc<arcswap::ArcSwap<#inner_ty>> };
+                                quote! { ::std::sync::Arc<#arc_mod::ArcSwap<#inner_ty>> };
                             let lock_kp_return_ty = kp_lock_ty_arc_arc_swap(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
@@ -2841,8 +2884,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                         }
                         (WrapperKind::OptionArcArcSwapOption, Some(inner_ty)) => {
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
+                            let arc_mod = arc_swap_crate_ident_from_container_ty(ty);
                             let lock_ty =
-                                quote! { ::std::sync::Arc<arcswap::ArcSwapOption<#inner_ty>> };
+                                quote! { ::std::sync::Arc<#arc_mod::ArcSwapOption<#inner_ty>> };
                             let lock_kp_return_ty =
                                 kp_lock_ty_arc_arc_swap_option(name, &lock_ty, &inner_ty);
                             tokens.extend(quote! {
@@ -5919,8 +5963,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::OptionArcArcSwap, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
+                                    let arc_mod = arc_swap_crate_ident_from_container_ty(field_ty);
                                     let lock_ty =
-                                        quote! { ::std::sync::Arc<arcswap::ArcSwap<#inner_ty>> };
+                                        quote! { ::std::sync::Arc<#arc_mod::ArcSwap<#inner_ty>> };
                                     let lock_kp_return_ty =
                                         kp_lock_ty_arc_arc_swap(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {
@@ -5945,8 +5990,9 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 }
                                 (WrapperKind::OptionArcArcSwapOption, Some(inner_ty)) => {
                                     let snake_lock = format_ident!("{}_lock", snake);
+                                    let arc_mod = arc_swap_crate_ident_from_container_ty(field_ty);
                                     let lock_ty =
-                                        quote! { ::std::sync::Arc<arcswap::ArcSwapOption<#inner_ty>> };
+                                        quote! { ::std::sync::Arc<#arc_mod::ArcSwapOption<#inner_ty>> };
                                     let lock_kp_return_ty =
                                         kp_lock_ty_arc_arc_swap_option(name, &lock_ty, &inner_ty);
                                     tokens.extend(quote! {

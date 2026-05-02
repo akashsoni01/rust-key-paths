@@ -1,5 +1,5 @@
-// cargo check --example box_keypath_arcswap --features arcswap
-// cargo run --example box_keypath_arcswap --features arcswap
+// cargo check --example box_keypath_arcswap --features arc-swap
+// cargo run --example box_keypath_arcswap --features arc-swap
 use key_paths_derive::Kp;
 use rust_key_paths::ChainExt;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ struct SomeComplexStruct {
 
 #[derive(Debug, Kp, Clone)]
 struct SomeOtherStruct {
-    sosf: Arc<arcswap::ArcSwap<OneMoreStruct>>,
+    sosf: Arc<arc_swap::ArcSwap<OneMoreStruct>>,
 }
 
 #[allow(dead_code)]
@@ -19,7 +19,7 @@ struct SomeOtherStruct {
 enum SomeEnum {
     A(String),
     /// Snapshot behind `ArcSwap` (typical hot-reload / config pattern).
-    B(Arc<arcswap::ArcSwap<DarkStruct>>),
+    B(Arc<arc_swap::ArcSwap<DarkStruct>>),
 }
 
 #[derive(Debug, Kp, Clone)]
@@ -31,13 +31,13 @@ struct OneMoreStruct {
 #[derive(Debug, Kp, Clone)]
 struct DarkStruct {
     dsf: String,
-    hot: Arc<arcswap::ArcSwap<String>>,
+    hot: Arc<arc_swap::ArcSwap<String>>,
 }
 
 fn init_via_keypaths() -> SomeComplexStruct {
     let mut root = SomeComplexStruct {
         scsf: Box::new(SomeOtherStruct {
-            sosf: Arc::new(arcswap::ArcSwap::from_pointee(OneMoreStruct {
+            sosf: Arc::new(arc_swap::ArcSwap::from_pointee(OneMoreStruct {
                 omsf: String::new(),
                 omse: SomeEnum::A(String::new()),
             })),
@@ -50,9 +50,9 @@ fn init_via_keypaths() -> SomeComplexStruct {
         .get_mut(&mut root)
         .map(|inner| {
             inner.omsf = "omsf_value".to_string();
-            inner.omse = SomeEnum::B(Arc::new(arcswap::ArcSwap::from_pointee(DarkStruct {
+            inner.omse = SomeEnum::B(Arc::new(arc_swap::ArcSwap::from_pointee(DarkStruct {
                 dsf: "dark_value".to_string(),
-                hot: Arc::new(arcswap::ArcSwap::from_pointee("hot_value".to_string())),
+                hot: Arc::new(arc_swap::ArcSwap::from_pointee("hot_value".to_string())),
             })));
         });
 
@@ -83,5 +83,6 @@ fn main() {
     let kp_omsf = SomeComplexStruct::scsf().then_lock(
         SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
     );
+    let x = kp_omsf.get(&instance);
     assert_eq!(kp_omsf.get(&instance).map(|s| s.as_str()), Some("omsf_value"));
 }
