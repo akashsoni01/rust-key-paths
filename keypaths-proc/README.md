@@ -115,12 +115,12 @@ fn main() {
 |------------|-------------------|-------|
 | `Option<T>` | `field()` | Kp that unwraps; chain with `.then()` |
 | `Arc<std::sync::RwLock<T>>` | `field()` | Kp to container |
-| `Arc<std::sync::RwLock<T>>` | `field_lock()` | LockKp; chain with `.then()` through lock |
+| `Arc<std::sync::RwLock<T>>` | `field_lock()` | SyncKp; chain with `.then()` through lock |
 | `Arc<std::sync::Mutex<T>>` | `field_lock()` | Same pattern for Mutex |
 
 **Key patterns:**
 - **Option fields**: `scsf()` returns a Kp; use `.then()` to chain into nested `Option` values.
-- **Arc<RwLock> fields**: `scfs2_lock()` returns a LockKp that acquires the lock and chains with `.then()`.
+- **Arc<RwLock> fields**: `scfs2_lock()` returns a SyncKp that acquires the lock and chains with `.then()`.
 - **Enum variants**: `SomeEnum::b()` (from Kp derive on enums) acts as a prism into the `B(Box<DarkStruct>)` variant.
 
 **Running the example:**

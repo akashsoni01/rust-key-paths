@@ -16,7 +16,7 @@ struct Inner {
 }
 
 #[tokio::test]
-async fn async_lock_kp_mutex_get_and_update() {
+async fn async_lock_kp_mutex_get_and_set() {
     let root = Root {
         m: Arc::new(tokio::sync::Mutex::new(Inner { v: 7 })),
         r: Arc::new(tokio::sync::RwLock::new(11)),
@@ -28,9 +28,9 @@ async fn async_lock_kp_mutex_get_and_update() {
         Kp::new(|i: &Inner| Some(&i.v), |i: &mut Inner| Some(&mut i.v));
     let kp = AsyncLockKp::new(prev, TokioMutexAccess::new(), next);
 
-    assert_eq!(kp.get(&root).await, Some(7));
-    assert!(kp.update(&root, |v| *v = 42).await);
-    assert_eq!(kp.get(&root).await, Some(42));
+    assert_eq!(kp.get(&root).await, Some(&7));
+    assert!(kp.set(&root, |v| *v = 42).await.is_ok());
+    assert_eq!(kp.get(&root).await, Some(&42));
 }
 
 #[tokio::test]
@@ -45,7 +45,7 @@ async fn async_lock_kp_rwlock_get_and_missing_edge_case() {
     let next: KpType<'_, i32, i32> = Kp::new(|v: &i32| Some(v), |v: &mut i32| Some(v));
     let kp = AsyncLockKp::new(prev, TokioRwLockAccess::new(), next);
 
-    assert_eq!(kp.get(&root).await, Some(9));
-    assert!(kp.update(&root, |v| *v += 5).await);
-    assert_eq!(kp.get(&root).await, Some(14));
+    assert_eq!(kp.get(&root).await, Some(&9));
+    assert!(kp.set(&root, |v| *v += 5).await.is_ok());
+    assert_eq!(kp.get(&root).await, Some(&14));
 }

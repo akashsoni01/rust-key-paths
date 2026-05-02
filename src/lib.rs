@@ -13,23 +13,23 @@
 use std::fmt;
 use std::sync::Arc;
 
-// Export the lock module
-pub mod lock;
+// Export the sync_kp module
+pub mod sync_kp;
 pub mod prelude;
 
-pub use lock::{
-    ArcMutexAccess, ArcRwLockAccess, LockAccess, LockKp, LockKpType, RcRefCellAccess,
+pub use sync_kp::{
+    ArcMutexAccess, ArcRwLockAccess, LockAccess, SyncKp, SyncKpType, RcRefCellAccess,
     StdMutexAccess, StdRwLockAccess,
 };
 
 #[cfg(feature = "parking_lot")]
-pub use lock::{
+pub use sync_kp::{
     DirectParkingLotMutexAccess, DirectParkingLotRwLockAccess, ParkingLotMutexAccess,
     ParkingLotRwLockAccess,
 };
 
 #[cfg(feature = "arc-swap")]
-pub use lock::{ArcArcSwapAccess, ArcArcSwapOptionAccess};
+pub use sync_kp::{ArcArcSwapAccess, ArcArcSwapOptionAccess};
 
 // Export the async_lock module
 pub mod async_lock;
@@ -407,17 +407,17 @@ where
 //     d: String
 // }
 
-// pub struct LockKp {
+// pub struct SyncKp {
 //     first: KpType<'static, A, B>,
 //     mid: KpType<'static, std::sync::Mutex<B>, B>,
 //     second: KpType<'static, B, C>,
 // }
 //
-// impl LockKp {
+// impl SyncKp {
 //     fn then(&self, kp: KpType<'static, B, String>) {
 //
 //     }
-//     fn then_lock() {}
+//     fn then_sync() {}
 // }
 
 // New type alias for composed/transformed keypaths
@@ -1933,7 +1933,7 @@ mod tests {
 
     // #[test]
     // fn test_lock() {
-    //     let lock_kp = LockKp::new(A::b(), kp_arc_mutex::<B>(), B::c());
+    //     let lock_kp = SyncKp::new(A::b(), kp_arc_mutex::<B>(), B::c());
     //
     //     let mut a = A {
     //         b: Arc::new(Mutex::new(B {
@@ -4556,7 +4556,7 @@ mod tests {
     }
 
     #[test]
-    fn test_kp_then_lock_deep_structs() {
+    fn test_kp_then_sync_deep_structs() {
         use std::sync::{Arc, Mutex};
 
         #[derive(Clone)]
@@ -4590,10 +4590,10 @@ mod tests {
             );
             let next: KpType<Level1, Level1> =
                 Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
-            crate::lock::LockKp::new(prev, crate::lock::ArcMutexAccess::new(), next)
+            crate::sync_kp::SyncKp::new(prev, crate::sync_kp::ArcMutexAccess::new(), next)
         };
 
-        let chained = kp_to_guard.then_lock(lock_kp);
+        let chained = kp_to_guard.then_sync(lock_kp);
         let level1 = chained.get(&root);
         assert!(level1.is_some());
         assert_eq!(level1.unwrap().name, "deep");
@@ -4607,7 +4607,7 @@ mod tests {
     }
 
     #[test]
-    fn test_kp_then_lock_with_enum() {
+    fn test_kp_then_sync_with_enum() {
         use std::sync::{Arc, Mutex};
 
         #[derive(Clone)]
@@ -4642,10 +4642,10 @@ mod tests {
             );
             let next: KpType<Message, Message> =
                 Kp::new(|m: &Message| Some(m), |m: &mut Message| Some(m));
-            crate::lock::LockKp::new(prev, crate::lock::ArcMutexAccess::new(), next)
+            crate::sync_kp::SyncKp::new(prev, crate::sync_kp::ArcMutexAccess::new(), next)
         };
 
-        let chained = kp_msg.then_lock(lock_kp_msg);
+        let chained = kp_msg.then_sync(lock_kp_msg);
         let msg = chained.get(&root);
         assert!(msg.is_some());
         match msg.unwrap() {
@@ -4696,12 +4696,12 @@ mod tests {
     }
 
     /// Deeply nested struct: Root -> sync lock -> L1 -> L2 -> tokio lock -> L3 -> leaf i32.
-    /// Chain: LockKp(Root->L1) . then(L1->L2) . then(L2->tokio) . then_async(tokio->L3) . then(L3->leaf)
+    /// Chain: SyncKp(Root->L1) . then(L1->L2) . then(L2->tokio) . then_async(tokio->L3) . then(L3->leaf)
     #[cfg(all(feature = "tokio", feature = "parking_lot"))]
     #[tokio::test]
     async fn test_deep_nested_chain_kp_lock_async_lock_kp() {
         use crate::async_lock::{AsyncLockKp, TokioMutexAccess};
-        use crate::lock::{ArcMutexAccess, LockKp};
+        use crate::sync_kp::{ArcMutexAccess, SyncKp};
         use std::sync::{Arc, Mutex};
 
         // Root -> Arc<Mutex<L1>>
@@ -4733,14 +4733,14 @@ mod tests {
             })),
         };
 
-        // LockKp from Root -> Level1
+        // SyncKp from Root -> Level1
         let identity_l1: KpType<Level1, Level1> =
             Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
         let kp_sync: KpType<Root, Arc<Mutex<Level1>>> = Kp::new(
             |r: &Root| Some(&r.sync_mutex),
             |r: &mut Root| Some(&mut r.sync_mutex),
         );
-        let lock_root_to_l1 = LockKp::new(kp_sync, ArcMutexAccess::new(), identity_l1);
+        let lock_root_to_l1 = SyncKp::new(kp_sync, ArcMutexAccess::new(), identity_l1);
 
         // Kp: Level1 -> Level2
         let kp_l1_inner: KpType<Level1, Level2> = Kp::new(
@@ -4769,7 +4769,7 @@ mod tests {
             |l: &mut Level3| Some(&mut l.leaf),
         );
 
-        // Build chain: LockKp(Root->L1) . then(L1->L2) . then(L2->tokio) . then_async(tokio->L3) . then(L3->leaf)
+        // Build chain: SyncKp(Root->L1) . then(L1->L2) . then(L2->tokio) . then_async(tokio->L3) . then(L3->leaf)
         let step1 = lock_root_to_l1.then(kp_l1_inner);
         let step2 = step1.then(kp_l2_tokio);
         let step3 = step2.then_async(async_l3);

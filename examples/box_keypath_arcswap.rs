@@ -9,10 +9,10 @@ struct SomeComplexStruct {
     scsf: Box<SomeOtherStruct>,
 }
 
-/// Arc-swap fields use **`sosf()`** → **`LockKp`** into **`OneMoreStruct`** only (no **`sosf_kp()`**).
-/// Enum snapshots use **`SomeEnum::b()`** → **`LockKp`** (no **`b_lock()`**).
+/// Arc-swap fields use **`sosf()`** → **`SyncKp`** into **`OneMoreStruct`** only (no **`sosf_kp()`**).
+/// Enum snapshots use **`SomeEnum::b()`** → **`SyncKp`** (no **`b_lock()`**).
 ///
-/// Chain after **`outer.then_lock(Self::sosf())`** with **`.then(OneMoreStruct::…)`**, and nest swaps with **`.then_lock(SomeEnum::b())`**.
+/// Chain after **`outer.then_sync(Self::sosf())`** with **`.then(OneMoreStruct::…)`**, and nest swaps with **`.then_sync(SomeEnum::b())`**.
 #[derive(Debug, Kp, Clone)]
 struct SomeOtherStruct {
     sosf: Arc<arc_swap::ArcSwap<OneMoreStruct>>,
@@ -50,7 +50,7 @@ fn init_via_keypaths() -> SomeComplexStruct {
 
     // `get_mut` / `get` use `LockAccess::lock_write` / `lock_read` → `ArcSwap::load` (not `load_full`).
     SomeComplexStruct::scsf()
-        .then_lock(SomeOtherStruct::sosf())
+        .then_sync(SomeOtherStruct::sosf())
         .get_mut(&mut root)
         .map(|inner| {
             inner.omsf = "omsf_value".to_string();
@@ -66,25 +66,25 @@ fn init_via_keypaths() -> SomeComplexStruct {
 fn main() {
     let instance = init_via_keypaths();
 
-    let kp_dsf = SomeComplexStruct::scsf().then_lock(
+    let kp_dsf = SomeComplexStruct::scsf().then_sync(
         SomeOtherStruct::sosf()
             .then(OneMoreStruct::omse())
-            .then_lock(SomeEnum::b())
+            .then_sync(SomeEnum::b())
             .then(DarkStruct::dsf()),
     );
     println!("size_of_val(&kp_dsf) = {}", std::mem::size_of_val(&kp_dsf));
     assert_eq!(kp_dsf.get(&instance).map(|s| s.as_str()), Some("dark_value"));
 
     let kp_hot = SomeComplexStruct::scsf()
-    .then_lock(SomeOtherStruct::sosf())
+    .then_sync(SomeOtherStruct::sosf())
     .then(OneMoreStruct::omse())
-    .then_lock(SomeEnum::b())
-    .then_lock(DarkStruct::hot());
+    .then_sync(SomeEnum::b())
+    .then_sync(DarkStruct::hot());
 
     println!("size_of_val(&kp_hot) = {}", std::mem::size_of_val(&kp_hot));
     assert_eq!(kp_hot.get(&instance).map(|s| s.as_str()), Some("hot_value"));
 
-    let kp_omsf = SomeComplexStruct::scsf().then_lock(
+    let kp_omsf = SomeComplexStruct::scsf().then_sync(
         SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
     );
     assert_eq!(kp_omsf.get(&instance).map(|s| s.as_str()), Some("omsf_value"));

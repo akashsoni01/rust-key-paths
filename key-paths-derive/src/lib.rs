@@ -101,7 +101,7 @@ enum WrapperKind {
     TokioArcRwLock,
     OptionTokioArcMutex,
     OptionTokioArcRwLock,
-    // arc-swap (`arc-swap` feature): derive emits `LockKp` only — struct `field()`, enum variant `snake()` (no `field_kp()`, no `*_lock()` suffix).
+    // arc-swap (`arc-swap` feature): derive emits `SyncKp` only — struct `field()`, enum variant `snake()` (no `field_kp()`, no `*_lock()` suffix).
     /// `arc_swap::ArcSwap<T>` or `ArcSwapAny<Arc<T>>` (bare; nested under `Arc<…>`)
     BareArcSwap,
     /// `arc_swap::ArcSwapOption<T>` or `ArcSwapAny<Option<Arc<T>>>` (bare)
@@ -471,7 +471,7 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                 return (WrapperKind::HashMapOption, inner_inner);
                             }
                             // BTreeMapOption is handled in the map block (HashMap/BTreeMap)
-                            // Mutex<Option<T>> / RwLock<Option<T>> (yields LockKp value T)
+                            // Mutex<Option<T>> / RwLock<Option<T>> (yields SyncKp value T)
                             // std::sync::Mutex<Option<T>> / RwLock<Option<T>>
                             ("Mutex", WrapperKind::Option) if is_std_sync_type(&tp.path) => {
                                 return (WrapperKind::StdMutexOption, inner_inner);
@@ -776,7 +776,7 @@ fn to_snake_case(name: &str) -> String {
     out
 }
 
-// Full `LockKp<…>` return types: borrow slots use `&'b` (paired with `fn …<'b>()` in generated code);
+// Full `SyncKp<…>` return types: borrow slots use `&'b` (paired with `fn …<'b>()` in generated code);
 // HRTB on `G` / `S` uses `for<'c> fn(…)` so it does not clash with `'b`.
 
 fn kp_lock_ty_arc_mutex(
@@ -785,7 +785,7 @@ fn kp_lock_ty_arc_mutex(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             #inner,
@@ -800,7 +800,7 @@ fn kp_lock_ty_arc_mutex(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ArcMutexAccess<#inner>,
+            rust_key_paths::sync_kp::ArcMutexAccess<#inner>,
             impl Fn(&'b #inner) -> Option<&'b #inner>,
             impl Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
@@ -813,7 +813,7 @@ fn kp_lock_ty_arc_mutex_option(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             Option<#inner>,
@@ -828,7 +828,7 @@ fn kp_lock_ty_arc_mutex_option(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ArcMutexAccess<Option<#inner>>,
+            rust_key_paths::sync_kp::ArcMutexAccess<Option<#inner>>,
             impl Fn(&'b Option<#inner>) -> Option<&'b #inner>,
             impl Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
@@ -841,7 +841,7 @@ fn kp_lock_ty_arc_rw_lock(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             #inner,
@@ -856,7 +856,7 @@ fn kp_lock_ty_arc_rw_lock(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ArcRwLockAccess<#inner>,
+            rust_key_paths::sync_kp::ArcRwLockAccess<#inner>,
             impl Fn(&'b #inner) -> Option<&'b #inner>,
             impl Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
@@ -869,7 +869,7 @@ fn kp_lock_ty_arc_rw_lock_option(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             Option<#inner>,
@@ -884,7 +884,7 @@ fn kp_lock_ty_arc_rw_lock_option(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ArcRwLockAccess<Option<#inner>>,
+            rust_key_paths::sync_kp::ArcRwLockAccess<Option<#inner>>,
             impl Fn(&'b Option<#inner>) -> Option<&'b #inner>,
             impl Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
@@ -897,7 +897,7 @@ fn kp_lock_ty_arc_arc_swap(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             #inner,
@@ -912,7 +912,7 @@ fn kp_lock_ty_arc_arc_swap(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ArcArcSwapAccess<#inner>,
+            rust_key_paths::sync_kp::ArcArcSwapAccess<#inner>,
             impl Fn(&'b #inner) -> Option<&'b #inner>,
             impl Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
@@ -925,7 +925,7 @@ fn kp_lock_ty_arc_arc_swap_option(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             ::std::option::Option<::std::sync::Arc<#inner>>,
@@ -940,7 +940,7 @@ fn kp_lock_ty_arc_arc_swap_option(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ArcArcSwapOptionAccess<#inner>,
+            rust_key_paths::sync_kp::ArcArcSwapOptionAccess<#inner>,
             impl Fn(&'b ::std::option::Option<::std::sync::Arc<#inner>>) -> Option<&'b #inner>,
             impl Fn(&'b mut ::std::option::Option<::std::sync::Arc<#inner>>) -> Option<&'b mut #inner>,
         >
@@ -953,7 +953,7 @@ fn kp_lock_ty_parking_lot_mutex(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             #inner,
@@ -968,7 +968,7 @@ fn kp_lock_ty_parking_lot_mutex(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ParkingLotMutexAccess<#inner>,
+            rust_key_paths::sync_kp::ParkingLotMutexAccess<#inner>,
             impl Fn(&'b #inner) -> Option<&'b #inner>,
             impl Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
@@ -981,7 +981,7 @@ fn kp_lock_ty_parking_lot_mutex_option(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             Option<#inner>,
@@ -996,7 +996,7 @@ fn kp_lock_ty_parking_lot_mutex_option(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ParkingLotMutexAccess<Option<#inner>>,
+            rust_key_paths::sync_kp::ParkingLotMutexAccess<Option<#inner>>,
             impl Fn(&'b Option<#inner>) -> Option<&'b #inner>,
             impl Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
@@ -1009,7 +1009,7 @@ fn kp_lock_ty_parking_lot_rw_lock(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             #inner,
@@ -1024,7 +1024,7 @@ fn kp_lock_ty_parking_lot_rw_lock(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ParkingLotRwLockAccess<#inner>,
+            rust_key_paths::sync_kp::ParkingLotRwLockAccess<#inner>,
             impl Fn(&'b #inner) -> Option<&'b #inner>,
             impl Fn(&'b mut #inner) -> Option<&'b mut #inner>,
         >
@@ -1037,7 +1037,7 @@ fn kp_lock_ty_parking_lot_rw_lock_option(
     inner: &impl ToTokens,
 ) -> proc_macro2::TokenStream {
     quote! {
-        rust_key_paths::lock::LockKp<
+        rust_key_paths::sync_kp::SyncKp<
             #root,
             #lock,
             Option<#inner>,
@@ -1052,7 +1052,7 @@ fn kp_lock_ty_parking_lot_rw_lock_option(
             &'b mut #inner,
             impl Fn(&'b #root) -> Option<&'b #lock>,
             impl Fn(&'b mut #root) -> Option<&'b mut #lock>,
-            rust_key_paths::lock::ParkingLotRwLockAccess<Option<#inner>>,
+            rust_key_paths::sync_kp::ParkingLotRwLockAccess<Option<#inner>>,
             impl Fn(&'b Option<#inner>) -> Option<&'b #inner>,
             impl Fn(&'b mut Option<#inner>) -> Option<&'b mut #inner>,
         >
@@ -2227,12 +2227,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ArcMutexAccess::new(),
+                                        rust_key_paths::sync_kp::ArcMutexAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2263,12 +2263,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ArcRwLockAccess::new(),
+                                        rust_key_paths::sync_kp::ArcRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2278,7 +2278,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::StdArcMutexOption, Some(inner_ty)) => {
-                            // For Arc<std::sync::Mutex<Option<T>>> — LockKp value T (extract from Option); guard gives &Option<T>
+                            // For Arc<std::sync::Mutex<Option<T>>> — SyncKp value T (extract from Option); guard gives &Option<T>
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
                             let lock_kp_return_ty =
                                 kp_lock_ty_arc_mutex_option(name, ty, &inner_ty);
@@ -2300,12 +2300,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ArcMutexAccess::<Option<#inner_ty>>::new(),
+                                        rust_key_paths::sync_kp::ArcMutexAccess::<Option<#inner_ty>>::new(),
                                         rust_key_paths::Kp::new(
                                             Option::<#inner_ty>::as_ref,
                                             Option::<#inner_ty>::as_mut,
@@ -2315,7 +2315,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::StdArcRwLockOption, Some(inner_ty)) => {
-                            // For Arc<std::sync::RwLock<Option<T>>> — LockKp value T (extract from Option); guard gives &Option<T>
+                            // For Arc<std::sync::RwLock<Option<T>>> — SyncKp value T (extract from Option); guard gives &Option<T>
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
                             let lock_kp_return_ty =
                                 kp_lock_ty_arc_rw_lock_option(name, ty, &inner_ty);
@@ -2337,12 +2337,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ArcRwLockAccess::<Option<#inner_ty>>::new(),
+                                        rust_key_paths::sync_kp::ArcRwLockAccess::<Option<#inner_ty>>::new(),
                                         rust_key_paths::Kp::new(
                                             Option::<#inner_ty>::as_ref,
                                             Option::<#inner_ty>::as_mut,
@@ -2352,17 +2352,17 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::BareArcSwap, Some(inner_ty)) => {
-                            // `arc_swap::ArcSwap<T>` owned on the struct — `field()` is `LockKp` only (no `field_kp()`).
+                            // `arc_swap::ArcSwap<T>` owned on the struct — `field()` is `SyncKp` only (no `field_kp()`).
                             let lock_kp_return_ty = kp_lock_ty_arc_arc_swap(name, ty, &inner_ty);
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ArcArcSwapAccess::new(),
+                                        rust_key_paths::sync_kp::ArcArcSwapAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2377,12 +2377,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ArcArcSwapOptionAccess::<#inner_ty>::new(),
+                                        rust_key_paths::sync_kp::ArcArcSwapOptionAccess::<#inner_ty>::new(),
                                         rust_key_paths::Kp::new(
                                             |o: &::std::option::Option<::std::sync::Arc<#inner_ty>>| {
                                                 o.as_ref().map(|a| a.as_ref())
@@ -2400,12 +2400,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ArcArcSwapAccess::new(),
+                                        rust_key_paths::sync_kp::ArcArcSwapAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2420,12 +2420,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ArcArcSwapOptionAccess::<#inner_ty>::new(),
+                                        rust_key_paths::sync_kp::ArcArcSwapOptionAccess::<#inner_ty>::new(),
                                         rust_key_paths::Kp::new(
                                             |o: &::std::option::Option<::std::sync::Arc<#inner_ty>>| {
                                                 o.as_ref().map(|a| a.as_ref())
@@ -2461,12 +2461,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ParkingLotRwLockAccess::new(),
+                                        rust_key_paths::sync_kp::ParkingLotRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2498,12 +2498,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ParkingLotMutexAccess::new(),
+                                        rust_key_paths::sync_kp::ParkingLotMutexAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2513,7 +2513,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::ArcMutexOption, Some(inner_ty)) => {
-                            // For Arc<parking_lot::Mutex<Option<T>>> — LockKp value T (extract from Option); guard gives &Option<T>
+                            // For Arc<parking_lot::Mutex<Option<T>>> — SyncKp value T (extract from Option); guard gives &Option<T>
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
                             let lock_kp_return_ty =
                                 kp_lock_ty_parking_lot_mutex_option(name, ty, &inner_ty);
@@ -2535,12 +2535,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ParkingLotMutexAccess::<Option<#inner_ty>>::new(),
+                                        rust_key_paths::sync_kp::ParkingLotMutexAccess::<Option<#inner_ty>>::new(),
                                         rust_key_paths::Kp::new(
                                             Option::<#inner_ty>::as_ref,
                                             Option::<#inner_ty>::as_mut,
@@ -2550,7 +2550,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             });
                         }
                         (WrapperKind::ArcRwLockOption, Some(inner_ty)) => {
-                            // For Arc<parking_lot::RwLock<Option<T>>> — LockKp value T (extract from Option); guard gives &Option<T>
+                            // For Arc<parking_lot::RwLock<Option<T>>> — SyncKp value T (extract from Option); guard gives &Option<T>
                             let kp_lock_fn = format_ident!("{}_kp", field_ident);
                             let lock_kp_return_ty =
                                 kp_lock_ty_parking_lot_rw_lock_option(name, ty, &inner_ty);
@@ -2572,12 +2572,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     )
                                 }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| Some(&root.#field_ident)),
                                             rust_key_paths::constrain_set(|root: &mut #name| Some(&mut root.#field_ident)),
                                         ),
-                                        rust_key_paths::lock::ParkingLotRwLockAccess::<Option<#inner_ty>>::new(),
+                                        rust_key_paths::sync_kp::ParkingLotRwLockAccess::<Option<#inner_ty>>::new(),
                                         rust_key_paths::Kp::new(
                                             Option::<#inner_ty>::as_ref,
                                             Option::<#inner_ty>::as_mut,
@@ -2795,12 +2795,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 //     )
                                 // }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
                                             rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
-                                        rust_key_paths::lock::ArcMutexAccess::new(),
+                                        rust_key_paths::sync_kp::ArcMutexAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2839,12 +2839,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 //     )
                                 // }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
                                             rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
-                                        rust_key_paths::lock::ParkingLotMutexAccess::new(),
+                                        rust_key_paths::sync_kp::ParkingLotMutexAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2883,12 +2883,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 //     )
                                 // }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
                                             rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
-                                        rust_key_paths::lock::ArcRwLockAccess::new(),
+                                        rust_key_paths::sync_kp::ArcRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2905,12 +2905,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
                                             rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
-                                        rust_key_paths::lock::ArcArcSwapAccess::new(),
+                                        rust_key_paths::sync_kp::ArcArcSwapAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -2928,12 +2928,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                             tokens.extend(quote! {
                                 #[inline(always)]
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
                                             rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
-                                        rust_key_paths::lock::ArcArcSwapOptionAccess::<#inner_ty>::new(),
+                                        rust_key_paths::sync_kp::ArcArcSwapOptionAccess::<#inner_ty>::new(),
                                         rust_key_paths::Kp::new(
                                             |o: &::std::option::Option<::std::sync::Arc<#inner_ty>>| {
                                                 o.as_ref().map(|a| a.as_ref())
@@ -2976,12 +2976,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                 //     )
                                 // }
                                 pub fn #kp_fn<'b>() -> #lock_kp_return_ty {
-                                    rust_key_paths::lock::LockKp::new(
+                                    rust_key_paths::sync_kp::SyncKp::new(
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|root: &#name| root.#field_ident.as_ref()),
                                             rust_key_paths::constrain_set(|root: &mut #name| root.#field_ident.as_mut()),
                                         ),
-                                        rust_key_paths::lock::ParkingLotRwLockAccess::new(),
+                                        rust_key_paths::sync_kp::ParkingLotRwLockAccess::new(),
                                         rust_key_paths::Kp::new(
                                             rust_key_paths::constrain_get(|v: &#inner_ty| Some(v)),
                                             rust_key_paths::constrain_set(|v: &mut #inner_ty| Some(v)),
@@ -5772,12 +5772,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcRwLockAccess::new(),
+                                                rust_key_paths::sync_kp::ArcRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -5802,12 +5802,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcMutexAccess::new(),
+                                                rust_key_paths::sync_kp::ArcMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -5832,12 +5832,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ParkingLotRwLockAccess::new(),
+                                                rust_key_paths::sync_kp::ParkingLotRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -5862,12 +5862,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ParkingLotMutexAccess::new(),
+                                                rust_key_paths::sync_kp::ParkingLotMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -5886,12 +5886,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcMutexAccess::<Option<#inner_ty>>::new(),
+                                                rust_key_paths::sync_kp::ArcMutexAccess::<Option<#inner_ty>>::new(),
                                                 rust_key_paths::Kp::new(Option::<#inner_ty>::as_ref, Option::<#inner_ty>::as_mut),
                                             )
                                         }
@@ -5910,12 +5910,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcRwLockAccess::<Option<#inner_ty>>::new(),
+                                                rust_key_paths::sync_kp::ArcRwLockAccess::<Option<#inner_ty>>::new(),
                                                 rust_key_paths::Kp::new(Option::<#inner_ty>::as_ref, Option::<#inner_ty>::as_mut),
                                             )
                                         }
@@ -5927,7 +5927,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -5938,7 +5938,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                         _ => None,
                                                     }),
                                                 ),
-                                                rust_key_paths::lock::ArcArcSwapAccess::new(),
+                                                rust_key_paths::sync_kp::ArcArcSwapAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -5950,12 +5950,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcArcSwapOptionAccess::<#inner_ty>::new(),
+                                                rust_key_paths::sync_kp::ArcArcSwapOptionAccess::<#inner_ty>::new(),
                                                 rust_key_paths::Kp::new(
                                                     |o: &::std::option::Option<::std::sync::Arc<#inner_ty>>| {
                                                         o.as_ref().map(|a| a.as_ref())
@@ -5974,7 +5974,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root {
                                                         #name::#v_ident(inner) => Some(inner),
@@ -5985,7 +5985,7 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                                         _ => None,
                                                     }),
                                                 ),
-                                                rust_key_paths::lock::ArcArcSwapAccess::new(),
+                                                rust_key_paths::sync_kp::ArcArcSwapAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -5997,12 +5997,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcArcSwapOptionAccess::<#inner_ty>::new(),
+                                                rust_key_paths::sync_kp::ArcArcSwapOptionAccess::<#inner_ty>::new(),
                                                 rust_key_paths::Kp::new(
                                                     |o: &::std::option::Option<::std::sync::Arc<#inner_ty>>| {
                                                         o.as_ref().map(|a| a.as_ref())
@@ -6024,12 +6024,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcArcSwapAccess::new(),
+                                                rust_key_paths::sync_kp::ArcArcSwapAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -6044,12 +6044,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                     tokens.extend(quote! {
                                         #[inline(always)]
                                         pub fn #snake<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcArcSwapOptionAccess::<#inner_ty>::new(),
+                                                rust_key_paths::sync_kp::ArcArcSwapOptionAccess::<#inner_ty>::new(),
                                                 rust_key_paths::Kp::new(
                                                     |o: &::std::option::Option<::std::sync::Arc<#inner_ty>>| {
                                                         o.as_ref().map(|a| a.as_ref())
@@ -6076,12 +6076,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ParkingLotMutexAccess::<Option<#inner_ty>>::new(),
+                                                rust_key_paths::sync_kp::ParkingLotMutexAccess::<Option<#inner_ty>>::new(),
                                                 rust_key_paths::Kp::new(Option::<#inner_ty>::as_ref, Option::<#inner_ty>::as_mut),
                                             )
                                         }
@@ -6101,12 +6101,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => Some(inner), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ParkingLotRwLockAccess::<Option<#inner_ty>>::new(),
+                                                rust_key_paths::sync_kp::ParkingLotRwLockAccess::<Option<#inner_ty>>::new(),
                                                 rust_key_paths::Kp::new(Option::<#inner_ty>::as_ref, Option::<#inner_ty>::as_mut),
                                             )
                                         }
@@ -6252,12 +6252,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcMutexAccess::new(),
+                                                rust_key_paths::sync_kp::ArcMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -6291,12 +6291,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ParkingLotMutexAccess::new(),
+                                                rust_key_paths::sync_kp::ParkingLotMutexAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -6330,12 +6330,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ArcRwLockAccess::new(),
+                                                rust_key_paths::sync_kp::ArcRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }
@@ -6369,12 +6369,12 @@ pub fn derive_keypaths(input: TokenStream) -> TokenStream {
                                             )
                                         }
                                         pub fn #snake_lock<'b>() -> #lock_kp_return_ty {
-                                            rust_key_paths::lock::LockKp::new(
+                                            rust_key_paths::sync_kp::SyncKp::new(
                                                 rust_key_paths::Kp::new(
                                                     rust_key_paths::constrain_get(|root: &#name| match root { #name::#v_ident(inner) => inner.as_ref(), _ => None }),
                                                     rust_key_paths::constrain_set(|root: &mut #name| match root { #name::#v_ident(inner) => inner.as_mut(), _ => None }),
                                                 ),
-                                                rust_key_paths::lock::ParkingLotRwLockAccess::new(),
+                                                rust_key_paths::sync_kp::ParkingLotRwLockAccess::new(),
                                                 rust_key_paths::Kp::new(|v: &#inner_ty| Some(v), |v: &mut #inner_ty| Some(v)),
                                             )
                                         }

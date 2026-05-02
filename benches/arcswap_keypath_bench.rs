@@ -46,7 +46,7 @@ fn init_fixture() -> SomeComplexStruct {
 
 fn read_keypath(instance: &SomeComplexStruct) -> Option<String> {
     SomeComplexStruct::scsf()
-        .then_lock(
+        .then_sync(
             SomeOtherStruct::sosf()
                 .then(OneMoreStruct::omse())
                 .then(SomeEnum::b())
@@ -67,7 +67,7 @@ fn read_load_full(instance: &SomeComplexStruct) -> Option<String> {
 fn bench_arcswap_keypath(c: &mut Criterion) {
     let mut g = c.benchmark_group("arcswap_keypath_read");
     let instance = init_fixture();
-    g.bench_function("keypath_then_lock", |b| {
+    g.bench_function("keypath_then_sync", |b| {
         b.iter(|| black_box(read_keypath(black_box(&instance))))
     });
     g.bench_function("load_full_manual", |b| {

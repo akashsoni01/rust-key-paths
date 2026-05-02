@@ -71,8 +71,8 @@ pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
 }
 
 pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
-    /// Chain with a sync [`crate::lock::LockKp`]. Use `.get(root)` / `.get_mut(root)` on the returned keypath.
-    fn then_lock<
+    /// Chain with a sync [`crate::sync_kp::SyncKp`]. Use `.get(root)` / `.get_mut(root)` on the returned keypath.
+    fn then_sync<
         Lock,
         Mid,
         V2,
@@ -89,7 +89,7 @@ pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
         S2,
     >(
         self,
-        lock_kp: crate::lock::LockKp<
+        lock_kp: crate::sync_kp::SyncKp<
             V,
             Lock,
             Mid,
@@ -108,7 +108,7 @@ pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
             G2,
             S2,
         >,
-    ) -> crate::lock::KpThenLockKp<
+    ) -> crate::sync_kp::KpThenSyncKp<
         R,
         V,
         V2,
@@ -119,7 +119,7 @@ pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
         MutValue,
         MutValue2,
         Self,
-        crate::lock::LockKp<
+        crate::sync_kp::SyncKp<
             V,
             Lock,
             Mid,
@@ -152,7 +152,7 @@ pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
         MutMid: std::borrow::BorrowMut<Mid>,
         G1: Fn(Value) -> Option<LockValue>,
         S1: Fn(MutValue) -> Option<MutLock>,
-        L: crate::lock::LockAccess<Lock, MidValue> + crate::lock::LockAccess<Lock, MutMid>,
+        L: crate::sync_kp::LockAccess<Lock, MidValue> + crate::sync_kp::LockAccess<Lock, MutMid>,
         G2: Fn(MidValue) -> Option<Value2>,
         S2: Fn(MutMid) -> Option<MutValue2>,
         Self: Sized;
@@ -209,7 +209,7 @@ where
     G: Fn(Root) -> Option<Value>,
     S: Fn(MutRoot) -> Option<MutValue>,
 {
-    fn then_lock<
+    fn then_sync<
         Lock,
         Mid,
         V2,
@@ -226,7 +226,7 @@ where
         S2,
     >(
         self,
-        lock_kp: crate::lock::LockKp<
+        lock_kp: crate::sync_kp::SyncKp<
             V,
             Lock,
             Mid,
@@ -245,7 +245,7 @@ where
             G2,
             S2,
         >,
-    ) -> crate::lock::KpThenLockKp<
+    ) -> crate::sync_kp::KpThenSyncKp<
         R,
         V,
         V2,
@@ -256,7 +256,7 @@ where
         MutValue,
         MutValue2,
         Self,
-        crate::lock::LockKp<
+        crate::sync_kp::SyncKp<
             V,
             Lock,
             Mid,
@@ -289,14 +289,14 @@ where
         MutMid: std::borrow::BorrowMut<Mid>,
         G1: Fn(Value) -> Option<LockValue>,
         S1: Fn(MutValue) -> Option<MutLock>,
-        L: crate::lock::LockAccess<Lock, MidValue> + crate::lock::LockAccess<Lock, MutMid>,
+        L: crate::sync_kp::LockAccess<Lock, MidValue> + crate::sync_kp::LockAccess<Lock, MutMid>,
         G2: Fn(MidValue) -> Option<Value2>,
         S2: Fn(MutMid) -> Option<MutValue2>,
     {
         let first = self;
         let second = lock_kp;
 
-        crate::lock::KpThenLockKp::new(first, second)
+        crate::sync_kp::KpThenSyncKp::new(first, second)
     }
 
     #[cfg(feature = "pin_project")]

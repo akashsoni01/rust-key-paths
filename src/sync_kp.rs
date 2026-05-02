@@ -1,17 +1,17 @@
-//! # Lock Keypath Module
+//! # Sync keypath module (`sync_kp`)
 //!
-//! This module provides `LockKp` for safely navigating through locked/synchronized data structures.
+//! This module provides `SyncKp` for safely navigating through locked/synchronized data structures.
 //!
 //! # Naming convention (aligned with [crate::Kp] and [crate::async_lock])
 //!
 //! - **`then`** – chain with a plain [crate::Kp]
-//! - **`then_lock`** – chain with another [LockKp] for multi-level lock access
+//! - **`then_sync`** – chain with another [SyncKp] for multi-level lock access
 //!
 //! # SHALLOW CLONING GUARANTEE & NO UNNECESSARY CLONES
 //!
 //! **IMPORTANT**: All cloning operations in this module are SHALLOW (reference-counted) clones:
 //!
-//! 1. **`LockKp` derives `Clone`**: Clones function pointers and PhantomData only
+//! 1. **`SyncKp` derives `Clone`**: Clones function pointers and PhantomData only
 //!    - `prev` and `next` fields contain function pointers (cheap to copy)
 //!    - `mid` field is typically just `PhantomData<T>` (zero-sized, zero-cost)
 //!    - No heap allocations or deep data copies
@@ -28,7 +28,7 @@
 //!
 //! ## Performance Characteristics
 //!
-//! - `LockKp::clone()`: O(1) - copies a few pointers
+//! - `SyncKp::clone()`: O(1) - copies a few pointers
 //! - `ArcMutexAccess::clone()`: O(1) - no-op (zero-sized type)
 //! - **Lock operations**: No Arc cloning needed - direct reference use
 //! - **Total**: All operations are constant-time with no deep copying
@@ -78,7 +78,7 @@ pub trait LockAccess<Lock, Inner> {
 ///
 /// **IMPORTANT**: All `Clone` operations in this struct are SHALLOW clones:
 ///
-/// - `LockKp` itself derives `Clone` - this clones the three field references/closures
+/// - `SyncKp` itself derives `Clone` - this clones the three field references/closures
 /// - `prev` and `next` fields are `Kp` structs containing function pointers (cheap to clone)
 /// - `mid` field implements `LockAccess` trait - typically just `PhantomData` (zero-cost clone)
 /// - NO `Lock: Clone` needed for lock operations - we use `&Lock` directly via interior mutability
@@ -87,7 +87,7 @@ pub trait LockAccess<Lock, Inner> {
 /// # Example
 /// ```ignore
 /// use std::sync::{Arc, Mutex};
-/// use rust_key_paths::lock::{ArcMutexAccess, LockKp};
+/// use rust_key_paths::sync_kp::{ArcMutexAccess, SyncKp};
 /// use rust_key_paths::Kp;
 ///
 /// struct Root {
@@ -98,13 +98,13 @@ pub trait LockAccess<Lock, Inner> {
 ///     value: String,
 /// }
 ///
-/// // Create a LockKp that goes: Root -> Arc<Mutex<Inner>> -> String
+/// // Create a SyncKp that goes: Root -> Arc<Mutex<Inner>> -> String
 /// let root_to_lock_kp = Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
 /// let inner_to_value_kp = Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value));
-/// let lock_kp = LockKp::new(root_to_lock_kp, ArcMutexAccess::new(), inner_to_value_kp);
+/// let lock_kp = SyncKp::new(root_to_lock_kp, ArcMutexAccess::new(), inner_to_value_kp);
 /// ```
 #[derive(Clone)] // SHALLOW: Clones function pointers and PhantomData only
-pub struct LockKp<
+pub struct SyncKp<
     R,
     Lock,
     Mid,
@@ -166,7 +166,7 @@ impl<
     G2,
     S2,
 > fmt::Debug
-    for LockKp<
+    for SyncKp<
         R,
         Lock,
         Mid,
@@ -201,7 +201,7 @@ where
     S2: Fn(MutMid) -> Option<MutValue>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LockKp")
+        f.debug_struct("SyncKp")
             .field("root_ty", &std::any::type_name::<R>())
             .field("lock_ty", &std::any::type_name::<Lock>())
             .field("mid_ty", &std::any::type_name::<Mid>())
@@ -229,7 +229,7 @@ impl<
     G2,
     S2,
 > fmt::Display
-    for LockKp<
+    for SyncKp<
         R,
         Lock,
         Mid,
@@ -266,7 +266,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "LockKp<{}, {}, {}, {}>",
+            "SyncKp<{}, {}, {}, {}>",
             std::any::type_name::<R>(),
             std::any::type_name::<Lock>(),
             std::any::type_name::<Mid>(),
@@ -294,7 +294,7 @@ impl<
     G2,
     S2,
 >
-    LockKp<
+    SyncKp<
         R,
         Lock,
         Mid,
@@ -328,7 +328,7 @@ where
     G2: Fn(MidValue) -> Option<Value>,
     S2: Fn(MutMid) -> Option<MutValue>,
 {
-    /// Create a new LockKp with prev, mid, and next components
+    /// Create a new SyncKp with prev, mid, and next components
     pub fn new(
         prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
         mid: L,
@@ -346,7 +346,7 @@ where
     ///
     /// # Example
     /// ```
-    /// use rust_key_paths::{KpType, LockKp};
+    /// use rust_key_paths::{KpType, SyncKp};
     /// use std::sync::Mutex;
     ///
     /// #[derive(key_paths_derive::Kp)]
@@ -362,7 +362,7 @@ where
     /// let mutex_kp = WithLocks::std_mutex();
     /// let rwlock_kp = WithLocks::std_rwlock();
     /// let next: KpType<i32, i32> = rust_key_paths::Kp::new(|i: &i32| Some(i), |i: &mut i32| Some(i));
-    /// let lock_kp = LockKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
+    /// let lock_kp = SyncKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
     ///
     /// let value = lock_kp.get(&locks);
     /// assert_eq!(value, Some(&99));
@@ -386,7 +386,7 @@ where
     ///
     /// # Example
     /// ```
-    /// use rust_key_paths::{KpType, LockKp};
+    /// use rust_key_paths::{KpType, SyncKp};
     /// use std::sync::Mutex;
     ///
     /// #[derive(key_paths_derive::Kp)]
@@ -401,7 +401,7 @@ where
     /// };
     /// let mutex_kp = WithLocks::std_mutex();
     /// let next: KpType<i32, i32> = rust_key_paths::Kp::new(|i: &i32| Some(i), |i: &mut i32| Some(i));
-    /// let lock_kp = LockKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
+    /// let lock_kp = SyncKp::new(mutex_kp, rust_key_paths::StdMutexAccess::new(), next);
     ///
     /// let value = lock_kp.get_mut(&mut locks).unwrap();
     /// *value = 42;
@@ -421,13 +421,13 @@ where
         })
     }
 
-    /// Like [get](LockKp::get), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the getter.
+    /// Like [get](SyncKp::get), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the getter.
     #[inline]
     pub fn get_optional(&self, root: Option<Root>) -> Option<Value> {
         root.and_then(|r| self.get(r))
     }
 
-    /// Like [get_mut](LockKp::get_mut), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the setter.
+    /// Like [get_mut](SyncKp::get_mut), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the setter.
     #[inline]
     pub fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue> {
         root.and_then(|r| self.get_mut(r))
@@ -482,7 +482,7 @@ where
             })
     }
 
-    /// Chain this LockKp with another regular Kp
+    /// Chain this SyncKp with another regular Kp
     ///
     /// This allows you to continue navigating after getting through the lock:
     /// Root -> Lock -> Mid -> Value1 -> Value2
@@ -492,7 +492,7 @@ where
     pub fn then<V2, Value2, MutValue2, G3, S3>(
         self,
         next_kp: Kp<V, V2, Value, Value2, MutValue, MutValue2, G3, S3>,
-    ) -> LockKp<
+    ) -> SyncKp<
         R,
         Lock,
         Mid,
@@ -581,10 +581,10 @@ where
             move |mid_value: MutMid| next_set(mid_value).and_then(|v| second_set(v)),
         );
 
-        LockKp::new(self.prev, self.mid, chained_kp)
+        SyncKp::new(self.prev, self.mid, chained_kp)
     }
 
-    /// Chain with another LockKp for multi-level lock access (then_lock convention)
+    /// Chain with another SyncKp for multi-level lock access (then_sync convention)
     ///
     /// This allows you to chain through multiple lock levels:
     /// Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> Value
@@ -604,12 +604,12 @@ where
     /// # Example
     /// ```ignore
     /// // Root -> Arc<Mutex<Mid1>> -> Mid1 -> Arc<Mutex<Mid2>> -> Mid2 -> String
-    /// let lock_kp1 = LockKp::new(root_to_lock1, ArcMutexAccess::new(), lock1_to_mid1);
-    /// let lock_kp2 = LockKp::new(mid1_to_lock2, ArcMutexAccess::new(), mid2_to_value);
+    /// let lock_kp1 = SyncKp::new(root_to_lock1, ArcMutexAccess::new(), lock1_to_mid1);
+    /// let lock_kp2 = SyncKp::new(mid1_to_lock2, ArcMutexAccess::new(), mid2_to_value);
     ///
-    /// let chained = lock_kp1.then_lock(lock_kp2);
+    /// let chained = lock_kp1.then_sync(lock_kp2);
     /// ```
-    pub fn then_lock<
+    pub fn then_sync<
         Lock2,
         Mid2,
         V2,
@@ -626,7 +626,7 @@ where
         S2_2,
     >(
         self,
-        other: LockKp<
+        other: SyncKp<
             V,
             Lock2,
             Mid2,
@@ -645,7 +645,7 @@ where
             G2_2,
             S2_2,
         >,
-    ) -> LockKp<
+    ) -> SyncKp<
         R,
         Lock,
         Mid,
@@ -792,7 +792,7 @@ where
             },
         );
 
-        LockKp::new(self.prev, self.mid, composed_kp)
+        SyncKp::new(self.prev, self.mid, composed_kp)
     }
 
     /// Chain with an async keypath. Use `.get(&root).await` on the returned keypath.
@@ -832,12 +832,12 @@ where
 }
 
 // ============================================================================
-// KpThenLockKp: Kp .then_lock(LockKp) — sync keypath then sync lock
+// KpThenSyncKp: Kp .then_sync(SyncKp) — sync keypath then sync lock
 // ============================================================================
 
-/// Keypath that chains a [crate::Kp] with a [LockKp]. Use [crate::Kp::then_lock] to create.
+/// Keypath that chains a [crate::Kp] with a [SyncKp]. Use [crate::Kp::then_sync] to create.
 #[derive(Clone)]
-pub struct KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+pub struct KpThenSyncKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 {
     first: First,
     second: Second,
@@ -845,7 +845,7 @@ pub struct KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutVal
 }
 
 impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
-    KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    KpThenSyncKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 {
     pub(crate) fn new(first: First, second: Second) -> Self {
         Self {
@@ -857,10 +857,10 @@ impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 }
 
 impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second> fmt::Debug
-    for KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    for KpThenSyncKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("KpThenLockKp")
+        f.debug_struct("KpThenSyncKp")
             .field("root_ty", &std::any::type_name::<R>())
             .field("via_ty", &std::any::type_name::<V>())
             .field("value_ty", &std::any::type_name::<V2>())
@@ -869,12 +869,12 @@ impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 }
 
 impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second> fmt::Display
-    for KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    for KpThenSyncKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "KpThenLockKp<{}, {}, {}>",
+            "KpThenSyncKp<{}, {}, {}>",
             std::any::type_name::<R>(),
             std::any::type_name::<V>(),
             std::any::type_name::<V2>()
@@ -883,7 +883,7 @@ impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 }
 
 impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
-    KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    KpThenSyncKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 where
     First: crate::async_lock::SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
     Second: crate::async_lock::SyncKeyPathLike<Value, Value2, MutValue, MutValue2>,
@@ -901,13 +901,13 @@ where
         self.second.sync_get_mut(mut_v)
     }
 
-    /// Like [get](KpThenLockKp::get), but takes an optional root.
+    /// Like [get](KpThenSyncKp::get), but takes an optional root.
     #[inline]
     pub fn get_optional(&self, root: Option<Root>) -> Option<Value2> {
         root.and_then(|r| self.get(r))
     }
 
-    /// Like [get_mut](KpThenLockKp::get_mut), but takes an optional root.
+    /// Like [get_mut](KpThenSyncKp::get_mut), but takes an optional root.
     #[inline]
     pub fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue2> {
         root.and_then(|r| self.get_mut(r))
@@ -931,14 +931,14 @@ where
         self.get_mut_optional(root).unwrap_or_else(f)
     }
 
-    /// Chain with a plain [`Kp`] after the lock segment (same idea as [`LockKp::then`]).
+    /// Chain with a plain [`Kp`] after the lock segment (same idea as [`SyncKp::then`]).
     ///
-    /// Example: `root_kp.then_lock(field_lock()).then(Inner::next_field())`.
+    /// Example: `root_kp.then_sync(field_lock()).then(Inner::next_field())`.
     #[inline]
     pub fn then<V3, Value3, MutValue3, G3, S3>(
         self,
         next_kp: Kp<V2, V3, Value2, Value3, MutValue2, MutValue3, G3, S3>,
-    ) -> KpThenLockKp<
+    ) -> KpThenSyncKp<
         R,
         V,
         V3,
@@ -966,15 +966,15 @@ where
         G3: Fn(Value2) -> Option<Value3> + 'static,
         S3: Fn(MutValue2) -> Option<MutValue3> + 'static,
     {
-        KpThenLockKp::new(
+        KpThenSyncKp::new(
             self.first,
             ComposedSyncKeyPath::new(self.second, next_kp),
         )
     }
 
-    /// Chain with another sync [`LockKp`] after the segment so far (same idea as [`LockKp::then_lock`]).
+    /// Chain with another sync [`SyncKp`] after the segment so far (same idea as [`SyncKp::then_sync`]).
     #[inline]
-    pub fn then_lock<
+    pub fn then_sync<
         Lock2,
         Mid2,
         V3,
@@ -991,7 +991,7 @@ where
         S2_2,
     >(
         self,
-        other: LockKp<
+        other: SyncKp<
             V2,
             Lock2,
             Mid2,
@@ -1010,7 +1010,7 @@ where
             G2_2,
             S2_2,
         >,
-    ) -> KpThenLockKp<
+    ) -> KpThenSyncKp<
         R,
         V,
         V3,
@@ -1023,7 +1023,7 @@ where
         First,
         ComposedSyncKeyPath<
             Second,
-            LockKp<
+            SyncKp<
                 V2,
                 Lock2,
                 Mid2,
@@ -1063,11 +1063,11 @@ where
         G2_2: Fn(MidValue2) -> Option<Value3>,
         S2_2: Fn(MutMid2) -> Option<MutValue3>,
     {
-        KpThenLockKp::new(self.first, ComposedSyncKeyPath::new(self.second, other))
+        KpThenSyncKp::new(self.first, ComposedSyncKeyPath::new(self.second, other))
     }
 }
 
-/// Composes two [`crate::async_lock::SyncKeyPathLike`] steps (used by [`KpThenLockKp::then`] / [`KpThenLockKp::then_lock`]).
+/// Composes two [`crate::async_lock::SyncKeyPathLike`] steps (used by [`KpThenSyncKp::then`] / [`KpThenSyncKp::then_sync`]).
 ///
 /// `MidLink` / `MutLink` are the intermediate value types produced by `first` and consumed by `second`
 /// (phantom only — used so the compiler can prove the chain is well-typed).
@@ -1129,7 +1129,7 @@ where
 /// This struct only contains `PhantomData<T>`, which is a zero-sized type.
 /// Cloning `ArcMutexAccess<T>` is a **zero-cost operation** - no data is copied.
 ///
-/// The `Clone` impl is required for the `then_lock()` method to work, but it's
+/// The `Clone` impl is required for the `then_sync()` method to work, but it's
 /// completely free (compiled away to nothing).
 #[derive(Clone)] // ZERO-COST: Only clones PhantomData (zero-sized type)
 pub struct ArcMutexAccess<T> {
@@ -1967,7 +1967,7 @@ impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a mut T>
 /// ```ignore
 /// use std::rc::Rc;
 /// use std::cell::RefCell;
-/// use rust_key_paths::lock::{LockKp, RcRefCellAccess};
+/// use rust_key_paths::sync_kp::{SyncKp, RcRefCellAccess};
 /// use rust_key_paths::Kp;
 ///
 /// #[derive(Clone)]
@@ -1979,7 +1979,7 @@ impl<'a, T: 'static> LockAccess<parking_lot::RwLock<T>, &'a mut T>
 ///     value: String,
 /// }
 ///
-/// let lock_kp = LockKp::new(
+/// let lock_kp = SyncKp::new(
 ///     Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data)),
 ///     RcRefCellAccess::new(),
 ///     Kp::new(|i: &Inner| Some(&i.value), |i: &mut Inner| Some(&mut i.value)),
@@ -2047,8 +2047,8 @@ impl<'a, T: 'static> LockAccess<std::rc::Rc<std::cell::RefCell<T>>, &'a mut T>
 // Helper Functions
 // ============================================================================
 
-/// Type alias for LockKp over Arc<std::sync::Mutex<T>>. Use with derive macro's `_lock()` methods.
-pub type LockKpArcMutexFor<Root, Lock, Inner> = LockKp<
+/// Type alias for SyncKp over Arc<std::sync::Mutex<T>>. Use with derive macro's `_lock()` methods.
+pub type SyncKpArcMutexFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Inner,
@@ -2068,8 +2068,8 @@ pub type LockKpArcMutexFor<Root, Lock, Inner> = LockKp<
     for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
 >;
 
-/// Type alias for LockKp over Arc<std::sync::Mutex<Option<T>>>; value is T (extract from Option).
-pub type LockKpArcMutexOptionFor<Root, Lock, Inner> = LockKp<
+/// Type alias for SyncKp over Arc<std::sync::Mutex<Option<T>>>; value is T (extract from Option).
+pub type SyncKpArcMutexOptionFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Option<Inner>,
@@ -2089,8 +2089,8 @@ pub type LockKpArcMutexOptionFor<Root, Lock, Inner> = LockKp<
     for<'b> fn(&'b mut Option<Inner>) -> Option<&'b mut Inner>,
 >;
 
-/// Type alias for LockKp over Arc<std::sync::RwLock<T>>. Use with derive macro's `_lock()` methods.
-pub type LockKpArcRwLockFor<Root, Lock, Inner> = LockKp<
+/// Type alias for SyncKp over Arc<std::sync::RwLock<T>>. Use with derive macro's `_lock()` methods.
+pub type SyncKpArcRwLockFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Inner,
@@ -2110,8 +2110,8 @@ pub type LockKpArcRwLockFor<Root, Lock, Inner> = LockKp<
     for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
 >;
 
-/// Type alias for LockKp over Arc<std::sync::RwLock<Option<T>>>; value is T (extract from Option).
-pub type LockKpArcRwLockOptionFor<Root, Lock, Inner> = LockKp<
+/// Type alias for SyncKp over Arc<std::sync::RwLock<Option<T>>>; value is T (extract from Option).
+pub type SyncKpArcRwLockOptionFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Option<Inner>,
@@ -2132,8 +2132,8 @@ pub type LockKpArcRwLockOptionFor<Root, Lock, Inner> = LockKp<
 >;
 
 #[cfg(feature = "arc-swap")]
-/// Type alias for [`LockKp`] over `Arc<arc_swap::ArcSwap<T>>` (optional `arc-swap` feature).
-pub type LockKpArcArcSwapFor<Root, Lock, Inner> = LockKp<
+/// Type alias for [`SyncKp`] over `Arc<arc_swap::ArcSwap<T>>` (optional `arc-swap` feature).
+pub type SyncKpArcArcSwapFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Inner,
@@ -2154,8 +2154,8 @@ pub type LockKpArcArcSwapFor<Root, Lock, Inner> = LockKp<
 >;
 
 #[cfg(feature = "arc-swap")]
-/// Type alias for [`LockKp`] over `Arc<arc_swap::ArcSwapOption<T>>`; value type is `T` after `Option` + `Arc` peel.
-pub type LockKpArcArcSwapOptionFor<Root, Lock, Inner> = LockKp<
+/// Type alias for [`SyncKp`] over `Arc<arc_swap::ArcSwapOption<T>>`; value type is `T` after `Option` + `Arc` peel.
+pub type SyncKpArcArcSwapOptionFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Option<Arc<Inner>>,
@@ -2176,8 +2176,8 @@ pub type LockKpArcArcSwapOptionFor<Root, Lock, Inner> = LockKp<
 >;
 
 #[cfg(feature = "parking_lot")]
-/// Type alias for LockKp over Arc<parking_lot::Mutex<T>>. Use with derive macro's `_lock()` methods.
-pub type LockKpParkingLotMutexFor<Root, Lock, Inner> = LockKp<
+/// Type alias for SyncKp over Arc<parking_lot::Mutex<T>>. Use with derive macro's `_lock()` methods.
+pub type SyncKpParkingLotMutexFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Inner,
@@ -2198,8 +2198,8 @@ pub type LockKpParkingLotMutexFor<Root, Lock, Inner> = LockKp<
 >;
 
 #[cfg(feature = "parking_lot")]
-/// Type alias for LockKp over Arc<parking_lot::Mutex<Option<T>>>; value is T (extract from Option).
-pub type LockKpParkingLotMutexOptionFor<Root, Lock, Inner> = LockKp<
+/// Type alias for SyncKp over Arc<parking_lot::Mutex<Option<T>>>; value is T (extract from Option).
+pub type SyncKpParkingLotMutexOptionFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Option<Inner>,
@@ -2220,8 +2220,8 @@ pub type LockKpParkingLotMutexOptionFor<Root, Lock, Inner> = LockKp<
 >;
 
 #[cfg(feature = "parking_lot")]
-/// Type alias for LockKp over Arc<parking_lot::RwLock<T>>. Use with derive macro's `_lock()` methods.
-pub type LockKpParkingLotRwLockFor<Root, Lock, Inner> = LockKp<
+/// Type alias for SyncKp over Arc<parking_lot::RwLock<T>>. Use with derive macro's `_lock()` methods.
+pub type SyncKpParkingLotRwLockFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Inner,
@@ -2242,8 +2242,8 @@ pub type LockKpParkingLotRwLockFor<Root, Lock, Inner> = LockKp<
 >;
 
 #[cfg(feature = "parking_lot")]
-/// Type alias for LockKp over Arc<parking_lot::RwLock<Option<T>>>; value is T (extract from Option).
-pub type LockKpParkingLotRwLockOptionFor<Root, Lock, Inner> = LockKp<
+/// Type alias for SyncKp over Arc<parking_lot::RwLock<Option<T>>>; value is T (extract from Option).
+pub type SyncKpParkingLotRwLockOptionFor<Root, Lock, Inner> = SyncKp<
     Root,
     Lock,
     Option<Inner>,
@@ -2263,8 +2263,8 @@ pub type LockKpParkingLotRwLockOptionFor<Root, Lock, Inner> = LockKp<
     for<'b> fn(&'b mut Option<Inner>) -> Option<&'b mut Inner>,
 >;
 
-/// Type alias for common LockKp usage with Arc<Mutex<T>>
-pub type LockKpType<'a, R, Mid, V> = LockKp<
+/// Type alias for common SyncKp usage with Arc<Mutex<T>>
+pub type SyncKpType<'a, R, Mid, V> = SyncKp<
     R,
     Arc<Mutex<Mid>>,
     Mid,
@@ -2320,7 +2320,7 @@ mod tests {
         );
 
         // Create lock keypath
-        let lock_kp = LockKp::new(prev_kp, ArcMutexAccess::new(), next_kp);
+        let lock_kp = SyncKp::new(prev_kp, ArcMutexAccess::new(), next_kp);
 
         // Test get
         let value = lock_kp.get(&root);
@@ -2352,7 +2352,7 @@ mod tests {
             |i: &Inner| Some(&i.value),
             |i: &mut Inner| Some(&mut i.value),
         );
-        let lock_kp = LockKp::new(prev_kp, ArcMutexAccess::new(), next_kp);
+        let lock_kp = SyncKp::new(prev_kp, ArcMutexAccess::new(), next_kp);
 
         // get_optional
         assert!(lock_kp.get_optional(None).is_none());
@@ -2378,7 +2378,7 @@ mod tests {
     }
 
     #[test]
-    fn test_kp_then_lock_kp_get_optional_or_else() {
+    fn test_kp_then_sync_kp_get_optional_or_else() {
         #[derive(Debug, Clone)]
         struct Root {
             data: Arc<Mutex<Mid>>,
@@ -2397,7 +2397,7 @@ mod tests {
             Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
         let next: KpType<Mid, i32> =
             Kp::new(|m: &Mid| Some(&m.value), |m: &mut Mid| Some(&mut m.value));
-        let lock_kp = LockKp::new(prev, ArcMutexAccess::new(), next);
+        let lock_kp = SyncKp::new(prev, ArcMutexAccess::new(), next);
 
         assert!(lock_kp.get_optional(None).is_none());
         assert_eq!(lock_kp.get_optional(Some(&_root)), Some(&10));
@@ -2428,7 +2428,7 @@ mod tests {
         let next: KpType<Mid, i32> =
             Kp::new(|m: &Mid| Some(&m.value), |m: &mut Mid| Some(&mut m.value));
 
-        let lock_kp = LockKp::new(prev, mid, next);
+        let lock_kp = SyncKp::new(prev, mid, next);
 
         // Verify the fields exist and are accessible
         let _prev_field = &lock_kp.prev;
@@ -2476,7 +2476,7 @@ mod tests {
         );
 
         // Create initial lock keypath: Root -> Lock -> Mid -> Inner2
-        let lock_kp = LockKp::new(prev, ArcMutexAccess::new(), to_inner);
+        let lock_kp = SyncKp::new(prev, ArcMutexAccess::new(), to_inner);
 
         // Chain with another keypath: Inner2 -> String
         let chained = lock_kp.then(to_value);
@@ -2488,7 +2488,7 @@ mod tests {
 
     #[test]
     fn test_lock_kp_compose_single_level() {
-        // Test composing two single-level LockKps
+        // Test composing two single-level SyncKps
         #[derive(Debug, Clone)]
         struct Root {
             data: Arc<Mutex<Mid1>>,
@@ -2512,15 +2512,15 @@ mod tests {
             })),
         };
 
-        // First LockKp: Root -> Arc<Mutex<Mid1>> -> Mid1
+        // First SyncKp: Root -> Arc<Mutex<Mid1>> -> Mid1
         let lock_kp1 = {
             let prev: KpType<Root, Arc<Mutex<Mid1>>> =
                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<Mid1, Mid1> = Kp::new(|m: &Mid1| Some(m), |m: &mut Mid1| Some(m));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
-        // Second LockKp: Mid1 -> Arc<Mutex<Mid2>> -> String
+        // Second SyncKp: Mid1 -> Arc<Mutex<Mid2>> -> String
         let lock_kp2 = {
             let prev: KpType<Mid1, Arc<Mutex<Mid2>>> = Kp::new(
                 |m: &Mid1| Some(&m.nested),
@@ -2528,11 +2528,11 @@ mod tests {
             );
             let next: KpType<Mid2, String> =
                 Kp::new(|m: &Mid2| Some(&m.value), |m: &mut Mid2| Some(&mut m.value));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Compose them: Root -> Lock1 -> Mid1 -> Lock2 -> Mid2 -> String
-        let composed = lock_kp1.then_lock(lock_kp2);
+        let composed = lock_kp1.then_sync(lock_kp2);
 
         // Verify composition works
         let value = composed.get(&root);
@@ -2573,7 +2573,7 @@ mod tests {
             );
             let next: KpType<Level1, Level1> =
                 Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Second lock level
@@ -2586,11 +2586,11 @@ mod tests {
                 |l: &Level2| Some(&l.value),
                 |l: &mut Level2| Some(&mut l.value),
             );
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Compose both locks
-        let composed = lock1.then_lock(lock2);
+        let composed = lock1.then_sync(lock2);
 
         // Test get
         let value = composed.get(&root);
@@ -2635,7 +2635,7 @@ mod tests {
             let prev: KpType<Root, Arc<Mutex<L1>>> =
                 Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
             let next: KpType<L1, L1> = Kp::new(|l: &L1| Some(l), |l: &mut L1| Some(l));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Lock level 2: L1 -> L2
@@ -2643,7 +2643,7 @@ mod tests {
             let prev: KpType<L1, Arc<Mutex<L2>>> =
                 Kp::new(|l: &L1| Some(&l.lock2), |l: &mut L1| Some(&mut l.lock2));
             let next: KpType<L2, L2> = Kp::new(|l: &L2| Some(l), |l: &mut L2| Some(l));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Lock level 3: L2 -> L3 -> String
@@ -2654,12 +2654,12 @@ mod tests {
                 |l: &L3| Some(&l.final_value),
                 |l: &mut L3| Some(&mut l.final_value),
             );
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Compose all three levels
-        let composed_1_2 = lock_kp1.then_lock(lock_kp2);
-        let composed_all = composed_1_2.then_lock(lock_kp3);
+        let composed_1_2 = lock_kp1.then_sync(lock_kp2);
+        let composed_all = composed_1_2.then_sync(lock_kp3);
 
         // Test get through all three lock levels
         let value = composed_all.get(&root);
@@ -2702,7 +2702,7 @@ mod tests {
             let prev: KpType<Root, Arc<Mutex<Mid>>> =
                 Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
             let next: KpType<Mid, Mid> = Kp::new(|m: &Mid| Some(m), |m: &mut Mid| Some(m));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Second lock
@@ -2710,7 +2710,7 @@ mod tests {
             let prev: KpType<Mid, Arc<Mutex<Inner>>> =
                 Kp::new(|m: &Mid| Some(&m.lock2), |m: &mut Mid| Some(&mut m.lock2));
             let next: KpType<Inner, Inner> = Kp::new(|i: &Inner| Some(i), |i: &mut Inner| Some(i));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Regular keypath after locks
@@ -2721,7 +2721,7 @@ mod tests {
             Kp::new(|d: &Data| Some(&d.value), |d: &mut Data| Some(&mut d.value));
 
         // Compose locks, then chain with regular keypaths
-        let composed = lock1.then_lock(lock2);
+        let composed = lock1.then_sync(lock2);
         let with_data = composed.then(to_data);
         let with_value = with_data.then(to_value);
 
@@ -2763,7 +2763,7 @@ mod tests {
             |i: &mut Inner| Some(&mut i.value),
         );
 
-        let rwlock_kp = LockKp::new(prev, ArcRwLockAccess::new(), next);
+        let rwlock_kp = SyncKp::new(prev, ArcRwLockAccess::new(), next);
 
         // Test get (read lock)
         let value = rwlock_kp.get(&root);
@@ -2803,7 +2803,7 @@ mod tests {
             );
             let next: KpType<Level1, Level1> =
                 Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         // Second RwLock level
@@ -2816,11 +2816,11 @@ mod tests {
                 |l: &Level2| Some(&l.value),
                 |l: &mut Level2| Some(&mut l.value),
             );
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         // Compose both RwLocks
-        let composed = lock1.then_lock(lock2);
+        let composed = lock1.then_sync(lock2);
 
         // Test get through both read locks
         let value = composed.get(&root);
@@ -2861,7 +2861,7 @@ mod tests {
                 |r: &mut Root| Some(&mut r.rwlock_data),
             );
             let next: KpType<Mid, Mid> = Kp::new(|m: &Mid| Some(m), |m: &mut Mid| Some(m));
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         // Mutex level
@@ -2874,11 +2874,11 @@ mod tests {
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
             );
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Compose RwLock -> Mutex
-        let composed = rwlock_kp.then_lock(mutex_kp);
+        let composed = rwlock_kp.then_sync(mutex_kp);
 
         // Test get through both locks
         let value = composed.get(&root);
@@ -2914,7 +2914,7 @@ mod tests {
             |i: &mut Inner| Some(&mut i.value),
         );
 
-        let rwlock_kp = LockKp::new(prev, mid, next);
+        let rwlock_kp = SyncKp::new(prev, mid, next);
 
         // Verify fields are accessible
         let _prev_field = &rwlock_kp.prev;
@@ -2965,14 +2965,14 @@ mod tests {
             let prev: KpType<Root, Arc<RwLock<L1>>> =
                 Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
             let next: KpType<L1, L1> = Kp::new(|l: &L1| Some(l), |l: &mut L1| Some(l));
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         let lock2 = {
             let prev: KpType<L1, Arc<RwLock<L2>>> =
                 Kp::new(|l: &L1| Some(&l.lock2), |l: &mut L1| Some(&mut l.lock2));
             let next: KpType<L2, L2> = Kp::new(|l: &L2| Some(l), |l: &mut L2| Some(l));
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         let lock3 = {
@@ -2980,11 +2980,11 @@ mod tests {
                 Kp::new(|l: &L2| Some(&l.lock3), |l: &mut L2| Some(&mut l.lock3));
             let next: KpType<L3, String> =
                 Kp::new(|l: &L3| Some(&l.value), |l: &mut L3| Some(&mut l.value));
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         // Compose all three RwLocks
-        let composed = lock1.then_lock(lock2).then_lock(lock3);
+        let composed = lock1.then_sync(lock2).then_sync(lock3);
 
         // Test get through all three read locks
         let value = composed.get(&root);
@@ -3069,7 +3069,7 @@ mod tests {
                 Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
             let next: KpType<Level1, Level1> =
                 Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         // Second RwLock level
@@ -3082,12 +3082,12 @@ mod tests {
                 |l: &Level2| Some(&l.value),
                 |l: &mut Level2| Some(&mut l.value),
             );
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         // CRITICAL TEST: Compose both locks
         // If any deep cloning occurs, the PanicOnClone will trigger and test will fail
-        let composed = lock1.then_lock(lock2);
+        let composed = lock1.then_sync(lock2);
 
         // If we get here without panic, shallow cloning is working correctly!
         // Now actually use the composed keypath
@@ -3162,7 +3162,7 @@ mod tests {
             let prev: KpType<Root, Arc<Mutex<Mid>>> =
                 Kp::new(|r: &Root| Some(&r.lock1), |r: &mut Root| Some(&mut r.lock1));
             let next: KpType<Mid, Mid> = Kp::new(|m: &Mid| Some(m), |m: &mut Mid| Some(m));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Second Mutex level
@@ -3173,12 +3173,12 @@ mod tests {
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
             );
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // CRITICAL TEST: Compose both Mutex locks
         // If any deep cloning occurs, PanicOnClone will trigger
-        let composed = lock1.then_lock(lock2);
+        let composed = lock1.then_sync(lock2);
 
         // ✅ SUCCESS: No panic means no deep cloning!
         let value = composed.get(&root);
@@ -3255,7 +3255,7 @@ mod tests {
                 |r: &mut Root| Some(&mut r.rwlock),
             );
             let next: KpType<Mid, Mid> = Kp::new(|m: &Mid| Some(m), |m: &mut Mid| Some(m));
-            LockKp::new(prev, ArcRwLockAccess::new(), next)
+            SyncKp::new(prev, ArcRwLockAccess::new(), next)
         };
 
         // Mutex level
@@ -3266,12 +3266,12 @@ mod tests {
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
             );
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // CRITICAL TEST: Compose RwLock with Mutex
         // If deep cloning occurs, NeverClone will panic
-        let composed = rwlock_kp.then_lock(mutex_kp);
+        let composed = rwlock_kp.then_sync(mutex_kp);
 
         // ✅ SUCCESS: No panic = no deep cloning!
         // Only Arc refcounts were incremented
@@ -3310,7 +3310,7 @@ mod tests {
             })),
         };
 
-        // Create LockKp for Rc<RefCell<T>>
+        // Create SyncKp for Rc<RefCell<T>>
         let lock_kp = {
             let prev: KpType<Root, Rc<RefCell<Inner>>> =
                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
@@ -3318,7 +3318,7 @@ mod tests {
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
             );
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Test get
@@ -3371,7 +3371,7 @@ mod tests {
             );
             let next: KpType<Level1, Level1> =
                 Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Second level
@@ -3384,11 +3384,11 @@ mod tests {
                 |l: &Level2| Some(&l.value),
                 |l: &mut Level2| Some(&mut l.value),
             );
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Compose both levels
-        let composed = lock1.then_lock(lock2);
+        let composed = lock1.then_sync(lock2);
 
         // Test get through both locks
         let value = composed.get(&root);
@@ -3446,7 +3446,7 @@ mod tests {
             let prev: KpType<Root, Rc<RefCell<L1>>> =
                 Kp::new(|r: &Root| Some(&r.l1), |r: &mut Root| Some(&mut r.l1));
             let next: KpType<L1, L1> = Kp::new(|l: &L1| Some(l), |l: &mut L1| Some(l));
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Level 2
@@ -3454,7 +3454,7 @@ mod tests {
             let prev: KpType<L1, Rc<RefCell<L2>>> =
                 Kp::new(|l: &L1| Some(&l.l2), |l: &mut L1| Some(&mut l.l2));
             let next: KpType<L2, L2> = Kp::new(|l: &L2| Some(l), |l: &mut L2| Some(l));
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Level 3
@@ -3463,12 +3463,12 @@ mod tests {
                 Kp::new(|l: &L2| Some(&l.l3), |l: &mut L2| Some(&mut l.l3));
             let next: KpType<L3, String> =
                 Kp::new(|l: &L3| Some(&l.value), |l: &mut L3| Some(&mut l.value));
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Compose all three levels
-        let composed_1_2 = lock1.then_lock(lock2);
-        let composed_all = composed_1_2.then_lock(lock3);
+        let composed_1_2 = lock1.then_sync(lock2);
+        let composed_all = composed_1_2.then_sync(lock3);
 
         // Test get through all three locks
         let value = composed_all.get(&root);
@@ -3542,7 +3542,7 @@ mod tests {
             );
             let next: KpType<Level1, Level1> =
                 Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Second level
@@ -3555,12 +3555,12 @@ mod tests {
                 |l: &Level2| Some(&l.value),
                 |l: &mut Level2| Some(&mut l.value),
             );
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // CRITICAL TEST: Compose both Rc<RefCell> locks
         // If any deep cloning occurs, PanicOnClone will trigger
-        let composed = lock1.then_lock(lock2);
+        let composed = lock1.then_sync(lock2);
 
         // ✅ SUCCESS: No panic means no deep cloning!
         // Only Rc refcounts were incremented (shallow)
@@ -3602,7 +3602,7 @@ mod tests {
             );
             let next: KpType<String, String> =
                 Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
-            LockKp::new(prev, RcRefCellAccess::new(), next)
+            SyncKp::new(prev, RcRefCellAccess::new(), next)
         };
 
         // Arc<Mutex> version (multi-threaded)
@@ -3617,7 +3617,7 @@ mod tests {
             );
             let next: KpType<String, String> =
                 Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
-            LockKp::new(prev, ArcMutexAccess::new(), next)
+            SyncKp::new(prev, ArcMutexAccess::new(), next)
         };
 
         // Both have identical API usage!
@@ -3651,7 +3651,7 @@ mod tests {
                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<String, String> =
                 Kp::new(|s: &String| Some(s), |s: &mut String| Some(s));
-            LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+            SyncKp::new(prev, ParkingLotMutexAccess::new(), next)
         };
 
         let value = lock_kp.get(&root);
@@ -3677,7 +3677,7 @@ mod tests {
                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<Vec<i32>, Vec<i32>> =
                 Kp::new(|v: &Vec<i32>| Some(v), |v: &mut Vec<i32>| Some(v));
-            LockKp::new(prev, ParkingLotRwLockAccess::new(), next)
+            SyncKp::new(prev, ParkingLotRwLockAccess::new(), next)
         };
 
         let value = lock_kp.get(&root);
@@ -3714,7 +3714,7 @@ mod tests {
             );
             let next: KpType<Level1, Level1> =
                 Kp::new(|l: &Level1| Some(l), |l: &mut Level1| Some(l));
-            LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+            SyncKp::new(prev, ParkingLotMutexAccess::new(), next)
         };
 
         // Second level: Level1 -> i32
@@ -3724,11 +3724,11 @@ mod tests {
                 |l: &mut Level1| Some(&mut l.level2),
             );
             let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
-            LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+            SyncKp::new(prev, ParkingLotMutexAccess::new(), next)
         };
 
         // Compose both levels
-        let composed = lock1.then_lock(lock2);
+        let composed = lock1.then_sync(lock2);
         let value = composed.get(&root);
         assert_eq!(value.unwrap(), &42);
     }
@@ -3751,7 +3751,7 @@ mod tests {
             let prev: KpType<Root, Arc<RwLock<i32>>> =
                 Kp::new(|r: &Root| Some(&r.data), |r: &mut Root| Some(&mut r.data));
             let next: KpType<i32, i32> = Kp::new(|n: &i32| Some(n), |n: &mut i32| Some(n));
-            LockKp::new(prev, ParkingLotRwLockAccess::new(), next)
+            SyncKp::new(prev, ParkingLotRwLockAccess::new(), next)
         };
 
         // Read initial value
@@ -3820,7 +3820,7 @@ mod tests {
                 |l: &Level1| Some(&l.value),
                 |l: &mut Level1| Some(&mut l.value),
             );
-            LockKp::new(prev, ParkingLotMutexAccess::new(), next)
+            SyncKp::new(prev, ParkingLotMutexAccess::new(), next)
         };
 
         // CRITICAL TEST: If any deep cloning occurs, PanicOnClone will trigger
@@ -3853,7 +3853,7 @@ mod tests {
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
             );
-            LockKp::new(prev, StdMutexAccess::new(), next)
+            SyncKp::new(prev, StdMutexAccess::new(), next)
         };
 
         // Test read access
@@ -3891,7 +3891,7 @@ mod tests {
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
             );
-            LockKp::new(prev, StdRwLockAccess::new(), next)
+            SyncKp::new(prev, StdRwLockAccess::new(), next)
         };
 
         // Test read access
@@ -3928,7 +3928,7 @@ mod tests {
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
             );
-            LockKp::new(prev, DirectParkingLotMutexAccess::new(), next)
+            SyncKp::new(prev, DirectParkingLotMutexAccess::new(), next)
         };
 
         // Test read access
@@ -3967,7 +3967,7 @@ mod tests {
                 |i: &Inner| Some(&i.value),
                 |i: &mut Inner| Some(&mut i.value),
             );
-            LockKp::new(prev, DirectParkingLotRwLockAccess::new(), next)
+            SyncKp::new(prev, DirectParkingLotRwLockAccess::new(), next)
         };
 
         // Test read access

@@ -118,7 +118,7 @@ See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 |---------|-------------|
 | `parking_lot` | Use `parking_lot::Mutex` / `RwLock` instead of `std::sync` |
 | `tokio` | Async lock support (`tokio::sync::Mutex`, `RwLock`) |
-| `arcswap` | [`arc-swap`](https://docs.rs/arc-swap) (`Arc<ArcSwap<T>>`, `Arc<ArcSwapOption<T>>`) via [`LockKp`](https://docs.rs/rust-key-paths/latest/rust_key_paths/lock/struct.LockKp.html) |
+| `arcswap` | [`arc-swap`](https://docs.rs/arc-swap) (`Arc<ArcSwap<T>>`, `Arc<ArcSwapOption<T>>`) via [`SyncKp`](https://docs.rs/rust-key-paths/latest/rust_key_paths/sync_kp/struct.SyncKp.html) |
 | `pin_project` | Enable `#[pin]` field support for pin-project compatibility |
 
 ### More examples
@@ -146,9 +146,9 @@ The `#[derive(Kp)]` macro (from `key-paths-derive`) generates keypath accessors 
 | `Result<T,E>` | `field()` | Unwraps `Ok` |
 | `Cow<'_, T>` | `field()` | `as_ref` / `to_mut` |
 | `Option<Cow<'_, T>>` | `field()` | Optional Cow unwrap |
-| `std::sync::Mutex<T>`, `std::sync::RwLock<T>` | `field()` | Container (use `LockKp` for lock-through) |
-| `Arc<Mutex<T>>`, `Arc<RwLock<T>>` | `field()`, `field_kp()` / `field()` as `LockKp` | Lock-through via `LockKp` |
-| `Arc<arcswap::ArcSwap<T>>`, `Arc<arcswap::ArcSwapOption<T>>` | `field_kp()` / `field()` as `LockKp` | arcswap feature; use `arcswap` dependency key (see below) |
+| `std::sync::Mutex<T>`, `std::sync::RwLock<T>` | `field()` | Container (use `SyncKp` for lock-through) |
+| `Arc<Mutex<T>>`, `Arc<RwLock<T>>` | `field()`, `field_kp()` / `field()` as `SyncKp` | Lock-through via `SyncKp` |
+| `Arc<arcswap::ArcSwap<T>>`, `Arc<arcswap::ArcSwapOption<T>>` | `field_kp()` / `field()` as `SyncKp` | arcswap feature; use `arcswap` dependency key (see below) |
 | `tokio::sync::Mutex`, `tokio::sync::RwLock` | `field_async()` | Async lock-through (tokio feature) |
 | `parking_lot::Mutex`, `parking_lot::RwLock` | `field()`, `field_lock()` | parking_lot feature |
 
@@ -168,7 +168,7 @@ arcswap = { package = "arc-swap", version = "1.9" }
 
 **When not to:** you need a true in-place `&mut T` through a lock for arbitrary mutation of `T` inside the guard. `ArcSwap` stores an `Arc<T>`; updates replace the pointer. Use `store` / `rcu` at the call site for writes.
 
-**Chaining:** compose the full lock path on the first `LockKp` with `.then(…)` / `.then_lock(…)` (see `examples/box_keypath_arcswap.rs`). Import [`ChainExt`](https://docs.rs/rust-key-paths/latest/rust_key_paths/trait.ChainExt.html) for `Kp::then_lock`. Nested `then_lock` from the crate root can infer a `'static` root in some compositions; if you hit that, call an inner `LockKp` from a `&` to the inner struct (same example).
+**Chaining:** compose the full lock path on the first `SyncKp` with `.then(…)` / `.then_sync(…)` (see `examples/box_keypath_arcswap.rs`). Import [`ChainExt`](https://docs.rs/rust-key-paths/latest/rust_key_paths/trait.ChainExt.html) for `Kp::then_sync`. Nested `then_sync` from the crate root can infer a `'static` root in some compositions; if you hit that, call an inner `SyncKp` from a `&` to the inner struct (same example).
 
 ### pin_project `#[pin]` fields (optional feature)
 
@@ -248,7 +248,7 @@ Compared to `load_full()` plus a manual `match` on the loaded `OneMoreStruct` (w
 
 | Variant | Time (approx, `--quick` run on one machine) |
 |---------|-----------------------------------------------|
-| `keypath_then_lock` | 37.8–38.7 ns |
+| `keypath_then_sync` | 37.8–38.7 ns |
 | `load_full_manual` | 115–119 ns |
 
 Your numbers will vary by CPU and optimization level; treat this as a sanity check that keypath traversal stays in the same ballpark as a small manual load, while **`load_full` + clone** is heavier by design when you need an owned `Arc`.
