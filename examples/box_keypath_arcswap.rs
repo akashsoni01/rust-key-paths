@@ -9,6 +9,10 @@ struct SomeComplexStruct {
     scsf: Box<SomeOtherStruct>,
 }
 
+/// Snapshot cell — same `LockKp` idea as `Arc<std::sync::RwLock<T>>` on the field:
+/// - **`Arc<ArcSwap<T>>`** (this struct) or owned **`ArcSwap<T>`**: **`sosf()`** → `LockKp` into **`T`**; **`sosf_kp()`** → `Kp` to the swap field container.
+///
+/// After `outer.then_lock(Self::sosf())`, chain with **`.then(OneMoreStruct::…)`** (keypaths rooted at **`T`**).
 #[derive(Debug, Kp, Clone)]
 struct SomeOtherStruct {
     sosf: Arc<arc_swap::ArcSwap<OneMoreStruct>>,
@@ -80,9 +84,10 @@ fn main() {
     println!("size_of_val(&kp_hot) = {}", std::mem::size_of_val(&kp_hot));
     assert_eq!(kp_hot.get(&instance).map(|s| s.as_str()), Some("hot_value"));
 
+    
+    // let x = SomeOtherStruct::sosf().then(OneMoreStruct::omse()).then_lock(SomeEnum::b_lock());
     let kp_omsf = SomeComplexStruct::scsf().then_lock(
         SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
     );
-    let x = kp_omsf.get(&instance);
     assert_eq!(kp_omsf.get(&instance).map(|s| s.as_str()), Some("omsf_value"));
 }

@@ -1273,7 +1273,7 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
 }
 
 // ============================================================================
-// ArcSwap (`arc-swap` crate) — `Arc<ArcSwap<T>>` / `Arc<ArcSwapOption<T>>`
+// `ArcSwap` (`arc-swap` crate) — `Arc<ArcSwap<T>>` **or** owned `ArcSwap<T>` / same for `ArcSwapOption`.
 // ============================================================================
 //
 // Reads use [`arc_swap::ArcSwap::load`] (default strategy: wait-free / low-latency snapshot).
@@ -1341,6 +1341,39 @@ impl<'a, T: 'static> LockAccess<Arc<arc_swap::ArcSwap<T>>, &'a mut T> for ArcArc
 }
 
 #[cfg(feature = "arc-swap")]
+impl<'a, T: 'static> LockAccess<arc_swap::ArcSwap<T>, &'a T> for ArcArcSwapAccess<T> {
+    #[inline(always)]
+    fn lock_read(&self, lock: &arc_swap::ArcSwap<T>) -> Option<&'a T> {
+        let g = lock.load();
+        let arc: &Arc<T> = std::ops::Deref::deref(&g);
+        let ptr = Arc::as_ptr(arc) as *const T;
+        Some(unsafe { &*ptr })
+    }
+
+    #[inline(always)]
+    fn lock_write(&self, lock: &arc_swap::ArcSwap<T>) -> Option<&'a T> {
+        self.lock_read(lock)
+    }
+}
+
+#[cfg(feature = "arc-swap")]
+#[allow(invalid_reference_casting)]
+impl<'a, T: 'static> LockAccess<arc_swap::ArcSwap<T>, &'a mut T> for ArcArcSwapAccess<T> {
+    #[inline(always)]
+    fn lock_read(&self, lock: &arc_swap::ArcSwap<T>) -> Option<&'a mut T> {
+        let g = lock.load();
+        let arc: &Arc<T> = std::ops::Deref::deref(&g);
+        let ptr = Arc::as_ptr(arc) as *mut T;
+        Some(unsafe { &mut *ptr })
+    }
+
+    #[inline(always)]
+    fn lock_write(&self, lock: &arc_swap::ArcSwap<T>) -> Option<&'a mut T> {
+        self.lock_read(lock)
+    }
+}
+
+#[cfg(feature = "arc-swap")]
 #[derive(Clone)]
 pub struct ArcArcSwapOptionAccess<T> {
     _phantom: std::marker::PhantomData<T>,
@@ -1396,6 +1429,43 @@ impl<'a, T: 'static>
 
     #[inline(always)]
     fn lock_write(&self, lock: &Arc<arc_swap::ArcSwapOption<T>>) -> Option<&'a mut Option<Arc<T>>> {
+        self.lock_read(lock)
+    }
+}
+
+#[cfg(feature = "arc-swap")]
+impl<'a, T: 'static>
+    LockAccess<arc_swap::ArcSwapOption<T>, &'a Option<Arc<T>>> for ArcArcSwapOptionAccess<T>
+{
+    #[inline(always)]
+    fn lock_read(&self, lock: &arc_swap::ArcSwapOption<T>) -> Option<&'a Option<Arc<T>>> {
+        let g = lock.load();
+        let opt: &Option<Arc<T>> = std::ops::Deref::deref(&g);
+        let ptr = opt as *const Option<Arc<T>>;
+        Some(unsafe { &*ptr })
+    }
+
+    #[inline(always)]
+    fn lock_write(&self, lock: &arc_swap::ArcSwapOption<T>) -> Option<&'a Option<Arc<T>>> {
+        self.lock_read(lock)
+    }
+}
+
+#[cfg(feature = "arc-swap")]
+#[allow(invalid_reference_casting)]
+impl<'a, T: 'static>
+    LockAccess<arc_swap::ArcSwapOption<T>, &'a mut Option<Arc<T>>> for ArcArcSwapOptionAccess<T>
+{
+    #[inline(always)]
+    fn lock_read(&self, lock: &arc_swap::ArcSwapOption<T>) -> Option<&'a mut Option<Arc<T>>> {
+        let g = lock.load();
+        let opt: &Option<Arc<T>> = std::ops::Deref::deref(&g);
+        let ptr = opt as *const Option<Arc<T>> as *mut Option<Arc<T>>;
+        Some(unsafe { &mut *ptr })
+    }
+
+    #[inline(always)]
+    fn lock_write(&self, lock: &arc_swap::ArcSwapOption<T>) -> Option<&'a mut Option<Arc<T>>> {
         self.lock_read(lock)
     }
 }
