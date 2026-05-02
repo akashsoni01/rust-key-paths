@@ -201,7 +201,6 @@ where
     L: crate::lock::LockAccess<Lock, MidValue> + crate::lock::LockAccess<Lock, MutMid>,
     G2: Fn(MidValue) -> Option<Value>,
     S2: Fn(MutMid) -> Option<MutValue>,
-    V: Clone,
 {
     #[inline]
     fn sync_get(&self, root: Root) -> Option<Value> {
@@ -1536,8 +1535,6 @@ where
     G2_2: Fn(MidValue2) -> Option<Value2>,
     S2_2: Fn(MutMid2) -> Option<MutValue2>,
     Lock: Clone,
-    V: Clone,
-    V2: Clone,
 {
     /// Get through async lock then sync lock (root is passed here).
     pub async fn get(&self, root: Root) -> Option<Value2> {
@@ -1616,8 +1613,6 @@ where
     L3: crate::lock::LockAccess<Lock3, MidValue3> + crate::lock::LockAccess<Lock3, MutMid3>,
     G3_2: Fn(MidValue3) -> Option<Value2>,
     S3_2: Fn(MutMid3) -> Option<MutValue2>,
-    Value2: Clone,
-    V2: Clone,
 {
     /// Get through composed async then sync lock (root is passed here).
     pub async fn get(&self, root: Root) -> Option<Value2> {
@@ -1695,8 +1690,6 @@ where
     L3: crate::lock::LockAccess<Lock3, MidValue3> + crate::lock::LockAccess<Lock3, MutMid3>,
     G3_2: Fn(MidValue3) -> Option<Value2>,
     S3_2: Fn(MutMid3) -> Option<MutValue2>,
-    Value2: Clone,
-    V2: Clone,
 {
     /// Get through async then sync then sync lock (root is passed here).
     pub async fn get(&self, root: Root) -> Option<Value2> {

@@ -368,14 +368,12 @@ where
     /// assert_eq!(value, Some(&99));
     /// ```
     ///
-    /// # Cloning Behavior
-    /// Only requires `V: Clone` for the final value.
-    /// NO `Lock: Clone` needed because `lock_read` takes `&Lock`.
+    /// Returns [`Value`](Self) through [`LockAccess::lock_read`] (e.g. `Mutex::lock`, `RwLock::read`;
+    /// with the `arcswap` feature, `ArcSwap::load` — not `load_full`).
+    /// When the composed `next` getter returns a reference (`Value` is `&V`), this yields `Option<&V>`
+    /// without cloning the payload.
     #[inline]
-    pub fn get(&self, root: Root) -> Option<Value>
-    where
-        V: Clone,
-    {
+    pub fn get(&self, root: Root) -> Option<Value> {
         (self.prev.get)(root).and_then(|lock_value| {
             let lock: &Lock = lock_value.borrow();
             self.mid
@@ -425,10 +423,7 @@ where
 
     /// Like [get](LockKp::get), but takes an optional root: returns `None` if `root` is `None`, otherwise the result of the getter.
     #[inline]
-    pub fn get_optional(&self, root: Option<Root>) -> Option<Value>
-    where
-        V: Clone,
-    {
+    pub fn get_optional(&self, root: Option<Root>) -> Option<Value> {
         root.and_then(|r| self.get(r))
     }
 
@@ -442,7 +437,6 @@ where
     #[inline]
     pub fn get_or_else<F>(&self, root: Option<Root>, f: F) -> Value
     where
-        V: Clone,
         F: FnOnce() -> Value,
     {
         self.get_optional(root).unwrap_or_else(f)
@@ -737,7 +731,7 @@ where
         >,
     >
     where
-        V: 'static + Clone,
+        V: 'static,
         V2: 'static,
         Value: std::borrow::Borrow<V>,
         LockValue2: std::borrow::Borrow<Lock2>,
@@ -747,11 +741,11 @@ where
         MutLock2: std::borrow::BorrowMut<Lock2>,
         MutMid2: std::borrow::BorrowMut<Mid2>,
         MutValue2: std::borrow::BorrowMut<V2>,
-        G2_1: Fn(Value) -> Option<LockValue2> + 'static,
-        S2_1: Fn(MutValue) -> Option<MutLock2> + 'static,
+        G2_1: Fn(Value) -> Option<LockValue2>,
+        S2_1: Fn(MutValue) -> Option<MutLock2>,
         L2: LockAccess<Lock2, MidValue2> + LockAccess<Lock2, MutMid2> + Clone + 'static, // SHALLOW: PhantomData clone
-        G2_2: Fn(MidValue2) -> Option<Value2> + 'static,
-        S2_2: Fn(MutMid2) -> Option<MutValue2> + 'static,
+        G2_2: Fn(MidValue2) -> Option<Value2>,
+        S2_2: Fn(MutMid2) -> Option<MutValue2>,
     {
         // Extract closures from self (move, no clone)
         let next_get = self.next.get;
@@ -889,10 +883,7 @@ where
 {
     /// Get through first keypath then second (sync).
     #[inline]
-    pub fn get(&self, root: Root) -> Option<Value2>
-    where
-        Value2: Clone,
-    {
+    pub fn get(&self, root: Root) -> Option<Value2> {
         let v = self.first.sync_get(root)?;
         self.second.sync_get(v)
     }
@@ -905,10 +896,7 @@ where
 
     /// Like [get](KpThenLockKp::get), but takes an optional root.
     #[inline]
-    pub fn get_optional(&self, root: Option<Root>) -> Option<Value2>
-    where
-        Value2: Clone,
-    {
+    pub fn get_optional(&self, root: Option<Root>) -> Option<Value2> {
         root.and_then(|r| self.get(r))
     }
 
@@ -922,7 +910,6 @@ where
     #[inline]
     pub fn get_or_else<F>(&self, root: Option<Root>, f: F) -> Value2
     where
-        Value2: Clone,
         F: FnOnce() -> Value2,
     {
         self.get_optional(root).unwrap_or_else(f)

@@ -18,7 +18,8 @@ struct SomeOtherStruct {
 #[derive(Debug, Kp, Clone)]
 enum SomeEnum {
     A(String),
-    B(DarkStruct),
+    /// Snapshot behind `ArcSwap` (typical hot-reload / config pattern).
+    B(Arc<arcswap::ArcSwap<DarkStruct>>),
 }
 
 #[derive(Debug, Kp, Clone)]
@@ -30,7 +31,6 @@ struct OneMoreStruct {
 #[derive(Debug, Kp, Clone)]
 struct DarkStruct {
     dsf: String,
-    /// Hot-reload style snapshot (`Arc<ArcSwap<…>>`); use `then_lock(DarkStruct::hot())` from a `&DarkStruct`.
     hot: Arc<arcswap::ArcSwap<String>>,
 }
 
@@ -44,17 +44,16 @@ fn init_via_keypaths() -> SomeComplexStruct {
         }),
     };
 
+    // `get_mut` / `get` use `LockAccess::lock_write` / `lock_read` → `ArcSwap::load` (not `load_full`).
     SomeComplexStruct::scsf()
-        .then(SomeOtherStruct::sosf_kp())
+        .then_lock(SomeOtherStruct::sosf())
         .get_mut(&mut root)
-        .map(|slot| {
-            slot.store(Arc::new(OneMoreStruct {
-                omsf: "omsf_value".to_string(),
-                omse: SomeEnum::B(DarkStruct {
-                    dsf: "dark_value".to_string(),
-                    hot: Arc::new(arcswap::ArcSwap::from_pointee("hot_value".to_string())),
-                }),
-            }));
+        .map(|inner| {
+            inner.omsf = "omsf_value".to_string();
+            inner.omse = SomeEnum::B(Arc::new(arcswap::ArcSwap::from_pointee(DarkStruct {
+                dsf: "dark_value".to_string(),
+                hot: Arc::new(arcswap::ArcSwap::from_pointee("hot_value".to_string())),
+            })));
         });
 
     root
@@ -63,20 +62,26 @@ fn init_via_keypaths() -> SomeComplexStruct {
 fn main() {
     let instance = init_via_keypaths();
 
-    let dsf = SomeComplexStruct::scsf().then_lock(
+    let kp_dsf = SomeComplexStruct::scsf().then_lock(
         SomeOtherStruct::sosf()
             .then(OneMoreStruct::omse())
-            .then(SomeEnum::b())
+            .then_lock(SomeEnum::b_lock())
             .then(DarkStruct::dsf()),
     );
-    assert_eq!(dsf.get(&instance), Some(&"dark_value".to_string()));
-    assert_eq!(instance.scsf.sosf.load().omsf, "omsf_value");
+    println!("size_of_val(&kp_dsf) = {}", std::mem::size_of_val(&kp_dsf));
+    assert_eq!(kp_dsf.get(&instance).map(|s| s.as_str()), Some("dark_value"));
 
-    // `ArcSwap` on `DarkStruct`: derive generates `DarkStruct::hot()` as `LockKp` (same as `Arc<RwLock<…>>`).
-    let inner = instance.scsf.sosf.load();
-    if let SomeEnum::B(ref dark) = inner.omse {
-        assert_eq!(DarkStruct::hot().get(dark), Some(&"hot_value".to_string()));
-    } else {
-        panic!("expected B variant");
-    }
+    let kp_hot = SomeComplexStruct::scsf().then_lock(
+        SomeOtherStruct::sosf()
+            .then(OneMoreStruct::omse())
+            .then_lock(SomeEnum::b_lock())
+            .then_lock(DarkStruct::hot()),
+    );
+    println!("size_of_val(&kp_hot) = {}", std::mem::size_of_val(&kp_hot));
+    assert_eq!(kp_hot.get(&instance).map(|s| s.as_str()), Some("hot_value"));
+
+    let kp_omsf = SomeComplexStruct::scsf().then_lock(
+        SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
+    );
+    assert_eq!(kp_omsf.get(&instance).map(|s| s.as_str()), Some("omsf_value"));
 }

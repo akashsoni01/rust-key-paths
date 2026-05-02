@@ -1101,7 +1101,7 @@ pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
         >,
     >
     where
-        V: 'static + Clone,
+        V: 'static,
         V2: 'static,
         Value: std::borrow::Borrow<V>,
         Value2: std::borrow::Borrow<V2>,
@@ -1238,7 +1238,7 @@ where
         >,
     >
     where
-        V: 'static + Clone,
+        V: 'static,
         V2: 'static,
         Value: std::borrow::Borrow<V>,
         Value2: std::borrow::Borrow<V2>,
