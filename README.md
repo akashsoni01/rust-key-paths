@@ -255,6 +255,14 @@ Your numbers will vary by CPU and optimization level; treat this as a sanity che
 
 ---
 
+### Skills guide (AI assistants & tooling)
+
+Usage-focused patterns—versions/features, `#[derive(Kp)]`, chaining, sync/async locks, deep nesting, migrating from `Option` / Java-style getter chains—live in **[`Skills.md`](./Skills.md)** at the **repository root**.
+
+**Paths to reference:** `Skills.md` (repo root), or `./Skills.md` from this README’s directory. Point Cursor **Rules**, **Agent Skills**, or similar project instructions at that file so assistants can resolve the path and include it in context.
+
+---
+
 ## 📜 License
 
 * Mozilla Public License 2.0
