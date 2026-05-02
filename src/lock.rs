@@ -923,6 +923,195 @@ where
     {
         self.get_mut_optional(root).unwrap_or_else(f)
     }
+
+    /// Chain with a plain [`Kp`] after the lock segment (same idea as [`LockKp::then`]).
+    ///
+    /// Example: `root_kp.then_lock(field_lock()).then(Inner::next_field())`.
+    #[inline]
+    pub fn then<V3, Value3, MutValue3, G3, S3>(
+        self,
+        next_kp: Kp<V2, V3, Value2, Value3, MutValue2, MutValue3, G3, S3>,
+    ) -> KpThenLockKp<
+        R,
+        V,
+        V3,
+        Root,
+        Value,
+        Value3,
+        MutRoot,
+        MutValue,
+        MutValue3,
+        First,
+        ComposedSyncKeyPath<
+            Second,
+            Kp<V2, V3, Value2, Value3, MutValue2, MutValue3, G3, S3>,
+            Value2,
+            MutValue2,
+        >,
+    >
+    where
+        V2: 'static,
+        V3: 'static,
+        Value2: std::borrow::Borrow<V2>,
+        Value3: std::borrow::Borrow<V3>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        MutValue3: std::borrow::BorrowMut<V3>,
+        G3: Fn(Value2) -> Option<Value3> + 'static,
+        S3: Fn(MutValue2) -> Option<MutValue3> + 'static,
+    {
+        KpThenLockKp {
+            first: self.first,
+            second: ComposedSyncKeyPath {
+                first: self.second,
+                second: next_kp,
+                _link: std::marker::PhantomData,
+            },
+            _p: std::marker::PhantomData,
+        }
+    }
+
+    /// Chain with another sync [`LockKp`] after the segment so far (same idea as [`LockKp::then_lock`]).
+    #[inline]
+    pub fn then_lock<
+        Lock2,
+        Mid2,
+        V3,
+        LockValue2,
+        MidValue2,
+        Value3,
+        MutLock2,
+        MutMid2,
+        MutValue3,
+        G2_1,
+        S2_1,
+        L2,
+        G2_2,
+        S2_2,
+    >(
+        self,
+        other: LockKp<
+            V2,
+            Lock2,
+            Mid2,
+            V3,
+            Value2,
+            LockValue2,
+            MidValue2,
+            Value3,
+            MutValue2,
+            MutLock2,
+            MutMid2,
+            MutValue3,
+            G2_1,
+            S2_1,
+            L2,
+            G2_2,
+            S2_2,
+        >,
+    ) -> KpThenLockKp<
+        R,
+        V,
+        V3,
+        Root,
+        Value,
+        Value3,
+        MutRoot,
+        MutValue,
+        MutValue3,
+        First,
+        ComposedSyncKeyPath<
+            Second,
+            LockKp<
+                V2,
+                Lock2,
+                Mid2,
+                V3,
+                Value2,
+                LockValue2,
+                MidValue2,
+                Value3,
+                MutValue2,
+                MutLock2,
+                MutMid2,
+                MutValue3,
+                G2_1,
+                S2_1,
+                L2,
+                G2_2,
+                S2_2,
+            >,
+            Value2,
+            MutValue2,
+        >,
+    >
+    where
+        V2: 'static,
+        V3: 'static,
+        Value2: std::borrow::Borrow<V2>,
+        LockValue2: std::borrow::Borrow<Lock2>,
+        MidValue2: std::borrow::Borrow<Mid2>,
+        Value3: std::borrow::Borrow<V3>,
+        MutValue2: std::borrow::BorrowMut<V2>,
+        MutLock2: std::borrow::BorrowMut<Lock2>,
+        MutMid2: std::borrow::BorrowMut<Mid2>,
+        MutValue3: std::borrow::BorrowMut<V3>,
+        G2_1: Fn(Value2) -> Option<LockValue2>,
+        S2_1: Fn(MutValue2) -> Option<MutLock2>,
+        L2: LockAccess<Lock2, MidValue2> + LockAccess<Lock2, MutMid2> + Clone + 'static,
+        G2_2: Fn(MidValue2) -> Option<Value3>,
+        S2_2: Fn(MutMid2) -> Option<MutValue3>,
+    {
+        KpThenLockKp {
+            first: self.first,
+            second: ComposedSyncKeyPath {
+                first: self.second,
+                second: other,
+                _link: std::marker::PhantomData,
+            },
+            _p: std::marker::PhantomData,
+        }
+    }
+}
+
+/// Composes two [`crate::async_lock::SyncKeyPathLike`] steps (used by [`KpThenLockKp::then`] / [`KpThenLockKp::then_lock`]).
+///
+/// `MidLink` / `MutLink` are the intermediate value types produced by `first` and consumed by `second`
+/// (phantom only — used so the compiler can prove the chain is well-typed).
+#[derive(Clone)]
+pub struct ComposedSyncKeyPath<A, B, MidLink, MutLink> {
+    pub(crate) first: A,
+    pub(crate) second: B,
+    pub(crate) _link: std::marker::PhantomData<(MidLink, MutLink)>,
+}
+
+impl<
+    A,
+    B,
+    Root,
+    MidLink,
+    LeafValue,
+    MutRoot,
+    MutLink,
+    MutLeaf,
+> crate::async_lock::SyncKeyPathLike<Root, LeafValue, MutRoot, MutLeaf>
+    for ComposedSyncKeyPath<A, B, MidLink, MutLink>
+where
+    A: crate::async_lock::SyncKeyPathLike<Root, MidLink, MutRoot, MutLink>,
+    B: crate::async_lock::SyncKeyPathLike<MidLink, LeafValue, MutLink, MutLeaf>,
+{
+    #[inline]
+    fn sync_get(&self, root: Root) -> Option<LeafValue> {
+        self.first
+            .sync_get(root)
+            .and_then(|mid| self.second.sync_get(mid))
+    }
+
+    #[inline]
+    fn sync_get_mut(&self, root: MutRoot) -> Option<MutLeaf> {
+        self.first
+            .sync_get_mut(root)
+            .and_then(|mid| self.second.sync_get_mut(mid))
+    }
 }
 
 // ============================================================================
