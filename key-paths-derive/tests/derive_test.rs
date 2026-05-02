@@ -1,5 +1,5 @@
 use key_paths_derive::{Akp, Kp, Pkp};
-use rust_key_paths::{KpTrait, KpType};
+use rust_key_paths::KpType;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Kp, Pkp, Akp)]

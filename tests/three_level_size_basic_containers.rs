@@ -1,4 +1,4 @@
-use rust_key_paths::{Kp, KpReadable, KpType};
+use rust_key_paths::{Kp, KpType};
 use std::mem::size_of_val;
 use std::rc::Rc;
 use std::sync::Arc;

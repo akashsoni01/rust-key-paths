@@ -29,7 +29,7 @@
 //!    - Only clones `PhantomData<T>` which is zero-sized
 //!    - Compiled away completely - zero runtime cost
 
-use crate::{AccessorTrait, Kp, KpTrait};
+use crate::Kp;
 use async_trait::async_trait;
 use std::fmt;
 // Re-export tokio sync types for convenience
