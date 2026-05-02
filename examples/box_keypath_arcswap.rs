@@ -9,10 +9,10 @@ struct SomeComplexStruct {
     scsf: Box<SomeOtherStruct>,
 }
 
-/// Snapshot cell — same `LockKp` idea as `Arc<std::sync::RwLock<T>>` on the field:
-/// - **`Arc<ArcSwap<T>>`** (this struct) or owned **`ArcSwap<T>`**: **`sosf()`** → `LockKp` into **`T`**; **`sosf_kp()`** → `Kp` to the swap field container.
+/// Arc-swap fields use **`sosf()`** → **`LockKp`** into **`OneMoreStruct`** only (no **`sosf_kp()`**).
+/// Enum snapshots use **`SomeEnum::b()`** → **`LockKp`** (no **`b_lock()`**).
 ///
-/// After `outer.then_lock(Self::sosf())`, chain with **`.then(OneMoreStruct::…)`** (keypaths rooted at **`T`**).
+/// Chain after **`outer.then_lock(Self::sosf())`** with **`.then(OneMoreStruct::…)`**, and nest swaps with **`.then_lock(SomeEnum::b())`**.
 #[derive(Debug, Kp, Clone)]
 struct SomeOtherStruct {
     sosf: Arc<arc_swap::ArcSwap<OneMoreStruct>>,
@@ -69,7 +69,7 @@ fn main() {
     let kp_dsf = SomeComplexStruct::scsf().then_lock(
         SomeOtherStruct::sosf()
             .then(OneMoreStruct::omse())
-            .then_lock(SomeEnum::b_lock())
+            .then_lock(SomeEnum::b())
             .then(DarkStruct::dsf()),
     );
     println!("size_of_val(&kp_dsf) = {}", std::mem::size_of_val(&kp_dsf));
@@ -78,14 +78,12 @@ fn main() {
     let kp_hot = SomeComplexStruct::scsf()
     .then_lock(SomeOtherStruct::sosf())
     .then(OneMoreStruct::omse())
-    .then_lock(SomeEnum::b_lock())
+    .then_lock(SomeEnum::b())
     .then_lock(DarkStruct::hot());
 
     println!("size_of_val(&kp_hot) = {}", std::mem::size_of_val(&kp_hot));
     assert_eq!(kp_hot.get(&instance).map(|s| s.as_str()), Some("hot_value"));
 
-    
-    // let x = SomeOtherStruct::sosf().then(OneMoreStruct::omse()).then_lock(SomeEnum::b_lock());
     let kp_omsf = SomeComplexStruct::scsf().then_lock(
         SomeOtherStruct::sosf().then(OneMoreStruct::omsf()),
     );
