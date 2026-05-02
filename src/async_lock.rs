@@ -292,13 +292,13 @@ pub struct AsyncLockKp<
     S2: Fn(MutMid) -> Option<MutValue> + Clone,
 {
     /// Keypath from Root to Lock container
-    pub(crate) prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
+    prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
 
     /// Async lock access handler (converts Lock -> Inner)
-    pub(crate) mid: L,
+    mid: L,
 
     /// Keypath from Inner to final Value
-    pub(crate) next: Kp<Mid, V, MidValue, Value, MutMid, MutValue, G2, S2>,
+    next: Kp<Mid, V, MidValue, Value, MutMid, MutValue, G2, S2>,
 }
 
 impl<
@@ -1001,8 +1001,8 @@ where
 /// Chain any depth: `kp1.then_async(kp2).then_async(kp3).then_async(kp4)...` then `.get(&root).await`.
 #[derive(Clone)]
 pub struct ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> {
-    pub(crate) first: First,
-    pub(crate) second: Second,
+    first: First,
+    second: Second,
     _p: std::marker::PhantomData<(R, V2, Root, Value2, MutRoot, MutValue2)>,
 }
 
@@ -1259,10 +1259,21 @@ pub struct KpThenAsyncKeyPath<
     First,
     Second,
 > {
-    pub(crate) first: First,
-    pub(crate) second: Second,
-    pub(crate) _p:
-        std::marker::PhantomData<(R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2)>,
+    first: First,
+    second: Second,
+    _p: std::marker::PhantomData<(R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2)>,
+}
+
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    KpThenAsyncKeyPath<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+{
+    pub(crate) fn new(first: First, second: Second) -> Self {
+        Self {
+            first,
+            second,
+            _p: std::marker::PhantomData,
+        }
+    }
 }
 
 impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
@@ -1360,8 +1371,8 @@ where
 /// Keypath that chains an [AsyncKeyPathLike] (async get) with a [crate::Kp] (sync step). Use `.get(&root).await` to run.
 #[derive(Clone)]
 pub struct AsyncKeyPathThenKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> {
-    pub(crate) first: First,
-    pub(crate) second: Second,
+    first: First,
+    second: Second,
     _p: std::marker::PhantomData<(R, V2, Root, Value2, MutRoot, MutValue2)>,
 }
 
@@ -1425,8 +1436,8 @@ where
 /// Use [AsyncLockKp::then_lock] to create; then call [AsyncLockKpThenLockKp::get] or [AsyncLockKpThenLockKp::get_mut] with root.
 #[derive(Clone)]
 pub struct AsyncLockKpThenLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> {
-    pub(crate) first: First,
-    pub(crate) second: Second,
+    first: First,
+    second: Second,
     _p: std::marker::PhantomData<(R, V2, Root, Value2, MutRoot, MutValue2)>,
 }
 

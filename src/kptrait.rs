@@ -296,11 +296,7 @@ where
         let first = self;
         let second = lock_kp;
 
-        crate::lock::KpThenLockKp {
-            first,
-            second,
-            _p: std::marker::PhantomData,
-        }
+        crate::lock::KpThenLockKp::new(first, second)
     }
 
     #[cfg(feature = "pin_project")]
@@ -318,11 +314,7 @@ where
         let first = self;
         let second = pin_fut;
 
-        crate::pin::KpThenPinFuture {
-            first,
-            second,
-            _p: std::marker::PhantomData,
-        }
+        crate::pin::KpThenPinFuture::new(first, second)
     }
 
     fn then_async<AsyncKp>(
@@ -353,11 +345,7 @@ where
         let first = self;
         let second = async_kp;
 
-        crate::async_lock::KpThenAsyncKeyPath {
-            first,
-            second,
-            _p: std::marker::PhantomData,
-        }
+        crate::async_lock::KpThenAsyncKeyPath::new(first, second)
     }
 }
 

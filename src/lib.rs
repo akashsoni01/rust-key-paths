@@ -1005,10 +1005,10 @@ where
     S: Fn(MutRoot) -> Option<MutValue>,
 {
     /// Getter closure: used by [`Kp::get`] for read-only access when `G` satisfies the HRTB.
-    pub get: G,
+    get: G,
     /// Setter closure: used by [`Kp::get_mut`] for mutation when `S` satisfies the HRTB.
-    pub set: S,
-    pub _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
+    set: S,
+    _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
 }
 
 /// Forces the compiler to treat a closure as `for<'b> Fn(&'b R) -> Option<&'b V>`.

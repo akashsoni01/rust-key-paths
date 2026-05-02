@@ -84,9 +84,21 @@ macro_rules! pin_future_await_kp {
 /// Enables: `kp.then_pin_future(...).get_mut(&mut root).await` to await #[pin] Future fields.
 #[derive(Clone)]
 pub struct KpThenPinFuture<R, S, Output, Root, MutRoot, Value, MutValue, First, Second> {
-    pub(crate) first: First,
-    pub(crate) second: Second,
-    pub(crate) _p: std::marker::PhantomData<(R, S, Output, Root, MutRoot, Value, MutValue)>,
+    first: First,
+    second: Second,
+    _p: std::marker::PhantomData<(R, S, Output, Root, MutRoot, Value, MutValue)>,
+}
+
+impl<R, S, Output, Root, MutRoot, Value, MutValue, First, Second>
+    KpThenPinFuture<R, S, Output, Root, MutRoot, Value, MutValue, First, Second>
+{
+    pub(crate) fn new(first: First, second: Second) -> Self {
+        Self {
+            first,
+            second,
+            _p: std::marker::PhantomData,
+        }
+    }
 }
 
 impl<R, S, Output, Root, MutRoot, Value, MutValue, First, Second>

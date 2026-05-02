@@ -138,13 +138,13 @@ pub struct LockKp<
     S2: Fn(MutMid) -> Option<MutValue>,
 {
     /// Keypath from Root to Lock container
-    pub(crate) prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
+    prev: Kp<R, Lock, Root, LockValue, MutRoot, MutLock, G1, S1>,
 
     /// Lock access handler (converts Lock -> Inner)
-    pub(crate) mid: L,
+    mid: L,
 
     /// Keypath from Inner to final Value
-    pub(crate) next: Kp<Mid, V, MidValue, Value, MutMid, MutValue, G2, S2>,
+    next: Kp<Mid, V, MidValue, Value, MutMid, MutValue, G2, S2>,
 }
 
 impl<
@@ -827,11 +827,7 @@ where
         let first = self;
         let second = async_kp;
 
-        crate::async_lock::KpThenAsyncKeyPath {
-            first: first,
-            second: second,
-            _p: std::marker::PhantomData,
-        }
+        crate::async_lock::KpThenAsyncKeyPath::new(first, second)
     }
 }
 
@@ -843,10 +839,21 @@ where
 #[derive(Clone)]
 pub struct KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
 {
-    pub(crate) first: First,
-    pub(crate) second: Second,
-    pub(crate) _p:
-        std::marker::PhantomData<(R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2)>,
+    first: First,
+    second: Second,
+    _p: std::marker::PhantomData<(R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2)>,
+}
+
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    KpThenLockKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+{
+    pub(crate) fn new(first: First, second: Second) -> Self {
+        Self {
+            first,
+            second,
+            _p: std::marker::PhantomData,
+        }
+    }
 }
 
 impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second> fmt::Debug
@@ -959,15 +966,10 @@ where
         G3: Fn(Value2) -> Option<Value3> + 'static,
         S3: Fn(MutValue2) -> Option<MutValue3> + 'static,
     {
-        KpThenLockKp {
-            first: self.first,
-            second: ComposedSyncKeyPath {
-                first: self.second,
-                second: next_kp,
-                _link: std::marker::PhantomData,
-            },
-            _p: std::marker::PhantomData,
-        }
+        KpThenLockKp::new(
+            self.first,
+            ComposedSyncKeyPath::new(self.second, next_kp),
+        )
     }
 
     /// Chain with another sync [`LockKp`] after the segment so far (same idea as [`LockKp::then_lock`]).
@@ -1061,15 +1063,7 @@ where
         G2_2: Fn(MidValue2) -> Option<Value3>,
         S2_2: Fn(MutMid2) -> Option<MutValue3>,
     {
-        KpThenLockKp {
-            first: self.first,
-            second: ComposedSyncKeyPath {
-                first: self.second,
-                second: other,
-                _link: std::marker::PhantomData,
-            },
-            _p: std::marker::PhantomData,
-        }
+        KpThenLockKp::new(self.first, ComposedSyncKeyPath::new(self.second, other))
     }
 }
 
@@ -1079,9 +1073,19 @@ where
 /// (phantom only — used so the compiler can prove the chain is well-typed).
 #[derive(Clone)]
 pub struct ComposedSyncKeyPath<A, B, MidLink, MutLink> {
-    pub(crate) first: A,
-    pub(crate) second: B,
-    pub(crate) _link: std::marker::PhantomData<(MidLink, MutLink)>,
+    first: A,
+    second: B,
+    _link: std::marker::PhantomData<(MidLink, MutLink)>,
+}
+
+impl<A, B, MidLink, MutLink> ComposedSyncKeyPath<A, B, MidLink, MutLink> {
+    pub(crate) fn new(first: A, second: B) -> Self {
+        Self {
+            first,
+            second,
+            _link: std::marker::PhantomData,
+        }
+    }
 }
 
 impl<
