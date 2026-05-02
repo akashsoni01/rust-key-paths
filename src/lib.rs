@@ -28,6 +28,9 @@ pub use lock::{
     ParkingLotRwLockAccess,
 };
 
+#[cfg(feature = "arcswap")]
+pub use lock::{ArcArcSwapAccess, ArcArcSwapOptionAccess};
+
 // Export the async_lock module
 pub mod async_lock;
 

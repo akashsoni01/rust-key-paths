@@ -1093,6 +1093,134 @@ impl<'a, T: 'static> LockAccess<Arc<std::sync::RwLock<T>>, &'a mut T> for ArcRwL
 }
 
 // ============================================================================
+// ArcSwap (`arc-swap` crate) — `Arc<ArcSwap<T>>` / `Arc<ArcSwapOption<T>>`
+// ============================================================================
+//
+// Reads use [`arcswap::ArcSwap::load`] (default strategy: wait-free / low-latency snapshot).
+// The same lifetime-extension pattern as [`ArcRwLockAccess`] applies: do not keep returned
+// references across `store`/`rcu` on the same [`arcswap::ArcSwap`] from other threads.
+//
+// **Writes:** `ArcSwap` does not expose an exclusive in-place `&mut T` like `RwLock`. The `&mut T`
+// [`LockAccess`] impl mirrors the mutex-style extension used elsewhere in this module; prefer
+// [`arcswap::ArcSwap::store`], [`arcswap::ArcSwap::rcu`], or [`arcswap::ArcSwap::swap`] at the
+// call site for atomic updates.
+#[cfg(feature = "arcswap")]
+#[derive(Clone)]
+pub struct ArcArcSwapAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "arcswap")]
+impl<T> ArcArcSwapAccess<T> {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "arcswap")]
+impl<T> Default for ArcArcSwapAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "arcswap")]
+impl<'a, T: 'static> LockAccess<Arc<arcswap::ArcSwap<T>>, &'a T> for ArcArcSwapAccess<T> {
+    #[inline(always)]
+    fn lock_read(&self, lock: &Arc<arcswap::ArcSwap<T>>) -> Option<&'a T> {
+        let g = lock.load();
+        let arc: &Arc<T> = std::ops::Deref::deref(&g);
+        let ptr = Arc::as_ptr(arc) as *const T;
+        Some(unsafe { &*ptr })
+    }
+
+    #[inline(always)]
+    fn lock_write(&self, lock: &Arc<arcswap::ArcSwap<T>>) -> Option<&'a T> {
+        self.lock_read(lock)
+    }
+}
+
+#[cfg(feature = "arcswap")]
+#[allow(invalid_reference_casting)] // Same lifetime-extension pattern as [`ArcRwLockAccess`].
+impl<'a, T: 'static> LockAccess<Arc<arcswap::ArcSwap<T>>, &'a mut T> for ArcArcSwapAccess<T> {
+    #[inline(always)]
+    fn lock_read(&self, lock: &Arc<arcswap::ArcSwap<T>>) -> Option<&'a mut T> {
+        let g = lock.load();
+        let arc: &Arc<T> = std::ops::Deref::deref(&g);
+        let ptr = Arc::as_ptr(arc) as *mut T;
+        Some(unsafe { &mut *ptr })
+    }
+
+    #[inline(always)]
+    fn lock_write(&self, lock: &Arc<arcswap::ArcSwap<T>>) -> Option<&'a mut T> {
+        self.lock_read(lock)
+    }
+}
+
+#[cfg(feature = "arcswap")]
+#[derive(Clone)]
+pub struct ArcArcSwapOptionAccess<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+#[cfg(feature = "arcswap")]
+impl<T> ArcArcSwapOptionAccess<T> {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "arcswap")]
+impl<T> Default for ArcArcSwapOptionAccess<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "arcswap")]
+impl<'a, T: 'static>
+    LockAccess<Arc<arcswap::ArcSwapOption<T>>, &'a Option<Arc<T>>> for ArcArcSwapOptionAccess<T>
+{
+    #[inline(always)]
+    fn lock_read(&self, lock: &Arc<arcswap::ArcSwapOption<T>>) -> Option<&'a Option<Arc<T>>> {
+        let g = lock.load();
+        let opt: &Option<Arc<T>> = std::ops::Deref::deref(&g);
+        let ptr = opt as *const Option<Arc<T>>;
+        Some(unsafe { &*ptr })
+    }
+
+    #[inline(always)]
+    fn lock_write(&self, lock: &Arc<arcswap::ArcSwapOption<T>>) -> Option<&'a Option<Arc<T>>> {
+        self.lock_read(lock)
+    }
+}
+
+#[cfg(feature = "arcswap")]
+#[allow(invalid_reference_casting)]
+impl<'a, T: 'static>
+    LockAccess<Arc<arcswap::ArcSwapOption<T>>, &'a mut Option<Arc<T>>> for ArcArcSwapOptionAccess<T>
+{
+    #[inline(always)]
+    fn lock_read(&self, lock: &Arc<arcswap::ArcSwapOption<T>>) -> Option<&'a mut Option<Arc<T>>> {
+        let g = lock.load();
+        let opt: &Option<Arc<T>> = std::ops::Deref::deref(&g);
+        let ptr = opt as *const Option<Arc<T>> as *mut Option<Arc<T>>;
+        Some(unsafe { &mut *ptr })
+    }
+
+    #[inline(always)]
+    fn lock_write(&self, lock: &Arc<arcswap::ArcSwapOption<T>>) -> Option<&'a mut Option<Arc<T>>> {
+        self.lock_read(lock)
+    }
+}
+
+// ============================================================================
 // Direct Mutex Access Implementation (without Arc)
 // ============================================================================
 
@@ -1751,6 +1879,50 @@ pub type LockKpArcRwLockOptionFor<Root, Lock, Inner> = LockKp<
     ArcRwLockAccess<Option<Inner>>,
     for<'b> fn(&'b Option<Inner>) -> Option<&'b Inner>,
     for<'b> fn(&'b mut Option<Inner>) -> Option<&'b mut Inner>,
+>;
+
+#[cfg(feature = "arcswap")]
+/// Type alias for [`LockKp`] over `Arc<arcswap::ArcSwap<T>>` (optional `arcswap` feature).
+pub type LockKpArcArcSwapFor<Root, Lock, Inner> = LockKp<
+    Root,
+    Lock,
+    Inner,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Inner,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Inner,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    ArcArcSwapAccess<Inner>,
+    for<'b> fn(&'b Inner) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Inner) -> Option<&'b mut Inner>,
+>;
+
+#[cfg(feature = "arcswap")]
+/// Type alias for [`LockKp`] over `Arc<arcswap::ArcSwapOption<T>>`; value type is `T` after `Option` + `Arc` peel.
+pub type LockKpArcArcSwapOptionFor<Root, Lock, Inner> = LockKp<
+    Root,
+    Lock,
+    Option<Arc<Inner>>,
+    Inner,
+    &'static Root,
+    &'static Lock,
+    &'static Option<Arc<Inner>>,
+    &'static Inner,
+    &'static mut Root,
+    &'static mut Lock,
+    &'static mut Option<Arc<Inner>>,
+    &'static mut Inner,
+    for<'b> fn(&'b Root) -> Option<&'b Lock>,
+    for<'b> fn(&'b mut Root) -> Option<&'b mut Lock>,
+    ArcArcSwapOptionAccess<Inner>,
+    for<'b> fn(&'b Option<Arc<Inner>>) -> Option<&'b Inner>,
+    for<'b> fn(&'b mut Option<Arc<Inner>>) -> Option<&'b mut Inner>,
 >;
 
 #[cfg(feature = "parking_lot")]

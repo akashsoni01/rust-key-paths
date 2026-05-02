@@ -118,6 +118,7 @@ See examples: `pkp_akp_filter_typeid`, `pkp_akp_read_write_convert`.
 |---------|-------------|
 | `parking_lot` | Use `parking_lot::Mutex` / `RwLock` instead of `std::sync` |
 | `tokio` | Async lock support (`tokio::sync::Mutex`, `RwLock`) |
+| `arcswap` | [`arc-swap`](https://docs.rs/arc-swap) (`Arc<ArcSwap<T>>`, `Arc<ArcSwapOption<T>>`) via [`LockKp`](https://docs.rs/rust-key-paths/latest/rust_key_paths/lock/struct.LockKp.html) |
 | `pin_project` | Enable `#[pin]` field support for pin-project compatibility |
 
 ### More examples
@@ -146,11 +147,28 @@ The `#[derive(Kp)]` macro (from `key-paths-derive`) generates keypath accessors 
 | `Cow<'_, T>` | `field()` | `as_ref` / `to_mut` |
 | `Option<Cow<'_, T>>` | `field()` | Optional Cow unwrap |
 | `std::sync::Mutex<T>`, `std::sync::RwLock<T>` | `field()` | Container (use `LockKp` for lock-through) |
-| `Arc<Mutex<T>>`, `Arc<RwLock<T>>` | `field()`, `field_lock()` | Lock-through via `LockKp` |
+| `Arc<Mutex<T>>`, `Arc<RwLock<T>>` | `field()`, `field_kp()` / `field()` as `LockKp` | Lock-through via `LockKp` |
+| `Arc<arcswap::ArcSwap<T>>`, `Arc<arcswap::ArcSwapOption<T>>` | `field_kp()` / `field()` as `LockKp` | arcswap feature; use `arcswap` dependency key (see below) |
 | `tokio::sync::Mutex`, `tokio::sync::RwLock` | `field_async()` | Async lock-through (tokio feature) |
 | `parking_lot::Mutex`, `parking_lot::RwLock` | `field()`, `field_lock()` | parking_lot feature |
 
 Nested combinations (e.g. `Option<Box<T>>`, `Option<Vec<T>>`, `Vec<Option<T>>`) are supported.
+
+### `arcswap` (optional): atomically swappable `Arc`
+
+Enable **`arcswap`** on `rust-key-paths` and add the same dependency key in your crate so generated paths resolve:
+
+```toml
+[dependencies]
+rust-key-paths = { version = "2.9.8", features = ["arcswap"] }
+arcswap = { package = "arc-swap", version = "1.9" }
+```
+
+**When to use [`ArcSwap`](https://docs.rs/arc-swap/latest/arc_swap/struct.ArcSwap.html) instead of `RwLock<Arc<T>>`:** you reload or publish whole snapshots (`store` / `swap` / `rcu`) and many threads read the current snapshot most of the time. Reads use `load()` (default strategy: low-latency, lock-free snapshots) instead of contending on a reader–writer lock. Prefer a **`static`** or **`LazyLock`** holding an `ArcSwap` when a single global pointer is enough; wrap in **`Arc<ArcSwap<T>>`** when the swap container is created at runtime and shared across threads (the outer `Arc` is only for sharing the container; hot-path reads touch the inner atomic pointer, not the `Arc` refcount).
+
+**When not to:** you need a true in-place `&mut T` through a lock for arbitrary mutation of `T` inside the guard. `ArcSwap` stores an `Arc<T>`; updates replace the pointer. Use `store` / `rcu` at the call site for writes.
+
+**Chaining:** compose the full lock path on the first `LockKp` with `.then(…)` / `.then_lock(…)` (see `examples/box_keypath_arcswap.rs`). Import [`ChainExt`](https://docs.rs/rust-key-paths/latest/rust_key_paths/trait.ChainExt.html) for `Kp::then_lock`. Nested `then_lock` from the crate root can infer a `'static` root in some compositions; if you hit that, call an inner `LockKp` from a `&` to the inner struct (same example).
 
 ### pin_project `#[pin]` fields (optional feature)
 
@@ -215,6 +233,25 @@ size of kp = 0
 ```
 
 So this composed `kp` is zero-sized (no captured runtime state).
+
+## Performance: `arcswap_keypath` benchmark
+
+Benchmark file: `benches/arcswap_keypath_bench.rs` (requires `--features arcswap`).
+
+```bash
+cargo bench --bench arcswap_keypath_bench --features arcswap
+```
+
+### Read path (`scsf` → `ArcSwap` load → `omse` → `B` → `dsf`)
+
+Compared to `load_full()` plus a manual `match` on the loaded `OneMoreStruct` (which clones the inner `Arc` on every read), the composed keypath uses `load()` under the hood and stays on the snapshot for the rest of the chain.
+
+| Variant | Time (approx, `--quick` run on one machine) |
+|---------|-----------------------------------------------|
+| `keypath_then_lock` | 37.8–38.7 ns |
+| `load_full_manual` | 115–119 ns |
+
+Your numbers will vary by CPU and optimization level; treat this as a sanity check that keypath traversal stays in the same ballpark as a small manual load, while **`load_full` + clone** is heavier by design when you need an owned `Arc`.
 
 ---
 
