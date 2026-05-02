@@ -101,9 +101,9 @@ enum WrapperKind {
     TokioArcRwLock,
     OptionTokioArcMutex,
     OptionTokioArcRwLock,
-    /// `arc_swap::ArcSwap<T>` (bare; nested under `Arc<…>`)
+    /// `arc_swap::ArcSwap<T>` or `ArcSwapAny<Arc<T>>` (bare; nested under `Arc<…>`)
     BareArcSwap,
-    /// `arc_swap::ArcSwapOption<T>` (bare)
+    /// `arc_swap::ArcSwapOption<T>` or `ArcSwapAny<Option<Arc<T>>>` (bare)
     BareArcSwapOption,
     /// `Arc<arc_swap::ArcSwap<T>>` (requires rust-key-paths `arc-swap` feature)
     ArcArcSwap,
@@ -177,6 +177,34 @@ fn angle_bracket_first_type(args: &syn::PathArguments) -> Option<&syn::Type> {
     }
 }
 
+/// Classify `ArcSwapAny<P>` payloads: `Arc<T>` → bare ArcSwap (`ArcSwap<T>`), `Option<Arc<T>>` → ArcSwapOption.
+fn arc_swap_any_payload_kind(payload: &Type) -> Option<(WrapperKind, Type)> {
+    let syn::Type::Path(tp) = payload else {
+        return None;
+    };
+    let seg = tp.path.segments.last()?;
+    match seg.ident.to_string().as_str() {
+        "Arc" => {
+            let t = angle_bracket_first_type(&seg.arguments)?.clone();
+            Some((WrapperKind::BareArcSwap, t))
+        }
+        "Option" => {
+            let opt_inner = angle_bracket_first_type(&seg.arguments)?;
+            let syn::Type::Path(tp2) = opt_inner else {
+                return None;
+            };
+            let seg2 = tp2.path.segments.last()?;
+            if seg2.ident == "Arc" {
+                let t = angle_bracket_first_type(&seg2.arguments)?.clone();
+                Some((WrapperKind::BareArcSwapOption, t))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 /// First path segment before `ArcSwap` / `ArcSwapOption` in `Arc<…>` or `Option<Arc<…>>` fields.
 fn arc_swap_crate_ident_from_container_ty(ty: &syn::Type) -> syn::Ident {
     fn peel(ty: &syn::Type) -> Option<syn::Ident> {
@@ -195,7 +223,10 @@ fn arc_swap_crate_ident_from_container_ty(ty: &syn::Type) -> syn::Ident {
                     return None;
                 };
                 let inner_seg = inner_tp.path.segments.last()?;
-                if inner_seg.ident == "ArcSwap" || inner_seg.ident == "ArcSwapOption" {
+                if matches!(
+                    inner_seg.ident.to_string().as_str(),
+                    "ArcSwap" | "ArcSwapOption" | "ArcSwapAny"
+                ) {
                     inner_tp.path.segments.first().map(|s| s.ident.clone())
                 } else {
                     None
@@ -539,6 +570,15 @@ fn extract_wrapper_inner_type(ty: &Type) -> (WrapperKind, Option<Type>) {
                                     }
                                     "ArcSwapOption" if is_arcswap_crate_path(&tp.path) => {
                                         (WrapperKind::BareArcSwapOption, Some(inner.clone()))
+                                    }
+                                    "ArcSwapAny" if is_arcswap_crate_path(&tp.path) => {
+                                        if let Some((kind, peeled)) =
+                                            arc_swap_any_payload_kind(inner)
+                                        {
+                                            (kind, Some(peeled))
+                                        } else {
+                                            (WrapperKind::None, None)
+                                        }
                                     }
                                     "Weak" => (WrapperKind::Weak, Some(inner.clone())),
                                     "Tagged" => (WrapperKind::Tagged, Some(inner.clone())),
