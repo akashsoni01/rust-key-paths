@@ -985,6 +985,11 @@ impl<Root> fmt::Display for PKp<Root> {
 
 /// `Kp` — typed keypath with getter/setter closures. See also [AKp] for type-erased keypaths.
 ///
+/// # Environment recommendation
+///
+/// `Kp` is suitable for production-grade usage and is the recommended default for long-lived
+/// application code.
+///
 /// # Mutation: get vs get_mut (setter path)
 ///
 /// - **[get](Kp::get)** uses the `get` closure (getter): `Fn(Root) -> Option<Value>`

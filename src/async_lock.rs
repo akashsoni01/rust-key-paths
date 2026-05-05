@@ -236,6 +236,12 @@ pub trait AsyncKeyPathLike<Root, MutRoot> {
 
 /// An async keypath that handles async locked values (e.g., std::sync::Arc<tokio::sync::Mutex<T>>)
 ///
+/// # Environment recommendation
+///
+/// `AsyncLockKp` is useful for tests, transitional migrations, and async lock-aware composition
+/// when you want to reduce immediate rewrite complexity. Prefer plain [`crate::Kp`] for
+/// production paths when async lock traversal is not required.
+///
 /// Structure:
 /// - `prev`: Keypath from Root to Lock container (e.g., std::sync::Arc<tokio::sync::Mutex<Mid>>)
 /// - `mid`: Async lock access handler that goes from Lock to Inner value

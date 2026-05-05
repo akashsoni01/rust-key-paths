@@ -62,6 +62,12 @@ pub trait LockAccess<Lock, Inner> {
 
 /// A keypath that handles locked values (e.g., Arc<Mutex<T>>)
 ///
+/// # Environment recommendation
+///
+/// `SyncKp` is useful for tests, transitional migrations, and lock-aware composition when you want
+/// to reduce immediate rewrite complexity. Prefer plain [`crate::Kp`] for production paths when lock
+/// traversal is not required.
+///
 /// Structure:
 /// - `prev`: Keypath from Root to Lock container (e.g., Arc<Mutex<Mid>>)
 /// - `mid`: Lock access handler that goes from Lock to Inner value
