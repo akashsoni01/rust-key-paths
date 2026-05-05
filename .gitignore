@@ -36,3 +36,4 @@ key-paths-core/.idea/key-paths-core.iml
 # Cheque dataset (benchmark images)
 benches/cheq_dataset
 keypaths-proc/Cargo.lock
+/.internals
