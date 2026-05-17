@@ -21,17 +21,17 @@ impl<T> KeyPathValueTarget for &mut T {
 }
 
 /// Read-only keypath surface: navigate from `Root` to `Value` (logical value type `V`).
-pub trait KpReadable<R, V, Root, Value> {
+pub trait KpReadable<Root, Value> {
     fn get(&self, root: Root) -> Option<Value>;
 }
 
 /// Mutable keypath surface: setter path (same closure as [`Kp::get_mut`]).
-pub trait KPWritable<R, V, MutRoot, MutValue> {
+pub trait KPWritable<MutRoot, MutValue> {
     fn set(&self, root: MutRoot) -> Option<MutValue>;
 }
 
 pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
-    KpReadable<R, V, Root, Value> + KPWritable<R, V, MutRoot, MutValue>
+    KpReadable<Root, Value> + KPWritable<MutRoot, MutValue>
 {
     fn type_id_of_root() -> TypeId
     where
@@ -717,7 +717,7 @@ where
     }
 }
 
-impl<R, V, Root, Value, MutRoot, MutValue, G, S> KpReadable<R, V, Root, Value>
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> KpReadable<Root, Value>
     for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,
@@ -733,7 +733,7 @@ where
     }
 }
 
-impl<R, V, Root, Value, MutRoot, MutValue, G, S> KPWritable<R, V, MutRoot, MutValue>
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> KPWritable<MutRoot, MutValue>
     for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,
