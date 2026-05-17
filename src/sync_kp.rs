@@ -42,6 +42,7 @@
 //! - No dangling pointers or use-after-free possible
 //! - Rust's ownership system enforces correctness
 
+use crate::kptrait::{Readable, Writable};
 use crate::Kp;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -834,6 +835,124 @@ where
         let second = async_kp;
 
         crate::async_lock::KpThenAsyncKeyPath::new(first, second)
+    }
+}
+
+impl<
+    R,
+    Lock,
+    Mid,
+    V,
+    Root,
+    LockValue,
+    MidValue,
+    Value,
+    MutRoot,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+> Readable<Root, Value>
+    for SyncKp<
+        R,
+        Lock,
+        Mid,
+        V,
+        Root,
+        LockValue,
+        MidValue,
+        Value,
+        MutRoot,
+        MutLock,
+        MutMid,
+        MutValue,
+        G1,
+        S1,
+        L,
+        G2,
+        S2,
+    >
+where
+    Root: std::borrow::Borrow<R>,
+    LockValue: std::borrow::Borrow<Lock>,
+    MidValue: std::borrow::Borrow<Mid>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutLock: std::borrow::BorrowMut<Lock>,
+    MutMid: std::borrow::BorrowMut<Mid>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G1: Fn(Root) -> Option<LockValue>,
+    S1: Fn(MutRoot) -> Option<MutLock>,
+    L: LockAccess<Lock, MidValue> + LockAccess<Lock, MutMid>,
+    G2: Fn(MidValue) -> Option<Value>,
+    S2: Fn(MutMid) -> Option<MutValue>,
+{
+    #[inline]
+    fn get(&self, root: Root) -> Option<Value> {
+        SyncKp::get(self, root)
+    }
+}
+
+impl<
+    R,
+    Lock,
+    Mid,
+    V,
+    Root,
+    LockValue,
+    MidValue,
+    Value,
+    MutRoot,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+> Writable<MutRoot, MutValue>
+    for SyncKp<
+        R,
+        Lock,
+        Mid,
+        V,
+        Root,
+        LockValue,
+        MidValue,
+        Value,
+        MutRoot,
+        MutLock,
+        MutMid,
+        MutValue,
+        G1,
+        S1,
+        L,
+        G2,
+        S2,
+    >
+where
+    Root: std::borrow::Borrow<R>,
+    LockValue: std::borrow::Borrow<Lock>,
+    MidValue: std::borrow::Borrow<Mid>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutLock: std::borrow::BorrowMut<Lock>,
+    MutMid: std::borrow::BorrowMut<Mid>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G1: Fn(Root) -> Option<LockValue>,
+    S1: Fn(MutRoot) -> Option<MutLock>,
+    L: LockAccess<Lock, MidValue> + LockAccess<Lock, MutMid>,
+    G2: Fn(MidValue) -> Option<Value>,
+    S2: Fn(MutMid) -> Option<MutValue>,
+{
+    #[inline]
+    fn set(&self, root: MutRoot) -> Option<MutValue> {
+        SyncKp::get_mut(self, root)
     }
 }
 
