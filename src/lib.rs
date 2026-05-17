@@ -37,8 +37,8 @@ pub mod async_lock;
 pub mod kptrait;
 
 pub use kptrait::{
-    AccessorTrait, ChainExt, CoercionTrait, HofTrait, KeyPathValueTarget, KpReadable, KpTrait,
-    KPWritable,
+    AccessorTrait, ChainExt, CoercionTrait, HofTrait, KeyPathValueTarget, Readable, KpTrait,
+    Writable,
 };
 
 // pub struct KpStatic<R, V> {

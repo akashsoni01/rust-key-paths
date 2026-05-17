@@ -1,7 +1,7 @@
 //! Keypath traits: read/write surfaces, chaining, coercion, and higher-order helpers.
 //!
-//! [`KpTrait`] composes [`KpReadable`] (getter path) and [`KPWritable`] (setter path, exposed as
-//! [`KPWritable::set`]) plus [`KpTrait::then`].
+//! [`KpTrait`] composes [`Readable`] (getter path) and [`Writable`] (setter path, exposed as
+//! [`Writable::set`]) plus [`KpTrait::then`].
 
 use std::any::TypeId;
 
@@ -21,17 +21,17 @@ impl<T> KeyPathValueTarget for &mut T {
 }
 
 /// Read-only keypath surface: navigate from `Root` to `Value` (logical value type `V`).
-pub trait KpReadable<Root, Value> {
+pub trait Readable<Root, Value> {
     fn get(&self, root: Root) -> Option<Value>;
 }
 
 /// Mutable keypath surface: setter path (same closure as [`Kp::get_mut`]).
-pub trait KPWritable<MutRoot, MutValue> {
+pub trait Writable<MutRoot, MutValue> {
     fn set(&self, root: MutRoot) -> Option<MutValue>;
 }
 
 pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
-    KpReadable<Root, Value> + KPWritable<MutRoot, MutValue>
+    Readable<Root, Value> + Writable<MutRoot, MutValue>
 {
     fn type_id_of_root() -> TypeId
     where
@@ -449,13 +449,13 @@ where
     {
         Kp::new(
             move |root: Root| {
-                KpReadable::get(self, root).map(|value| {
+                Readable::get(self, root).map(|value| {
                     let v: &V = value.borrow();
                     mapper(v)
                 })
             },
             move |root: MutRoot| {
-                KPWritable::set(self, root).map(|value| {
+                Writable::set(self, root).map(|value| {
                     let v: &V = value.borrow();
                     mapper(v)
                 })
@@ -481,13 +481,13 @@ where
     {
         Kp::new(
             move |root: Root| {
-                KpReadable::get(self, root).filter(|value| {
+                Readable::get(self, root).filter(|value| {
                     let v: &V = value.borrow();
                     predicate(v)
                 })
             },
             move |root: MutRoot| {
-                KPWritable::set(self, root).filter(|value| {
+                Writable::set(self, root).filter(|value| {
                     let v: &V = value.borrow();
                     predicate(v)
                 })
@@ -513,13 +513,13 @@ where
     {
         Kp::new(
             move |root: Root| {
-                KpReadable::get(self, root).and_then(|value| {
+                Readable::get(self, root).and_then(|value| {
                     let v: &V = value.borrow();
                     mapper(v)
                 })
             },
             move |root: MutRoot| {
-                KPWritable::set(self, root).and_then(|value| {
+                Writable::set(self, root).and_then(|value| {
                     let v: &V = value.borrow();
                     mapper(v)
                 })
@@ -546,14 +546,14 @@ where
         let inspector_for_get = inspector.clone();
         Kp::new(
             move |root: Root| {
-                KpReadable::get(self, root).map(|value| {
+                Readable::get(self, root).map(|value| {
                     let v: &V = value.borrow();
                     inspector_for_get(v);
                     value
                 })
             },
             move |root: MutRoot| {
-                KPWritable::set(self, root).map(|value| {
+                Writable::set(self, root).map(|value| {
                     let v: &V = value.borrow();
                     inspector(v);
                     value
@@ -568,7 +568,7 @@ where
         I: IntoIterator<Item = Item>,
     {
         move |root: Root| {
-            KpReadable::get(self, root)
+            Readable::get(self, root)
                 .map(|value| {
                     let v: &V = value.borrow();
                     mapper(v).into_iter().collect()
@@ -583,7 +583,7 @@ where
         Acc: Copy + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root)
+            Readable::get(self, root)
                 .map(|value| {
                     let v: &V = value.borrow();
                     folder(init, v)
@@ -597,7 +597,7 @@ where
         F: Fn(&V) -> bool + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root)
+            Readable::get(self, root)
                 .map(|value| {
                     let v: &V = value.borrow();
                     predicate(v)
@@ -611,7 +611,7 @@ where
         F: Fn(&V) -> bool + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root)
+            Readable::get(self, root)
                 .map(|value| {
                     let v: &V = value.borrow();
                     predicate(v)
@@ -625,7 +625,7 @@ where
         F: Fn(&V) -> usize + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root).map(|value| {
+            Readable::get(self, root).map(|value| {
                 let v: &V = value.borrow();
                 counter(v)
             })
@@ -637,7 +637,7 @@ where
         F: Fn(&V) -> Option<Item> + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root).and_then(|value| {
+            Readable::get(self, root).and_then(|value| {
                 let v: &V = value.borrow();
                 finder(v)
             })
@@ -649,7 +649,7 @@ where
         F: Fn(&V, usize) -> Output + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root).map(|value| {
+            Readable::get(self, root).map(|value| {
                 let v: &V = value.borrow();
                 taker(v, n)
             })
@@ -661,7 +661,7 @@ where
         F: Fn(&V, usize) -> Output + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root).map(|value| {
+            Readable::get(self, root).map(|value| {
                 let v: &V = value.borrow();
                 skipper(v, n)
             })
@@ -673,7 +673,7 @@ where
         F: Fn(&V) -> Output + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root).map(|value| {
+            Readable::get(self, root).map(|value| {
                 let v: &V = value.borrow();
                 partitioner(v)
             })
@@ -685,7 +685,7 @@ where
         F: Fn(&V) -> Option<Item> + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root).and_then(|value| {
+            Readable::get(self, root).and_then(|value| {
                 let v: &V = value.borrow();
                 min_fn(v)
             })
@@ -697,7 +697,7 @@ where
         F: Fn(&V) -> Option<Item> + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root).and_then(|value| {
+            Readable::get(self, root).and_then(|value| {
                 let v: &V = value.borrow();
                 max_fn(v)
             })
@@ -709,7 +709,7 @@ where
         F: Fn(&V) -> Sum + 'static,
     {
         move |root: Root| {
-            KpReadable::get(self, root).map(|value| {
+            Readable::get(self, root).map(|value| {
                 let v: &V = value.borrow();
                 sum_fn(v)
             })
@@ -717,7 +717,7 @@ where
     }
 }
 
-impl<R, V, Root, Value, MutRoot, MutValue, G, S> KpReadable<Root, Value>
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> Readable<Root, Value>
     for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,
@@ -733,7 +733,7 @@ where
     }
 }
 
-impl<R, V, Root, Value, MutRoot, MutValue, G, S> KPWritable<MutRoot, MutValue>
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> Writable<MutRoot, MutValue>
     for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,

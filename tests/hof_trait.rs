@@ -214,7 +214,7 @@ fn hof_trait_keeps_readable_get_set_behavior() {
     let kp = nums_kp();
 
     assert_eq!(kp.get(&root), Some(&vec![1, 2, 3, 4]));
-    if let Some(nums) = rust_key_paths::KPWritable::set(&kp, &mut root) {
+    if let Some(nums) = rust_key_paths::Writable::set(&kp, &mut root) {
         nums.push(5);
     }
     assert_eq!(kp.get(&root), Some(&vec![1, 2, 3, 4, 5]));
