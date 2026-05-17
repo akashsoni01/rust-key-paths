@@ -1178,7 +1178,40 @@ where
         let mut_value = self.first.get_mut(root).await?;
         self.second.get_mut(mut_value).await
     }
+}
 
+#[cfg(feature = "tokio")]
+impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> Readable<Root, Value2>
+    for ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+where
+    First: AsyncKeyPathLike<Root, MutRoot>,
+    Second: AsyncKeyPathLike<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    #[inline]
+    fn get(&self, root: Root) -> Option<Value2> {
+        block_async(ComposedAsyncLockKp::get(self, root))
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second> Writable<MutRoot, MutValue2>
+    for ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+where
+    First: AsyncKeyPathLike<Root, MutRoot>,
+    Second: AsyncKeyPathLike<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    #[inline]
+    fn set(&self, root: MutRoot) -> Option<MutValue2> {
+        block_async(ComposedAsyncLockKp::get_mut(self, root))
+    }
+}
+
+impl<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+    ComposedAsyncLockKp<R, V2, Root, Value2, MutRoot, MutValue2, First, Second>
+where
+    First: AsyncKeyPathLike<Root, MutRoot>,
+    Second: AsyncKeyPathLike<First::Value, First::MutValue, Value = Value2, MutValue = MutValue2>,
+{
     /// Chain with another async keypath: `a.then_async(b).then_async(c).get(&root).await`.
     pub fn then_async<
         Lock3,
@@ -1448,6 +1481,58 @@ where
     pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
         let mut_v = self.first.sync_get_mut(root)?;
         self.second.get_mut(mut_v).await
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    Readable<Root, Value2>
+    for KpThenAsyncKeyPath<
+        R,
+        V,
+        V2,
+        Root,
+        Value,
+        Value2,
+        MutRoot,
+        MutValue,
+        MutValue2,
+        First,
+        Second,
+    >
+where
+    First: SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    #[inline]
+    fn get(&self, root: Root) -> Option<Value2> {
+        block_async(KpThenAsyncKeyPath::get(self, root))
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    Writable<MutRoot, MutValue2>
+    for KpThenAsyncKeyPath<
+        R,
+        V,
+        V2,
+        Root,
+        Value,
+        Value2,
+        MutRoot,
+        MutValue,
+        MutValue2,
+        First,
+        Second,
+    >
+where
+    First: SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: AsyncKeyPathLike<Value, MutValue, Value = Value2, MutValue = MutValue2>,
+{
+    #[inline]
+    fn set(&self, root: MutRoot) -> Option<MutValue2> {
+        block_async(KpThenAsyncKeyPath::get_mut(self, root))
     }
 }
 
@@ -1766,6 +1851,246 @@ where
     pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
         let mut_value = self.first.get_mut(root).await?;
         self.second.get_mut(mut_value)
+    }
+
+    /// Blocking read for [`Readable`] / background threads (`tokio` feature).
+    #[cfg(feature = "tokio")]
+    #[inline]
+    pub fn get_blocking(&self, root: Root) -> Option<Value2> {
+        block_async(self.get(root))
+    }
+
+    /// Blocking write for [`Writable`] / background threads (`tokio` feature).
+    #[cfg(feature = "tokio")]
+    #[inline]
+    pub fn get_mut_blocking(&self, root: MutRoot) -> Option<MutValue2> {
+        block_async(self.get_mut(root))
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<
+    R,
+    V2,
+    Root,
+    Value2,
+    MutRoot,
+    MutValue2,
+    Lock,
+    Mid,
+    V,
+    LockValue,
+    MidValue,
+    Value,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+    Lock2,
+    Mid2,
+    LockValue2,
+    MidValue2,
+    MutLock2,
+    MutMid2,
+    G2_1,
+    S2_1,
+    L2,
+    G2_2,
+    S2_2,
+> Readable<Root, Value2>
+    for AsyncLockKpThenSyncKp<
+        R,
+        V2,
+        Root,
+        Value2,
+        MutRoot,
+        MutValue2,
+        AsyncLockKp<
+            R,
+            Lock,
+            Mid,
+            V,
+            Root,
+            LockValue,
+            MidValue,
+            Value,
+            MutRoot,
+            MutLock,
+            MutMid,
+            MutValue,
+            G1,
+            S1,
+            L,
+            G2,
+            S2,
+        >,
+        crate::sync_kp::SyncKp<
+            V,
+            Lock2,
+            Mid2,
+            V2,
+            Value,
+            LockValue2,
+            MidValue2,
+            Value2,
+            MutValue,
+            MutLock2,
+            MutMid2,
+            MutValue2,
+            G2_1,
+            S2_1,
+            L2,
+            G2_2,
+            S2_2,
+        >,
+    >
+where
+    Root: std::borrow::Borrow<R>,
+    LockValue: std::borrow::Borrow<Lock>,
+    MidValue: std::borrow::Borrow<Mid>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutLock: std::borrow::BorrowMut<Lock>,
+    MutMid: std::borrow::BorrowMut<Mid>,
+    MutValue: std::borrow::BorrowMut<V>,
+    Value2: std::borrow::Borrow<V2>,
+    MutValue2: std::borrow::BorrowMut<V2>,
+    G1: Fn(Root) -> Option<LockValue> + Clone,
+    S1: Fn(MutRoot) -> Option<MutLock> + Clone,
+    L: AsyncLockLike<Lock, MidValue> + AsyncLockLike<Lock, MutMid> + Clone,
+    G2: Fn(MidValue) -> Option<Value> + Clone,
+    S2: Fn(MutMid) -> Option<MutValue> + Clone,
+    LockValue2: std::borrow::Borrow<Lock2>,
+    MidValue2: std::borrow::Borrow<Mid2>,
+    MutLock2: std::borrow::BorrowMut<Lock2>,
+    MutMid2: std::borrow::BorrowMut<Mid2>,
+    G2_1: Fn(Value) -> Option<LockValue2>,
+    S2_1: Fn(MutValue) -> Option<MutLock2>,
+    L2: crate::sync_kp::LockAccess<Lock2, MidValue2> + crate::sync_kp::LockAccess<Lock2, MutMid2>,
+    G2_2: Fn(MidValue2) -> Option<Value2>,
+    S2_2: Fn(MutMid2) -> Option<MutValue2>,
+    Lock: Clone,
+{
+    #[inline]
+    fn get(&self, root: Root) -> Option<Value2> {
+        self.get_blocking(root)
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<
+    R,
+    V2,
+    Root,
+    Value2,
+    MutRoot,
+    MutValue2,
+    Lock,
+    Mid,
+    V,
+    LockValue,
+    MidValue,
+    Value,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+    Lock2,
+    Mid2,
+    LockValue2,
+    MidValue2,
+    MutLock2,
+    MutMid2,
+    G2_1,
+    S2_1,
+    L2,
+    G2_2,
+    S2_2,
+> Writable<MutRoot, MutValue2>
+    for AsyncLockKpThenSyncKp<
+        R,
+        V2,
+        Root,
+        Value2,
+        MutRoot,
+        MutValue2,
+        AsyncLockKp<
+            R,
+            Lock,
+            Mid,
+            V,
+            Root,
+            LockValue,
+            MidValue,
+            Value,
+            MutRoot,
+            MutLock,
+            MutMid,
+            MutValue,
+            G1,
+            S1,
+            L,
+            G2,
+            S2,
+        >,
+        crate::sync_kp::SyncKp<
+            V,
+            Lock2,
+            Mid2,
+            V2,
+            Value,
+            LockValue2,
+            MidValue2,
+            Value2,
+            MutValue,
+            MutLock2,
+            MutMid2,
+            MutValue2,
+            G2_1,
+            S2_1,
+            L2,
+            G2_2,
+            S2_2,
+        >,
+    >
+where
+    Root: std::borrow::Borrow<R>,
+    LockValue: std::borrow::Borrow<Lock>,
+    MidValue: std::borrow::Borrow<Mid>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutLock: std::borrow::BorrowMut<Lock>,
+    MutMid: std::borrow::BorrowMut<Mid>,
+    MutValue: std::borrow::BorrowMut<V>,
+    Value2: std::borrow::Borrow<V2>,
+    MutValue2: std::borrow::BorrowMut<V2>,
+    G1: Fn(Root) -> Option<LockValue> + Clone,
+    S1: Fn(MutRoot) -> Option<MutLock> + Clone,
+    L: AsyncLockLike<Lock, MidValue> + AsyncLockLike<Lock, MutMid> + Clone,
+    G2: Fn(MidValue) -> Option<Value> + Clone,
+    S2: Fn(MutMid) -> Option<MutValue> + Clone,
+    LockValue2: std::borrow::Borrow<Lock2>,
+    MidValue2: std::borrow::Borrow<Mid2>,
+    MutLock2: std::borrow::BorrowMut<Lock2>,
+    MutMid2: std::borrow::BorrowMut<Mid2>,
+    G2_1: Fn(Value) -> Option<LockValue2>,
+    S2_1: Fn(MutValue) -> Option<MutLock2>,
+    L2: crate::sync_kp::LockAccess<Lock2, MidValue2> + crate::sync_kp::LockAccess<Lock2, MutMid2>,
+    G2_2: Fn(MidValue2) -> Option<Value2>,
+    S2_2: Fn(MutMid2) -> Option<MutValue2>,
+    Lock: Clone,
+{
+    #[inline]
+    fn set(&self, root: MutRoot) -> Option<MutValue2> {
+        self.get_mut_blocking(root)
     }
 }
 

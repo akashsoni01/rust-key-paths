@@ -1037,6 +1037,40 @@ where
     pub fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue2> {
         root.and_then(|r| self.get_mut(r))
     }
+}
+
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    Readable<Root, Value2>
+    for KpThenSyncKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+where
+    First: crate::async_lock::SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: crate::async_lock::SyncKeyPathLike<Value, Value2, MutValue, MutValue2>,
+{
+    #[inline]
+    fn get(&self, root: Root) -> Option<Value2> {
+        KpThenSyncKp::get(self, root)
+    }
+}
+
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    Writable<MutRoot, MutValue2>
+    for KpThenSyncKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+where
+    First: crate::async_lock::SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: crate::async_lock::SyncKeyPathLike<Value, Value2, MutValue, MutValue2>,
+{
+    #[inline]
+    fn set(&self, root: MutRoot) -> Option<MutValue2> {
+        KpThenSyncKp::get_mut(self, root)
+    }
+}
+
+impl<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+    KpThenSyncKp<R, V, V2, Root, Value, Value2, MutRoot, MutValue, MutValue2, First, Second>
+where
+    First: crate::async_lock::SyncKeyPathLike<Root, Value, MutRoot, MutValue>,
+    Second: crate::async_lock::SyncKeyPathLike<Value, Value2, MutValue, MutValue2>,
+{
 
     /// Returns the value if the keypath succeeds, otherwise calls `f` and returns its result.
     #[inline]
@@ -1242,6 +1276,10 @@ where
             .and_then(|mid| self.second.sync_get_mut(mid))
     }
 }
+
+// `ComposedSyncKeyPath` intentionally has no `Readable`/`Writable` impl: those traits cannot
+// name all link type parameters without E0207. Use [`SyncKeyPathLike::sync_get`] / `sync_get_mut`,
+// or wrap in [`KpThenSyncKp`] which implements `Readable`/`Writable`.
 
 // ============================================================================
 // Standard Lock Access Implementations
