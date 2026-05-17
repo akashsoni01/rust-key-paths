@@ -29,9 +29,36 @@
 //!    - Only clones `PhantomData<T>` which is zero-sized
 //!    - Compiled away completely - zero runtime cost
 
+use crate::kptrait::{Readable, Writable};
 use crate::Kp;
 use async_trait::async_trait;
 use std::fmt;
+#[cfg(feature = "tokio")]
+use std::sync::OnceLock;
+
+/// Run an async keypath future to completion from a synchronous context (e.g. a background thread).
+///
+/// Uses the current Tokio [`Handle`](tokio::runtime::Handle) when inside a runtime; otherwise a
+/// process-wide multi-thread runtime created on first use.
+#[cfg(feature = "tokio")]
+fn block_async<F>(future: F) -> F::Output
+where
+    F: std::future::Future,
+{
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => handle.block_on(future),
+        Err(_) => {
+            static RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+            RT.get_or_init(|| {
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()
+                    .expect("failed to build tokio Runtime for rust_key_paths::async_lock::block_async")
+            })
+            .block_on(future)
+        }
+    }
+}
 // Re-export tokio sync types for convenience
 #[cfg(feature = "tokio")]
 pub use tokio::sync::{Mutex as TokioMutex, RwLock as TokioRwLock};
@@ -999,6 +1026,128 @@ where
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<
+    R,
+    Lock,
+    Mid,
+    V,
+    Root,
+    LockValue,
+    MidValue,
+    Value,
+    MutRoot,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+> Readable<Root, Value>
+    for AsyncLockKp<
+        R,
+        Lock,
+        Mid,
+        V,
+        Root,
+        LockValue,
+        MidValue,
+        Value,
+        MutRoot,
+        MutLock,
+        MutMid,
+        MutValue,
+        G1,
+        S1,
+        L,
+        G2,
+        S2,
+    >
+where
+    Root: std::borrow::Borrow<R>,
+    LockValue: std::borrow::Borrow<Lock>,
+    MidValue: std::borrow::Borrow<Mid>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutLock: std::borrow::BorrowMut<Lock>,
+    MutMid: std::borrow::BorrowMut<Mid>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G1: Fn(Root) -> Option<LockValue> + Clone,
+    S1: Fn(MutRoot) -> Option<MutLock> + Clone,
+    L: AsyncLockLike<Lock, MidValue> + AsyncLockLike<Lock, MutMid> + Clone,
+    G2: Fn(MidValue) -> Option<Value> + Clone,
+    S2: Fn(MutMid) -> Option<MutValue> + Clone,
+    Lock: Clone,
+{
+    #[inline]
+    fn get(&self, root: Root) -> Option<Value> {
+        block_async(AsyncLockKp::get(self, root))
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<
+    R,
+    Lock,
+    Mid,
+    V,
+    Root,
+    LockValue,
+    MidValue,
+    Value,
+    MutRoot,
+    MutLock,
+    MutMid,
+    MutValue,
+    G1,
+    S1,
+    L,
+    G2,
+    S2,
+> Writable<MutRoot, MutValue>
+    for AsyncLockKp<
+        R,
+        Lock,
+        Mid,
+        V,
+        Root,
+        LockValue,
+        MidValue,
+        Value,
+        MutRoot,
+        MutLock,
+        MutMid,
+        MutValue,
+        G1,
+        S1,
+        L,
+        G2,
+        S2,
+    >
+where
+    Root: std::borrow::Borrow<R>,
+    LockValue: std::borrow::Borrow<Lock>,
+    MidValue: std::borrow::Borrow<Mid>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutLock: std::borrow::BorrowMut<Lock>,
+    MutMid: std::borrow::BorrowMut<Mid>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G1: Fn(Root) -> Option<LockValue> + Clone,
+    S1: Fn(MutRoot) -> Option<MutLock> + Clone,
+    L: AsyncLockLike<Lock, MidValue> + AsyncLockLike<Lock, MutMid> + Clone,
+    G2: Fn(MidValue) -> Option<Value> + Clone,
+    S2: Fn(MutMid) -> Option<MutValue> + Clone,
+    Lock: Clone,
+{
+    #[inline]
+    fn set(&self, root: MutRoot) -> Option<MutValue> {
+        block_async(AsyncLockKp::get_mut(self, root))
+    }
+}
+
 /// Chained async lock keypath: two or more async keypaths (Root -> V -> V2 -> ...). Root is passed at get/get_mut time.
 ///
 /// Use [AsyncLockKp::then_async] to create (or [ComposedAsyncLockKp::then_async] for more levels). Then call [ComposedAsyncLockKp::get] or
@@ -1414,6 +1563,60 @@ where
     pub async fn get_mut(&self, root: MutRoot) -> Option<MutValue2> {
         let mut_value = self.first.get_mut(root).await?;
         (self.second.set)(mut_value)
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R, V2, Root, Value2, MutRoot, MutValue2, First, RKp, G, S> Readable<Root, Value2>
+    for AsyncKeyPathThenKp<
+        R,
+        V2,
+        Root,
+        Value2,
+        MutRoot,
+        MutValue2,
+        First,
+        crate::Kp<RKp, V2, First::Value, Value2, First::MutValue, MutValue2, G, S>,
+    >
+where
+    First: AsyncKeyPathLike<Root, MutRoot>,
+    First::Value: std::borrow::Borrow<RKp>,
+    First::MutValue: std::borrow::BorrowMut<RKp>,
+    Value2: std::borrow::Borrow<V2>,
+    MutValue2: std::borrow::BorrowMut<V2>,
+    G: Fn(First::Value) -> Option<Value2>,
+    S: Fn(First::MutValue) -> Option<MutValue2>,
+{
+    #[inline]
+    fn get(&self, root: Root) -> Option<Value2> {
+        block_async(AsyncKeyPathThenKp::get(self, root))
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<R, V2, Root, Value2, MutRoot, MutValue2, First, RKp, G, S> Writable<MutRoot, MutValue2>
+    for AsyncKeyPathThenKp<
+        R,
+        V2,
+        Root,
+        Value2,
+        MutRoot,
+        MutValue2,
+        First,
+        crate::Kp<RKp, V2, First::Value, Value2, First::MutValue, MutValue2, G, S>,
+    >
+where
+    First: AsyncKeyPathLike<Root, MutRoot>,
+    First::Value: std::borrow::Borrow<RKp>,
+    First::MutValue: std::borrow::BorrowMut<RKp>,
+    Value2: std::borrow::Borrow<V2>,
+    MutValue2: std::borrow::BorrowMut<V2>,
+    G: Fn(First::Value) -> Option<Value2>,
+    S: Fn(First::MutValue) -> Option<MutValue2>,
+{
+    #[inline]
+    fn set(&self, root: MutRoot) -> Option<MutValue2> {
+        block_async(AsyncKeyPathThenKp::get_mut(self, root))
     }
 }
 
