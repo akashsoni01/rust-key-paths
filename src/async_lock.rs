@@ -29,7 +29,7 @@
 //!    - Only clones `PhantomData<T>` which is zero-sized
 //!    - Compiled away completely - zero runtime cost
 
-use crate::kptrait::{Readable, Writable};
+use key_paths_core::{Readable, Writable};
 use crate::Kp;
 use async_trait::async_trait;
 use std::fmt;

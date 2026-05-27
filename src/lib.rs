@@ -36,10 +36,11 @@ pub mod async_lock;
 
 pub mod kptrait;
 
-pub use kptrait::{
-    AccessorTrait, ChainExt, CoercionTrait, HofTrait, KeyPathValueTarget, Readable, KpTrait,
-    Writable,
+pub use key_paths_core::{
+    AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait as CoreKpTrait, Readable, Writable,
 };
+
+pub use kptrait::{ChainExt, CoercionTrait, HofTrait, KpTrait};
 
 // pub struct KpStatic<R, V> {
 //     pub get: fn(&R) -> Option<&V>,

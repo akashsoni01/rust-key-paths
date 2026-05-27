@@ -1,50 +1,17 @@
-//! Keypath traits: read/write surfaces, chaining, coercion, and higher-order helpers.
+//! Keypath extensions for [`crate::Kp`]: chaining, coercion, and higher-order helpers.
 //!
-//! [`KpTrait`] composes [`Readable`] (getter path) and [`Writable`] (setter path, exposed as
-//! [`Writable::set`]) plus [`KpTrait::then`].
+//! Core read/write traits live in [`key_paths_core`]. This module adds `Kp`-specific APIs.
 
-use std::any::TypeId;
+pub use key_paths_core::{
+    AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait as CoreKpTrait, Readable, Writable,
+};
 
 use crate::Kp;
 
-/// Used so that `then_async` can infer `V2` from `AsyncKp::Value` without ambiguity
-/// (e.g. `&i32` has both `Borrow<i32>` and `Borrow<&i32>`; this picks the referent).
-/// Implemented only for reference types so there is no overlap with the blanket impl.
-pub trait KeyPathValueTarget {
-    type Target: Sized;
-}
-impl<T> KeyPathValueTarget for &T {
-    type Target = T;
-}
-impl<T> KeyPathValueTarget for &mut T {
-    type Target = T;
-}
-
-/// Read-only keypath surface: navigate from `Root` to `Value` (logical value type `V`).
-pub trait Readable<Root, Value> {
-    fn get(&self, root: Root) -> Option<Value>;
-}
-
-/// Mutable keypath surface: setter path (same closure as [`Kp::get_mut`]).
-pub trait Writable<MutRoot, MutValue> {
-    fn set(&self, root: MutRoot) -> Option<MutValue>;
-}
-
+/// [`Kp`](crate::Kp) keypath surface: core traits plus [`KpTrait::then`].
 pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
-    Readable<Root, Value> + Writable<MutRoot, MutValue>
+    CoreKpTrait<R, V, Root, Value, MutRoot, MutValue>
 {
-    fn type_id_of_root() -> TypeId
-    where
-        R: 'static,
-    {
-        TypeId::of::<R>()
-    }
-    fn type_id_of_value() -> TypeId
-    where
-        V: 'static,
-    {
-        TypeId::of::<V>()
-    }
     fn then<SV, SubValue, MutSubValue, G2, S2>(
         self,
         next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
@@ -347,26 +314,6 @@ where
 
         crate::async_lock::KpThenAsyncKeyPath::new(first, second)
     }
-}
-
-pub trait AccessorTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
-    KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>
-{
-    /// Like [`Kp::get`], but takes an optional root: returns `None` if `root` is `None`.
-    fn get_optional(&self, root: Option<Root>) -> Option<Value>;
-
-    /// Like [`Kp::get_mut`], but takes an optional root: returns `None` if `root` is `None`.
-    fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue>;
-
-    /// Returns the value if the keypath succeeds, otherwise calls `f` and returns its result.
-    fn get_or_else<F>(&self, root: Root, f: F) -> Value
-    where
-        F: FnOnce() -> Value;
-
-    /// Returns the mutable value if the keypath succeeds, otherwise calls `f` and returns its result.
-    fn get_mut_or_else<F>(&self, root: MutRoot, f: F) -> MutValue
-    where
-        F: FnOnce() -> MutValue;
 }
 
 pub trait CoercionTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
@@ -749,6 +696,18 @@ where
     }
 }
 
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> CoreKpTrait<R, V, Root, Value, MutRoot, MutValue>
+    for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
+where
+    Root: std::borrow::Borrow<R>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G: Fn(Root) -> Option<Value>,
+    S: Fn(MutRoot) -> Option<MutValue>,
+{
+}
+
 impl<R, V, Root, Value, MutRoot, MutValue, G, S> KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>
     for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
@@ -882,8 +841,7 @@ where
 {
 }
 
-impl<R, V, Root, Value, MutRoot, MutValue, G, S>
-    AccessorTrait<R, V, Root, Value, MutRoot, MutValue, G, S>
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> AccessorTrait<Root, Value, MutRoot, MutValue>
     for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,
@@ -893,29 +851,4 @@ where
     G: Fn(Root) -> Option<Value>,
     S: Fn(MutRoot) -> Option<MutValue>,
 {
-    #[inline]
-    fn get_optional(&self, root: Option<Root>) -> Option<Value> {
-        root.and_then(|r| (self.get)(r))
-    }
-
-    #[inline]
-    fn get_mut_optional(&self, root: Option<MutRoot>) -> Option<MutValue> {
-        root.and_then(|r| (self.set)(r))
-    }
-
-    #[inline]
-    fn get_or_else<F>(&self, root: Root, f: F) -> Value
-    where
-        F: FnOnce() -> Value,
-    {
-        (self.get)(root).unwrap_or_else(f)
-    }
-
-    #[inline]
-    fn get_mut_or_else<F>(&self, root: MutRoot, f: F) -> MutValue
-    where
-        F: FnOnce() -> MutValue,
-    {
-        (self.set)(root).unwrap_or_else(f)
-    }
 }

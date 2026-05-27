@@ -1,21 +1,15 @@
 [package]
 name = "key-paths-core"
-version = "1.7.0"
+version = "2.0.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
-description = "Kp, ReadableKeyPath, WritableKeyPath and EnumKeypath for struct and enums in Rust."
+description = "Trait-only keypath surface (Readable, Writable, KpTrait) for building custom keypath libraries."
 repository = "https://github.com/codefonsi/rust-key-paths"
 homepage = "https://github.com/codefonsi/rust-key-paths"
-documentation = "https://docs.rs/rust-key-paths"
-keywords = ["keypaths", "EnumKeyPath", "type-safe", "WritableKeyPath", "ReadableKeyPath"]
-readme = "./README.md"
-include = ["src/**/*", "Cargo.toml", "../../README.md", "LICENSE"]
+documentation = "https://docs.rs/key-paths-core"
+keywords = ["keypaths", "ReadableKeyPath", "WritableKeyPath", "traits"]
+readme = "README.md"
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
-parking_lot = { version = "0.12", optional = true }
-tagged-core = { version = "0.8.0", optional = true }
-
-[features]
-parking_lot = ["dep:parking_lot"]
-tagged_core = ["dep:tagged-core"]

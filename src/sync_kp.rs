@@ -42,7 +42,7 @@
 //! - No dangling pointers or use-after-free possible
 //! - Rust's ownership system enforces correctness
 
-use crate::kptrait::{Readable, Writable};
+use key_paths_core::{Readable, Writable};
 use crate::Kp;
 use std::fmt;
 use std::sync::{Arc, Mutex};
