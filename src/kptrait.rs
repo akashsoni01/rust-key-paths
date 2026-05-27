@@ -2,40 +2,9 @@
 //!
 //! Core read/write traits live in [`key_paths_core`]. This module adds `Kp`-specific APIs.
 
-pub use key_paths_core::{
-    AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait as CoreKpTrait, Readable, Writable,
-};
+pub use key_paths_core::{AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait, Readable, Writable};
 
 use crate::Kp;
-
-/// [`Kp`](crate::Kp) keypath surface: core traits plus [`KpTrait::then`].
-pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
-    CoreKpTrait<R, V, Root, Value, MutRoot, MutValue>
-{
-    fn then<SV, SubValue, MutSubValue, G2, S2>(
-        self,
-        next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
-    ) -> Kp<
-        R,
-        SV,
-        Root,
-        SubValue,
-        MutRoot,
-        MutSubValue,
-        impl Fn(Root) -> Option<SubValue>,
-        impl Fn(MutRoot) -> Option<MutSubValue>,
-    >
-    where
-        Self: Sized,
-        Root: std::borrow::Borrow<R>,
-        Value: std::borrow::Borrow<V>,
-        MutRoot: std::borrow::BorrowMut<R>,
-        MutValue: std::borrow::BorrowMut<V>,
-        SubValue: std::borrow::Borrow<SV>,
-        MutSubValue: std::borrow::BorrowMut<SV>,
-        G2: Fn(Value) -> Option<SubValue>,
-        S2: Fn(MutValue) -> Option<MutSubValue>;
-}
 
 pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
     /// Chain with a sync [`crate::sync_kp::SyncKp`]. Use `.get(root)` / `.get_mut(root)` on the returned keypath.
@@ -317,7 +286,7 @@ where
 }
 
 pub trait CoercionTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
-    KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>
+    KpTrait<R, V, Root, Value, MutRoot, MutValue>
 where
     Root: std::borrow::Borrow<R>,
     Value: std::borrow::Borrow<V>,
@@ -368,7 +337,7 @@ where
 }
 
 pub trait HofTrait<R, V, Root, Value, MutRoot, MutValue, G, S>:
-    KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>
+    KpTrait<R, V, Root, Value, MutRoot, MutValue>
 where
     Root: std::borrow::Borrow<R>,
     Value: std::borrow::Borrow<V>,
@@ -696,7 +665,7 @@ where
     }
 }
 
-impl<R, V, Root, Value, MutRoot, MutValue, G, S> CoreKpTrait<R, V, Root, Value, MutRoot, MutValue>
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> KpTrait<R, V, Root, Value, MutRoot, MutValue>
     for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,
@@ -706,45 +675,27 @@ where
     G: Fn(Root) -> Option<Value>,
     S: Fn(MutRoot) -> Option<MutValue>,
 {
-}
-
-impl<R, V, Root, Value, MutRoot, MutValue, G, S> KpTrait<R, V, Root, Value, MutRoot, MutValue, G, S>
-    for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
-where
-    Root: std::borrow::Borrow<R>,
-    Value: std::borrow::Borrow<V>,
-    MutRoot: std::borrow::BorrowMut<R>,
-    MutValue: std::borrow::BorrowMut<V>,
-    G: Fn(Root) -> Option<Value>,
-    S: Fn(MutRoot) -> Option<MutValue>,
-{
-    fn then<SV, SubValue, MutSubValue, G2, S2>(
+    fn then<SV, SubValue, MutSubValue, Next>(
         self,
-        next: Kp<V, SV, Value, SubValue, MutValue, MutSubValue, G2, S2>,
-    ) -> Kp<
-        R,
-        SV,
-        Root,
-        SubValue,
-        MutRoot,
-        MutSubValue,
-        impl Fn(Root) -> Option<SubValue>,
-        impl Fn(MutRoot) -> Option<MutSubValue>,
-    >
+        next: Next,
+    ) -> impl KeyPath<Root, SubValue, MutRoot, MutSubValue>
     where
         SubValue: std::borrow::Borrow<SV>,
         MutSubValue: std::borrow::BorrowMut<SV>,
-        G2: Fn(Value) -> Option<SubValue>,
-        S2: Fn(MutValue) -> Option<MutSubValue>,
+        Next: Readable<Value, SubValue> + Writable<MutValue, MutSubValue> + Clone,
     {
         let first_get = self.get;
         let first_set = self.set;
-        let second_get = next.get;
-        let second_set = next.set;
+        let next_get = next.clone();
+        let next_set = next;
 
         Kp::new(
-            move |root: Root| first_get(root).and_then(|value| second_get(value)),
-            move |root: MutRoot| first_set(root).and_then(|value| second_set(value)),
+            move |root: Root| {
+                first_get(root).and_then(|value| Readable::get(&next_get, value))
+            },
+            move |root: MutRoot| {
+                first_set(root).and_then(|value| Writable::set(&next_set, value))
+            },
         )
     }
 }

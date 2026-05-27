@@ -13,7 +13,7 @@ For a full reference implementation (derive macros, `Kp`, sync/async locks, comp
 | [`Readable<Root, Value>`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.Readable.html) | Getter path: `root` → optional `Value` |
 | [`Writable<MutRoot, MutValue>`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.Writable.html) | Setter path: `mut root` → optional mutable `Value` |
 | [`KeyPath<Root, Value, MutRoot, MutValue>`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KeyPath.html) | Marker: both read and write |
-| [`KpTrait<R, V, Root, Value, MutRoot, MutValue>`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KpTrait.html) | Above + `TypeId` helpers for logical types `R` / `V` |
+| [`KpTrait<R, V, Root, Value, MutRoot, MutValue>`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KpTrait.html) | Above + `TypeId` helpers + [`then`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KpTrait.html#tymethod.then) |
 | [`KeyPathValueTarget`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KeyPathValueTarget.html) | Maps `&T` / `&mut T` → `T` for generic chaining |
 | [`AccessorTrait`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.AccessorTrait.html) | Optional-root and `or_else` helpers (default methods) |
 
@@ -57,12 +57,11 @@ use key_paths_core::{AccessorTrait, Readable, Writable};
 impl AccessorTrait<&Person, &str, &mut Person, &mut str> for NameKp {}
 ```
 
-### 4. Composition in *your* crate
+### 4. Composition with [`KpTrait::then`]
 
-`key-paths-core` does **not** define `then`, lock traversal, or async chaining. Compose by:
+Implement `then` on your keypath type; return type `Out` is inferred at the call site (see `rust-key-paths` `Kp::then` for a reference impl).
 
-- calling `first.get(root)?` then `second.get(mid)?` inside your own struct’s `Readable::get`, or
-- depending on `rust-key-paths` and using its `Kp` / `SyncKp` / `AsyncLockKp` types.
+Lock traversal and async chaining stay in `rust-key-paths` (`SyncKp`, `AsyncLockKp`, `ChainExt`).
 
 ### 5. Async keypaths
 

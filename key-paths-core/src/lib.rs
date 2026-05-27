@@ -1,7 +1,7 @@
 //! Lightweight, dependency-free keypath traits for Rust.
 //!
 //! Implement [`Readable`] and [`Writable`] on your keypath types so callers can navigate
-//! roots uniformly. Use [`KpTrait`] when you also need logical root/value type identity.
+//! roots uniformly. Use [`KpTrait`] for `TypeId` helpers and [`KpTrait::then`] composition.
 //!
 //! Higher-level crates (for example `rust-key-paths`) add concrete keypath structs,
 //! chaining, and lock/async adapters on top of these traits.
@@ -48,7 +48,7 @@ impl<T, Root, Value, MutRoot, MutValue> KeyPath<Root, Value, MutRoot, MutValue> 
 {
 }
 
-/// Logical root/value type identity for a keypath (no chaining — see downstream crates).
+/// Logical root/value type identity and composition for a keypath.
 pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue>:
     Readable<Root, Value> + Writable<MutRoot, MutValue>
 {
@@ -67,6 +67,20 @@ pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue>:
     {
         TypeId::of::<V>()
     }
+
+    /// Chain with a keypath over this segment's value (`Value` / `MutValue` are the link types).
+    ///
+    /// `Next` must read/write from the current value. The returned type is opaque at the trait
+    /// level; concrete crates (for example `rust-key-paths` `Kp`) choose their own struct.
+    fn then<SV, SubValue, MutSubValue, Next>(
+        self,
+        next: Next,
+    ) -> impl KeyPath<Root, SubValue, MutRoot, MutSubValue>
+    where
+        Self: Sized,
+        SubValue: core::borrow::Borrow<SV>,
+        MutSubValue: core::borrow::BorrowMut<SV>,
+        Next: Readable<Value, SubValue> + Writable<MutValue, MutSubValue> + Clone;
 }
 
 /// Optional-root and fallback helpers built on [`Readable`] / [`Writable`].

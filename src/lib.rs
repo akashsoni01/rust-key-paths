@@ -37,10 +37,10 @@ pub mod async_lock;
 pub mod kptrait;
 
 pub use key_paths_core::{
-    AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait as CoreKpTrait, Readable, Writable,
+    AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait, Readable, Writable,
 };
 
-pub use kptrait::{ChainExt, CoercionTrait, HofTrait, KpTrait};
+pub use kptrait::{ChainExt, CoercionTrait, HofTrait};
 
 // pub struct KpStatic<R, V> {
 //     pub get: fn(&R) -> Option<&V>,
@@ -286,16 +286,7 @@ pub type KpType<'a, R, V> = Kp<
     for<'b> fn(&'b mut R) -> Option<&'b mut V>,
 >;
 
-pub type KpTraitType<'a, R, V> = dyn KpTrait<
-        R,
-        V,
-        &'a R,
-        &'a V,
-        &'a mut R,
-        &'a mut V,
-        for<'b> fn(&'b R) -> Option<&'b V>,
-        for<'b> fn(&'b mut R) -> Option<&'b mut V>,
-    >;
+pub type KpTraitType<'a, R, V> = dyn KpTrait<R, V, &'a R, &'a V, &'a mut R, &'a mut V>;
 
 /// Keypath for `Option<RefCell<T>>`: `get` returns `Option<Ref<V>>` so the caller holds the guard.
 /// Use `.get(root).as_ref().map(std::cell::Ref::deref)` to get `Option<&V>` while the `Ref` is in scope.
@@ -1652,7 +1643,7 @@ mod tests {
 
     fn kp_adaptable<T, Root, Value, MutRoot, MutValue, G, S>(kp: T)
     where
-        T: KpTrait<TestKP, String, Root, Value, MutRoot, MutValue, G, S>,
+        T: KpTrait<TestKP, String, Root, Value, MutRoot, MutValue>,
     {
         // kp.get
         // .get_mut
