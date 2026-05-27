@@ -9,9 +9,63 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "2.9.8"
-key-paths-derive = "2.6.2"
+rust-key-paths = "3.1.1"
+key-paths-derive = "3.0.2"
+# Optional: trait-only contracts (pulled in by rust-key-paths 3.1+)
+# key-paths-core = "2.0"
 ```
+
+### Latest releases
+
+| Crate | Version | Notes |
+|-------|---------|--------|
+| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.1** | `#![no_std]` traits; docs for generic `Readable` / `Writable` APIs |
+| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.1.1** | `Kp`, locks, HOF; re-exports core traits |
+| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.0.2** | `#[derive(Kp)]` — no `key-paths-core` dependency; see compatibility README |
+
+#### 3.1.1 / 2.0.1 / 3.0.2 (documentation)
+
+- README guides for adapting keypaths via `Readable` / `Writable` (including `#[derive(Kp)]`).
+- Confirmed **`key-paths-derive` is not broken by `key-paths-core` 2.x** — upgrade **`rust-key-paths` to 3.1.1** in your app.
+
+#### 3.1.0 / 2.0.0 (initial trait stack)
+
+- **`key-paths-core` 2.0** — trait-only rewrite (`Readable`, `Writable`, `KpTrait::then`, …).
+- **`rust-key-paths` 3.1** — depends on core 2.x; re-exports traits on `Kp`.
+
+### Generic APIs with `Readable` / `Writable`
+
+You can accept any keypath (including derived ones) in generic code:
+
+```rust
+use key_paths_derive::Kp;
+use rust_key_paths::Readable;
+
+#[derive(Kp)]
+struct BigPayload2 {
+    emergency_contact: Option<String>,
+}
+
+fn test<'p, G>(payload: &'p BigPayload2, g: G)
+where
+    G: Readable<&'p BigPayload2, &'p String>,
+{
+    if let Some(emg_contact) = g.get(payload) {
+        println!("there value = {:?}", emg_contact);
+    } else {
+        println!("not there");
+    }
+}
+
+fn main() {
+    let payload = BigPayload2 {
+        emergency_contact: Some("555-0100".into()),
+    };
+    test(&payload, &BigPayload2::emergency_contact());
+}
+```
+
+See [key-paths-core/README.md](./key-paths-core/README.md) and [key-paths-derive/README.md](./key-paths-derive/README.md) for migration from `key-paths-core` 1.7 and derive compatibility details.
 
 ### Basic usage
 
@@ -160,7 +214,7 @@ Enable **`arcswap`** on `rust-key-paths` and add the same dependency key in your
 
 ```toml
 [dependencies]
-rust-key-paths = { version = "2.9.8", features = ["arcswap"] }
+rust-key-paths = { version = "3.1.1", features = ["arcswap"] }
 arcswap = { package = "arc-swap", version = "1.9" }
 ```
 

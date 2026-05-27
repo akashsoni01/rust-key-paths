@@ -6,6 +6,20 @@ Use this crate when you want to build a custom keypath library (or integrate key
 
 For a full reference implementation (derive macros, `Kp`, sync/async locks, composition), see [`rust-key-paths`](https://github.com/codefonsi/rust-key-paths) in the same repository.
 
+## Release notes
+
+### 2.0.1
+
+- README: generic `Readable` / `Writable` integration guide and `#[derive(Kp)]` compatibility notes.
+
+### 2.0.0
+
+- **Trait-only surface** — `Readable`, `Writable`, `KeyPath`, `KpTrait` (with `then`), `AccessorTrait`, `KeyPathValueTarget`.
+- **`#![no_std]`** — no proc-macros, locks, or async in this crate.
+- **Breaking vs 1.7** — the old `KeyPaths` enum and container helpers are removed; stay on 1.7 or use `rust-key-paths` 3.x.
+
+**`key-paths-derive` is unaffected as a crate** (it does not depend on `key-paths-core`). Generated `#[derive(Kp)]` code still targets `rust-key-paths` ≥ 3.1, which implements these traits on `Kp`. See [key-paths-derive README](../key-paths-derive/README.md).
+
 ## Traits
 
 | Trait | Role |
@@ -27,7 +41,7 @@ For a full reference implementation (derive macros, `Kp`, sync/async locks, comp
 
 Keep logical types `R` and `V` in mind when you implement [`KpTrait`] (for `TypeId` and documentation).
 
-### 2. Implement `Readable` and `Writable`
+### 2. Implement `Readable` and `Writable` or use key-paths-derive macro
 
 ```rust
 use key_paths_core::{Readable, Writable};
@@ -46,6 +60,36 @@ impl Writable<&mut Person, &mut str> for NameKp {
     }
 }
 ```
+
+### 2b. Generic functions over any keypath (including `#[derive(Kp)]`)
+
+Bound on `Readable` / `Writable` instead of a concrete `Kp` type. This works with hand-written keypaths and with paths from `key-paths-derive` (via `rust-key-paths`, which implements the traits on `Kp`):
+
+```rust
+use key_paths_core::Readable;
+// With derive: use key_paths_derive::Kp; use rust_key_paths::Readable;
+
+struct BigPayload2 {
+    emergency_contact: Option<String>,
+}
+
+fn test<'p, G>(payload: &'p BigPayload2, g: G)
+where
+    G: Readable<&'p BigPayload2, &'p String>,
+{
+    if let Some(emg_contact) = g.get(payload) {
+        println!("there value = {:?}", emg_contact);
+    } else {
+        println!("not there");
+    }
+}
+
+// Call site (after #[derive(Kp)] on BigPayload2):
+// test(&payload, BigPayload2::emergency_contact());
+```
+
+- **`Root`** / **`Value`** in the trait are the types you pass to `get` and receive on success (often `&Struct` and `&Field`).
+- Use **`Writable<&'p mut Root, &'p mut Value>`** for mutation helpers the same way.
 
 ### 3. Optional: `AccessorTrait`
 
@@ -78,7 +122,7 @@ Do not fake `&mut T` through `Arc` or lock-free snapshots. Either:
 
 ```toml
 [dependencies]
-key-paths-core = "2"
+key-paths-core = "2.0"
 ```
 
 No default features. `#![no_std]` with `alloc` not required.
