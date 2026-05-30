@@ -37,7 +37,8 @@ pub mod async_lock;
 pub mod kptrait;
 
 pub use key_paths_core::{
-    AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait, Readable, Writable,
+    readable_get, writable_get, AccessorTrait, KeyPath, KeyPathAccess, KeyPathGet,
+    KeyPathValueTarget, KpTrait, NavigateVia, Readable, Writable,
 };
 
 pub use kptrait::{ChainExt, CoercionTrait, HofTrait};
@@ -992,6 +993,19 @@ impl<Root> fmt::Display for PKp<Root> {
 ///
 /// For manual reference-shaped paths, [`constrain_get`] and [`constrain_set`] help closures satisfy
 /// `for<'b> Fn(&'b R) -> Option<&'b V>`; use [`Kp::get_ref`] / [`Kp::get_mut_ref`] to call them explicitly.
+///
+/// ## Three access modes (like `let x = y` / `&y` / `&mut y`)
+///
+/// | You write | Path | Returns |
+/// |-----------|------|---------|
+/// | `kp.get(root)` | read (link `Root`) | `Option<Value>` |
+/// | `kp.get(&root)` | read | `Option<&V>` |
+/// | `kp.get(&mut root)` | write ([`Writable`]) | `Option<&mut V>` |
+///
+/// [`Kp::get`] is generic over `root` so `&mut root` is not coerced to `&root`.
+/// For link types where read and write share one root (e.g. `Arc<R>`), use [`Kp::get_mut`].
+///
+/// Dispatch is **compile-time**: the type of `root` selects [`NavigateVia`] (no runtime cost).
 #[derive(Clone)]
 pub struct Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
@@ -1043,14 +1057,17 @@ where
         }
     }
 
-    /// Read through the getter closure. For reference-shaped keypaths built with [`constrain_get`]
-    /// / [`constrain_set`], you can also call this as `kp.get(root)` with `root: Root` (often `&R`).
+    /// Navigate from `root`. The type of `root` selects read vs write at compile time
+    /// (see [`NavigateVia`] / [`KeyPathGet`]).
     #[inline]
-    pub fn get(&self, root: Root) -> Option<Value> {
-        (self.get)(root)
+    pub fn get<CallRoot>(&self, root: CallRoot) -> <CallRoot as NavigateVia<Self>>::Output
+    where
+        CallRoot: NavigateVia<Self>,
+    {
+        root.navigate_via(self)
     }
 
-    /// Mutate through the setter closure.
+    /// Mutate through the setter closure when read/write share the same link root (e.g. `Arc<R>`).
     #[inline]
     pub fn get_mut(&self, root: MutRoot) -> Option<MutValue> {
         (self.set)(root)
@@ -2142,6 +2159,40 @@ mod tests {
         let composed = ok_kp_base.then(inner_kp);
 
         assert_eq!((composed.get)(&result), Some(&"nested".to_string()));
+    }
+
+    #[test]
+    fn test_keypath_get_dispatch_by_root_type() {
+        use crate::{KeyPathGet, Readable};
+
+        #[derive(Debug)]
+        struct User {
+            name: String,
+        }
+
+        let mut user = User {
+            name: "Ada".into(),
+        };
+        let name_kp = KpType::new(|u: &User| Some(&u.name), |u: &mut User| Some(&mut u.name));
+
+        // Shared borrow: `Root` = `&User` on the keypath link type
+        let shared = name_kp.get(&user);
+        assert_eq!(shared, Some(&user.name));
+
+        let via_trait = KeyPathGet::get(&name_kp, &user);
+        assert_eq!(via_trait, shared);
+
+        let via_readable = Readable::get(&name_kp, &user);
+        assert_eq!(via_readable, shared);
+
+        // Exclusive borrow: `KeyPathGet<&mut User>` → `&mut String`
+        let via_mut = name_kp.get(&mut user).expect("mut path");
+        *via_mut = "Grace".into();
+        assert_eq!(user.name, "Grace");
+
+        let via_get_mut = name_kp.get_mut(&mut user).expect("get_mut");
+        *via_get_mut = "Lin".into();
+        assert_eq!(user.name, "Lin");
     }
 
     #[test]

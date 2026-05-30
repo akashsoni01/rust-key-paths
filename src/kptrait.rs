@@ -2,9 +2,18 @@
 //!
 //! Core read/write traits live in [`key_paths_core`]. This module adds `Kp`-specific APIs.
 
-pub use key_paths_core::{AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait, Readable, Writable};
+pub use key_paths_core::{
+    AccessorTrait, KeyPath, KeyPathAccess, KeyPathGet, KeyPathValueTarget, KpTrait, NavigateVia,
+    Readable, Writable,
+};
 
 use crate::Kp;
+
+/// Non-reference link roots for [`NavigateVia`] on [`Kp`] (e.g. `Arc<R>`, `Box<R>`).
+pub trait LinkRoot {}
+
+impl<T> LinkRoot for std::sync::Arc<T> {}
+impl<T> LinkRoot for Box<T> {}
 
 pub trait ChainExt<R, V, Root, Value, MutRoot, MutValue> {
     /// Chain with a sync [`crate::sync_kp::SyncKp`]. Use `.get(root)` / `.get_mut(root)` on the returned keypath.
@@ -662,6 +671,25 @@ where
     #[inline]
     fn set(&self, root: MutRoot) -> Option<MutValue> {
         (self.set)(root)
+    }
+}
+
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> NavigateVia<Kp<R, V, Root, Value, MutRoot, MutValue, G, S>>
+    for Root
+where
+    Root: LinkRoot,
+    Root: std::borrow::Borrow<R>,
+    Value: std::borrow::Borrow<V>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G: Fn(Root) -> Option<Value>,
+    S: Fn(MutRoot) -> Option<MutValue>,
+{
+    type Output = Option<Value>;
+
+    #[inline]
+    fn navigate_via(self, kp: &Kp<R, V, Root, Value, MutRoot, MutValue, G, S>) -> Option<Value> {
+        Readable::get(kp, self)
     }
 }
 
