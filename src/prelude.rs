@@ -7,3 +7,4 @@ pub use crate::Readable;
 pub use crate::KpTrait;
 pub use crate::KpType;
 pub use crate::Writable;
+pub use std::ops::Shr;

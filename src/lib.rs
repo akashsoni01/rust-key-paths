@@ -13,6 +13,8 @@
 use std::fmt;
 use std::sync::Arc;
 
+pub use std::ops::Shr;
+
 // Export the sync_kp module
 pub mod sync_kp;
 pub mod prelude;
@@ -1114,7 +1116,85 @@ where
             constrain_set(move |root: &mut R| first_set(root).and_then(|value| second_set(value))),
         )
     }
+}
 
+/// Chain keypaths with `>>` (compose like [`Kp::then`], result stored as [`KpDynamic`]).
+///
+/// Bring [`Shr`] into scope (`use std::ops::Shr` or `rust_key_paths::prelude::*`).
+///
+/// ```
+/// use rust_key_paths::{KpType, Shr};
+///
+/// struct Inner { x: i32 }
+/// struct Outer { inner: Inner }
+///
+/// let inner_x = KpType::new(|i: &Inner| Some(&i.x), |i: &mut Inner| Some(&mut i.x));
+/// let outer_inner = KpType::new(|o: &Outer| Some(&o.inner), |o: &mut Outer| Some(&mut o.inner));
+/// let chained = outer_inner >> inner_x;
+///
+/// let root = Outer { inner: Inner { x: 42 } };
+/// assert_eq!(chained.get(&root), Some(&42));
+/// ```
+impl<R, V, SV, G, S, G2, S2>
+    Shr<Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
+    for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
+where
+    R: 'static,
+    V: 'static,
+    SV: 'static,
+    G: for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync + 'static,
+    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync + 'static,
+    G2: for<'b> Fn(&'b V) -> Option<&'b SV> + Send + Sync + 'static,
+    S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV> + Send + Sync + 'static,
+{
+    type Output = KpDynamic<R, SV>;
+
+    #[inline]
+    fn shr(self, rhs: Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>) -> Self::Output {
+        self.then(rhs).into_dynamic()
+    }
+}
+
+impl<R, V, SV, G, S, G2, S2>
+    Shr<&Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
+    for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
+where
+    R: 'static,
+    V: 'static,
+    SV: 'static,
+    G: for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync + 'static,
+    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync + 'static,
+    G2: for<'b> Fn(&'b V) -> Option<&'b SV> + Send + Sync + 'static,
+    S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV> + Send + Sync + 'static,
+    Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>: Clone,
+{
+    type Output = KpDynamic<R, SV>;
+
+    #[inline]
+    fn shr(self, rhs: &Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>) -> Self::Output {
+        self.then(rhs.clone()).into_dynamic()
+    }
+}
+
+impl<R, V, SV, G, S, G2, S2>
+    Shr<Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
+    for &Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
+where
+    R: 'static,
+    V: 'static,
+    SV: 'static,
+    G: for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync + 'static,
+    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync + 'static,
+    G2: for<'b> Fn(&'b V) -> Option<&'b SV> + Send + Sync + 'static,
+    S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV> + Send + Sync + 'static,
+    Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>: Clone,
+{
+    type Output = KpDynamic<R, SV>;
+
+    #[inline]
+    fn shr(self, rhs: Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>) -> Self::Output {
+        self.clone().then(rhs).into_dynamic()
+    }
 }
 
 impl<R, V, Root, Value, MutRoot, MutValue, G, S> fmt::Debug
@@ -2142,6 +2222,36 @@ mod tests {
         let composed = ok_kp_base.then(inner_kp);
 
         assert_eq!((composed.get)(&result), Some(&"nested".to_string()));
+    }
+
+    #[test]
+    fn test_shr_operator_chains_keypaths() {
+        use std::ops::Shr;
+
+        #[derive(Debug)]
+        struct Inner {
+            x: i32,
+        }
+        #[derive(Debug)]
+        struct Outer {
+            inner: Inner,
+        }
+
+        let inner_x = KpType::new(|i: &Inner| Some(&i.x), |i: &mut Inner| Some(&mut i.x));
+        let outer_inner =
+            KpType::new(|o: &Outer| Some(&o.inner), |o: &mut Outer| Some(&mut o.inner));
+        let via_shr: KpDynamic<Outer, i32> = outer_inner >> inner_x;
+
+        let inner_x2 = KpType::new(|i: &Inner| Some(&i.x), |i: &mut Inner| Some(&mut i.x));
+        let outer_inner2 =
+            KpType::new(|o: &Outer| Some(&o.inner), |o: &mut Outer| Some(&mut o.inner));
+        let via_then = outer_inner2.then(inner_x2);
+
+        let root = Outer {
+            inner: Inner { x: 7 },
+        };
+        assert_eq!(via_then.get(&root), Some(&7));
+        assert_eq!(via_shr.get(&root), Some(&7));
     }
 
     #[test]
