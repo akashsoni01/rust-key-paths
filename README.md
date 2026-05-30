@@ -9,7 +9,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "3.1.1"
+rust-key-paths = "3.2.0-beta.1"
 key-paths-derive = "3.0.2"
 # Optional: trait-only contracts (pulled in by rust-key-paths 3.1+)
 # key-paths-core = "2.0"
@@ -20,8 +20,17 @@ key-paths-derive = "3.0.2"
 | Crate | Version | Notes |
 |-------|---------|--------|
 | [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.1** | `#![no_std]` traits; docs for generic `Readable` / `Writable` APIs |
-| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.1.1** | `Kp`, locks, HOF; re-exports core traits |
+| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.2.0-beta.1** | `Kp`, `>>` chaining (`nightly` feature), locks, HOF |
 | [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.0.2** | `#[derive(Kp)]` — no `key-paths-core` dependency; see compatibility README |
+
+#### 3.2.0-beta.1 (pre-release)
+
+- **`>>` operator** — chain reference-shaped keypaths (`outer >> inner`); same concrete [`Kp`](https://docs.rs/rust-key-paths/latest/rust_key_paths/struct.Kp.html) output as [`.then()`](https://docs.rs/rust-key-paths/latest/rust_key_paths/struct.Kp.html#method.then). Enable `features = ["nightly"]` and build with a **nightly** toolchain.
+- On stable, use `.then()` (unchanged).
+
+```toml
+rust-key-paths = { version = "3.2.0-beta.1", features = ["nightly"] }
+```
 
 #### 3.1.1 / 2.0.1 / 3.0.2 (documentation)
 
