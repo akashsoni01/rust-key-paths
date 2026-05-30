@@ -35,6 +35,8 @@ rust-key-paths = { path = "." }
 
 [features]
 default = []
+# `>>` keypath chaining via [`std::ops::Shr`] with concrete [`Kp`] output (nightly toolchain).
+nightly = []
 parking_lot = ["dep:parking_lot"]
 pin_project = ["dep:pin-project"]
 tagged_core = ["tagged-core/default"]

@@ -7,4 +7,5 @@ pub use crate::Readable;
 pub use crate::KpTrait;
 pub use crate::KpType;
 pub use crate::Writable;
+#[cfg(feature = "nightly")]
 pub use std::ops::Shr;

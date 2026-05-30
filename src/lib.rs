@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "nightly", feature(impl_trait_in_assoc_type))]
+
 // pub type KpType<R, V, Root, Value, MutRoot, MutValue, G, S>
 // where
 //     Root: ,
@@ -1118,11 +1120,12 @@ where
     }
 }
 
-/// Chain keypaths with `>>` (compose like [`Kp::then`], result stored as [`KpDynamic`]).
+#[cfg(feature = "nightly")]
+/// Chain keypaths with `>>` (same as [`Kp::then`], returns the same concrete [`Kp`] type).
 ///
-/// Bring [`Shr`] into scope (`use std::ops::Shr` or `rust_key_paths::prelude::*`).
+/// Enable `features = ["nightly"]` and use a nightly toolchain.
 ///
-/// ```
+/// ```ignore
 /// use rust_key_paths::{KpType, Shr};
 ///
 /// struct Inner { x: i32 }
@@ -1135,67 +1138,110 @@ where
 /// let root = Outer { inner: Inner { x: 42 } };
 /// assert_eq!(chained.get(&root), Some(&42));
 /// ```
-impl<R, V, SV, G, S, G2, S2>
-    Shr<Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
-    for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
-where
-    R: 'static,
-    V: 'static,
-    SV: 'static,
-    G: for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync + 'static,
-    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync + 'static,
-    G2: for<'b> Fn(&'b V) -> Option<&'b SV> + Send + Sync + 'static,
-    S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV> + Send + Sync + 'static,
-{
-    type Output = KpDynamic<R, SV>;
+mod kp_shr {
+    use super::{Kp, Shr};
 
-    #[inline]
-    fn shr(self, rhs: Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>) -> Self::Output {
-        self.then(rhs).into_dynamic()
+    impl<R, V, SV, G, S, G2, S2>
+        Shr<Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
+        for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
+    where
+        R: 'static,
+        V: 'static,
+        SV: 'static,
+        G: for<'b> Fn(&'b R) -> Option<&'b V>,
+        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+        G2: for<'b> Fn(&'b V) -> Option<&'b SV>,
+        S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV>,
+    {
+        type Output = Kp<
+            R,
+            SV,
+            &'static R,
+            &'static SV,
+            &'static mut R,
+            &'static mut SV,
+            impl for<'b> Fn(&'b R) -> Option<&'b SV>,
+            impl for<'b> Fn(&'b mut R) -> Option<&'b mut SV>,
+        >;
+
+        #[inline]
+        fn shr(
+            self,
+            rhs: Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>,
+        ) -> Self::Output {
+            self.then(rhs)
+        }
+    }
+
+    impl<R, V, SV, G, S, G2, S2>
+        Shr<&Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
+        for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
+    where
+        R: 'static,
+        V: 'static,
+        SV: 'static,
+        G: for<'b> Fn(&'b R) -> Option<&'b V>,
+        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+        G2: for<'b> Fn(&'b V) -> Option<&'b SV>,
+        S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV>,
+        Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>: Clone,
+    {
+        type Output = Kp<
+            R,
+            SV,
+            &'static R,
+            &'static SV,
+            &'static mut R,
+            &'static mut SV,
+            impl for<'b> Fn(&'b R) -> Option<&'b SV>,
+            impl for<'b> Fn(&'b mut R) -> Option<&'b mut SV>,
+        >;
+
+        #[inline]
+        fn shr(
+            self,
+            rhs: &Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>,
+        ) -> Self::Output {
+            self.then(rhs.clone())
+        }
+    }
+
+    impl<R, V, SV, G, S, G2, S2>
+        Shr<Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
+        for &Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
+    where
+        R: 'static,
+        V: 'static,
+        SV: 'static,
+        G: for<'b> Fn(&'b R) -> Option<&'b V>,
+        S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+        G2: for<'b> Fn(&'b V) -> Option<&'b SV>,
+        S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV>,
+        Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>: Clone,
+    {
+        type Output = Kp<
+            R,
+            SV,
+            &'static R,
+            &'static SV,
+            &'static mut R,
+            &'static mut SV,
+            impl for<'b> Fn(&'b R) -> Option<&'b SV>,
+            impl for<'b> Fn(&'b mut R) -> Option<&'b mut SV>,
+        >;
+
+        #[inline]
+        fn shr(
+            self,
+            rhs: Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>,
+        ) -> Self::Output {
+            self.clone().then(rhs)
+        }
     }
 }
 
-impl<R, V, SV, G, S, G2, S2>
-    Shr<&Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
-    for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
-where
-    R: 'static,
-    V: 'static,
-    SV: 'static,
-    G: for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync + 'static,
-    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync + 'static,
-    G2: for<'b> Fn(&'b V) -> Option<&'b SV> + Send + Sync + 'static,
-    S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV> + Send + Sync + 'static,
-    Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>: Clone,
-{
-    type Output = KpDynamic<R, SV>;
-
-    #[inline]
-    fn shr(self, rhs: &Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>) -> Self::Output {
-        self.then(rhs.clone()).into_dynamic()
-    }
-}
-
-impl<R, V, SV, G, S, G2, S2>
-    Shr<Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>>
-    for &Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
-where
-    R: 'static,
-    V: 'static,
-    SV: 'static,
-    G: for<'b> Fn(&'b R) -> Option<&'b V> + Send + Sync + 'static,
-    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V> + Send + Sync + 'static,
-    G2: for<'b> Fn(&'b V) -> Option<&'b SV> + Send + Sync + 'static,
-    S2: for<'b> Fn(&'b mut V) -> Option<&'b mut SV> + Send + Sync + 'static,
-    Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>: Clone,
-{
-    type Output = KpDynamic<R, SV>;
-
-    #[inline]
-    fn shr(self, rhs: Kp<V, SV, &'static V, &'static SV, &'static mut V, &'static mut SV, G2, S2>) -> Self::Output {
-        self.clone().then(rhs).into_dynamic()
-    }
-}
+#[cfg(feature = "nightly")]
+pub use kp_shr::*;
 
 impl<R, V, Root, Value, MutRoot, MutValue, G, S> fmt::Debug
     for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
@@ -2224,6 +2270,7 @@ mod tests {
         assert_eq!((composed.get)(&result), Some(&"nested".to_string()));
     }
 
+    #[cfg(feature = "nightly")]
     #[test]
     fn test_shr_operator_chains_keypaths() {
         use std::ops::Shr;
@@ -2240,7 +2287,7 @@ mod tests {
         let inner_x = KpType::new(|i: &Inner| Some(&i.x), |i: &mut Inner| Some(&mut i.x));
         let outer_inner =
             KpType::new(|o: &Outer| Some(&o.inner), |o: &mut Outer| Some(&mut o.inner));
-        let via_shr: KpDynamic<Outer, i32> = outer_inner >> inner_x;
+        let via_shr = outer_inner >> inner_x;
 
         let inner_x2 = KpType::new(|i: &Inner| Some(&i.x), |i: &mut Inner| Some(&mut i.x));
         let outer_inner2 =
