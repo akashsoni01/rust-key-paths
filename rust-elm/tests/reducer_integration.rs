@@ -1,12 +1,14 @@
 use rust_elm::{
     reducer::coerce_fn, reducers, Cmd, CombineReducers, Reduce, Reducer, ReducerProgram, Runtime,
-    Sub, Environment,
+    panic_on_state_clone, Sub, Environment,
 };
 
-#[derive(Default, Clone, Debug, PartialEq, Eq)]
-struct App {
-    count: i32,
-    doubled: i32,
+panic_on_state_clone! {
+    #[derive(Default, Debug, PartialEq, Eq)]
+    struct App {
+        count: i32,
+        doubled: i32,
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

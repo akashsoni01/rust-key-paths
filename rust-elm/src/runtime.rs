@@ -641,10 +641,13 @@ fn collect_sub_ids<M>(sub: &Sub<M>, out: &mut HashSet<u64>) {
 mod tests {
     use super::*;
     use crate::effect::Effect;
+    use crate::panic_on_state_clone;
 
-    #[derive(Default, Clone)]
-    struct Counter {
-        n: i32,
+    panic_on_state_clone! {
+        #[derive(Default)]
+        struct Counter {
+            n: i32,
+        }
     }
 
     fn init() -> (Counter, Cmd<i32>) {

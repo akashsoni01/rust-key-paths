@@ -161,10 +161,14 @@ fn tokio_test_block_on<M: Send + 'static>(
 mod tests {
     use super::*;
     use crate::effect::Effect;
+    use crate::panic_on_state_clone;
+    use crate::test_support::allow_state_clones;
 
-    #[derive(Debug, Clone, PartialEq, Eq, Default)]
-    struct Counter {
-        n: i32,
+    panic_on_state_clone! {
+        #[derive(Debug, PartialEq, Eq, Default)]
+        struct Counter {
+            n: i32,
+        }
     }
 
     fn update(s: &mut Counter, msg: i32) -> Cmd<i32> {
@@ -190,8 +194,10 @@ mod tests {
     #[test]
     fn send_with_validates_expected_state() {
         let mut store = ExhaustiveTestStore::new(Counter::default(), update);
-        store.send_with(5, |s| {
-            s.n = 5;
+        allow_state_clones(1, || {
+            store.send_with(5, |s| {
+                s.n = 5;
+            });
         });
         store.finish();
     }

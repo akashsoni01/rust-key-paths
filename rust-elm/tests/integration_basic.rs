@@ -1,8 +1,10 @@
-use rust_elm::{Cmd, Effect, Program, ReplayHarness, Runtime, Sub, TestRuntime, Environment};
+use rust_elm::{Cmd, Effect, Program, ReplayHarness, Runtime, Sub, TestRuntime, Environment, panic_on_state_clone};
 
-#[derive(Default, Clone, PartialEq, Eq, Debug)]
-struct AppState {
-    count: i32,
+panic_on_state_clone! {
+    #[derive(Default, PartialEq, Eq, Debug)]
+    struct AppState {
+        count: i32,
+    }
 }
 
 fn init() -> (AppState, Cmd<i32>) {

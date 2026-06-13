@@ -77,7 +77,8 @@ pub use test_runtime::TestRuntime;
 pub use test_store::{ExhaustiveTestStore, TestStoreError};
 pub use test_support::{
     allow_state_clones, on_state_clone, replay_snapshot, scoped_child_state, scoped_subscribe_state,
-    scoped_subscriber_next, shared_get, store_state, subscribe_state, subscriber_wait_next,
+    scoped_subscriber_next, shared_get, shared_with_mut, store_state, subscribe_state,
+    subscriber_wait_next,
 };
 
 pub use rust_key_paths;

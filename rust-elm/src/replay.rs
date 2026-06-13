@@ -119,10 +119,14 @@ impl<S, M: Clone> ReplayHarness<S, M> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::panic_on_state_clone;
+    use crate::test_support::allow_state_clones;
 
-    #[derive(Default, Clone)]
-    struct S {
-        n: i32,
+    panic_on_state_clone! {
+        #[derive(Default)]
+        struct S {
+            n: i32,
+        }
     }
 
     fn update(s: &mut S, msg: i32) -> Cmd<i32> {
@@ -143,7 +147,7 @@ mod tests {
     fn snapshot_restore_rewinds_state() {
         let mut harness = ReplayHarness::new(S::default(), update);
         harness.send(5);
-        let snap = harness.snapshot();
+        let snap = allow_state_clones(1, || harness.snapshot());
         harness.send(7);
         assert_eq!(harness.state.n, 12);
         harness.restore(snap);

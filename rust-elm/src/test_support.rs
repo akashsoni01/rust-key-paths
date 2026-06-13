@@ -117,6 +117,14 @@ where
     allow_state_clones(1, || harness.snapshot())
 }
 
+/// [`Shared::with_mut`] clones feature state once to detect changes.
+pub fn shared_with_mut<T, R>(shared: &crate::Shared<T>, f: impl FnOnce(&mut T) -> R) -> R
+where
+    T: Clone + PartialEq,
+{
+    allow_state_clones(1, || shared.with_mut(f))
+}
+
 /// [`Shared::get`] clones feature state once.
 pub fn shared_get<S>(shared: &crate::Shared<S>) -> S
 where

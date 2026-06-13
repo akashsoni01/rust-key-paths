@@ -115,11 +115,15 @@ where
 mod tests {
     use super::*;
     use crate::effect::Effect;
+    use crate::panic_on_state_clone;
+    use crate::test_support::allow_state_clones;
 
-    #[derive(Default, Clone, Debug, PartialEq, Eq)]
-    struct App {
-        a: i32,
-        b: i32,
+    panic_on_state_clone! {
+        #[derive(Default, Debug, PartialEq, Eq)]
+        struct App {
+            a: i32,
+            b: i32,
+        }
     }
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -209,7 +213,7 @@ mod tests {
 
         let caught = CatchReducer::new(coerce_fn(panicking), recover);
         let mut app = App::default();
-        let cmd = caught.reduce(&mut app, Action::Tick);
+        let cmd = allow_state_clones(1, || caught.reduce(&mut app, Action::Tick));
         assert_eq!(app.a, 0);
         assert!(cmd.is_none());
     }

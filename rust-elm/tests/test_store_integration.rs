@@ -1,10 +1,14 @@
 use std::time::Duration;
 
-use rust_elm::{Cmd, Effect, ExhaustiveTestStore, TestStoreError};
+use rust_elm::{
+    allow_state_clones, Cmd, Effect, ExhaustiveTestStore, panic_on_state_clone, TestStoreError,
+};
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-struct Counter {
-    n: i32,
+panic_on_state_clone! {
+    #[derive(Debug, PartialEq, Eq, Default)]
+    struct Counter {
+        n: i32,
+    }
 }
 
 fn update(s: &mut Counter, msg: i32) -> Cmd<i32> {
@@ -29,8 +33,10 @@ fn test_store_effect_chain() {
 #[test]
 fn test_store_send_with_and_receive_timeout() {
     let mut store = ExhaustiveTestStore::new(Counter::default(), update);
-    store.send_with(7, |s| {
-        s.n = 7;
+    allow_state_clones(1, || {
+        store.send_with(7, |s| {
+            s.n = 7;
+        });
     });
     store.finish();
 

@@ -1,11 +1,13 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
 
-use rust_elm::{Cmd, Effect, Environment, Program, Runtime, RunSender};
+use rust_elm::{Cmd, Effect, Environment, panic_on_state_clone, Program, Runtime, RunSender};
 
-#[derive(Default, Clone)]
-struct Counter {
-    n: i32,
+panic_on_state_clone! {
+    #[derive(Default)]
+    struct Counter {
+        n: i32,
+    }
 }
 
 fn init() -> (Counter, Cmd<i32>) {

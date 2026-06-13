@@ -263,11 +263,15 @@ impl<T: Clone + PartialEq> SharedSubscriber<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::panic_on_state_clone;
+    use crate::test_support::{allow_state_clones, shared_get};
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    struct Counter {
-        n: i32,
+    panic_on_state_clone! {
+        #[derive(Debug, PartialEq, Eq)]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+        struct Counter {
+            n: i32,
+        }
     }
 
     #[test]
@@ -275,15 +279,16 @@ mod tests {
         let shared = Shared::new(Counter { n: 0 });
         let scoped = shared.clone();
         shared.set(Counter { n: 3 });
-        assert_eq!(scoped.get().n, 3);
+        assert_eq!(shared_get(&scoped).n, 3);
     }
 
     #[test]
     fn subscribe_notifies_on_change() {
         let shared = Shared::new(Counter { n: 0 });
-        let mut sub = shared.subscribe();
+        let mut sub = allow_state_clones(1, || shared.subscribe());
         shared.set(Counter { n: 1 });
-        assert_eq!(sub.next().map(|c| c.n), Some(1));
+        let next = allow_state_clones(2, || sub.next());
+        assert_eq!(next.map(|c| c.n), Some(1));
         assert!(sub.next().is_none());
     }
 
@@ -291,9 +296,10 @@ mod tests {
     fn in_memory_storage_round_trip() {
         let storage = InMemoryStorage::new();
         let shared = Shared::new(Counter { n: 7 });
-        shared.persist(&storage, "counter").unwrap();
-        let loaded = Shared::load(&storage, "counter", Counter { n: 0 }).unwrap();
-        assert_eq!(loaded.get().n, 7);
+        allow_state_clones(2, || shared.persist(&storage, "counter")).unwrap();
+        let loaded =
+            allow_state_clones(1, || Shared::load(&storage, "counter", Counter { n: 0 })).unwrap();
+        assert_eq!(shared_get(&loaded).n, 7);
     }
 
     #[cfg(feature = "serde")]
@@ -303,9 +309,10 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let storage = FileStorage::new(&dir);
         let shared = Shared::new(Counter { n: 42 });
-        shared.persist(&storage, "counter").unwrap();
-        let loaded = Shared::load(&storage, "counter", Counter { n: 0 }).unwrap();
-        assert_eq!(loaded.get().n, 42);
+        allow_state_clones(2, || shared.persist(&storage, "counter")).unwrap();
+        let loaded =
+            allow_state_clones(1, || Shared::load(&storage, "counter", Counter { n: 0 })).unwrap();
+        assert_eq!(shared_get(&loaded).n, 42);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
