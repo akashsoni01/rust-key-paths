@@ -27,6 +27,7 @@ pub mod store;
 pub mod sub;
 pub mod test_runtime;
 pub mod test_store;
+pub mod test_support;
 
 /// Re-export keypath types for state/action focusing (see `optics`).
 pub mod keypath {
@@ -74,6 +75,10 @@ pub use store::{
 pub use sub::Sub;
 pub use test_runtime::TestRuntime;
 pub use test_store::{ExhaustiveTestStore, TestStoreError};
+pub use test_support::{
+    allow_state_clones, on_state_clone, replay_snapshot, scoped_child_state, scoped_subscribe_state,
+    scoped_subscriber_next, shared_get, store_state, subscribe_state, subscriber_wait_next,
+};
 
 pub use rust_key_paths;
 pub use key_paths_core;

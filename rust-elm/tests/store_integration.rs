@@ -1,14 +1,18 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
 
-use rust_elm::{Cmd, Effect, Environment, Program, Runtime, Sub};
+use rust_elm::{
+    scoped_child_state, scoped_subscribe_state, scoped_subscriber_next, store_state,
+    subscribe_state, subscriber_wait_next, Cmd, Effect, Environment, Program, Runtime, Sub,
+};
 use key_paths_derive::{Cp, Kp};
+use rust_elm::panic_on_state_clone;
 use rust_key_paths::Kp as KpPath;
 
-#[derive(Default, Clone, PartialEq, Eq, Debug, Kp)]
-struct App {
-    count: i32,
+panic_on_state_clone! {
+    #[derive(Default, PartialEq, Eq, Debug, Kp)]
+    struct App {
+        count: i32,
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Kp, Cp)]
@@ -79,7 +83,7 @@ fn store_send_finishes_after_effects() {
     let store = runtime.store();
     let task = store.send(Action::Inc);
     assert!(task.finish().is_ok());
-    assert_eq!(store.state().count, 10);
+    assert_eq!(store_state(&store).count, 10);
     runtime.shutdown();
 }
 
@@ -87,14 +91,14 @@ fn store_send_finishes_after_effects() {
 fn store_subscribe_state_dedupes() {
     let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
     let store = runtime.store();
-    let mut sub = store.subscribe_state();
+    let mut sub = subscribe_state(&store);
     store.dispatch(Action::Inc);
     std::thread::sleep(Duration::from_millis(150));
-    let first = sub.wait_next(Duration::from_secs(1)).expect("first snapshot");
+    let first = subscriber_wait_next(&mut sub, Duration::from_secs(1)).expect("first snapshot");
     assert_eq!(first.count, 1);
     store.dispatch(Action::Inc);
     std::thread::sleep(Duration::from_millis(150));
-    let second = sub.wait_next(Duration::from_secs(1)).expect("second snapshot");
+    let second = subscriber_wait_next(&mut sub, Duration::from_secs(1)).expect("second snapshot");
     assert_eq!(second.count, 2);
     runtime.shutdown();
 }
@@ -106,7 +110,7 @@ fn scoped_store_routes_child_actions() {
     let child = store.scope(count_kp(), child_action_kp());
     child.dispatch(ChildAction::Bump);
     std::thread::sleep(Duration::from_millis(100));
-    assert_eq!(child.child_state(), Some(10));
+    assert_eq!(scoped_child_state(&child), Some(10));
     runtime.shutdown();
 }
 
@@ -117,17 +121,15 @@ fn scoped_store_routes_child_actions() {
 /// past returned values, or leak shared handles after the scoped store is dropped.
 #[test]
 fn scoped_store_keypath_does_not_retain_extra_state() {
-    static PARENT_CLONES: AtomicUsize = AtomicUsize::new(0);
-
     #[derive(Debug)]
     struct ChildPanel {
         count: i32,
-        probe: Arc<AtomicUsize>,
+        probe: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     }
 
     impl PartialEq for ChildPanel {
         fn eq(&self, other: &Self) -> bool {
-            self.count == other.count && Arc::ptr_eq(&self.probe, &other.probe)
+            self.count == other.count && std::sync::Arc::ptr_eq(&self.probe, &other.probe)
         }
     }
 
@@ -135,22 +137,15 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         fn clone(&self) -> Self {
             Self {
                 count: self.count,
-                probe: Arc::clone(&self.probe),
+                probe: std::sync::Arc::clone(&self.probe),
             }
         }
     }
 
-    #[derive(PartialEq, Debug)]
-    struct PanelApp {
-        child: ChildPanel,
-    }
-
-    impl Clone for PanelApp {
-        fn clone(&self) -> Self {
-            PARENT_CLONES.fetch_add(1, Ordering::SeqCst);
-            Self {
-                child: self.child.clone(),
-            }
+    panic_on_state_clone! {
+        #[derive(PartialEq, Debug)]
+        struct PanelApp {
+            child: ChildPanel,
         }
     }
 
@@ -169,7 +164,7 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
     }
 
     fn panel_init() -> (PanelApp, Cmd<PanelParentAction>) {
-        let probe = Arc::new(AtomicUsize::new(0));
+        let probe = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         (
             PanelApp {
                 child: ChildPanel { count: 0, probe },
@@ -201,8 +196,6 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         KpPath::new(get, get_mut)
     }
 
-    PARENT_CLONES.store(0, Ordering::SeqCst);
-
     let runtime = Runtime::from_program(
         Program::new(panel_init, panel_update, panel_subs),
         Environment::new(),
@@ -210,21 +203,19 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
     );
     let store = runtime.store();
 
-    let probe = store.state().child.probe;
-    assert_eq!(Arc::strong_count(&probe), 2, "store + local probe handle");
-    assert_eq!(PARENT_CLONES.load(Ordering::SeqCst), 1, "store.state clones parent once");
+    let probe = store_state(&store).child.probe;
+    assert_eq!(
+        std::sync::Arc::strong_count(&probe),
+        2,
+        "store + local probe handle"
+    );
 
     {
         let scoped = store.scope(child_panel_kp(), panel_action_kp());
         let scoped_clone = scoped.clone();
 
         assert_eq!(
-            PARENT_CLONES.load(Ordering::SeqCst),
-            1,
-            "creating/cloning scoped store must not clone parent state"
-        );
-        assert_eq!(
-            Arc::strong_count(&probe),
+            std::sync::Arc::strong_count(&probe),
             2,
             "scoped store must not retain child payload"
         );
@@ -233,31 +224,26 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         std::thread::sleep(Duration::from_millis(100));
 
         {
-            let child = scoped.child_state().expect("child present");
+            let child = scoped_child_state(&scoped).expect("child present");
             assert_eq!(child.count, 1);
             assert_eq!(
-                Arc::strong_count(&probe),
+                std::sync::Arc::strong_count(&probe),
                 3,
                 "child_state returns an owned child snapshot"
             );
-            assert_eq!(
-                PARENT_CLONES.load(Ordering::SeqCst),
-                2,
-                "child_state clones parent exactly once per call"
-            );
         }
         assert_eq!(
-            Arc::strong_count(&probe),
+            std::sync::Arc::strong_count(&probe),
             2,
             "dropping owned child snapshot releases shared probe"
         );
 
         {
-            let mut sub = scoped.subscribe_state();
+            let mut sub = scoped_subscribe_state(&scoped);
             store.dispatch(PanelParentAction::Panel(PanelAction::Bump));
             let deadline = std::time::Instant::now() + Duration::from_secs(1);
             let child = loop {
-                if let Some(child) = sub.next() {
+                if let Some(child) = scoped_subscriber_next(&mut sub) {
                     break child;
                 }
                 if std::time::Instant::now() >= deadline {
@@ -267,17 +253,13 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
             };
             assert_eq!(child.count, 2);
             assert_eq!(
-                Arc::strong_count(&probe),
+                std::sync::Arc::strong_count(&probe),
                 4,
                 "store + local handle + subscriber snapshot + returned child"
             );
-            assert!(
-                PARENT_CLONES.load(Ordering::SeqCst) >= 3,
-                "parent subscription clones for snapshots; keypath only projects them"
-            );
         }
         assert_eq!(
-            Arc::strong_count(&probe),
+            std::sync::Arc::strong_count(&probe),
             2,
             "dropping subscribed child and subscriber releases extra probe handles"
         );
@@ -285,23 +267,17 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         drop(scoped_clone);
         drop(scoped);
         assert_eq!(
-            Arc::strong_count(&probe),
+            std::sync::Arc::strong_count(&probe),
             2,
             "dropping scoped stores must not retain child payload"
         );
     }
 
-    let parent_clones_after_scope = PARENT_CLONES.load(Ordering::SeqCst);
     drop(store);
     runtime.shutdown();
     assert_eq!(
-        Arc::strong_count(&probe),
+        std::sync::Arc::strong_count(&probe),
         1,
         "runtime shutdown drops store-held child payload"
-    );
-    assert_eq!(
-        PARENT_CLONES.load(Ordering::SeqCst),
-        parent_clones_after_scope,
-        "dropping scoped stores must not leave extra parent clones"
     );
 }
