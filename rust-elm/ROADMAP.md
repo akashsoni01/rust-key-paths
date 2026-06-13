@@ -16,9 +16,11 @@ Evolution toward [TCA](https://github.com/pointfreeco/swift-composable-architect
 - Effect cancel (partial 6.1): `Effect::cancel(id)` interpreted in `Runtime`
 - Effects parity (phase 6): `debounce`, `throttle`, `from_run`/`RunSender`, `cancellable_with`, `result_task`, `task_try`
 - Dependencies (phase 7): `DependencyValues`, `DependencyKey`, `Environment::live`/`test`, built-in Clock/Uuid/Now/Rng, `Effect::provide_dependency`
+- Store (phase 8): `Store`, `StoreTask`, `ScopedStore`, `StateSubscriber`, `Runtime::store()`, ping-based state subscription, in-flight work tracking for `send().finish()`
+- Test store (phase 9): `ExhaustiveTestStore`, `send_with`, `receive`/`receive_timeout`, `finish`, `with_exhaustivity(false)`
 
 ## Next
 
-- Phase 8–11: store, test store, shared state, polish
+- Phase 10–11: shared state, polish
 
 See [`todo.md`](../todo.md) for the full checklist.

@@ -36,7 +36,8 @@ fn subscriptions(_: &State) -> Sub<i32> {
 fn main() {
     let program = Program::new(init, update, subscriptions);
     let runtime = Runtime::from_program(program, Environment::new(), 64);
-    runtime.dispatch(1);
+    let store = runtime.store();
+    store.dispatch(1);
     runtime.shutdown();
 }
 
@@ -53,6 +54,8 @@ fn main() {
 | `effect` | Pure async effect descriptions (`debounce`, `throttle`, `from_run`, `cancel`) |
 | `sub` | Subscription descriptions |
 | `runtime` | Bus-driven update loop + interpreter |
+| `store` | `Store`, `StoreTask`, `ScopedStore`, state subscription |
+| `test_store` | `ExhaustiveTestStore` for synchronous effect/action testing |
 | `dependencies` | `DependencyValues`, `DependencyKey`, Clock/Uuid/Now/Rng deps |
 | `env` | `Environment` (`live`/`test`), `FakeClock`, `MockHttp` |
 | `optics` | State/action focusing via `rust-key-paths` |

@@ -144,22 +144,22 @@ Upgrade `env.rs` into a typed dependency container.
 
 ## 8. Store / Runtime ergonomics (TCA `Store.swift`, `Core.swift`)
 
-- [ ] **8.1** `Store` — cloneable dispatch handle wrapping `bus_sender`.
-- [ ] **8.2** `Store::subscribe_state()` → stream of `Arc<State>` snapshots, deduped via `PartialEq`.
-- [ ] **8.3** `Store::scope(state_kp, action_kp)` → child `Store` (uses §2).
-- [ ] **8.4** `StoreTask` — awaitable handle for in-flight effects (`send().finish()`).
-- [ ] **8.5** Re-entrancy guard/docs: `update` never dispatches synchronously into itself.
-- [ ] Tests: scoped store routes actions; state stream dedups.
+- [x] **8.1** `Store` — cloneable dispatch handle wrapping `bus_sender`.
+- [x] **8.2** `Store::subscribe_state()` → stream of `Arc<State>` snapshots, deduped via `PartialEq`.
+- [x] **8.3** `Store::scope(state_kp, action_kp)` → child `Store` (uses §2).
+- [x] **8.4** `StoreTask` — awaitable handle for in-flight effects (`send().finish()`).
+- [x] **8.5** Re-entrancy guard/docs: `update` never dispatches synchronously into itself.
+- [x] Tests: scoped store routes actions; state stream dedups.
 
 ## 9. Test store (TCA `TestStore.swift`)
 
-- [ ] **9.1** `src/test_store.rs`: `ExhaustiveTestStore` — assert state after each `send`;
+- [x] **9.1** `src/test_store.rs`: `ExhaustiveTestStore` — assert state after each `send`;
       require every effect-produced action to be consumed.
-- [ ] **9.2** `send(action, |state| {…})` — expected-state mutation closure with diff on mismatch.
-- [ ] **9.3** `receive(action)` — await an effect-produced action (with timeout).
-- [ ] **9.4** `finish()` — assert no in-flight effects remain.
-- [ ] **9.5** Non-exhaustive mode toggle (TCA `exhaustivity = .off`).
-- [ ] Tests: clear diffs on failure; long-running effect detection.
+- [x] **9.2** `send(action, |state| {…})` — expected-state mutation closure with diff on mismatch.
+- [x] **9.3** `receive(action)` — await an effect-produced action (with timeout).
+- [x] **9.4** `finish()` — assert no in-flight effects remain.
+- [x] **9.5** Non-exhaustive mode toggle (TCA `exhaustivity = .off`).
+- [x] Tests: clear diffs on failure; long-running effect detection.
 
 ## 10. Shared state (TCA `Sharing/*` — state engine only)
 

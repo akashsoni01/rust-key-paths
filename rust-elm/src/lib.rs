@@ -24,8 +24,10 @@ pub mod reducer;
 pub mod replay;
 pub mod runtime;
 pub mod scope;
+pub mod store;
 pub mod sub;
 pub mod test_runtime;
+pub mod test_store;
 
 /// Re-export keypath types for state/action focusing (see `optics`).
 pub mod keypath {
@@ -56,8 +58,10 @@ pub use scope::{
     lift_cmd, lift_cmd_with_id, ForEachReducer, IfCaseLetReducer, IfLetReducer, OptionalReducer,
     ScopeReducer,
 };
+pub use store::{ScopedStore, StateSubscriber, Store, StoreTask, StoreTaskError};
 pub use sub::Sub;
 pub use test_runtime::TestRuntime;
+pub use test_store::{ExhaustiveTestStore, TestStoreError};
 
 pub use rust_key_paths;
 pub use key_paths_core;
