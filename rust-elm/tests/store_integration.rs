@@ -56,7 +56,7 @@ fn subs(_: &App) -> Sub<Action> {
 }
 
 fn child_action_kp() -> rust_key_paths::EnumKpType<'static, Action, ChildAction> {
-    rust_elm::action_enum(
+    rust_elm::variant_of(
         |a: &Action| Action::child().get_ref(a),
         |a: &mut Action| Action::child().get_mut_ref(a),
         Action::Child,
@@ -169,7 +169,7 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
     }
 
     fn panel_action_kp() -> rust_key_paths::EnumKpType<'static, PanelParentAction, PanelAction> {
-        rust_elm::action_enum(
+        rust_elm::variant_of(
             |a: &PanelParentAction| PanelParentAction::panel().get_ref(a),
             |a: &mut PanelParentAction| PanelParentAction::panel().get_mut_ref(a),
             PanelParentAction::Panel,

@@ -1,67 +1,29 @@
-use key_paths_core::{Readable, Writable};
-pub use rust_key_paths::{EnumKp, EnumKpType, Kp, KpType};
+//! State/action focusing for scoped reducers and stores.
+//!
+//! This module is a thin layer over the `rust_key_paths` prior art:
+//!
+//! - **Keypath (lens)** — [`Kp`] / [`KpType`] focus a struct field of parent state.
+//! - **Casepath (prism)** — [`EnumKp`] / [`EnumKpType`] extract *and* embed an enum
+//!   action variant. Build them with [`variant_of`] / [`enum_variant`] (or the
+//!   `Option`/`Result` shortcuts [`enum_some`], [`enum_ok`], [`enum_err`]), or pair a
+//!   `#[derive(Kp)]` variant accessor with its constructor via [`Kp::with_embed`].
 
-/// Lens focusing `Part` within parent state `Whole`.
+use key_paths_core::{Readable, Writable};
+
+pub use rust_key_paths::{
+    enum_err, enum_ok, enum_some, enum_variant, variant_of, EnumKp, EnumKpType, Kp, KpType,
+};
+
+/// Lens focusing `Part` within parent state `Whole` (keypath).
 pub type StateKey<'a, Whole, Part> = KpType<'a, Whole, Part>;
 
-/// Extract-only action variant accessor (reference-shaped).
-pub type ActionCase<'a, Whole, Part> = KpType<'a, Whole, Part>;
+/// Prism focusing child action `Part` within parent action enum `Whole` (casepath).
+pub type ActionCase<'a, Whole, Part> = EnumKpType<'a, Whole, Part>;
 
-/// Extract + embed action variant accessor.
+/// Alias of [`ActionCase`]: extract + embed action variant accessor (casepath).
 pub type ActionEnum<'a, Whole, Part> = EnumKpType<'a, Whole, Part>;
 
-/// Extract and embed child actions through a parent enum variant.
-pub trait ActionEnumCase<PA, CA> {
-    fn extract_ref<'a>(&self, action: &'a PA) -> Option<&'a CA>;
-    fn embed_child(&self, child: CA) -> PA;
-    fn embed_fn(&self) -> fn(CA) -> PA;
-}
-
-impl<PA: 'static, CA: 'static> ActionEnumCase<PA, CA> for EnumKpType<'static, PA, CA> {
-    fn extract_ref<'a>(&self, action: &'a PA) -> Option<&'a CA> {
-        self.get(action)
-    }
-
-    fn embed_child(&self, child: CA) -> PA {
-        self.embed(child)
-    }
-
-    fn embed_fn(&self) -> fn(CA) -> PA {
-        EnumKp::embed_fn(self)
-    }
-}
-
-/// Build a copyable action keypath from fn-pointer extractors and a variant constructor.
-///
-/// Prefer wiring extractors from `#[derive(Kp)]` variant accessors:
-///
-/// ```ignore
-/// fn get_child(a: &Action) -> Option<&ChildAction> { Action::child().get_ref(a) }
-/// fn get_child_mut(a: &mut Action) -> Option<&mut ChildAction> { Action::child().get_mut_ref(a) }
-/// let action_kp = action_enum(get_child, get_child_mut, Action::Child);
-/// ```
-///
-/// Or pair directly at the call site without storing:
-///
-/// ```ignore
-/// Action::child().with_embed(Action::Child)
-/// ```
-pub fn action_enum<PA: 'static, CA: 'static>(
-    get: for<'b> fn(&'b PA) -> Option<&'b CA>,
-    set: for<'b> fn(&'b mut PA) -> Option<&'b mut CA>,
-    embed: fn(CA) -> PA,
-) -> EnumKpType<'static, PA, CA> {
-    EnumKp::new(Kp::new(get, set), embed)
-}
-
-/// Embed a child action into a parent enum variant via [`ActionEnumCase`].
-pub fn wrap_action<PA, CA, K>(action_kp: &K, child: CA) -> PA
-where
-    K: ActionEnumCase<PA, CA>,
-{
-    action_kp.embed_child(child)
-}
-
+/// Read a focused `Part` from `Whole` through any keypath (lens).
 pub fn extract<'a, Whole, Part, K>(kp: &K, whole: &'a Whole) -> Option<&'a Part>
 where
     K: Readable<&'a Whole, &'a Part>,
@@ -69,7 +31,7 @@ where
     kp.get(whole)
 }
 
-/// Extract mutably — used by scoped reducers to focus child actions.
+/// Mutably focus a `Part` within `Whole` through any keypath (lens).
 pub fn extract_mut<'a, Whole, Part, K>(kp: &K, whole: &'a mut Whole) -> Option<&'a mut Part>
 where
     K: Writable<&'a mut Whole, &'a mut Part>,
@@ -77,12 +39,20 @@ where
     Writable::set(kp, whole)
 }
 
-/// Extract a child action variant from a parent action enum.
-pub fn extract_action<'a, PA, CA, K>(action_kp: &K, action: &'a PA) -> Option<&'a CA>
-where
-    K: ActionEnumCase<PA, CA>,
-{
-    action_kp.extract_ref(action)
+/// Extract a child action variant from a parent action enum through a casepath.
+pub fn extract_action<'a, PA: 'static, CA: 'static>(
+    action_kp: &EnumKpType<'static, PA, CA>,
+    action: &'a PA,
+) -> Option<&'a CA> {
+    action_kp.get_ref(action)
+}
+
+/// Embed a child action into its parent enum variant through a casepath.
+pub fn wrap_action<PA: 'static, CA: 'static>(
+    action_kp: &EnumKpType<'static, PA, CA>,
+    child: CA,
+) -> PA {
+    action_kp.embed(child)
 }
 
 #[cfg(test)]
@@ -122,7 +92,7 @@ mod tests {
     }
 
     fn counter_action_kp() -> EnumKpType<'static, AppAction, CounterAction> {
-        action_enum(get_counter, get_counter_mut, AppAction::Counter)
+        variant_of(get_counter, get_counter_mut, AppAction::Counter)
     }
 
     #[test]

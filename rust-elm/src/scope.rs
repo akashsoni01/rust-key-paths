@@ -1,6 +1,6 @@
 use crate::cmd::Cmd;
 use crate::effect::{run_registered_env_task, run_registered_task, Effect, EffectId};
-use crate::optics::{action_enum, EnumKpType, KpType};
+use crate::optics::{EnumKpType, KpType};
 use rust_identified_vec::{Identifiable, IdentifiedVec};
 use crate::reducer::Reducer;
 
@@ -382,6 +382,7 @@ fn tag_cancel_id<M>(effect: Effect<M>, cancel_id: EffectId) -> Effect<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::optics::variant_of;
     use crate::effect::Effect;
     use key_paths_derive::Kp;
     use rust_identified_vec::IdentifiedVec;
@@ -424,7 +425,7 @@ mod tests {
     }
 
     fn child_action_kp() -> rust_key_paths::EnumKpType<'static, ParentAction, ChildAction> {
-        action_enum(
+        variant_of(
             |a: &ParentAction| ParentAction::child().get_ref(a),
             |a: &mut ParentAction| ParentAction::child().get_mut_ref(a),
             ParentAction::Child,

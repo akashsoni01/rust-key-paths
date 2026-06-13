@@ -1,6 +1,6 @@
 use key_paths_derive::Kp;
 use rust_elm::{
-    action_enum, reducer::Reduce, Identifiable, IdentifiedVec, ScopeReducer, IfLetReducer, Cmd,
+    variant_of, reducer::Reduce, Identifiable, IdentifiedVec, ScopeReducer, IfLetReducer, Cmd,
     Reducer, Effect,
 };
 use rust_key_paths::Kp as KpPath;
@@ -64,7 +64,7 @@ fn scope_child_state_isolated_from_sibling_field() {
             |p: &Parent| p.child.as_ref(),
             |p: &mut Parent| p.child.as_mut(),
         ),
-        action_enum(
+        variant_of(
             |a: &PA| PA::child().get_ref(a),
             |a: &mut PA| PA::child().get_mut_ref(a),
             PA::Child,
@@ -114,7 +114,7 @@ fn if_let_dismiss_returns_cancel_effect() {
             |p: &Parent| p.child.as_ref(),
             |p: &mut Parent| p.child.as_mut(),
         ),
-        action_enum(
+        variant_of(
             |a: &PA| PA::child().get_ref(a),
             |a: &mut PA| PA::child().get_mut_ref(a),
             PA::Child,

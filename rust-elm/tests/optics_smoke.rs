@@ -50,7 +50,7 @@ fn nested_option_panel_smoke() {
 #[test]
 fn enum_action_prism_extract_and_wrap() {
     let action = DashAction::Panel(PanelAction::Select(3));
-    let action_kp = rust_elm::action_enum(
+    let action_kp = rust_elm::variant_of(
         |a: &DashAction| DashAction::panel().get_ref(a),
         |a: &mut DashAction| DashAction::panel().get_mut_ref(a),
         DashAction::Panel,
