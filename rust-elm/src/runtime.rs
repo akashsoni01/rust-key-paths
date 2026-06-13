@@ -20,7 +20,7 @@ use crate::error::EffectError;
 use crate::interp::flatten_effects;
 use crate::program::{Program, ReducerProgram};
 use crate::reducer::Reducer;
-use crate::store::StoreBackend;
+use crate::store::{catch_reduce_panic, StoreBackend, StoreWorkUnwindGuard};
 use crate::sub::Sub;
 
 pub(crate) struct InterpreterState<M> {
@@ -140,10 +140,19 @@ where
             while !shutdown_for_thread.load(Ordering::Relaxed) {
                 match receiver.recv_timeout(Duration::from_millis(50)) {
                     Ok(msg) => {
+                        let mut unwind = StoreWorkUnwindGuard::new(&backend_for_thread);
                         let cmd = {
                             let mut guard = state_for_thread.lock();
-                            update(&mut guard, msg)
+                            match catch_reduce_panic(&mut *guard, |s, a| update(s, a), msg) {
+                                Ok(cmd) => cmd,
+                                Err(_) => {
+                                    drop(guard);
+                                    backend_for_thread.notify_state();
+                                    continue;
+                                }
+                            }
                         };
+                        unwind.disarm();
                         backend_for_thread.notify_state();
                         let handles = rt.block_on(interpret_effects_async(
                             cmd.into_effects(),
@@ -633,7 +642,7 @@ mod tests {
     use super::*;
     use crate::effect::Effect;
 
-    #[derive(Default)]
+    #[derive(Default, Clone)]
     struct Counter {
         n: i32,
     }
@@ -677,6 +686,30 @@ mod tests {
         runtime.dispatch(0);
         std::thread::sleep(Duration::from_millis(200));
         assert_eq!(runtime.state.lock().n, 10);
+        runtime.shutdown();
+    }
+
+    #[test]
+    fn runtime_catches_reduce_panic_and_unwinds_store_work() {
+        fn panicking_update(s: &mut Counter, msg: i32) -> Cmd<i32> {
+            s.n = 99;
+            if msg < 0 {
+                panic!("reduce panic");
+            }
+            s.n = msg;
+            Cmd::none()
+        }
+
+        let program = Program::new(init, panicking_update, subs);
+        let runtime = Runtime::from_program(program, Environment::new(), 16);
+        let store = runtime.store();
+        let task = store.send(-1);
+        assert!(task.finish().is_ok());
+        assert_eq!(runtime.state.lock().n, 99);
+
+        runtime.dispatch(4);
+        std::thread::sleep(Duration::from_millis(200));
+        assert_eq!(runtime.state.lock().n, 4);
         runtime.shutdown();
     }
 }

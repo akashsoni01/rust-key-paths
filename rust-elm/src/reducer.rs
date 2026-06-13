@@ -1,4 +1,5 @@
 use crate::cmd::Cmd;
+use crate::store::{catch_reduce, ReducePanic};
 
 /// Composable update logic (TCA `Reducer` parity).
 pub trait Reducer {
@@ -80,12 +81,42 @@ impl_combine_reducers!(R1, R2, R3);
 impl_combine_reducers!(R1, R2, R3, R4);
 impl_combine_reducers!(R1, R2, R3, R4, R5);
 
+/// Wraps a reducer with panic recovery — state is rolled back on panic (TCA `catch` parity).
+#[derive(Clone, Debug)]
+pub struct CatchReducer<R, F> {
+    inner: R,
+    recover: F,
+}
+
+impl<R, F> CatchReducer<R, F> {
+    pub fn new(inner: R, recover: F) -> Self {
+        Self { inner, recover }
+    }
+}
+
+impl<R, F, S, A> Reducer for CatchReducer<R, F>
+where
+    R: Reducer<State = S, Action = A>,
+    S: Clone,
+    F: Fn(ReducePanic) -> Cmd<A>,
+{
+    type State = S;
+    type Action = A;
+
+    fn reduce(&self, state: &mut S, action: A) -> Cmd<A> {
+        match catch_reduce(state, |s, a| self.inner.reduce(s, a), action) {
+            Ok(cmd) => cmd,
+            Err(panic) => (self.recover)(panic),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::effect::Effect;
 
-    #[derive(Default, Debug, PartialEq, Eq)]
+    #[derive(Default, Clone, Debug, PartialEq, Eq)]
     struct App {
         a: i32,
         b: i32,
@@ -163,5 +194,23 @@ mod tests {
         combined.reduce(&mut app, Action::Tick);
         assert_eq!(app.a, 1);
         assert_eq!(app.b, 10);
+    }
+
+    #[test]
+    fn catch_reducer_recovers_from_panic_and_unwinds_state() {
+        fn panicking(s: &mut App, _: Action) -> Cmd<Action> {
+            s.a = 99;
+            panic!("boom");
+        }
+
+        fn recover(_: ReducePanic) -> Cmd<Action> {
+            Cmd::none()
+        }
+
+        let caught = CatchReducer::new(coerce_fn(panicking), recover);
+        let mut app = App::default();
+        let cmd = caught.reduce(&mut app, Action::Tick);
+        assert_eq!(app.a, 0);
+        assert!(cmd.is_none());
     }
 }

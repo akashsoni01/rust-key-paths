@@ -3,7 +3,7 @@ use rust_elm::{
     Sub, Environment,
 };
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 struct App {
     count: i32,
     doubled: i32,

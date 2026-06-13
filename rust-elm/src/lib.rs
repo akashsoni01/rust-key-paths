@@ -55,7 +55,7 @@ pub use optics::{
     Kp, KpType, StateKey, StateKp, StateLens,
 };
 pub use program::{Program, ReducerProgram};
-pub use reducer::{coerce_fn, CombineReducers, Reduce, Reducer};
+pub use reducer::{coerce_fn, CatchReducer, CombineReducers, Reduce, Reducer};
 pub use replay::{ReplayHarness, ReplayLog};
 #[cfg(feature = "serde")]
 pub use replay::StateSnapshot;
@@ -67,7 +67,10 @@ pub use scope::{
 pub use shared::{InMemoryStorage, Shared, SharedSubscriber, Storage, StorageError};
 #[cfg(feature = "serde")]
 pub use shared::FileStorage;
-pub use store::{ScopedStore, StateSubscriber, Store, StoreTask, StoreTaskError};
+pub use store::{
+    catch_reduce, catch_reduce_panic, ReducePanic, ScopedStore, StateSubscriber, Store, StoreTask,
+    StoreTaskError,
+};
 pub use sub::Sub;
 pub use test_runtime::TestRuntime;
 pub use test_store::{ExhaustiveTestStore, TestStoreError};

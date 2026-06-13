@@ -1,5 +1,7 @@
+use std::any::Any;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,9 +10,99 @@ use crossbeam_channel::{Receiver, Sender};
 use parking_lot::Mutex;
 
 use crate::bus::BusSender;
+use crate::cmd::Cmd;
 use crate::effect::EffectId;
 use crate::optics::{Casepath, StateLens};
 use crate::runtime::InterpreterState;
+
+/// A reducer panic caught by [`catch_reduce`] or [`CatchReducer`](crate::reducer::CatchReducer).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReducePanic {
+    message: Option<String>,
+}
+
+impl ReducePanic {
+    pub fn message(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
+
+    fn from_payload(payload: Box<dyn Any + Send>) -> Self {
+        let message = payload
+            .downcast_ref::<&str>()
+            .map(|s| (*s).to_string())
+            .or_else(|| payload.downcast_ref::<String>().cloned());
+        Self { message }
+    }
+}
+
+/// Run `reduce` inside [`catch_unwind`]. Does not roll back `state` — use [`catch_reduce`] for that.
+pub fn catch_reduce_panic<S, M, F>(state: &mut S, reduce: F, action: M) -> Result<Cmd<M>, ReducePanic>
+where
+    F: FnOnce(&mut S, M) -> Cmd<M>,
+{
+    match catch_unwind(AssertUnwindSafe(|| reduce(state, action))) {
+        Ok(cmd) => Ok(cmd),
+        Err(payload) => Err(ReducePanic::from_payload(payload)),
+    }
+}
+
+/// Run `reduce` inside [`catch_unwind`], restoring `state` from a snapshot on panic.
+pub fn catch_reduce<S, M, F>(state: &mut S, reduce: F, action: M) -> Result<Cmd<M>, ReducePanic>
+where
+    S: Clone,
+    F: FnOnce(&mut S, M) -> Cmd<M>,
+{
+    let snapshot = state.clone();
+    match catch_unwind(AssertUnwindSafe(|| reduce(state, action))) {
+        Ok(cmd) => Ok(cmd),
+        Err(payload) => {
+            *state = snapshot;
+            Err(ReducePanic::from_payload(payload))
+        }
+    }
+}
+
+/// Calls [`StoreBackend::end_store_work`] on drop unless [`Self::disarm`]d.
+///
+/// Mirrors stack-unwind / `finally` semantics so [`StoreTask`] waiters are not left
+/// hanging when a dispatch aborts (e.g. reducer panic).
+pub(crate) struct StoreWorkUnwindGuard<'a, S, M>
+where
+    S: Send + 'static,
+    M: Send + 'static,
+{
+    backend: &'a StoreBackend<S, M>,
+    active: bool,
+}
+
+impl<'a, S, M> StoreWorkUnwindGuard<'a, S, M>
+where
+    S: Send + 'static,
+    M: Send + 'static,
+{
+    pub(crate) fn new(backend: &'a StoreBackend<S, M>) -> Self {
+        Self {
+            backend,
+            active: true,
+        }
+    }
+
+    pub(crate) fn disarm(&mut self) {
+        self.active = false;
+    }
+}
+
+impl<S, M> Drop for StoreWorkUnwindGuard<'_, S, M>
+where
+    S: Send + 'static,
+    M: Send + 'static,
+{
+    fn drop(&mut self) {
+        if self.active {
+            self.backend.end_store_work();
+        }
+    }
+}
 
 /// Cloneable dispatch handle for a running [`Runtime`](crate::Runtime).
 ///

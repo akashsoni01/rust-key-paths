@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use rust_elm::{Cmd, Effect, Environment, Program, Runtime, RunSender};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct Counter {
     n: i32,
 }
