@@ -98,23 +98,23 @@ Make logic a composable value, not just a fn pointer.
 
 All built on §2 `Kp` + §3 `Reducer`.
 
-- [ ] **4.1** `Scope` — focus child `State` (state Kp) + child `Action` (action Kp),
+- [x] **4.1** `Scope` — focus child `State` (state Kp) + child `Action` (action Kp),
       run child reducer, re-embed child `Cmd` into parent action space.
-- [ ] **4.2** `ifLet` — run child reducer when an optional child state is `Some`;
+- [x] **4.2** `ifLet` — run child reducer when an optional child state is `Some`;
       cancel the child's in-flight effects when it becomes `None`.
-- [ ] **4.3** `ifCaseLet` — `ifLet` for enum-variant child state.
-- [ ] **4.4** `forEach` — run a child reducer per element of `IdentifiedVec` (§5);
+- [x] **4.3** `ifCaseLet` — `ifLet` for enum-variant child state.
+- [x] **4.4** `forEach` — run a child reducer per element of `IdentifiedVec` (§5);
       scope effects per id; cancel on element removal.
-- [ ] **4.5** `optional` combinator.
-- [ ] Tests: state isolation, child-effect auto-cancel on removal (TCA parity).
+- [x] **4.5** `optional` combinator.
+- [x] Tests: state isolation, child-effect auto-cancel on removal (TCA parity).
 
 ## 5. Identified collections (TCA `IdentifiedArray`)
 
-- [ ] **5.1** `src/identified.rs`: `IdentifiedVec<Id, T>` — ordered, `O(1)` id lookup,
+- [x] **5.1** `src/identified.rs`: `IdentifiedVec<Id, T>` — ordered, `O(1)` id lookup,
       stable order; insert/remove/get/reorder.
-- [ ] **5.2** `Identifiable` trait (`fn id(&self) -> Id`).
-- [ ] **5.3** `serde` round-trip behind the `serde` feature.
-- [ ] Tests: ordering + id stability + remove-by-id.
+- [x] **5.2** `Identifiable` trait (`fn id(&self) -> Id`).
+- [x] **5.3** `serde` round-trip behind the `serde` feature.
+- [x] Tests: ordering + id stability + remove-by-id.
 
 ## 6. Effect parity (TCA `Effects/*`)
 

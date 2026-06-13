@@ -17,10 +17,12 @@ pub mod error;
 pub mod interp;
 pub mod macros;
 pub mod optics;
+pub mod identified;
 pub mod program;
 pub mod reducer;
 pub mod replay;
 pub mod runtime;
+pub mod scope;
 pub mod sub;
 pub mod test_runtime;
 
@@ -38,11 +40,16 @@ pub use effect::{Effect, EffectId, EnvTaskFn, TaskFn};
 pub use env::{defer_batch, Environment, FakeClock, MockHttp};
 pub use error::EffectError;
 pub use interp::{flatten_effects, normalize, InterpretCtx};
+pub use identified::{Identifiable, IdentifiedVec};
 pub use optics::{extract, extract_mut, wrap_action, ActionCase, KpType, StateKey};
 pub use program::{Program, ReducerProgram};
 pub use reducer::{coerce_fn, CombineReducers, Reduce, Reducer};
 pub use replay::{ReplayHarness, ReplayLog};
 pub use runtime::Runtime;
+pub use scope::{
+    lift_cmd, lift_cmd_with_id, ForEachReducer, IfCaseLetReducer, IfLetReducer, OptionalReducer,
+    ScopeReducer,
+};
 pub use sub::Sub;
 pub use test_runtime::TestRuntime;
 

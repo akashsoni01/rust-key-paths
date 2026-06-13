@@ -216,6 +216,11 @@ fn spawn_effect<M>(
 {
     match effect {
         Effect::None => {}
+        Effect::Cancel { id } => {
+            if let Some(old) = cancel_tokens.lock().remove(&id) {
+                old.abort();
+            }
+        }
         Effect::Task { id, run } => {
             let tx = tx.clone();
             let join = handle.spawn(async move {

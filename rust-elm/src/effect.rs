@@ -139,6 +139,7 @@ pub enum Effect<M> {
         inner: Box<Effect<M>>,
         recover: fn(EffectError) -> Effect<M>,
     },
+    Cancel { id: EffectId },
 }
 
 impl<M> Clone for Effect<M> {
@@ -172,6 +173,7 @@ impl<M> Clone for Effect<M> {
                 inner: inner.clone(),
                 recover: *recover,
             },
+            Self::Cancel { id } => Self::Cancel { id: *id },
         }
     }
 }
@@ -280,6 +282,7 @@ impl<M> Effect<M> {
             Self::Sequence(items) => Effect::Sequence(items.into_iter().map(|e| e.map(f)).collect()),
             Self::Race(items) => Effect::Race(items.into_iter().map(|e| e.map(f)).collect()),
             Self::Catch { inner, recover: _ } => inner.map(f),
+            Self::Cancel { id } => Effect::Cancel { id },
         }
     }
 
@@ -288,6 +291,10 @@ impl<M> Effect<M> {
             id,
             inner: Box::new(inner),
         }
+    }
+
+    pub fn cancel(id: EffectId) -> Self {
+        Self::Cancel { id }
     }
 
     pub fn provide(env: Environment, inner: Effect<M>) -> Self {
@@ -354,6 +361,7 @@ impl<M> std::fmt::Debug for Effect<M> {
             Self::Sequence(n) => write!(f, "Effect::Sequence({})", n.len()),
             Self::Race(n) => write!(f, "Effect::Race({})", n.len()),
             Self::Catch { .. } => write!(f, "Effect::Catch"),
+            Self::Cancel { id } => write!(f, "Effect::Cancel({id})"),
         }
     }
 }
@@ -370,6 +378,9 @@ where
         Effect::RegisteredTask { id } => run_registered_task(id),
         Effect::EnvTask { run, .. } => run(env),
         Effect::RegisteredEnvTask { id } => run_registered_env_task(env, id),
+        Effect::Cancel { .. } => Box::pin(async move {
+            Err(EffectError::Cancelled)
+        }),
         other => Box::pin(async move {
             Err(EffectError::Other(format!("non-leaf effect: {other:?}")))
         }),

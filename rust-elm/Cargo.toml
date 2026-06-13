@@ -19,6 +19,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 key-paths-derive = { path = "../key-paths-derive" }
+serde_json = "1"
 tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros", "time", "test-util"] }
 
 [features]
