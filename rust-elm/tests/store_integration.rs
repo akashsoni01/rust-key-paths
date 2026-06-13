@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rust_elm::{Cmd, Effect, Environment, Program, Runtime, Sub};
-use key_paths_derive::Kp;
+use key_paths_derive::{Cp, Kp};
 use rust_key_paths::Kp as KpPath;
 
 #[derive(Default, Clone, PartialEq, Eq, Debug, Kp)]
@@ -11,7 +11,7 @@ struct App {
     count: i32,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Kp)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Kp, Cp)]
 enum Action {
     Inc,
     Child(ChildAction),
@@ -56,11 +56,7 @@ fn subs(_: &App) -> Sub<Action> {
 }
 
 fn child_action_kp() -> rust_key_paths::EnumKpType<'static, Action, ChildAction> {
-    rust_elm::variant_of(
-        |a: &Action| Action::child().get_ref(a),
-        |a: &mut Action| Action::child().get_mut_ref(a),
-        Action::Child,
-    )
+    Action::child_cp()
 }
 
 fn count_kp() -> rust_key_paths::KpType<'static, App, i32> {
@@ -163,17 +159,13 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         Bump,
     }
 
-    #[derive(Clone, Copy, PartialEq, Eq, Debug, Kp)]
+    #[derive(Clone, Copy, PartialEq, Eq, Debug, Kp, Cp)]
     enum PanelParentAction {
         Panel(PanelAction),
     }
 
     fn panel_action_kp() -> rust_key_paths::EnumKpType<'static, PanelParentAction, PanelAction> {
-        rust_elm::variant_of(
-            |a: &PanelParentAction| PanelParentAction::panel().get_ref(a),
-            |a: &mut PanelParentAction| PanelParentAction::panel().get_mut_ref(a),
-            PanelParentAction::Panel,
-        )
+        PanelParentAction::panel_cp()
     }
 
     fn panel_init() -> (PanelApp, Cmd<PanelParentAction>) {

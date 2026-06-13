@@ -1,6 +1,6 @@
-use key_paths_derive::Kp;
+use key_paths_derive::{Cp, Kp};
 use rust_elm::{
-    variant_of, reducer::Reduce, Identifiable, IdentifiedVec, ScopeReducer, IfLetReducer, Cmd,
+    reducer::Reduce, Identifiable, IdentifiedVec, ScopeReducer, IfLetReducer, Cmd,
     Reducer, Effect,
 };
 use rust_key_paths::Kp as KpPath;
@@ -43,7 +43,7 @@ fn scope_child_state_isolated_from_sibling_field() {
         other: i32,
     }
 
-    #[derive(Clone, Copy, Kp)]
+    #[derive(Clone, Copy, Kp, Cp)]
     enum PA {
         Child(CA),
         TouchOther,
@@ -64,11 +64,7 @@ fn scope_child_state_isolated_from_sibling_field() {
             |p: &Parent| p.child.as_ref(),
             |p: &mut Parent| p.child.as_mut(),
         ),
-        variant_of(
-            |a: &PA| PA::child().get_ref(a),
-            |a: &mut PA| PA::child().get_mut_ref(a),
-            PA::Child,
-        ),
+        PA::child_cp(),
         1,
         Reduce::new(child_r),
     );
@@ -94,7 +90,7 @@ fn if_let_dismiss_returns_cancel_effect() {
         child: Option<Child>,
     }
 
-    #[derive(Clone, Copy, Kp)]
+    #[derive(Clone, Copy, Kp, Cp)]
     enum PA {
         Child(CA),
         Dismiss,
@@ -114,11 +110,7 @@ fn if_let_dismiss_returns_cancel_effect() {
             |p: &Parent| p.child.as_ref(),
             |p: &mut Parent| p.child.as_mut(),
         ),
-        variant_of(
-            |a: &PA| PA::child().get_ref(a),
-            |a: &mut PA| PA::child().get_mut_ref(a),
-            PA::Child,
-        ),
+        PA::child_cp(),
         |a| matches!(a, PA::Dismiss),
         |p| {
             p.child = None;

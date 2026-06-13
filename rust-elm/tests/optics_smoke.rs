@@ -1,4 +1,4 @@
-use key_paths_derive::Kp;
+use key_paths_derive::{Cp, Kp};
 use rust_elm::optics::{extract_action, wrap_action};
 
 #[derive(Debug, Kp, Clone, PartialEq)]
@@ -17,7 +17,7 @@ struct Item {
     value: i32,
 }
 
-#[derive(Debug, Kp, Clone, PartialEq)]
+#[derive(Debug, Kp, Cp, Clone, PartialEq)]
 enum DashAction {
     Panel(PanelAction),
     Refresh,
@@ -50,11 +50,7 @@ fn nested_option_panel_smoke() {
 #[test]
 fn enum_action_prism_extract_and_wrap() {
     let action = DashAction::Panel(PanelAction::Select(3));
-    let action_kp = rust_elm::variant_of(
-        |a: &DashAction| DashAction::panel().get_ref(a),
-        |a: &mut DashAction| DashAction::panel().get_mut_ref(a),
-        DashAction::Panel,
-    );
+    let action_kp = DashAction::panel_cp();
     let inner = extract_action(&action_kp, &action).expect("variant");
     assert!(matches!(inner, PanelAction::Select(3)));
 

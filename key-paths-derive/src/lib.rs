@@ -6801,3 +6801,105 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
+
+/// Derive macro that generates **casepath** (prism) accessors for enum variants.
+///
+/// Unlike [`Kp`], which produces extract-only keypaths (`variant()`), `Cp` produces
+/// a full [`rust_key_paths::EnumKpType`] per variant via `variant_cp()` — combining
+/// extraction *and* embedding (the variant constructor). This lets consumers such as
+/// `rust-elm` wire scoped reducers/stores directly:
+///
+/// ```ignore
+/// use key_paths_derive::Cp;
+///
+/// #[derive(Cp)]
+/// enum Action {
+///     Child(ChildAction),
+///     Tick,
+/// }
+///
+/// // Ready-to-use casepath — no `variant_of(..)` boilerplate:
+/// let kp = Action::child_cp(); // EnumKpType<'static, Action, ChildAction>
+/// let embedded = kp.embed(ChildAction::Inc);
+/// let extracted = kp.get_ref(&embedded);
+/// ```
+///
+/// Generated per variant:
+/// - **Unit** `Tick` → `tick_cp() -> EnumKpType<'static, Self, ()>`.
+/// - **Single-field tuple** `Child(T)` → `child_cp() -> EnumKpType<'static, Self, T>`.
+/// - **Multi-field / named-field** variants are skipped (no single-argument constructor).
+///
+/// Method names use a `_cp` suffix so `#[derive(Kp, Cp)]` can coexist on the same enum.
+#[proc_macro_derive(Cp)]
+pub fn derive_casepaths(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+
+    let data_enum = match &input.data {
+        Data::Enum(data_enum) => data_enum,
+        _ => {
+            return syn::Error::new(name.span(), "Cp derive only supports enums")
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    let mut methods = proc_macro2::TokenStream::new();
+
+    for variant in data_enum.variants.iter() {
+        let v_ident = &variant.ident;
+        let cp_fn = format_ident!("{}_cp", to_snake_case(&v_ident.to_string()));
+
+        match &variant.fields {
+            Fields::Unit => {
+                methods.extend(quote! {
+                    /// Casepath (prism) for this unit variant: extract `()` / embed the variant.
+                    #[inline(always)]
+                    pub fn #cp_fn() -> rust_key_paths::EnumKpType<'static, #name, ()> {
+                        rust_key_paths::variant_of(
+                            |root: &#name| match root {
+                                #name::#v_ident => {
+                                    static UNIT: () = ();
+                                    Some(&UNIT)
+                                }
+                                _ => None,
+                            },
+                            |_root: &mut #name| None,
+                            |_value: ()| #name::#v_ident,
+                        )
+                    }
+                });
+            }
+            Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
+                let field_ty = &unnamed.unnamed[0].ty;
+                methods.extend(quote! {
+                    /// Casepath (prism) for this variant: extract + embed the payload.
+                    #[inline(always)]
+                    pub fn #cp_fn() -> rust_key_paths::EnumKpType<'static, #name, #field_ty> {
+                        rust_key_paths::variant_of(
+                            |root: &#name| match root {
+                                #name::#v_ident(inner) => Some(inner),
+                                _ => None,
+                            },
+                            |root: &mut #name| match root {
+                                #name::#v_ident(inner) => Some(inner),
+                                _ => None,
+                            },
+                            #name::#v_ident,
+                        )
+                    }
+                });
+            }
+            // Multi-field tuple and named-field variants have no single-arg constructor.
+            _ => {}
+        }
+    }
+
+    let expanded = quote! {
+        impl #name {
+            #methods
+        }
+    };
+
+    TokenStream::from(expanded)
+}

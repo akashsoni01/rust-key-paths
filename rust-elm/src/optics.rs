@@ -4,7 +4,17 @@
 //!
 //! - **Keypath (lens)** — [`Kp`] / [`KpType`] focus a struct field of parent state.
 //! - **Casepath (prism)** — [`EnumKp`] / [`EnumKpType`] extract *and* embed an enum
-//!   action variant. Build them with [`variant_of`] / [`enum_variant`] (or the
+//!   action variant. The zero-boilerplate path is `#[derive(Cp)]` from
+//!   `key_paths_derive`, which emits a `variant_cp()` accessor per variant returning a
+//!   ready-to-use [`EnumKpType`]:
+//!
+//!   ```ignore
+//!   #[derive(key_paths_derive::Cp)]
+//!   enum Action { Child(ChildAction), Tick }
+//!   let kp = Action::child_cp(); // EnumKpType<'static, Action, ChildAction>
+//!   ```
+//!
+//!   You can also build them manually with [`variant_of`] / [`enum_variant`] (or the
 //!   `Option`/`Result` shortcuts [`enum_some`], [`enum_ok`], [`enum_err`]), or pair a
 //!   `#[derive(Kp)]` variant accessor with its constructor via [`Kp::with_embed`].
 

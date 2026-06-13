@@ -382,9 +382,8 @@ fn tag_cancel_id<M>(effect: Effect<M>, cancel_id: EffectId) -> Effect<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optics::variant_of;
     use crate::effect::Effect;
-    use key_paths_derive::Kp;
+    use key_paths_derive::{Cp, Kp};
     use rust_identified_vec::IdentifiedVec;
     use crate::reducer::Reduce;
 
@@ -398,7 +397,7 @@ mod tests {
         child: Option<Child>,
     }
 
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Kp)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Kp, Cp)]
     enum ParentAction {
         Child(ChildAction),
         Dismiss,
@@ -425,11 +424,7 @@ mod tests {
     }
 
     fn child_action_kp() -> rust_key_paths::EnumKpType<'static, ParentAction, ChildAction> {
-        variant_of(
-            |a: &ParentAction| ParentAction::child().get_ref(a),
-            |a: &mut ParentAction| ParentAction::child().get_mut_ref(a),
-            ParentAction::Child,
-        )
+        ParentAction::child_cp()
     }
 
     fn dismiss(a: ParentAction) -> bool {
