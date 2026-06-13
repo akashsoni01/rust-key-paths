@@ -86,13 +86,13 @@ read with `.get()`, write with `.get_mut()`.
 
 Make logic a composable value, not just a fn pointer.
 
-- [ ] **3.1** `src/reducer.rs`: `trait Reducer { type State; type Action; fn reduce(&self, &mut State, Action) -> Cmd<Action>; }`.
-- [ ] **3.2** Blanket impl for `fn(&mut S, A) -> Cmd<A>` so existing `update` fns are reducers.
-- [ ] **3.3** `Reduce` — wraps a closure for inline reducers.
-- [ ] **3.4** `CombineReducers` — run reducers in order, merge their `Cmd`s (`Cmd::batch`).
-- [ ] **3.5** `reducers![a, b, c]` decl macro → `CombineReducers` (decl macro, not proc — allowed).
-- [ ] **3.6** `Runtime`/`Program` accept any `R: Reducer` (keep fn-pointer path working).
-- [ ] Tests: combine ordering, blanket impl, cmd merge.
+- [x] **3.1** `src/reducer.rs`: `trait Reducer { type State; type Action; fn reduce(&self, &mut State, Action) -> Cmd<Action>; }`.
+- [x] **3.2** Blanket impl for `fn(&mut S, A) -> Cmd<A>` so existing `update` fns are reducers.
+- [x] **3.3** `Reduce` — wraps a closure for inline reducers.
+- [x] **3.4** `CombineReducers` — run reducers in order, merge their `Cmd`s (`Cmd::batch`).
+- [x] **3.5** `reducers![a, b, c]` decl macro → `CombineReducers` (decl macro, not proc — allowed).
+- [x] **3.6** `Runtime`/`Program` accept any `R: Reducer` (keep fn-pointer path working).
+- [x] Tests: combine ordering, blanket impl, cmd merge.
 
 ## 4. Scope & composition operators (TCA `Scope`, `ifLet`, `ifCaseLet`, `forEach`)
 

@@ -39,6 +39,10 @@ fn main() {
     runtime.dispatch(1);
     runtime.shutdown();
 }
+
+// Or with composable reducers:
+// let program = ReducerProgram::new(reducers![update_a, update_b], init, subscriptions);
+// let runtime = Runtime::from_reducer_program(program, Environment::new(), 64);
 ```
 
 ## Modules
@@ -51,6 +55,7 @@ fn main() {
 | `runtime` | Bus-driven update loop + interpreter |
 | `optics` | State/action focusing via `rust-key-paths` |
 | `test_runtime` | Sync testing without Tokio |
+| `reducer` | `Reducer` trait, `CombineReducers`, `reducers!` |
 | `replay` | Action log + replay harness |
 
 ## Key paths prelude

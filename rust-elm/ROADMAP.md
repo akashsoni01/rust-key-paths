@@ -10,10 +10,10 @@ Evolution toward [TCA](https://github.com/pointfreeco/swift-composable-architect
 - Testing: `TestRuntime`, `ReplayHarness`, `assert_effect!`
 - Macros: `total_update!`, `arbitrary_msg!`
 - Key paths (phase 2): `optics` module + `keypath` prelude, `wrap_action`/`extract`, smoke tests
+- Reducers (phase 3): `Reducer` trait, `Reduce`, `CombineReducers`, `reducers!`, `ReducerProgram`, `Runtime::from_reducer_program`
 
 ## Next
 
-- Phase 3: `Reducer` trait, `CombineReducers`, `reducers!` macro
 - Phase 5: `IdentifiedVec`
 - Phase 4: `Scope`, `ifLet`, `ifCaseLet`, `forEach`
 - Phase 6–11: effects parity, dependencies, store, test store, shared state, polish

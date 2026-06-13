@@ -16,7 +16,8 @@ use crate::effect::{run_leaf, run_registered_env_task, run_registered_task, Effe
 use crate::env::Environment;
 use crate::error::EffectError;
 use crate::interp::flatten_effects;
-use crate::program::Program;
+use crate::program::{Program, ReducerProgram};
+use crate::reducer::Reducer;
 use crate::sub::Sub;
 
 /// Live runtime — bus-driven update loop on a pinned thread with Tokio effect interpreter.
@@ -36,7 +37,44 @@ where
     M: Send + 'static,
 {
     pub fn from_program(program: Program<S, M>, env: Environment, bus_capacity: usize) -> Self {
-        let (initial_state, init_cmd) = (program.init)();
+        let update = program.update;
+        Self::bootstrap(
+            program.init,
+            move |state, msg| update(state, msg),
+            program.subscriptions,
+            env,
+            bus_capacity,
+        )
+    }
+
+    pub fn from_reducer_program<R>(
+        program: ReducerProgram<R>,
+        env: Environment,
+        bus_capacity: usize,
+    ) -> Self
+    where
+        R: Reducer<State = S, Action = M> + Send + Sync + 'static,
+    {
+        let reducer = Arc::new(program.reducer);
+        let init = program.init;
+        let subscriptions = program.subscriptions;
+        Self::bootstrap(
+            init,
+            move |state, msg| reducer.reduce(state, msg),
+            subscriptions,
+            env,
+            bus_capacity,
+        )
+    }
+
+    fn bootstrap(
+        init: fn() -> (S, Cmd<M>),
+        update: impl Fn(&mut S, M) -> Cmd<M> + Send + Sync + 'static,
+        subscriptions: fn(&S) -> Sub<M>,
+        env: Environment,
+        bus_capacity: usize,
+    ) -> Self {
+        let (initial_state, init_cmd) = init();
         let state = Arc::new(Mutex::new(initial_state));
         let bus = Bus::new(bus_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
@@ -56,8 +94,7 @@ where
         );
 
         let receiver = bus.receiver().clone();
-        let update_fn = program.update;
-        let subs_fn = program.subscriptions;
+        let subs_fn = subscriptions;
         let state_for_thread = state.clone();
         let env_for_thread = env.clone();
         let shutdown_for_thread = shutdown.clone();
@@ -72,7 +109,7 @@ where
                     Ok(msg) => {
                         let cmd = {
                             let mut guard = state_for_thread.lock();
-                            update_fn(&mut guard, msg)
+                            update(&mut guard, msg)
                         };
                         rt.block_on(interpret_effects_async(
                             cmd.into_effects(),

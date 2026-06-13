@@ -30,3 +30,13 @@ macro_rules! arbitrary_msg {
         }
     };
 }
+
+/// Build a [`CombineReducers`] tuple from reducer fn pointers.
+#[macro_export]
+macro_rules! reducers {
+    ($($r:expr),+ $(,)?) => {
+        $crate::reducer::CombineReducers((
+            $( $crate::reducer::coerce_fn($r) ),+
+        ))
+    };
+}
