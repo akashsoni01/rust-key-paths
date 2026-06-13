@@ -52,7 +52,7 @@ fn run_registry() -> &'static Mutex<HashMap<EffectId, ErasedRun>> {
     RUN_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Emitter passed to [`Effect::from_run`] closures (TCA `.run { send in … }`).
+/// Emitter passed to [`Effect::from_run`] closures (UDF `.run { send in … }`).
 pub struct RunSender<M> {
     pub(crate) tx: BusSender<M>,
 }
@@ -171,8 +171,8 @@ pub type EnvTaskFn<M> =
 
 /// Pure effect descriptions — interpreted only in `runtime.rs`.
 ///
-/// - [`Effect::merge`] / [`Effect::batch`] — run children concurrently (TCA merge).
-/// - [`Effect::concatenate`] / [`Effect::sequence`] — run children in order (TCA concatenate).
+/// - [`Effect::merge`] / [`Effect::batch`] — run children concurrently (UDF merge).
+/// - [`Effect::concatenate`] / [`Effect::sequence`] — run children in order (UDF concatenate).
 pub enum Effect<M> {
     None,
     Task { id: EffectId, run: TaskFn<M> },
@@ -334,7 +334,7 @@ impl<M> Effect<M> {
         Self::task(id, run)
     }
 
-    /// Map a `Result<T, E>` leaf task into `M` via fn pointers (TCA `TaskResult`).
+    /// Map a `Result<T, E>` leaf task into `M` via fn pointers (UDF `TaskResult`).
     pub fn result_task<T, E>(run: TaskFn<Result<T, E>>, on_ok: fn(T) -> M, on_err: fn(E) -> M) -> Self
     where
         T: Send + 'static,
@@ -490,7 +490,7 @@ impl<M> Effect<M> {
         }
     }
 
-    /// Scoped single-dependency override (TCA dependency override / `withDependencies`).
+    /// Scoped single-dependency override (UDF dependency override / `withDependencies`).
     pub fn provide_dependency<D: Send + Sync + 'static>(value: D, inner: Effect<M>) -> Self {
         Self::provide(Environment::from_values(DependencyValues::new().with(value)), inner)
     }

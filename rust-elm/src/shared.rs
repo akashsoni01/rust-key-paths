@@ -27,7 +27,7 @@ impl fmt::Display for StorageError {
 
 impl std::error::Error for StorageError {}
 
-/// Key-value persistence for [`Shared`] values (TCA `PersistenceKey` engine subset).
+/// Key-value persistence for [`Shared`] values (UDF `PersistenceKey` engine subset).
 pub trait Storage<T> {
     fn save(&self, key: &str, value: &T) -> Result<(), StorageError>;
     fn load(&self, key: &str) -> Result<Option<T>, StorageError>;
@@ -139,7 +139,7 @@ struct SharedInner<T> {
     listeners: Mutex<Vec<Sender<()>>>,
 }
 
-/// Ref-counted shared value with change notification (TCA `Shared` engine subset).
+/// Ref-counted shared value with change notification (UDF `Shared` engine subset).
 #[derive(Clone)]
 pub struct Shared<T> {
     inner: Arc<SharedInner<T>>,

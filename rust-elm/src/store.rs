@@ -35,7 +35,8 @@ impl ReducePanic {
     }
 }
 
-/// Run `reduce` inside [`catch_unwind`]. Does not roll back `state` — use [`catch_reduce`] for that.
+/// Run `reduce` inside [`catch_unwind`]. This is the default for [`Runtime`] and [`CatchReducer`]:
+/// panics are caught but `state` is not reverted. Use [`catch_reduce`] only when you want rollback.
 pub fn catch_reduce_panic<S, M, F>(state: &mut S, reduce: F, action: M) -> Result<Cmd<M>, ReducePanic>
 where
     F: FnOnce(&mut S, M) -> Cmd<M>,
@@ -48,7 +49,7 @@ where
 
 /// Run `reduce` inside [`catch_unwind`], rolling back via `checkpoint` on panic.
 ///
-/// `checkpoint` must hold the last committed state (see [`CatchReducer`](crate::reducer::CatchReducer)).
+/// `checkpoint` must hold the last committed state (see [`RollbackCatchReducer`](crate::reducer::RollbackCatchReducer)).
 /// On panic, `state` and `checkpoint` are swapped — no clone on the failure path. After a
 /// successful reduce, `checkpoint` is updated from `state` (one clone on the success path only).
 pub fn catch_reduce<S, M, F>(
@@ -118,7 +119,7 @@ where
 /// Cloneable dispatch handle for a running [`Runtime`](crate::Runtime).
 ///
 /// `update` runs on the runtime thread — actions are never applied synchronously inside
-/// `send`, so reducers cannot re-enter themselves from the caller's stack (TCA parity).
+/// `send`, so reducers cannot re-enter themselves from the caller's stack (UDF parity).
 pub struct Store<S, M> {
     pub(crate) backend: StoreBackend<S, M>,
 }

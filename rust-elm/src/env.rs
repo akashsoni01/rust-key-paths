@@ -65,7 +65,7 @@ impl MockHttp {
     }
 }
 
-/// Layered environment with typed dependencies (TCA `DependencyValues` + scoped overrides).
+/// Layered environment with typed dependencies (UDF `DependencyValues` + scoped overrides).
 #[derive(Clone)]
 pub struct Environment {
     layers: Arc<Mutex<Vec<DependencyValues>>>,

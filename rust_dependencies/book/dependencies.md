@@ -1,6 +1,6 @@
 # Dependency injection
 
-The [`dependencies`](../src/lib.rs) module provides **typed dependency bags** for effects — the rust-elm counterpart to TCA's `DependencyValues` / `DependencyKey`.
+The [`dependencies`](../src/lib.rs) module provides **typed dependency bags** for effects — the rust-elm counterpart to UDF's `DependencyValues` / `DependencyKey`.
 
 Use it when an effect needs:
 

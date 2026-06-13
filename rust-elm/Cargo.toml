@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
-description = "Elm Architecture for Rust toward TCA parity: composable reducers, pure effects, async runtime."
+description = "Elm Architecture for Rust: composable reducers, pure effects, async runtime."
 readme = "README.0.1.0.md"
-keywords = ["elm", "tca", "reducer", "effect", "architecture"]
+keywords = ["elm", "udf", "reducer", "effect", "architecture"]
 repository = "https://github.com/codefonsi/rust-key-paths"
 
 [dependencies]
@@ -33,6 +33,10 @@ serde = ["dep:serde", "dep:serde_json", "rust_identified_vec/serde"]
 [[example]]
 name = "catch_reduce"
 path = "examples/catch_reduce.rs"
+
+[[example]]
+name = "ecommerce"
+path = "examples/ecommerce.rs"
 
 [[test]]
 name = "integration_basic"

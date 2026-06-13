@@ -5,7 +5,7 @@ use rust_identified_vec::{Identifiable, IdentifiedVec};
 use crate::reducer::Reducer;
 use std::marker::PhantomData;
 
-/// Focuses nested state/action and runs a child reducer (TCA `Scope`).
+/// Focuses nested state/action and runs a child reducer (UDF `Scope`).
 #[derive(Debug)]
 pub struct ScopeReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
 where

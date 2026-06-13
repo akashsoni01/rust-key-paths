@@ -1,7 +1,6 @@
 //! # rust_identified_vec
 //!
 //! Ordered collection with O(1) id lookup — inspired by
-//! [TCA `IdentifiedArray`](https://github.com/pointfreeco/swift-composable-architecture).
 //!
 //! See the [book guide](https://github.com/codefonsi/rust-key-paths/tree/main/rust_identified_vec/book/identified.md)
 //! for use cases and edge cases.
@@ -19,7 +18,7 @@ pub trait Identifiable {
     fn id(&self) -> Self::Id;
 }
 
-/// Ordered collection with O(1) id lookup (TCA `IdentifiedArray` parity).
+/// Ordered collection with O(1) id lookup (UDF `IdentifiedArray` parity).
 #[derive(Debug, Clone)]
 pub struct IdentifiedVec<Id, T> {
     items: Vec<T>,

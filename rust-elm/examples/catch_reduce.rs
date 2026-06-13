@@ -1,10 +1,13 @@
-//! `catch_reduce_panic` vs `catch_reduce` — panic handling with and without state rollback.
+//! Panic handling: [`catch_reduce_panic`] is the default (no state revert).
+//! Use [`catch_reduce`] / [`RollbackCatchReducer`] only when you want rollback.
 //!
 //! ```bash
 //! cargo run -p rust-elm --example catch_reduce
 //! ```
 
-use rust_elm::{catch_reduce, catch_reduce_panic, CatchReducer, Cmd, Reduce, Reducer};
+use rust_elm::{
+    catch_reduce, catch_reduce_panic, CatchReducer, Cmd, Reduce, Reducer, RollbackCatchReducer,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Counter {
@@ -31,39 +34,38 @@ fn risky_reducer(state: &mut Counter, action: Action) -> Cmd<Action> {
 }
 
 fn main() {
-    // ── catch_reduce_panic: store/runtime style — survives panic, state may be partial ──
+    // ── Default: catch_reduce_panic (runtime + CatchReducer) ──
     let mut state = Counter { n: 0 };
-    let action = Action::Panic;
+    let _ = catch_reduce_panic(&mut state, risky_reducer, Action::Panic);
+    println!("catch_reduce_panic: {state:?} (partial mutation kept)");
+    assert_eq!(state.n, 999);
 
-    let _ = catch_reduce_panic(&mut state, risky_reducer, action);
-    println!("catch_reduce_panic: state after panic = {state:?} (partial mutation kept)");
-
-    // ── catch_reduce: reuse committed checkpoint — swap on panic, no pre-reduce clone ──
-    let mut state = Counter { n: 0 };
-    let mut checkpoint = state.clone();
-
-    let _ = catch_reduce(&mut state, &mut checkpoint, risky_reducer, Action::Inc);
-    assert_eq!(state.n, 1);
-    assert_eq!(checkpoint.n, 1);
-
-    let _ = catch_reduce(&mut state, &mut checkpoint, risky_reducer, Action::Panic);
-    println!("catch_reduce: state after panic = {state:?} (rolled back via checkpoint swap)");
-    assert_eq!(state.n, 1);
-
-    // ── CatchReducer: owns the checkpoint for you ──
     let mut state = Counter { n: 0 };
     let safe = CatchReducer::new(
         Reduce::new(risky_reducer),
-        |panic: rust_elm::ReducePanic| {
-            eprintln!("recovered from: {:?}", panic.message());
-            Cmd::none()
-        },
+        |_: rust_elm::ReducePanic| Cmd::none(),
+    );
+    safe.reduce(&mut state, Action::Panic);
+    println!("CatchReducer: {state:?} (same — no revert)");
+    assert_eq!(state.n, 999);
+
+    // ── Opt-in rollback via checkpoint ──
+    let mut state = Counter { n: 0 };
+    let mut checkpoint = state.clone();
+    let _ = catch_reduce(&mut state, &mut checkpoint, risky_reducer, Action::Inc);
+    let _ = catch_reduce(&mut state, &mut checkpoint, risky_reducer, Action::Panic);
+    println!("catch_reduce: {state:?} (rolled back via checkpoint swap)");
+    assert_eq!(state.n, 1);
+
+    let mut state = Counter { n: 0 };
+    let rollback = RollbackCatchReducer::new(
+        Reduce::new(risky_reducer),
+        |_: rust_elm::ReducePanic| Cmd::none(),
         &state,
     );
-
-    safe.reduce(&mut state, Action::Inc);
-    safe.reduce(&mut state, Action::Panic);
-    println!("CatchReducer: state after panic = {state:?}");
+    rollback.reduce(&mut state, Action::Inc);
+    rollback.reduce(&mut state, Action::Panic);
+    println!("RollbackCatchReducer: {state:?}");
     assert_eq!(state.n, 1);
 
     println!("catch_reduce example OK");

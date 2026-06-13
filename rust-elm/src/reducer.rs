@@ -1,9 +1,7 @@
-use parking_lot::Mutex;
-
 use crate::cmd::Cmd;
-use crate::store::{catch_reduce, ReducePanic};
+use crate::store::{catch_reduce, catch_reduce_panic, ReducePanic};
 
-/// Composable update logic (TCA `Reducer` parity).
+/// Composable update logic (UDF `Reducer` parity).
 pub trait Reducer {
     type State;
     type Action;
@@ -83,17 +81,45 @@ impl_combine_reducers!(R1, R2, R3);
 impl_combine_reducers!(R1, R2, R3, R4);
 impl_combine_reducers!(R1, R2, R3, R4, R5);
 
-/// Wraps a reducer with panic recovery — state is rolled back on panic (TCA `catch` parity).
-///
-/// Keeps a committed checkpoint updated after each successful reduce; panics swap back without
-/// cloning on the failure path.
-pub struct CatchReducer<R, F, S> {
+/// Wraps a reducer with panic recovery — default behavior matches the runtime: panics are
+/// caught and state is **not** reverted (see [`catch_reduce_panic`]).
+#[derive(Clone, Debug)]
+pub struct CatchReducer<R, F> {
     inner: R,
     recover: F,
-    checkpoint: Mutex<S>,
 }
 
-impl<R, F, S> CatchReducer<R, F, S>
+impl<R, F> CatchReducer<R, F> {
+    pub fn new(inner: R, recover: F) -> Self {
+        Self { inner, recover }
+    }
+}
+
+impl<R, F, S, A> Reducer for CatchReducer<R, F>
+where
+    R: Reducer<State = S, Action = A>,
+    F: Fn(ReducePanic) -> Cmd<A>,
+{
+    type State = S;
+    type Action = A;
+
+    fn reduce(&self, state: &mut S, action: A) -> Cmd<A> {
+        match catch_reduce_panic(state, |s, a| self.inner.reduce(s, a), action) {
+            Ok(cmd) => cmd,
+            Err(panic) => (self.recover)(panic),
+        }
+    }
+}
+
+/// Opt-in rollback — like [`CatchReducer`], but restores the last committed state on panic
+/// via [`catch_reduce`].
+pub struct RollbackCatchReducer<R, F, S> {
+    inner: R,
+    recover: F,
+    checkpoint: parking_lot::Mutex<S>,
+}
+
+impl<R, F, S> RollbackCatchReducer<R, F, S>
 where
     S: Clone,
 {
@@ -101,12 +127,12 @@ where
         Self {
             inner,
             recover,
-            checkpoint: Mutex::new(committed.clone()),
+            checkpoint: parking_lot::Mutex::new(committed.clone()),
         }
     }
 }
 
-impl<R, F, S> Clone for CatchReducer<R, F, S>
+impl<R, F, S> Clone for RollbackCatchReducer<R, F, S>
 where
     R: Clone,
     F: Clone,
@@ -116,25 +142,25 @@ where
         Self {
             inner: self.inner.clone(),
             recover: self.recover.clone(),
-            checkpoint: Mutex::new(self.checkpoint.lock().clone()),
+            checkpoint: parking_lot::Mutex::new(self.checkpoint.lock().clone()),
         }
     }
 }
 
-impl<R, F, S> std::fmt::Debug for CatchReducer<R, F, S>
+impl<R, F, S> std::fmt::Debug for RollbackCatchReducer<R, F, S>
 where
     R: std::fmt::Debug,
     F: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CatchReducer")
+        f.debug_struct("RollbackCatchReducer")
             .field("inner", &self.inner)
             .field("recover", &self.recover)
             .finish_non_exhaustive()
     }
 }
 
-impl<R, F, S, A> Reducer for CatchReducer<R, F, S>
+impl<R, F, S, A> Reducer for RollbackCatchReducer<R, F, S>
 where
     R: Reducer<State = S, Action = A>,
     S: Clone,
@@ -242,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn catch_reducer_recovers_from_panic_and_unwinds_state() {
+    fn catch_reducer_recovers_without_reverting_state() {
         fn panicking(s: &mut App, _: Action) -> Cmd<Action> {
             s.a = 99;
             panic!("boom");
@@ -253,7 +279,27 @@ mod tests {
         }
 
         let mut app = App::default();
-        let caught = allow_state_clones(1, || CatchReducer::new(coerce_fn(panicking), recover, &app));
+        let caught = CatchReducer::new(coerce_fn(panicking), recover);
+        let cmd = caught.reduce(&mut app, Action::Tick);
+        assert_eq!(app.a, 99);
+        assert!(cmd.is_none());
+    }
+
+    #[test]
+    fn rollback_catch_reducer_unwinds_state_on_panic() {
+        fn panicking(s: &mut App, _: Action) -> Cmd<Action> {
+            s.a = 99;
+            panic!("boom");
+        }
+
+        fn recover(_: ReducePanic) -> Cmd<Action> {
+            Cmd::none()
+        }
+
+        let mut app = App::default();
+        let caught = allow_state_clones(1, || {
+            RollbackCatchReducer::new(coerce_fn(panicking), recover, &app)
+        });
         let cmd = caught.reduce(&mut app, Action::Tick);
         assert_eq!(app.a, 0);
         assert!(cmd.is_none());

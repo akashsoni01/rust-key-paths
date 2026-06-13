@@ -1,6 +1,6 @@
 # rust_identified_vec
 
-Ordered, id-indexed vector with **O(1) lookup** by stable id — a standalone Rust library inspired by [TCA's `IdentifiedArray`](https://github.com/pointfreeco/swift-composable-architecture).
+Ordered, id-indexed vector with **O(1) lookup** by stable id — a standalone Rust library.
 
 Zero dependencies by default. Optional `serde` feature for JSON round-trip.
 

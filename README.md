@@ -163,7 +163,7 @@ let street = street_kp.get(&person);  // Option<&String>
 
 ### Casepaths (enum prisms)
 
-Keypaths focus **struct fields**. **Casepaths** focus **enum variants** and support both **extraction** (read the payload when the enum matches) and **embedding** (wrap a payload in the variant). The design follows [Swift CasePaths](https://github.com/pointfreeco/swift-case-paths): prisms for enum cases alongside lenses for struct fields.
+Keypaths focus **struct fields**. **Casepaths** focus **enum variants** and support both **extraction** (read the payload when the enum matches) and **embedding** (wrap a payload in the variant).
 
 #### Types
 

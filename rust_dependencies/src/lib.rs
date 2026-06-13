@@ -1,4 +1,4 @@
-//! Typed dependency injection for Rust — TCA [`DependencyValues`] / [`DependencyKey`] parity.
+//! Typed dependency injection for Rust — UDF [`DependencyValues`] / [`DependencyKey`] parity.
 //!
 //! Built-in keys cover monotonic clock, wall time, UUID generation, and RNG with
 //! deterministic test doubles. See the `book/dependencies.md` guide in the repository.
@@ -52,7 +52,7 @@ impl Hasher for TypeIdHasher {
 
 type DependencyMap = HashMap<TypeId, Arc<dyn Any + Send + Sync>, BuildHasherDefault<TypeIdHasher>>;
 
-/// Typed dependency bag keyed by `TypeId` (TCA `DependencyValues`).
+/// Typed dependency bag keyed by `TypeId` (UDF `DependencyValues`).
 ///
 /// Reads use a shared [`RwLock`] read guard; writes take an exclusive guard.
 /// Clone is cheap (shared map).
@@ -168,7 +168,7 @@ impl DependencyValues {
     }
 }
 
-/// Register a dependency value under its key type (TCA `DependencyKey`).
+/// Register a dependency value under its key type (UDF `DependencyKey`).
 ///
 /// `Value` must be `Send + Sync + 'static` so it can live in the shared dependency
 /// bag and be accessed from async effects on any runtime thread, e.g.:

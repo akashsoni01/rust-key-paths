@@ -1,6 +1,6 @@
 # rust_dependencies
 
-Typed dependency injection for Rust — a standalone library inspired by [TCA's `DependencyValues`](https://github.com/pointfreeco/swift-composable-architecture) / `DependencyKey`.
+Typed dependency injection for Rust
 
 Register values by type, swap live vs test implementations, and override individual deps without global state.
 

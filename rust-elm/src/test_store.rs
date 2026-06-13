@@ -6,7 +6,7 @@ use crate::cmd::Cmd;
 use crate::effect::{run_leaf, Effect};
 use crate::env::Environment;
 
-/// Exhaustive test store — every effect-produced action must be explicitly consumed (TCA parity).
+/// Exhaustive test store — every effect-produced action must be explicitly consumed (UDF parity).
 pub struct ExhaustiveTestStore<S, M> {
     pub state: S,
     update: fn(&mut S, M) -> Cmd<M>,

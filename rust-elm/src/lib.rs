@@ -1,7 +1,6 @@
 //! # rust-elm
 //!
-//! A Rust port of The Elm Architecture evolving toward
-//! [TCA](https://github.com/pointfreeco/swift-composable-architecture) parity.
+//! A Rust port of The Elm Architecture
 //!
 //! - **Pure descriptions**: `Cmd`, `Effect`, and `Sub` are data — interpretation lives in [`Runtime`].
 //! - **Zero-cost updates**: `update` uses fn pointers; no `Box<dyn Fn>` on hot paths.
@@ -56,7 +55,7 @@ pub use optics::{
     Kp, KpType, StateKey, StateKp, StateLens,
 };
 pub use program::{Program, ReducerProgram};
-pub use reducer::{coerce_fn, CatchReducer, CombineReducers, Reduce, Reducer};
+pub use reducer::{coerce_fn, CatchReducer, CombineReducers, Reduce, Reducer, RollbackCatchReducer};
 pub use replay::{ReplayHarness, ReplayLog};
 #[cfg(feature = "serde")]
 pub use replay::StateSnapshot;

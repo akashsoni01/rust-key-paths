@@ -1,6 +1,6 @@
 # rust-elm 0.1.0
 
-Elm Architecture for Rust, evolving toward The Composable Architecture (TCA).
+Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 
 ## Install
 
@@ -44,6 +44,9 @@ fn main() {
 // Or with composable reducers:
 // let program = ReducerProgram::new(reducers![update_a, update_b], init, subscriptions);
 // let runtime = Runtime::from_reducer_program(program, Environment::new(), 64);
+//
+// Full shop demo: cargo run -p rust-elm --example ecommerce
+// Architecture: book/architecture.md
 ```
 
 ## Modules
@@ -73,4 +76,4 @@ use rust_elm::keypath::{Kp, KpType, Readable, Writable};
 use key_paths_derive::Kp;
 ```
 
-See [`ROADMAP.md`](ROADMAP.md) and workspace [`todo.md`](../todo.md).
+See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), and workspace [`todo.md`](../todo.md).

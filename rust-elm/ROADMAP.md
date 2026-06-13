@@ -1,6 +1,5 @@
 # rust-elm Roadmap
 
-Evolution toward [TCA](https://github.com/pointfreeco/swift-composable-architecture) parity.
 
 ## Done (v0.1.0 foundation)
 
