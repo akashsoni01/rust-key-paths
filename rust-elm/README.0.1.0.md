@@ -62,7 +62,7 @@ fn main() {
 | `optics` | State/action focusing via `rust-key-paths` |
 | `test_runtime` | Sync testing without Tokio |
 | `reducer` | `Reducer` trait, `CombineReducers`, `reducers!` |
-| `identified` | `Identifiable`, `IdentifiedVec` (TCA `IdentifiedArray`) |
+| `identified` | `Identifiable`, `IdentifiedVec` — see [`book/identified.md`](book/identified.md) |
 | `scope` | `ScopeReducer`, `IfLetReducer`, `ForEachReducer`, `lift_cmd` |
 | `replay` | Action log + replay harness; `snapshot`/`restore` for state checkpoints |
 
