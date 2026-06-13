@@ -18,9 +18,10 @@ Evolution toward [TCA](https://github.com/pointfreeco/swift-composable-architect
 - Dependencies (phase 7): `DependencyValues`, `DependencyKey`, `Environment::live`/`test`, built-in Clock/Uuid/Now/Rng, `Effect::provide_dependency`
 - Store (phase 8): `Store`, `StoreTask`, `ScopedStore`, `StateSubscriber`, `Runtime::store()`, ping-based state subscription, in-flight work tracking for `send().finish()`
 - Test store (phase 9): `ExhaustiveTestStore`, `send_with`, `receive`/`receive_timeout`, `finish`, `with_exhaustivity(false)`
+- Shared state (phase 10): `Shared<T>`, `Storage`/`InMemoryStorage`/`FileStorage`, `ReplayHarness::snapshot`/`restore`, `StateSnapshot`
 
 ## Next
 
-- Phase 10–11: shared state, polish
+- Phase 11: polish
 
 See [`todo.md`](../todo.md) for the full checklist.

@@ -16,6 +16,7 @@ tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros
 crossbeam-channel = "0.5"
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
 key-paths-derive = { path = "../key-paths-derive" }
@@ -25,7 +26,7 @@ tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros
 [features]
 default = ["runtime"]
 runtime = []
-serde = ["dep:serde"]
+serde = ["dep:serde", "dep:serde_json"]
 
 [[test]]
 name = "integration_basic"

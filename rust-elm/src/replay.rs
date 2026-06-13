@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::cmd::Cmd;
 
+/// Serializable state snapshot for replay harnesses.
+#[cfg(feature = "serde")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StateSnapshot<S> {
+    pub state: S,
+}
+
 /// Serializable log entry for replay harnesses.
 #[cfg(feature = "serde")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,6 +86,34 @@ impl<S, M: Clone> ReplayHarness<S, M> {
             self.send(action);
         }
     }
+
+    /// Capture a clone of the current state (for snapshot/restore testing).
+    pub fn snapshot(&self) -> S
+    where
+        S: Clone,
+    {
+        self.state.clone()
+    }
+
+    /// Replace state wholesale — e.g. after loading from [`Shared`] storage.
+    pub fn restore(&mut self, state: S) {
+        self.state = state;
+    }
+
+    #[cfg(feature = "serde")]
+    pub fn snapshot_record(&self) -> StateSnapshot<S>
+    where
+        S: Clone,
+    {
+        StateSnapshot {
+            state: self.snapshot(),
+        }
+    }
+
+    #[cfg(feature = "serde")]
+    pub fn restore_record(&mut self, record: StateSnapshot<S>) {
+        self.restore(record.state);
+    }
 }
 
 #[cfg(test)]
@@ -102,5 +137,16 @@ mod tests {
         harness.send(2);
         assert_eq!(harness.state.n, 3);
         assert_eq!(harness.log.len(), 2);
+    }
+
+    #[test]
+    fn snapshot_restore_rewinds_state() {
+        let mut harness = ReplayHarness::new(S::default(), update);
+        harness.send(5);
+        let snap = harness.snapshot();
+        harness.send(7);
+        assert_eq!(harness.state.n, 12);
+        harness.restore(snap);
+        assert_eq!(harness.state.n, 5);
     }
 }

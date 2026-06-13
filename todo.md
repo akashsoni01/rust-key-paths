@@ -163,10 +163,10 @@ Upgrade `env.rs` into a typed dependency container.
 
 ## 10. Shared state (TCA `Sharing/*` — state engine only)
 
-- [ ] **10.1** `src/shared.rs`: `Shared<T>` — ref-counted shared value with change notify.
-- [ ] **10.2** Persistence trait: `InMemory`, `FileStorage` (serde). (No UI `AppStorage`.)
-- [ ] **10.3** Snapshot/restore hook into `replay.rs`.
-- [ ] Tests: cross-scope visibility; file persistence round-trip.
+- [x] **10.1** `src/shared.rs`: `Shared<T>` — ref-counted shared value with change notify.
+- [x] **10.2** Persistence trait: `InMemory`, `FileStorage` (serde). (No UI `AppStorage`.)
+- [x] **10.3** Snapshot/restore hook into `replay.rs`.
+- [x] Tests: cross-scope visibility; file persistence round-trip.
 
 ## 11. Cross-cutting / quality
 

@@ -56,6 +56,7 @@ fn main() {
 | `runtime` | Bus-driven update loop + interpreter |
 | `store` | `Store`, `StoreTask`, `ScopedStore`, state subscription |
 | `test_store` | `ExhaustiveTestStore` for synchronous effect/action testing |
+| `shared` | `Shared<T>`, `Storage`, `InMemoryStorage`, `FileStorage` (serde) |
 | `dependencies` | `DependencyValues`, `DependencyKey`, Clock/Uuid/Now/Rng deps |
 | `env` | `Environment` (`live`/`test`), `FakeClock`, `MockHttp` |
 | `optics` | State/action focusing via `rust-key-paths` |
@@ -63,7 +64,7 @@ fn main() {
 | `reducer` | `Reducer` trait, `CombineReducers`, `reducers!` |
 | `identified` | `Identifiable`, `IdentifiedVec` (TCA `IdentifiedArray`) |
 | `scope` | `ScopeReducer`, `IfLetReducer`, `ForEachReducer`, `lift_cmd` |
-| `replay` | Action log + replay harness |
+| `replay` | Action log + replay harness; `snapshot`/`restore` for state checkpoints |
 
 ## Key paths prelude
 

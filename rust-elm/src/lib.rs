@@ -24,6 +24,7 @@ pub mod reducer;
 pub mod replay;
 pub mod runtime;
 pub mod scope;
+pub mod shared;
 pub mod store;
 pub mod sub;
 pub mod test_runtime;
@@ -53,11 +54,16 @@ pub use optics::{extract, extract_mut, wrap_action, ActionCase, KpType, StateKey
 pub use program::{Program, ReducerProgram};
 pub use reducer::{coerce_fn, CombineReducers, Reduce, Reducer};
 pub use replay::{ReplayHarness, ReplayLog};
+#[cfg(feature = "serde")]
+pub use replay::StateSnapshot;
 pub use runtime::Runtime;
 pub use scope::{
     lift_cmd, lift_cmd_with_id, ForEachReducer, IfCaseLetReducer, IfLetReducer, OptionalReducer,
     ScopeReducer,
 };
+pub use shared::{InMemoryStorage, Shared, SharedSubscriber, Storage, StorageError};
+#[cfg(feature = "serde")]
+pub use shared::FileStorage;
 pub use store::{ScopedStore, StateSubscriber, Store, StoreTask, StoreTaskError};
 pub use sub::Sub;
 pub use test_runtime::TestRuntime;
