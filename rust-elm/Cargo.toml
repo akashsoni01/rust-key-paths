@@ -1,0 +1,35 @@
+[package]
+name = "rust-elm"
+version = "0.1.0"
+edition = "2024"
+authors = ["Codefonsi <info@codefonsi.com>"]
+license = "MPL-2.0"
+description = "Elm Architecture for Rust toward TCA parity: composable reducers, pure effects, async runtime."
+readme = "README.0.1.0.md"
+keywords = ["elm", "tca", "reducer", "effect", "architecture"]
+repository = "https://github.com/codefonsi/rust-key-paths"
+
+[dependencies]
+rust-key-paths = { path = "..", version = "3.1.1" }
+key-paths-core = { path = "../key-paths-core", version = "2.0.0" }
+tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros", "time"] }
+crossbeam-channel = "0.5"
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"], optional = true }
+
+[dev-dependencies]
+key-paths-derive = { path = "../key-paths-derive" }
+tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros", "time", "test-util"] }
+
+[features]
+default = ["runtime"]
+runtime = []
+serde = ["dep:serde"]
+
+[[test]]
+name = "integration_basic"
+path = "tests/integration_basic.rs"
+
+[[test]]
+name = "optics_smoke"
+path = "tests/optics_smoke.rs"

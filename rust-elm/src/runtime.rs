@@ -1,0 +1,390 @@
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+
+use crossbeam_channel::RecvTimeoutError;
+use parking_lot::Mutex;
+use tokio::runtime::Runtime as TokioRuntime;
+use tokio::task::JoinHandle as TokioJoinHandle;
+use tokio::time::timeout;
+
+use crate::bus::{Bus, BusSender};
+use crate::cmd::Cmd;
+use crate::effect::{run_leaf, run_registered_env_task, run_registered_task, Effect, EffectId};
+use crate::env::Environment;
+use crate::error::EffectError;
+use crate::interp::flatten_effects;
+use crate::program::Program;
+use crate::sub::Sub;
+
+/// Live runtime — bus-driven update loop on a pinned thread with Tokio effect interpreter.
+pub struct Runtime<S, M> {
+    pub state: Arc<Mutex<S>>,
+    pub bus: Bus<M>,
+    pub env: Environment,
+    shutdown: Arc<AtomicBool>,
+    _thread: Option<JoinHandle<()>>,
+    _tokio: Arc<TokioRuntime>,
+    cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>>,
+}
+
+impl<S, M> Runtime<S, M>
+where
+    S: Send + 'static,
+    M: Send + 'static,
+{
+    pub fn from_program(program: Program<S, M>, env: Environment, bus_capacity: usize) -> Self {
+        let (initial_state, init_cmd) = (program.init)();
+        let state = Arc::new(Mutex::new(initial_state));
+        let bus = Bus::new(bus_capacity);
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let tokio = Arc::new(
+            TokioRuntime::new().expect("failed to create Tokio runtime for rust-elm"),
+        );
+        let cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+
+        let tx = bus.sender();
+        interpret_effects(
+            init_cmd.into_effects(),
+            tx.clone(),
+            env.clone(),
+            tokio.clone(),
+            cancel_tokens.clone(),
+        );
+
+        let receiver = bus.receiver().clone();
+        let update_fn = program.update;
+        let subs_fn = program.subscriptions;
+        let state_for_thread = state.clone();
+        let env_for_thread = env.clone();
+        let shutdown_for_thread = shutdown.clone();
+        let tokio_for_thread = tokio.clone();
+        let cancel_for_thread = cancel_tokens.clone();
+        let tx_for_thread = tx.clone();
+
+        let thread = thread::spawn(move || {
+            let rt = tokio_for_thread;
+            while !shutdown_for_thread.load(Ordering::Relaxed) {
+                match receiver.recv_timeout(Duration::from_millis(50)) {
+                    Ok(msg) => {
+                        let cmd = {
+                            let mut guard = state_for_thread.lock();
+                            update_fn(&mut guard, msg)
+                        };
+                        rt.block_on(interpret_effects_async(
+                            cmd.into_effects(),
+                            tx_for_thread.clone(),
+                            env_for_thread.clone(),
+                            rt.handle().clone(),
+                            cancel_for_thread.clone(),
+                        ));
+
+                        let sub = {
+                            let guard = state_for_thread.lock();
+                            subs_fn(&guard)
+                        };
+                        let mut active_subs = HashSet::new();
+                        diff_subscriptions(&sub, &mut active_subs);
+                    }
+                    Err(RecvTimeoutError::Timeout) => continue,
+                    Err(RecvTimeoutError::Disconnected) => break,
+                }
+            }
+        });
+
+        Self {
+            state,
+            bus,
+            env,
+            shutdown,
+            _thread: Some(thread),
+            _tokio: tokio,
+            cancel_tokens,
+        }
+    }
+
+    pub fn dispatch(&self, msg: M) {
+        let _ = self.bus.sender().send_blocking(msg);
+    }
+
+    pub fn sender(&self) -> BusSender<M> {
+        self.bus.sender()
+    }
+
+    pub fn cancel(&self, id: EffectId) {
+        if let Some(handle) = self.cancel_tokens.lock().remove(&id) {
+            handle.abort();
+        }
+    }
+
+    pub fn shutdown(self) {
+        self.shutdown.store(true, Ordering::Relaxed);
+        if let Some(handle) = self._thread {
+            let _ = handle.join();
+        }
+    }
+}
+
+async fn interpret_effects_async<M>(
+    effects: Vec<Effect<M>>,
+    tx: BusSender<M>,
+    env: Environment,
+    handle: tokio::runtime::Handle,
+    cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>>,
+) where
+    M: Send + 'static,
+{
+    for effect in effects {
+        for leaf in flatten_effects(effect) {
+            spawn_effect(
+                leaf,
+                tx.clone(),
+                env.clone(),
+                handle.clone(),
+                cancel_tokens.clone(),
+            );
+        }
+    }
+}
+
+fn interpret_effects<M>(
+    effects: Vec<Effect<M>>,
+    tx: BusSender<M>,
+    env: Environment,
+    tokio: Arc<TokioRuntime>,
+    cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>>,
+) where
+    M: Send + 'static,
+{
+    tokio.block_on(interpret_effects_async(
+        effects,
+        tx,
+        env,
+        tokio.handle().clone(),
+        cancel_tokens,
+    ));
+}
+
+fn spawn_effect<M>(
+    effect: Effect<M>,
+    tx: BusSender<M>,
+    env: Environment,
+    handle: tokio::runtime::Handle,
+    cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>>,
+) where
+    M: Send + 'static,
+{
+    match effect {
+        Effect::None => {}
+        Effect::Task { id, run } => {
+            let tx = tx.clone();
+            let join = handle.spawn(async move {
+                if let Ok(msg) = run().await {
+                    let _ = tx.send_blocking(msg);
+                }
+            });
+            cancel_tokens.lock().insert(id, join);
+        }
+        Effect::RegisteredTask { id } => {
+            let tx = tx.clone();
+            let join = handle.spawn(async move {
+                if let Ok(msg) = run_registered_task::<M>(id).await {
+                    let _ = tx.send_blocking(msg);
+                }
+            });
+            cancel_tokens.lock().insert(id, join);
+        }
+        Effect::EnvTask { id, run } => {
+            let tx = tx.clone();
+            let env = env.clone();
+            let join = handle.spawn(async move {
+                if let Ok(msg) = run(&env).await {
+                    let _ = tx.send_blocking(msg);
+                }
+            });
+            cancel_tokens.lock().insert(id, join);
+        }
+        Effect::RegisteredEnvTask { id } => {
+            let tx = tx.clone();
+            let env = env.clone();
+            let join = handle.spawn(async move {
+                if let Ok(msg) = run_registered_env_task::<M>(&env, id).await {
+                    let _ = tx.send_blocking(msg);
+                }
+            });
+            cancel_tokens.lock().insert(id, join);
+        }
+        Effect::Batch(items) | Effect::Race(items) => {
+            for item in items {
+                spawn_effect(
+                    item,
+                    tx.clone(),
+                    env.clone(),
+                    handle.clone(),
+                    cancel_tokens.clone(),
+                );
+            }
+        }
+        Effect::Sequence(items) => {
+            let tx = tx.clone();
+            let env = env.clone();
+            let handle = handle.clone();
+            handle.spawn(async move {
+                for item in items {
+                    if let Ok(msg) = run_effect_once(item, env.clone()).await {
+                        let _ = tx.send_blocking(msg);
+                    }
+                }
+            });
+        }
+        Effect::Cancellable { id, inner } => {
+            if let Some(old) = cancel_tokens.lock().remove(&id) {
+                old.abort();
+            }
+            spawn_effect(*inner, tx, env, handle, cancel_tokens);
+        }
+        Effect::Provide { env: layer, inner } => {
+            let mut scoped = env.clone();
+            scoped.push_layer(layer);
+            spawn_effect(*inner, tx, scoped, handle, cancel_tokens);
+        }
+        Effect::Retry { attempts, inner } => {
+            let tx = tx.clone();
+            let env = env.clone();
+            let handle = handle.clone();
+            let inner = *inner;
+            handle.spawn(async move {
+                for _ in 0..attempts.max(1) {
+                    match run_effect_once(inner.clone(), env.clone()).await {
+                        Ok(msg) => {
+                            let _ = tx.send_blocking(msg);
+                            break;
+                        }
+                        Err(_) => continue,
+                    }
+                }
+            });
+        }
+        Effect::Timeout { duration, inner } => {
+            let tx = tx.clone();
+            let env = env.clone();
+            let handle = handle.clone();
+            handle.spawn(async move {
+                match timeout(duration, run_effect_once(*inner, env)).await {
+                    Ok(Ok(msg)) => {
+                        let _ = tx.send_blocking(msg);
+                    }
+                    _ => {}
+                }
+            });
+        }
+        Effect::Catch { inner, recover } => {
+            let tx = tx.clone();
+            let env = env.clone();
+            let handle_worker = handle.clone();
+            let cancel_tokens = cancel_tokens.clone();
+            handle.spawn(async move {
+                match run_effect_once(*inner, env.clone()).await {
+                    Ok(msg) => {
+                        let _ = tx.send_blocking(msg);
+                    }
+                    Err(err) => {
+                        interpret_effects_async(
+                            flatten_effects(recover(err)),
+                            tx,
+                            env,
+                            handle_worker,
+                            cancel_tokens,
+                        )
+                        .await;
+                    }
+                }
+            });
+        }
+    }
+}
+
+async fn run_effect_once<M>(effect: Effect<M>, env: Environment) -> Result<M, EffectError>
+where
+    M: Send + 'static,
+{
+    run_leaf(effect, &env).await
+}
+
+fn diff_subscriptions<M>(sub: &Sub<M>, active: &mut HashSet<u64>) {
+    let mut seen = HashSet::new();
+    collect_sub_ids(sub, &mut seen);
+    active.retain(|id| seen.contains(id));
+    active.extend(seen);
+}
+
+fn collect_sub_ids<M>(sub: &Sub<M>, out: &mut HashSet<u64>) {
+    match sub {
+        Sub::None => {}
+        Sub::Tick { id, .. } | Sub::Stream { id, .. } | Sub::WebSocket { id, .. } => {
+            out.insert(*id);
+        }
+        Sub::MapMsg { inner, .. } => collect_sub_ids(inner, out),
+        Sub::Batch(items) => {
+            for item in items {
+                collect_sub_ids(item, out);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::effect::Effect;
+
+    #[derive(Default)]
+    struct Counter {
+        n: i32,
+    }
+
+    fn init() -> (Counter, Cmd<i32>) {
+        (Counter::default(), Cmd::none())
+    }
+
+    fn update(s: &mut Counter, msg: i32) -> Cmd<i32> {
+        s.n += msg;
+        Cmd::none()
+    }
+
+    fn subs(_: &Counter) -> Sub<i32> {
+        Sub::none()
+    }
+
+    #[test]
+    fn runtime_applies_dispatched_messages() {
+        let program = Program::new(init, update, subs);
+        let runtime = Runtime::from_program(program, Environment::new(), 16);
+        runtime.dispatch(3);
+        runtime.dispatch(4);
+        std::thread::sleep(Duration::from_millis(200));
+        assert_eq!(runtime.state.lock().n, 7);
+        runtime.shutdown();
+    }
+
+    #[test]
+    fn runtime_runs_task_effects() {
+        fn update_with_effect(s: &mut Counter, msg: i32) -> Cmd<i32> {
+            if msg == 0 {
+                Cmd::single(Effect::task(1, || Box::pin(async { Ok(10) })))
+            } else {
+                s.n += msg;
+                Cmd::none()
+            }
+        }
+        let program = Program::new(init, update_with_effect, subs);
+        let runtime = Runtime::from_program(program, Environment::new(), 16);
+        runtime.dispatch(0);
+        std::thread::sleep(Duration::from_millis(200));
+        assert_eq!(runtime.state.lock().n, 10);
+        runtime.shutdown();
+    }
+}

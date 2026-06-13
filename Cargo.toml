@@ -26,6 +26,7 @@ members = [
     "key-paths-core",
     "key-paths-derive",
     "key-paths-iter",
+    "rust-elm",
 ]
 
 # Use local rust-key-paths when developing (remove or override when publishing dependents)
