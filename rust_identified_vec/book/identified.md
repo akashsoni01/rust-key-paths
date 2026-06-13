@@ -1,12 +1,12 @@
 # Identified collections
 
-`rust-elm/src/identified.rs` provides **ordered, id-indexed collections** — the state-engine counterpart to [TCA's `IdentifiedArray`](https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/IdentifiedArray.swift).
+The [`rust_identified_vec`](https://crates.io/crates/rust_identified_vec) crate provides **ordered, id-indexed collections** — the state-engine counterpart
 
 Use an `IdentifiedVec` when you need:
 
 - Stable **O(1) lookup** by id
 - **Deterministic iteration order** (insertion order, user-reorderable)
-- **Per-element reducers** via [`ForEachReducer`](../src/scope.rs) without losing sync between list UI and state
+- **Per-element reducers** via [`ForEachReducer`](../../rust-elm/src/scope.rs) in `rust-elm` without losing sync between list UI and state
 
 ---
 
@@ -65,6 +65,8 @@ Equality compares **only** the ordered `Vec` (`PartialEq` ignores the index map)
 Each todo row has its own id and nested state. Parent state holds an `IdentifiedVec`:
 
 ```rust
+use rust_identified_vec::{Identifiable, IdentifiedVec};
+
 #[derive(Clone, PartialEq, Eq)]
 struct Todo {
     id: u64,
@@ -86,7 +88,7 @@ enum Action {
     AddTodo(Todo),
 }
 
-// ForEachReducer routes TodoAction to the matching row by id.
+// ForEachReducer (rust-elm) routes TodoAction to the matching row by id.
 ```
 
 When the user toggles row `3`, only that row's reducer runs — siblings are untouched.
@@ -136,10 +138,10 @@ Serialized as a plain JSON array of items (order preserved):
 
 On deserialize, each item is `insert`ed in order. **Duplicate ids in the payload:** last occurrence wins (same as calling `insert` repeatedly).
 
-Enable with `rust-elm` feature `serde`:
+Enable with the `serde` feature:
 
 ```toml
-rust-elm = { path = "../rust-elm", features = ["serde"] }
+rust_identified_vec = { version = "0.1.0", features = ["serde"] }
 ```
 
 ### 6. Safe in-place edits
@@ -172,9 +174,9 @@ if let Some(t) = vec.get_mut(todo_id) {
 
 ---
 
-## Integration with scope reducers
+## Integration with rust-elm
 
-`ForEachReducer` in `scope.rs` takes:
+`ForEachReducer` in `rust-elm/src/scope.rs` takes:
 
 ```rust
 get_vec: fn(&mut Parent) -> &mut IdentifiedVec<Id, Child>,
@@ -182,9 +184,9 @@ embed: fn(Id, ChildAction) -> ParentAction,
 extract: fn(ParentAction) -> Option<(Id, ChildAction)>,
 ```
 
-When a child is removed from the vec, the reducer can emit `Effect::cancel` for that row's in-flight work — mirroring TCA's `onDelete` cancellation.
+When a child is removed from the vec, the reducer can emit `Effect::cancel` for that row's in-flight work — mirroring `onDelete` cancellation.
 
-See `tests/identified_scope_integration.rs` for end-to-end scope + identified vec tests.
+See `rust-elm/tests/identified_scope_integration.rs` for end-to-end scope + identified vec tests.
 
 ---
 
@@ -196,8 +198,8 @@ See `tests/identified_scope_integration.rs` for end-to-end scope + identified ve
 
 ---
 
-## Related modules
+## Related
 
-- [`scope.rs`](../src/scope.rs) — `ForEachReducer`, `ScopeReducer`
-- [`identified_scope_integration.rs`](../tests/identified_scope_integration.rs) — integration tests
-- [`ROADMAP.md`](../ROADMAP.md) — phase 5 checklist
+- [`src/lib.rs`](../src/lib.rs) — implementation
+- [`rust-elm` scope module](../../rust-elm/src/scope.rs) — `ForEachReducer`
+- [`rust-elm` integration tests](../../rust-elm/tests/identified_scope_integration.rs)

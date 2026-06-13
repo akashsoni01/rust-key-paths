@@ -1,0 +1,24 @@
+[package]
+name = "rust_identified_vec"
+version = "0.1.0"
+edition = "2024"
+authors = ["Codefonsi <info@codefonsi.com>"]
+license = "MPL-2.0"
+description = "Ordered collection with O(1) id lookup — Rust counterpart to TCA IdentifiedArray."
+readme = "README.md"
+repository = "https://github.com/codefonsi/rust-key-paths"
+homepage = "https://github.com/codefonsi/rust-key-paths/tree/main/rust_identified_vec"
+documentation = "https://docs.rs/rust_identified_vec"
+keywords = ["identified", "collection", "tca", "vector", "index"]
+categories = ["data-structures"]
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE", "book/**/*"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+
+[dev-dependencies]
+serde_json = "1"
+
+[features]
+default = []
+serde = ["dep:serde"]

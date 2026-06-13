@@ -1,6 +1,6 @@
 use crate::cmd::Cmd;
 use crate::effect::{run_registered_env_task, run_registered_task, Effect, EffectId};
-use crate::identified::{Identifiable, IdentifiedVec};
+use rust_identified_vec::{Identifiable, IdentifiedVec};
 use crate::reducer::Reducer;
 
 /// Focuses nested state/action and runs a child reducer (TCA `Scope`).
@@ -384,7 +384,7 @@ fn tag_cancel_id<M>(effect: Effect<M>, cancel_id: EffectId) -> Effect<M> {
 mod tests {
     use super::*;
     use crate::effect::Effect;
-    use crate::identified::IdentifiedVec;
+    use rust_identified_vec::IdentifiedVec;
     use crate::reducer::Reduce;
 
     #[derive(Default, Debug, PartialEq, Eq)]

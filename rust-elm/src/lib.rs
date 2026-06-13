@@ -18,7 +18,6 @@ pub mod error;
 pub mod interp;
 pub mod macros;
 pub mod optics;
-pub mod identified;
 pub mod program;
 pub mod reducer;
 pub mod replay;
@@ -49,7 +48,7 @@ pub use dependencies::{
 pub use env::{defer_batch, Environment, FakeClock, MockHttp};
 pub use error::EffectError;
 pub use interp::{flatten_effects, normalize, InterpretCtx};
-pub use identified::{Identifiable, IdentifiedVec};
+pub use rust_identified_vec::{Identifiable, IdentifiedVec};
 pub use optics::{extract, extract_mut, wrap_action, ActionCase, KpType, StateKey};
 pub use program::{Program, ReducerProgram};
 pub use reducer::{coerce_fn, CombineReducers, Reduce, Reducer};
