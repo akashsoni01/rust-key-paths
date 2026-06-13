@@ -6802,7 +6802,7 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Derive macro that generates **casepath** (prism) accessors for enum variants.
+/// Derive macro that generates **casepath** (prism) accessors for enum variants and struct fields.
 ///
 /// Unlike [`Kp`], which produces extract-only keypaths (`variant()`), `Cp` produces a
 /// full casepath per variant via `variant_cp()` — combining extraction *and* embedding
@@ -6839,142 +6839,65 @@ pub fn derive_any_keypaths(input: TokenStream) -> TokenStream {
 ///   (extract the payload **by value**, so the field types must be `Clone`). Rust cannot
 ///   borrow several separate fields as one value, so — like Swift's `CasePaths` — the
 ///   payload is surfaced as an owned tuple.
+///
+/// On **structs**, each named field `field: T` gets `field_cp() -> EnumKpType<'static, Self, T>`
+/// (extract by reference; embed builds `Self { field: value, ..Default::default() }` when
+/// `Self` has other fields, so multi-field structs should implement [`Default`]).
 #[proc_macro_derive(Cp)]
 pub fn derive_casepaths(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
 
-    let data_enum = match &input.data {
-        Data::Enum(data_enum) => data_enum,
-        _ => {
-            return syn::Error::new(name.span(), "Cp derive only supports enums")
-                .to_compile_error()
-                .into();
-        }
-    };
-
     let mut methods = proc_macro2::TokenStream::new();
 
-    for variant in data_enum.variants.iter() {
-        let v_ident = &variant.ident;
-        let cp_fn = format_ident!("{}_cp", to_snake_case(&v_ident.to_string()));
-
-        match &variant.fields {
-            Fields::Unit => {
-                methods.extend(quote! {
-                    /// Casepath (prism) for this unit variant: extract `()` / embed the variant.
-                    #[inline(always)]
-                    pub fn #cp_fn() -> rust_key_paths::EnumKpType<'static, #name, ()> {
-                        rust_key_paths::variant_of(
-                            |root: &#name| match root {
-                                #name::#v_ident => {
-                                    static UNIT: () = ();
-                                    Some(&UNIT)
-                                }
-                                _ => None,
-                            },
-                            |_root: &mut #name| None,
-                            |_value: ()| #name::#v_ident,
-                        )
-                    }
-                });
+    match &input.data {
+        Data::Enum(data_enum) => {
+            for variant in data_enum.variants.iter() {
+                methods.extend(expand_enum_variant_cp(name, variant));
             }
-            Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
-                let field_ty = &unnamed.unnamed[0].ty;
-                methods.extend(quote! {
-                    /// Casepath (prism) for this variant: extract by reference + embed the payload.
-                    #[inline(always)]
-                    pub fn #cp_fn() -> rust_key_paths::EnumKpType<'static, #name, #field_ty> {
-                        rust_key_paths::variant_of(
-                            |root: &#name| match root {
-                                #name::#v_ident(inner) => Some(inner),
-                                _ => None,
-                            },
-                            |root: &mut #name| match root {
-                                #name::#v_ident(inner) => Some(inner),
-                                _ => None,
-                            },
-                            #name::#v_ident,
-                        )
-                    }
-                });
-            }
-            Fields::Named(named) if named.named.len() == 1 => {
-                let field = &named.named[0];
+        }
+        Data::Struct(data_struct) => {
+            let fields = match &data_struct.fields {
+                Fields::Named(named) => &named.named,
+                _ => {
+                    return syn::Error::new(
+                        name.span(),
+                        "Cp derive on structs requires named fields",
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            };
+            for field in fields {
                 let f_ident = field.ident.as_ref().unwrap();
+                let cp_fn = format_ident!("{}_cp", to_snake_case(&f_ident.to_string()));
                 let field_ty = &field.ty;
+                let other_fields: Vec<_> = fields
+                    .iter()
+                    .filter(|f| f.ident.as_ref() != Some(f_ident))
+                    .collect();
+                let embed = if other_fields.is_empty() {
+                    quote! { |value: #field_ty| #name { #f_ident: value } }
+                } else {
+                    quote! { |value: #field_ty| #name { #f_ident: value, ..Default::default() } }
+                };
                 methods.extend(quote! {
-                    /// Casepath (prism) for this variant: extract by reference + embed the payload.
+                    /// Casepath (prism) for this field: extract by reference + embed the payload.
                     #[inline(always)]
                     pub fn #cp_fn() -> rust_key_paths::EnumKpType<'static, #name, #field_ty> {
                         rust_key_paths::variant_of(
-                            |root: &#name| match root {
-                                #name::#v_ident { #f_ident: inner } => Some(inner),
-                                _ => None,
-                            },
-                            |root: &mut #name| match root {
-                                #name::#v_ident { #f_ident: inner } => Some(inner),
-                                _ => None,
-                            },
-                            |value: #field_ty| #name::#v_ident { #f_ident: value },
+                            |root: &#name| Some(&root.#f_ident),
+                            |root: &mut #name| Some(&mut root.#f_ident),
+                            #embed,
                         )
                     }
                 });
             }
-            Fields::Unnamed(unnamed) => {
-                let field_tys: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
-                let binds: Vec<_> = (0..unnamed.unnamed.len())
-                    .map(|i| format_ident!("f{}", i))
-                    .collect();
-                methods.extend(quote! {
-                    /// Casepath (prism) for this multi-field variant: extract the payload
-                    /// **by value** (clone) as a tuple / embed it back into the variant.
-                    #[inline(always)]
-                    pub fn #cp_fn() -> rust_key_paths::EnumValueKpType<'static, #name, ( #(#field_tys),* )> {
-                        rust_key_paths::EnumKp::new(
-                            rust_key_paths::Kp::new(
-                                |root: &#name| match root {
-                                    #name::#v_ident( #(#binds),* ) => Some(( #(#binds.clone()),* )),
-                                    _ => None,
-                                },
-                                |root: &mut #name| match root {
-                                    #name::#v_ident( #(#binds),* ) => Some(( #(#binds.clone()),* )),
-                                    _ => None,
-                                },
-                            ),
-                            |( #(#binds),* ): ( #(#field_tys),* )| #name::#v_ident( #(#binds),* ),
-                        )
-                    }
-                });
-            }
-            Fields::Named(named) => {
-                let field_idents: Vec<_> = named
-                    .named
-                    .iter()
-                    .map(|f| f.ident.as_ref().unwrap())
-                    .collect();
-                let field_tys: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
-                methods.extend(quote! {
-                    /// Casepath (prism) for this multi-field variant: extract the payload
-                    /// **by value** (clone) as a tuple / embed it back into the variant.
-                    #[inline(always)]
-                    pub fn #cp_fn() -> rust_key_paths::EnumValueKpType<'static, #name, ( #(#field_tys),* )> {
-                        rust_key_paths::EnumKp::new(
-                            rust_key_paths::Kp::new(
-                                |root: &#name| match root {
-                                    #name::#v_ident { #(#field_idents),* } => Some(( #(#field_idents.clone()),* )),
-                                    _ => None,
-                                },
-                                |root: &mut #name| match root {
-                                    #name::#v_ident { #(#field_idents),* } => Some(( #(#field_idents.clone()),* )),
-                                    _ => None,
-                                },
-                            ),
-                            |( #(#field_idents),* ): ( #(#field_tys),* )| #name::#v_ident { #(#field_idents),* },
-                        )
-                    }
-                });
-            }
+        }
+        _ => {
+            return syn::Error::new(name.span(), "Cp derive only supports enums and structs")
+                .to_compile_error()
+                .into();
         }
     }
 
@@ -6985,4 +6908,127 @@ pub fn derive_casepaths(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+fn expand_enum_variant_cp(name: &syn::Ident, variant: &syn::Variant) -> proc_macro2::TokenStream {
+    let v_ident = &variant.ident;
+    let cp_fn = format_ident!("{}_cp", to_snake_case(&v_ident.to_string()));
+
+    match &variant.fields {
+        Fields::Unit => {
+            quote! {
+                /// Casepath (prism) for this unit variant: extract `()` / embed the variant.
+                #[inline(always)]
+                pub fn #cp_fn() -> rust_key_paths::EnumKpType<'static, #name, ()> {
+                    rust_key_paths::variant_of(
+                        |root: &#name| match root {
+                            #name::#v_ident => {
+                                static UNIT: () = ();
+                                Some(&UNIT)
+                            }
+                            _ => None,
+                        },
+                        |_root: &mut #name| None,
+                        |_value: ()| #name::#v_ident,
+                    )
+                }
+            }
+        }
+        Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
+            let field_ty = &unnamed.unnamed[0].ty;
+            quote! {
+                /// Casepath (prism) for this variant: extract by reference + embed the payload.
+                #[inline(always)]
+                pub fn #cp_fn() -> rust_key_paths::EnumKpType<'static, #name, #field_ty> {
+                    rust_key_paths::variant_of(
+                        |root: &#name| match root {
+                            #name::#v_ident(inner) => Some(inner),
+                            _ => None,
+                        },
+                        |root: &mut #name| match root {
+                            #name::#v_ident(inner) => Some(inner),
+                            _ => None,
+                        },
+                        #name::#v_ident,
+                    )
+                }
+            }
+        }
+        Fields::Named(named) if named.named.len() == 1 => {
+            let field = &named.named[0];
+            let f_ident = field.ident.as_ref().unwrap();
+            let field_ty = &field.ty;
+            quote! {
+                /// Casepath (prism) for this variant: extract by reference + embed the payload.
+                #[inline(always)]
+                pub fn #cp_fn() -> rust_key_paths::EnumKpType<'static, #name, #field_ty> {
+                    rust_key_paths::variant_of(
+                        |root: &#name| match root {
+                            #name::#v_ident { #f_ident: inner } => Some(inner),
+                            _ => None,
+                        },
+                        |root: &mut #name| match root {
+                            #name::#v_ident { #f_ident: inner } => Some(inner),
+                            _ => None,
+                        },
+                        |value: #field_ty| #name::#v_ident { #f_ident: value },
+                    )
+                }
+            }
+        }
+        Fields::Unnamed(unnamed) => {
+            let field_tys: Vec<_> = unnamed.unnamed.iter().map(|f| &f.ty).collect();
+            let binds: Vec<_> = (0..unnamed.unnamed.len())
+                .map(|i| format_ident!("f{}", i))
+                .collect();
+            quote! {
+                /// Casepath (prism) for this multi-field variant: extract the payload
+                /// **by value** (clone) as a tuple / embed it back into the variant.
+                #[inline(always)]
+                pub fn #cp_fn() -> rust_key_paths::EnumValueKpType<'static, #name, ( #(#field_tys),* )> {
+                    rust_key_paths::EnumKp::new(
+                        rust_key_paths::Kp::new(
+                            |root: &#name| match root {
+                                #name::#v_ident( #(#binds),* ) => Some(( #(#binds.clone()),* )),
+                                _ => None,
+                            },
+                            |root: &mut #name| match root {
+                                #name::#v_ident( #(#binds),* ) => Some(( #(#binds.clone()),* )),
+                                _ => None,
+                            },
+                        ),
+                        |( #(#binds),* ): ( #(#field_tys),* )| #name::#v_ident( #(#binds),* ),
+                    )
+                }
+            }
+        }
+        Fields::Named(named) => {
+            let field_idents: Vec<_> = named
+                .named
+                .iter()
+                .map(|f| f.ident.as_ref().unwrap())
+                .collect();
+            let field_tys: Vec<_> = named.named.iter().map(|f| &f.ty).collect();
+            quote! {
+                /// Casepath (prism) for this multi-field variant: extract the payload
+                /// **by value** (clone) as a tuple / embed it back into the variant.
+                #[inline(always)]
+                pub fn #cp_fn() -> rust_key_paths::EnumValueKpType<'static, #name, ( #(#field_tys),* )> {
+                    rust_key_paths::EnumKp::new(
+                        rust_key_paths::Kp::new(
+                            |root: &#name| match root {
+                                #name::#v_ident { #(#field_idents),* } => Some(( #(#field_idents.clone()),* )),
+                                _ => None,
+                            },
+                            |root: &mut #name| match root {
+                                #name::#v_ident { #(#field_idents),* } => Some(( #(#field_idents.clone()),* )),
+                                _ => None,
+                            },
+                        ),
+                        |( #(#field_idents),* ): ( #(#field_tys),* )| #name::#v_ident { #(#field_idents),* },
+                    )
+                }
+            }
+        }
+    }
 }

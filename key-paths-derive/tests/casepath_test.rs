@@ -21,6 +21,23 @@ enum Payment {
     Wallet { id: String, balance: u32 },
 }
 
+#[derive(Debug, Clone, PartialEq, Default, Cp)]
+struct Counter {
+    n: i32,
+}
+
+#[test]
+fn struct_field_casepath_round_trips() {
+    let kp = Counter::n_cp();
+    let mut counter = Counter { n: 1 };
+    assert_eq!(kp.get_ref(&counter), Some(&1));
+    if let Some(n) = kp.get_mut(&mut counter) {
+        *n = 5;
+    }
+    assert_eq!(counter.n, 5);
+    assert_eq!(kp.embed(10), Counter { n: 10 });
+}
+
 #[test]
 fn tuple_variant_casepath_round_trips() {
     let kp: EnumKpType<'static, Action, ChildAction> = Action::child_cp();

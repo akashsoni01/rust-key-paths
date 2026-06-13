@@ -501,7 +501,7 @@ mod tests {
     use rust_identified_vec::IdentifiedVec;
     use crate::reducer::Reduce;
 
-    #[derive(Default, Debug, PartialEq, Eq, Kp)]
+    #[derive(Default, Debug, PartialEq, Eq, Kp, Cp)]
     struct Child {
         n: i32,
     }
@@ -554,9 +554,12 @@ mod tests {
 
     #[test]
     fn scope_accepts_derived_state_kp() {
+        let n_kp = Child::n_cp();
+        assert_eq!(n_kp.get_ref(&Child { n: 42 }), Some(&42));
+
         let scope = ScopeReducer::new(
             Parent::child(),
-            child_action_kp(),
+            ParentAction::child_cp(),
             1,
             Reduce::new(child_reducer),
         );
