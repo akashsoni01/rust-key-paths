@@ -61,9 +61,18 @@ impl DependencyValues {
     }
 
     pub fn merge_from(&self, overlay: &DependencyValues) {
+        // Snapshot the overlay before locking `self` so we never hold both
+        // locks simultaneously (avoids lock-order deadlocks between two bags).
+        let snapshot: Vec<(TypeId, Arc<dyn Any + Send + Sync>)> = {
+            let overlay_guard = overlay.entries.lock();
+            overlay_guard
+                .iter()
+                .map(|(id, value)| (*id, value.clone()))
+                .collect()
+        };
         let mut guard = self.entries.lock();
-        for (id, value) in overlay.entries.lock().iter() {
-            guard.insert(*id, value.clone());
+        for (id, value) in snapshot {
+            guard.insert(id, value);
         }
     }
 
@@ -324,11 +333,14 @@ impl SeededRng {
 
 impl DepRng for SeededRng {
     fn next_u64(&self) -> u64 {
-        let mut state = *self.state.lock();
+        // Hold a single guard for the whole read-modify-write so concurrent
+        // callers cannot observe the same state and emit duplicate values.
+        let mut guard = self.state.lock();
+        let mut state = *guard;
         state ^= state << 13;
         state ^= state >> 7;
         state ^= state << 17;
-        *self.state.lock() = state;
+        *guard = state;
         state
     }
 }
