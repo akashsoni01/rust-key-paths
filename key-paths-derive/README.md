@@ -11,12 +11,10 @@ Proc-macro derives that generate `rust_key_paths` accessors on your types:
 
 ## Release notes
 
-### Unreleased
+### 3.1.0
 
-- **`#[derive(Cp)]`** — casepath (prism) accessors for enum variants. Each variant gets a `variant_cp()` method returning a ready-to-use `EnumKpType` or `EnumValueKpType` (extract + embed). See [Casepaths (`Cp`)](#casepaths-cp) below.
-- Supports **unit**, **single-field tuple**, **single-field named**, **multi-field tuple**, and **multi-field named** variants. Multi-field payloads are extracted **by value** (clone) as tuples; field types must implement `Clone`.
-- Coexists with `#[derive(Kp)]` on the same enum (`child()` = extract-only keypath, `child_cp()` = full casepath).
-- **`EnumKp::then` / `chain`** on composed casepaths — fluent multi-level embed/extract without nested `.embed(.embed(...))`.
+- **`#[derive(Cp)]` on structs** — field casepaths alongside enum variant casepaths.
+- Casepath tests and README updates for `EnumValueKpType` / multi-field variants.
 
 ### 3.0.2
 
@@ -26,20 +24,20 @@ Proc-macro derives that generate `rust_key_paths` accessors on your types:
 
 - Proc-macro `#[derive(Kp)]` for `rust-key-paths` 3.x.
 
-## Compatibility with `key-paths-core` 2.x / `rust-key-paths` 3.1.x
+## Compatibility with `key-paths-core` 2.x / `rust-key-paths` 3.2.x
 
 | Crate | Relationship to this proc-macro |
 |-------|----------------------------------|
 | **key-paths-derive** | No dependency on `key-paths-core` (only `syn` / `quote` / `proc-macro2`). |
 | **Generated code** | Expands to `rust_key_paths::Kp`, `SyncKp`, etc.—not `key_paths_core` types directly. |
-| **Your app** | Depend on **`rust-key-paths` ≥ 3.1.1** (pulls in `key-paths-core` 2.x). Pin **`key-paths-derive` = "3.0.2"**. |
+| **Your app** | Depend on **`rust-key-paths` ≥ 3.2.0** (pulls in `key-paths-core` 2.x). Pin **`key-paths-derive` = "3.1.0"**. |
 
-**`key-paths-core` 2.x** does **not** change what the derive macro emits. **`rust-key-paths` 3.1+** re-exports `Readable`, `Writable`, `KpTrait` so you can write generic APIs over any keypath—including paths from `#[derive(Kp)]`.
+**`key-paths-core` 2.x** does **not** change what the derive macro emits. **`rust-key-paths` 3.2+** re-exports `Readable`, `Writable`, `KpTrait` so you can write generic APIs over any keypath—including paths from `#[derive(Kp)]`.
 
 ```toml
 [dependencies]
-rust-key-paths = "3.1.1"
-key-paths-derive = "3.0.2"
+rust-key-paths = "3.2.0"
+key-paths-derive = "3.1.0"
 ```
 
 ## Generic APIs over derived keypaths

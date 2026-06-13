@@ -8,10 +8,10 @@ Zero dependencies by default. Optional `serde` feature for JSON round-trip.
 
 ```toml
 [dependencies]
-rust_identified_vec = "0.1.0"
+rust_identified_vec = "0.1.1"
 
 # with persistence
-rust_identified_vec = { version = "0.1.0", features = ["serde"] }
+rust_identified_vec = { version = "0.1.1", features = ["serde"] }
 ```
 
 ## Quick start

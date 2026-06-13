@@ -8,6 +8,10 @@ For a full reference implementation (derive macros, `Kp`, sync/async locks, comp
 
 ## Release notes
 
+### 2.0.2
+
+- Patch release aligned with `rust-key-paths` 3.2.0 publish.
+
 ### 2.0.1
 
 - README: generic `Readable` / `Writable` integration guide and `#[derive(Kp)]` compatibility notes.

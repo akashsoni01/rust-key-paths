@@ -141,7 +141,7 @@ On deserialize, each item is `insert`ed in order. **Duplicate ids in the payload
 Enable with the `serde` feature:
 
 ```toml
-rust_identified_vec = { version = "0.1.0", features = ["serde"] }
+rust_identified_vec = { version = "0.1.1", features = ["serde"] }
 ```
 
 ### 6. Safe in-place edits

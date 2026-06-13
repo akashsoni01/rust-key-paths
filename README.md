@@ -9,8 +9,8 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "3.1.1"
-key-paths-derive = "3.0.2"
+rust-key-paths = "3.2.0"
+key-paths-derive = "3.1.0"
 # Optional: trait-only contracts (pulled in by rust-key-paths 3.1+)
 # key-paths-core = "2.0"
 ```
@@ -19,15 +19,17 @@ key-paths-derive = "3.0.2"
 
 | Crate | Version | Notes |
 |-------|---------|--------|
-| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.1** | `#![no_std]` traits; docs for generic `Readable` / `Writable` APIs |
-| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.1.1** | `Kp`, locks, HOF; re-exports core traits |
-| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.0.2** | `#[derive(Kp)]`, `#[derive(Cp)]` — see [derive README](./key-paths-derive/README.md) |
+| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.2** | `#![no_std]` traits; docs for generic `Readable` / `Writable` APIs |
+| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.2.0** | `Kp`, locks, HOF; re-exports core traits |
+| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.1.0** | `#[derive(Kp)]`, `#[derive(Cp)]` — see [derive README](./key-paths-derive/README.md) |
 
-#### Unreleased (casepaths)
+#### 3.2.0 / 2.0.2 / 3.1.0
 
-- **`EnumKp` / `EnumKpType`** — casepaths (prisms) for enum variants: extract + embed. Factory helpers: `variant_of`, `enum_variant`, `enum_some`, `enum_ok`, `enum_err`. `Kp::with_embed` pairs a derived variant keypath with its constructor.
-- **`EnumKp::then` / `EnumKp::chain`** — compose nested single-payload casepaths (extract + embed) in one fluent chain.
-- **`#[derive(Cp)]`** in `key-paths-derive` — generates `variant_cp()` accessors per enum variant. See [Casepaths (enum prisms)](#casepaths-enum-prisms) and [key-paths-derive/README.md](./key-paths-derive/README.md#casepaths-cp).
+- **`EnumKp` / `EnumValueKpType`** — casepaths (prisms) for enum variants: extract + embed.
+- **`EnumKp::get_ref`**, **`EnumKp::then` / `chain`** — compose nested casepaths.
+- **`#[derive(Cp)]`** on enums and structs in `key-paths-derive` 3.1.0.
+- **`rust-elm` 0.1.0** — Elm/TCA-style store (first publish).
+- **`rust_identified_vec` 0.1.1**, **`rust_dependencies` 0.1.1** — patch releases.
 
 #### 3.1.1 / 2.0.1 / 3.0.2 (documentation)
 
@@ -312,7 +314,7 @@ Enable **`arcswap`** on `rust-key-paths` and add the same dependency key in your
 
 ```toml
 [dependencies]
-rust-key-paths = { version = "3.1.1", features = ["arcswap"] }
+rust-key-paths = { version = "3.2.0", features = ["arcswap"] }
 arcswap = { package = "arc-swap", version = "1.9" }
 ```
 
