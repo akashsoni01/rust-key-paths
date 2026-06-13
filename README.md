@@ -21,7 +21,13 @@ key-paths-derive = "3.0.2"
 |-------|---------|--------|
 | [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.1** | `#![no_std]` traits; docs for generic `Readable` / `Writable` APIs |
 | [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.1.1** | `Kp`, locks, HOF; re-exports core traits |
-| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.0.2** | `#[derive(Kp)]` — no `key-paths-core` dependency; see compatibility README |
+| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.0.2** | `#[derive(Kp)]`, `#[derive(Cp)]` — see [derive README](./key-paths-derive/README.md) |
+
+#### Unreleased (casepaths)
+
+- **`EnumKp` / `EnumKpType`** — casepaths (prisms) for enum variants: extract + embed. Factory helpers: `variant_of`, `enum_variant`, `enum_some`, `enum_ok`, `enum_err`. `Kp::with_embed` pairs a derived variant keypath with its constructor.
+- **`EnumValueKpType`** — casepath alias for multi-field variants whose payload is extracted **by value** (clone) as a tuple.
+- **`#[derive(Cp)]`** in `key-paths-derive` — generates `variant_cp()` accessors per enum variant. See [Casepaths (enum prisms)](#casepaths-enum-prisms) and [key-paths-derive/README.md](./key-paths-derive/README.md#casepaths-cp).
 
 #### 3.1.1 / 2.0.1 / 3.0.2 (documentation)
 
@@ -154,6 +160,74 @@ struct Person { address: Box<Address> }
 let street_kp = Person::address().then(Address::street());
 let street = street_kp.get(&person);  // Option<&String>
 ```
+
+### Casepaths (enum prisms)
+
+Keypaths focus **struct fields**. **Casepaths** focus **enum variants** and support both **extraction** (read the payload when the enum matches) and **embedding** (wrap a payload in the variant). The design follows [Swift CasePaths](https://github.com/pointfreeco/swift-case-paths): prisms for enum cases alongside lenses for struct fields.
+
+#### Types
+
+| Type | Role |
+|------|------|
+| [`EnumKp`](https://docs.rs/rust-key-paths/latest/rust_key_paths/struct.EnumKp.html) | Generic casepath (extractor `Kp` + embedder) |
+| [`EnumKpType<'a, E, V>`](https://docs.rs/rust-key-paths/latest/rust_key_paths/type.EnumKpType.html) | Common alias: reference-shaped extract, `fn` embedder. Single-payload variants. |
+| [`EnumValueKpType<'a, E, P>`](https://docs.rs/rust-key-paths/latest/rust_key_paths/type.EnumValueKpType.html) | Multi-field variants: payload `P` is extracted **by value** (clone), typically a tuple. |
+
+#### Derive (`#[derive(Cp)]`)
+
+The fastest path — no manual `variant_of` wiring:
+
+```rust
+use key_paths_derive::{Cp, Kp};
+
+#[derive(Clone, Kp, Cp)]
+enum Action {
+    Child(ChildAction),
+    Card(String, String),
+    Tick,
+}
+
+let child = Action::child_cp();  // EnumKpType<'static, Action, ChildAction>
+let embedded = child.embed(ChildAction::Inc);
+assert_eq!(child.get_ref(&embedded), Some(&ChildAction::Inc));
+
+let card = Action::card_cp();    // EnumValueKpType<'static, Action, (String, String)>
+let payment = card.embed(("4242".into(), "123".into()));
+assert_eq!(card.get(&payment), Some(("4242".into(), "123".into())));
+```
+
+Full variant matrix: [key-paths-derive/README.md — Casepaths (`Cp`)](./key-paths-derive/README.md#casepaths-cp).
+
+#### Factory helpers
+
+```rust
+use rust_key_paths::{enum_ok, enum_err, enum_some, variant_of, EnumKp, Kp};
+
+// Option / Result built-ins
+let some_kp = enum_some::<String>();
+assert_eq!(some_kp.get(&Some("x".into())), Some(&"x".to_string()));
+
+// Custom enum variant (same as #[derive(Cp)] for single-field variants)
+enum Payment { Cash(u32), Card(String) }
+let cash_kp = variant_of(
+    |p: &Payment| match p { Payment::Cash(n) => Some(n), _ => None },
+    |p: &mut Payment| match p { Payment::Cash(n) => Some(n), _ => None },
+    |n: u32| Payment::Cash(n),
+);
+assert_eq!(cash_kp.embed(10), Payment::Cash(10));
+
+// Pair #[derive(Kp)] variant accessor with constructor
+// Action::child().with_embed(Action::Child)
+```
+
+#### `Kp` vs casepath
+
+| | `#[derive(Kp)]` on enum | `#[derive(Cp)]` / `EnumKp` |
+|--|-------------------------|----------------------------|
+| Struct fields | ✅ `field()` lens | — |
+| Enum variant extract | ✅ `variant()` | ✅ via extractor |
+| Enum variant embed | ❌ | ✅ `embed(payload)` |
+| Typical use | Chaining `.then()` through enums | Scoping actions, prisms, routing |
 
 ### Partial and Any keypaths
 

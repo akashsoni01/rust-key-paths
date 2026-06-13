@@ -1,5 +1,5 @@
 use key_paths_derive::{Cp, Kp};
-use rust_key_paths::EnumKpType;
+use rust_key_paths::{EnumKpType, EnumValueKpType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Kp, Cp)]
 enum Action {
@@ -11,6 +11,14 @@ enum Action {
 enum ChildAction {
     Inc(i32),
     Reset,
+}
+
+#[derive(Debug, Clone, PartialEq, Cp)]
+enum Payment {
+    Cash(u32),
+    Auth { token: String },
+    Card(String, String),
+    Wallet { id: String, balance: u32 },
 }
 
 #[test]
@@ -57,4 +65,40 @@ fn kp_and_cp_accessors_coexist() {
         Action::child_cp().embed(ChildAction::Inc(7)),
         action
     );
+}
+
+#[test]
+fn named_single_field_casepath_is_reference_based() {
+    let kp: EnumKpType<'static, Payment, String> = Payment::auth_cp();
+
+    let embedded = kp.embed("secret".into());
+    assert_eq!(embedded, Payment::Auth { token: "secret".into() });
+
+    assert_eq!(kp.get_ref(&embedded), Some(&"secret".to_string()));
+    assert_eq!(kp.get_ref(&Payment::Cash(1)), None);
+}
+
+#[test]
+fn multi_field_tuple_casepath_is_value_based() {
+    let kp: EnumValueKpType<'static, Payment, (String, String)> = Payment::card_cp();
+
+    let made = kp.embed(("4242".into(), "123".into()));
+    assert_eq!(made, Payment::Card("4242".into(), "123".into()));
+
+    assert_eq!(kp.get(&made), Some(("4242".into(), "123".into())));
+    assert_eq!(kp.get(&Payment::Cash(1)), None);
+}
+
+#[test]
+fn multi_field_named_casepath_is_value_based() {
+    let kp: EnumValueKpType<'static, Payment, (String, u32)> = Payment::wallet_cp();
+
+    let made = kp.embed(("acct-1".into(), 500));
+    assert_eq!(
+        made,
+        Payment::Wallet { id: "acct-1".into(), balance: 500 }
+    );
+
+    assert_eq!(kp.get(&made), Some(("acct-1".into(), 500)));
+    assert_eq!(kp.get(&Payment::Cash(1)), None);
 }

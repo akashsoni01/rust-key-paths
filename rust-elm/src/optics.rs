@@ -21,7 +21,8 @@
 use key_paths_core::{Readable, Writable};
 
 pub use rust_key_paths::{
-    enum_err, enum_ok, enum_some, enum_variant, variant_of, EnumKp, EnumKpType, Kp, KpType,
+    enum_err, enum_ok, enum_some, enum_variant, variant_of, EnumKp, EnumKpType, EnumValueKpType,
+    Kp, KpType,
 };
 
 /// Lens focusing `Part` within parent state `Whole` (keypath).

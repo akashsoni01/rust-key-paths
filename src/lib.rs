@@ -1520,6 +1520,27 @@ pub type EnumKpType<'a, Enum, Variant> = EnumKp<
 
 impl<'a, R: 'static, V: 'static> Copy for EnumKpType<'a, R, V> {}
 
+/// Casepath whose payload is extracted **by value** (cloned) rather than by reference.
+///
+/// Multi-field enum variants (e.g. `Card(String, String)` or `Wallet { id, balance }`)
+/// cannot be borrowed as a single value the way single-field variants can, because their
+/// associated values are stored as separate fields rather than one contiguous payload.
+/// This alias models such cases the way Swift's `CasePaths` does: extraction yields an
+/// owned payload tuple (a clone) and embedding reconstructs the variant from that tuple.
+///
+/// `Payload` is typically a tuple of the variant's field types and must be `Clone`.
+pub type EnumValueKpType<'a, Enum, Payload> = EnumKp<
+    Enum,
+    Payload,
+    &'a Enum,
+    Payload,
+    &'a mut Enum,
+    Payload,
+    for<'b> fn(&'b Enum) -> Option<Payload>,
+    for<'b> fn(&'b mut Enum) -> Option<Payload>,
+    fn(Payload) -> Enum,
+>;
+
 // Static factory functions for creating EnumKp instances
 /// Create an enum keypath with both extraction and embedding for a specific variant
 ///
