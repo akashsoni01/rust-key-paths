@@ -1,5 +1,5 @@
 use key_paths_derive::Kp;
-use rust_elm::optics::{extract, wrap_action};
+use rust_elm::optics::{extract_action, wrap_action};
 
 #[derive(Debug, Kp, Clone, PartialEq)]
 struct Dashboard {
@@ -50,11 +50,15 @@ fn nested_option_panel_smoke() {
 #[test]
 fn enum_action_prism_extract_and_wrap() {
     let action = DashAction::Panel(PanelAction::Select(3));
-    let kp = DashAction::panel();
-    let inner = extract(&kp, &action).expect("variant");
+    let action_kp = rust_elm::action_enum(
+        |a: &DashAction| DashAction::panel().get_ref(a),
+        |a: &mut DashAction| DashAction::panel().get_mut_ref(a),
+        DashAction::Panel,
+    );
+    let inner = extract_action(&action_kp, &action).expect("variant");
     assert!(matches!(inner, PanelAction::Select(3)));
 
-    let wrapped = wrap_action(DashAction::Panel, PanelAction::Select(5));
+    let wrapped = wrap_action(&action_kp, PanelAction::Select(5));
     assert_eq!(wrapped, DashAction::Panel(PanelAction::Select(5)));
 }
 

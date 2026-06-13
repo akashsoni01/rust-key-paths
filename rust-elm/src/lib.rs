@@ -31,7 +31,7 @@ pub mod test_store;
 /// Re-export keypath types for state/action focusing (see `optics`).
 pub mod keypath {
     pub use key_paths_core::{KeyPath, KpTrait, Readable, Writable};
-    pub use rust_key_paths::{Kp, KpType};
+    pub use rust_key_paths::{EnumKp, EnumKpType, Kp, KpType};
 }
 
 pub use batch::batch;
@@ -49,7 +49,10 @@ pub use env::{defer_batch, Environment, FakeClock, MockHttp};
 pub use error::EffectError;
 pub use interp::{flatten_effects, normalize, InterpretCtx};
 pub use rust_identified_vec::{Identifiable, IdentifiedVec};
-pub use optics::{extract, extract_mut, wrap_action, ActionCase, KpType, StateKey};
+pub use optics::{
+    action_enum, extract, extract_action, extract_mut, wrap_action, ActionCase, ActionEnum,
+    ActionEnumCase, EnumKpType, KpType, StateKey,
+};
 pub use program::{Program, ReducerProgram};
 pub use reducer::{coerce_fn, CombineReducers, Reduce, Reducer};
 pub use replay::{ReplayHarness, ReplayLog};

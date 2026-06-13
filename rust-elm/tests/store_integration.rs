@@ -3,20 +3,21 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rust_elm::{Cmd, Effect, Environment, Program, Runtime, Sub};
-use rust_key_paths::Kp;
+use key_paths_derive::Kp;
+use rust_key_paths::Kp as KpPath;
 
-#[derive(Default, Clone, PartialEq, Eq, Debug)]
+#[derive(Default, Clone, PartialEq, Eq, Debug, Kp)]
 struct App {
     count: i32,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Kp)]
 enum Action {
     Inc,
     Child(ChildAction),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Kp)]
 enum ChildAction {
     Bump,
 }
@@ -54,8 +55,12 @@ fn subs(_: &App) -> Sub<Action> {
     Sub::none()
 }
 
-fn embed(a: ChildAction) -> Action {
-    Action::Child(a)
+fn child_action_kp() -> rust_key_paths::EnumKpType<'static, Action, ChildAction> {
+    rust_elm::action_enum(
+        |a: &Action| Action::child().get_ref(a),
+        |a: &mut Action| Action::child().get_mut_ref(a),
+        Action::Child,
+    )
 }
 
 fn count_kp() -> rust_key_paths::KpType<'static, App, i32> {
@@ -65,7 +70,7 @@ fn count_kp() -> rust_key_paths::KpType<'static, App, i32> {
     fn get_mut(app: &mut App) -> Option<&mut i32> {
         Some(&mut app.count)
     }
-    Kp::new(get, get_mut)
+    KpPath::new(get, get_mut)
 }
 
 #[test]
@@ -102,7 +107,7 @@ fn store_subscribe_state_dedupes() {
 fn scoped_store_routes_child_actions() {
     let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
     let store = runtime.store();
-    let child = store.scope(count_kp(), embed);
+    let child = store.scope(count_kp(), child_action_kp());
     child.dispatch(ChildAction::Bump);
     std::thread::sleep(Duration::from_millis(100));
     assert_eq!(child.child_state(), Some(10));
@@ -153,14 +158,22 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         }
     }
 
-    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq, Debug, Kp)]
     enum PanelAction {
         Bump,
     }
 
-    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq, Debug, Kp)]
     enum PanelParentAction {
         Panel(PanelAction),
+    }
+
+    fn panel_action_kp() -> rust_key_paths::EnumKpType<'static, PanelParentAction, PanelAction> {
+        rust_elm::action_enum(
+            |a: &PanelParentAction| PanelParentAction::panel().get_ref(a),
+            |a: &mut PanelParentAction| PanelParentAction::panel().get_mut_ref(a),
+            PanelParentAction::Panel,
+        )
     }
 
     fn panel_init() -> (PanelApp, Cmd<PanelParentAction>) {
@@ -186,10 +199,6 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         Sub::none()
     }
 
-    fn panel_embed(action: PanelAction) -> PanelParentAction {
-        PanelParentAction::Panel(action)
-    }
-
     fn child_panel_kp() -> rust_key_paths::KpType<'static, PanelApp, ChildPanel> {
         fn get(app: &PanelApp) -> Option<&ChildPanel> {
             Some(&app.child)
@@ -197,7 +206,7 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         fn get_mut(app: &mut PanelApp) -> Option<&mut ChildPanel> {
             Some(&mut app.child)
         }
-        Kp::new(get, get_mut)
+        KpPath::new(get, get_mut)
     }
 
     PARENT_CLONES.store(0, Ordering::SeqCst);
@@ -214,7 +223,7 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
     assert_eq!(PARENT_CLONES.load(Ordering::SeqCst), 1, "store.state clones parent once");
 
     {
-        let scoped = store.scope(child_panel_kp(), panel_embed);
+        let scoped = store.scope(child_panel_kp(), panel_action_kp());
         let scoped_clone = scoped.clone();
 
         assert_eq!(

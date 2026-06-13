@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 
 use crate::bus::BusSender;
 use crate::effect::EffectId;
-use crate::optics::KpType;
+use crate::optics::{EnumKpType, KpType};
 use crate::runtime::InterpreterState;
 
 /// Cloneable dispatch handle for a running [`Runtime`](crate::Runtime).
@@ -155,21 +155,22 @@ where
         }
     }
 
-    /// Focus a child store via a state keypath and parent action embed fn (see [`crate::optics`]).
+    /// Focus a child store via state and action keypaths (see [`crate::optics`]).
     pub fn scope<CS, CM>(
         &self,
         state_kp: KpType<'static, S, CS>,
-        embed: fn(CM) -> M,
+        action_kp: EnumKpType<'static, M, CM>,
     ) -> ScopedStore<S, M, CS, CM>
     where
         CS: Clone + PartialEq + Send + Sync + 'static,
-        CM: Send + 'static,
+        CM: Copy + Send + 'static,
         S: 'static,
+        M: 'static,
     {
         ScopedStore {
             store: self.clone(),
             state_kp,
-            embed,
+            action_kp,
         }
     }
 }
@@ -248,11 +249,11 @@ impl<S: PartialEq + Clone> StateSubscriber<S> {
     }
 }
 
-/// Child store routing actions through a parent action embed fn.
-pub struct ScopedStore<S: 'static, M, CS: 'static, CM> {
+/// Child store routing actions through a parent action keypath.
+pub struct ScopedStore<S: 'static, M: 'static, CS: 'static, CM: 'static> {
     store: Store<S, M>,
     state_kp: KpType<'static, S, CS>,
-    embed: fn(CM) -> M,
+    action_kp: EnumKpType<'static, M, CM>,
 }
 
 impl<S, M, CS, CM> Clone for ScopedStore<S, M, CS, CM>
@@ -264,7 +265,7 @@ where
         Self {
             store: self.store.clone(),
             state_kp: self.state_kp,
-            embed: self.embed,
+            action_kp: self.action_kp,
         }
     }
 }
@@ -274,14 +275,14 @@ where
     S: Send + Sync + Clone + 'static,
     M: Send + 'static,
     CS: Clone + PartialEq + Send + Sync + 'static,
-    CM: Send + 'static,
+    CM: Copy + Send + 'static,
 {
     pub fn send(&self, action: CM) -> StoreTask {
-        self.store.send((self.embed)(action))
+        self.store.send(self.action_kp.embed(action))
     }
 
     pub fn dispatch(&self, action: CM) {
-        self.store.dispatch((self.embed)(action));
+        self.store.dispatch(self.action_kp.embed(action));
     }
 
     pub fn child_state(&self) -> Option<CS> {

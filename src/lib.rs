@@ -1062,6 +1062,26 @@ where
         }
     }
 
+    /// Pair this extractor with an enum variant constructor to form an [`EnumKp`].
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// #[derive(Kp)]
+    /// enum Action { Child(ChildAction), Other }
+    ///
+    /// let action_kp = Action::child().with_embed(Action::Child);
+    /// ```
+    #[inline]
+    pub fn with_embed<E>(self, embedder: E) -> EnumKp<R, V, Root, Value, MutRoot, MutValue, G, S, E>
+    where
+        R: 'static,
+        V: 'static,
+        E: Fn(V) -> R,
+    {
+        EnumKp::new(self, embedder)
+    }
+
     /// Read through the getter closure. For reference-shaped keypaths built with [`constrain_get`]
     /// / [`constrain_set`], you can also call this as `kp.get(root)` with `root: Root` (often `&R`).
     #[inline]
@@ -1250,6 +1270,25 @@ where
     embedder: E,
 }
 
+impl<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E> Clone
+    for EnumKp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E>
+where
+    Root: std::borrow::Borrow<Enum>,
+    Value: std::borrow::Borrow<Variant>,
+    MutRoot: std::borrow::BorrowMut<Enum>,
+    MutValue: std::borrow::BorrowMut<Variant>,
+    G: Fn(Root) -> Option<Value> + Clone,
+    S: Fn(MutRoot) -> Option<MutValue> + Clone,
+    E: Fn(Variant) -> Enum + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            extractor: self.extractor.clone(),
+            embedder: self.embedder.clone(),
+        }
+    }
+}
+
 // EnumKp is a functional component; Send/Sync follow from extractor and embedder.
 unsafe impl<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E> Send
     for EnumKp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S, E>
@@ -1311,6 +1350,24 @@ where
     /// Embed a value into the enum variant
     pub fn embed(&self, value: Variant) -> Enum {
         (self.embedder)(value)
+    }
+
+    /// Read when the extractor uses reference-shaped getters (e.g. `#[derive(Kp)]` enum variants).
+    #[inline]
+    pub fn get_ref<'a>(&self, enum_value: &'a Enum) -> Option<&'a Variant>
+    where
+        G: for<'b> Fn(&'b Enum) -> Option<&'b Variant>,
+    {
+        self.extractor.get_ref(enum_value)
+    }
+
+    /// Copyable embed fn when the embedder is a function pointer.
+    #[inline]
+    pub fn embed_fn(&self) -> E
+    where
+        E: Copy,
+    {
+        self.embedder
     }
 
     /// Get the underlying Kp for composition with other keypaths
@@ -1460,6 +1517,8 @@ pub type EnumKpType<'a, Enum, Variant> = EnumKp<
     for<'b> fn(&'b mut Enum) -> Option<&'b mut Variant>,
     fn(Variant) -> Enum,
 >;
+
+impl<'a, R: 'static, V: 'static> Copy for EnumKpType<'a, R, V> {}
 
 // Static factory functions for creating EnumKp instances
 /// Create an enum keypath with both extraction and embedding for a specific variant

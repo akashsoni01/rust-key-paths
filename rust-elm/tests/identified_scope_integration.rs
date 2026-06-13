@@ -1,8 +1,9 @@
+use key_paths_derive::Kp;
 use rust_elm::{
-    reducer::Reduce, Identifiable, IdentifiedVec, ScopeReducer, IfLetReducer, Cmd, Reducer,
-    Effect,
+    action_enum, reducer::Reduce, Identifiable, IdentifiedVec, ScopeReducer, IfLetReducer, Cmd,
+    Reducer, Effect,
 };
-use rust_key_paths::Kp;
+use rust_key_paths::Kp as KpPath;
 
 #[test]
 fn identified_vec_ordering_and_remove() {
@@ -42,13 +43,13 @@ fn scope_child_state_isolated_from_sibling_field() {
         other: i32,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Kp)]
     enum PA {
         Child(CA),
         TouchOther,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Kp)]
     enum CA {
         Inc,
     }
@@ -58,29 +59,16 @@ fn scope_child_state_isolated_from_sibling_field() {
         Cmd::none()
     }
 
-    fn embed(c: CA) -> PA {
-        PA::Child(c)
-    }
-
-    fn extract(a: PA) -> Option<CA> {
-        match a {
-            PA::Child(c) => Some(c),
-            _ => None,
-        }
-    }
-
-    fn get_child(p: &Parent) -> Option<&Child> {
-        p.child.as_ref()
-    }
-
-    fn get_child_mut(p: &mut Parent) -> Option<&mut Child> {
-        p.child.as_mut()
-    }
-
     let scope = ScopeReducer::new(
-        Kp::new(get_child, get_child_mut),
-        embed,
-        extract,
+        KpPath::new(
+            |p: &Parent| p.child.as_ref(),
+            |p: &mut Parent| p.child.as_mut(),
+        ),
+        action_enum(
+            |a: &PA| PA::child().get_ref(a),
+            |a: &mut PA| PA::child().get_mut_ref(a),
+            PA::Child,
+        ),
         1,
         Reduce::new(child_r),
     );
@@ -106,13 +94,13 @@ fn if_let_dismiss_returns_cancel_effect() {
         child: Option<Child>,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Kp)]
     enum PA {
         Child(CA),
         Dismiss,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Kp)]
     enum CA {
         Inc,
     }
@@ -122,15 +110,15 @@ fn if_let_dismiss_returns_cancel_effect() {
     }
 
     let if_let = IfLetReducer::new(
-        Kp::new(
+        KpPath::new(
             |p: &Parent| p.child.as_ref(),
             |p: &mut Parent| p.child.as_mut(),
         ),
-        |c| PA::Child(c),
-        |a| match a {
-            PA::Child(c) => Some(c),
-            _ => None,
-        },
+        action_enum(
+            |a: &PA| PA::child().get_ref(a),
+            |a: &mut PA| PA::child().get_mut_ref(a),
+            PA::Child,
+        ),
         |a| matches!(a, PA::Dismiss),
         |p| {
             p.child = None;
