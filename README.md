@@ -26,7 +26,7 @@ key-paths-derive = "3.0.2"
 #### Unreleased (casepaths)
 
 - **`EnumKp` / `EnumKpType`** — casepaths (prisms) for enum variants: extract + embed. Factory helpers: `variant_of`, `enum_variant`, `enum_some`, `enum_ok`, `enum_err`. `Kp::with_embed` pairs a derived variant keypath with its constructor.
-- **`EnumValueKpType`** — casepath alias for multi-field variants whose payload is extracted **by value** (clone) as a tuple.
+- **`EnumKp::then` / `EnumKp::chain`** — compose nested single-payload casepaths (extract + embed) in one fluent chain.
 - **`#[derive(Cp)]`** in `key-paths-derive` — generates `variant_cp()` accessors per enum variant. See [Casepaths (enum prisms)](#casepaths-enum-prisms) and [key-paths-derive/README.md](./key-paths-derive/README.md#casepaths-cp).
 
 #### 3.1.1 / 2.0.1 / 3.0.2 (documentation)
@@ -228,6 +228,30 @@ assert_eq!(cash_kp.embed(10), Payment::Cash(10));
 | Enum variant extract | ✅ `variant()` | ✅ via extractor |
 | Enum variant embed | ❌ | ✅ `embed(payload)` |
 | Typical use | Chaining `.then()` through enums | Scoping actions, prisms, routing |
+
+#### Four-level nested actions
+
+Each level is a single-payload variant. Compose casepaths with **`.then()`** / **`.chain()`** — one chain for both extract and embed (mirroring Swift CasePaths `append`):
+
+```rust
+#[derive(Clone, Copy, Kp, Cp)]
+enum RootAction { App(AppAction) }
+#[derive(Clone, Copy, Kp, Cp)]
+enum AppAction { Panel(PanelAction) }
+#[derive(Clone, Copy, Kp, Cp)]
+enum PanelAction { Widget(WidgetAction) }
+#[derive(Clone, Copy, Kp, Cp)]
+enum WidgetAction { Tap, Submit }
+
+let to_widget = RootAction::app_cp()
+    .then(AppAction::panel_cp())
+    .chain(PanelAction::widget_cp());
+
+to_widget.get_ref(&root);              // extract leaf
+to_widget.embed(WidgetAction::Submit); // embed leaf → RootAction
+```
+
+In [`rust-elm`](./rust-elm/), each scope/reducer layer still uses **one** casepath per step (`Action::child_cp()`); four levels means four nested scopes. For ad-hoc routing without scopes, use the composed chain above. See [`examples/casepath.rs`](./examples/casepath.rs).
 
 ### Partial and Any keypaths
 

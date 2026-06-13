@@ -102,3 +102,41 @@ fn multi_field_named_casepath_is_value_based() {
     assert_eq!(kp.get(&made), Some(("acct-1".into(), 500)));
     assert_eq!(kp.get(&Payment::Cash(1)), None);
 }
+
+#[test]
+fn four_level_single_payload_actions_compose() {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Kp, Cp)]
+    enum RootAction {
+        App(AppAction),
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Kp, Cp)]
+    enum AppAction {
+        Panel(PanelAction),
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Kp, Cp)]
+    enum PanelAction {
+        Widget(WidgetAction),
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Kp, Cp)]
+    enum WidgetAction {
+        Tap,
+        Submit,
+    }
+
+    let to_widget = RootAction::app_cp()
+        .then(AppAction::panel_cp())
+        .chain(PanelAction::widget_cp());
+
+    let root = RootAction::App(AppAction::Panel(PanelAction::Widget(WidgetAction::Tap)));
+    assert_eq!(to_widget.get_ref(&root), Some(&WidgetAction::Tap));
+
+    let rebuilt = to_widget.embed(WidgetAction::Submit);
+    assert_eq!(
+        rebuilt,
+        RootAction::App(AppAction::Panel(PanelAction::Widget(WidgetAction::Submit)))
+    );
+    assert_eq!(to_widget.get_ref(&rebuilt), Some(&WidgetAction::Submit));
+}

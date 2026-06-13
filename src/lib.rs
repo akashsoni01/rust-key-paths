@@ -1370,6 +1370,102 @@ where
         self.embedder
     }
 
+    /// Append an inner casepath (Swift CasePaths `append`).
+    ///
+    /// Composes extract **and** embed through two single-payload variants:
+    ///
+    /// ```ignore
+    /// let cp = RootAction::app_cp()
+    ///     .then(AppAction::panel_cp())
+    ///     .then(PanelAction::widget_cp());
+    ///
+    /// cp.get_ref(&root);              // extract leaf by reference
+    /// cp.embed(WidgetAction::Submit); // embed leaf into root enum
+    /// ```
+    #[inline]
+    pub fn then<Leaf, G2, S2, E2>(
+        self,
+        inner: EnumKp<
+            Variant,
+            Leaf,
+            &'static Variant,
+            &'static Leaf,
+            &'static mut Variant,
+            &'static mut Leaf,
+            G2,
+            S2,
+            E2,
+        >,
+    ) -> EnumKp<
+        Enum,
+        Leaf,
+        &'static Enum,
+        &'static Leaf,
+        &'static mut Enum,
+        &'static mut Leaf,
+        impl for<'b> Fn(&'b Enum) -> Option<&'b Leaf>,
+        impl for<'b> Fn(&'b mut Enum) -> Option<&'b mut Leaf>,
+        impl Fn(Leaf) -> Enum + Copy,
+    >
+    where
+        Enum: 'static,
+        Variant: 'static,
+        Leaf: 'static,
+        G: for<'b> Fn(&'b Enum) -> Option<&'b Variant>,
+        S: for<'b> Fn(&'b mut Enum) -> Option<&'b mut Variant>,
+        E: Fn(Variant) -> Enum + Copy,
+        G2: for<'b> Fn(&'b Variant) -> Option<&'b Leaf>,
+        S2: for<'b> Fn(&'b mut Variant) -> Option<&'b mut Leaf>,
+        E2: Fn(Leaf) -> Variant + Copy,
+    {
+        let outer_embed = self.embedder;
+        let inner_embed = inner.embedder;
+        EnumKp::new(
+            self.extractor.then(inner.extractor),
+            move |leaf: Leaf| outer_embed(inner_embed(leaf)),
+        )
+    }
+
+    // /// Alias of [`then`](Self::then) for fluent casepath composition.
+    // #[inline]
+    // pub fn chain<Leaf, G2, S2, E2>(
+    //     self,
+    //     inner: EnumKp<
+    //         Variant,
+    //         Leaf,
+    //         &'static Variant,
+    //         &'static Leaf,
+    //         &'static mut Variant,
+    //         &'static mut Leaf,
+    //         G2,
+    //         S2,
+    //         E2,
+    //     >,
+    // ) -> EnumKp<
+    //     Enum,
+    //     Leaf,
+    //     &'static Enum,
+    //     &'static Leaf,
+    //     &'static mut Enum,
+    //     &'static mut Leaf,
+    //     impl for<'b> Fn(&'b Enum) -> Option<&'b Leaf>,
+    //     impl for<'b> Fn(&'b mut Enum) -> Option<&'b mut Leaf>,
+    //     impl Fn(Leaf) -> Enum + Copy,
+    // >
+    // where
+    //     Enum: 'static,
+    //     Variant: 'static,
+    //     Leaf: 'static,
+    //     G: for<'b> Fn(&'b Enum) -> Option<&'b Variant>,
+    //     S: for<'b> Fn(&'b mut Enum) -> Option<&'b mut Variant>,
+    //     E: Fn(Variant) -> Enum + Copy,
+    //     G2: for<'b> Fn(&'b Variant) -> Option<&'b Leaf>,
+    //     S2: for<'b> Fn(&'b mut Variant) -> Option<&'b mut Leaf>,
+    //     E2: Fn(Leaf) -> Variant + Copy,
+    // {
+    //     self.then(inner)
+    // }
+
     /// Get the underlying Kp for composition with other keypaths
     pub fn as_kp(&self) -> &Kp<Enum, Variant, Root, Value, MutRoot, MutValue, G, S> {
         &self.extractor

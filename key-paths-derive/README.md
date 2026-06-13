@@ -16,6 +16,7 @@ Proc-macro derives that generate `rust_key_paths` accessors on your types:
 - **`#[derive(Cp)]`** — casepath (prism) accessors for enum variants. Each variant gets a `variant_cp()` method returning a ready-to-use `EnumKpType` or `EnumValueKpType` (extract + embed). See [Casepaths (`Cp`)](#casepaths-cp) below.
 - Supports **unit**, **single-field tuple**, **single-field named**, **multi-field tuple**, and **multi-field named** variants. Multi-field payloads are extracted **by value** (clone) as tuples; field types must implement `Clone`.
 - Coexists with `#[derive(Kp)]` on the same enum (`child()` = extract-only keypath, `child_cp()` = full casepath).
+- **`EnumKp::then` / `chain`** on composed casepaths — fluent multi-level embed/extract without nested `.embed(.embed(...))`.
 
 ### 3.0.2
 
@@ -80,7 +81,7 @@ Use `Readable::get(&path, root)` if you prefer explicit trait syntax. For write 
 
 ## Casepaths (`Cp`)
 
-[`Kp`](https://docs.rs/rust-key-paths/latest/rust_key_paths/struct.Kp.html) keypaths focus **struct fields** and **extract** enum variant payloads. **Casepaths** (inspired by [Swift CasePaths](https://github.com/pointfreeco/swift-case-paths)) extend that model to enums: they **extract and embed** a variant — the prism you need when scoping reducers, routing actions, or lifting child values into a parent enum.
+[`Kp`](https://docs.rs/rust-key-paths/latest/rust_key_paths/struct.Kp.html) keypaths focus **struct fields** and **extract** enum variant payloads. **Casepaths** 
 
 Use `#[derive(Cp)]` on enums (often together with `#[derive(Kp)]`):
 
@@ -129,6 +130,50 @@ assert_eq!(card.get(&payment), Some(("4242".into(), "123".into())));
 ```
 
 **Why two casepath flavors?** Rust stores multi-field enum variants as separate fields, not one contiguous tuple, so you cannot borrow `Card(String, String)` as `&(String, String)`. Like Swift's case paths, multi-field variants surface the payload as an **owned tuple** via `EnumValueKpType`. Single-payload variants stay reference-based via `EnumKpType`.
+
+### Four-level nested actions (how they combine)
+
+When each level is a **single-payload** variant (`App(PanelAction)`, `Panel(WidgetAction)`, …), compose casepaths with **`.then()`** or **`.chain()`** (Swift CasePaths `append`). One composed casepath handles both extract and embed:
+
+```rust
+use key_paths_derive::{Cp, Kp};
+
+#[derive(Clone, Copy, Kp, Cp)]
+enum RootAction { App(AppAction) }
+
+#[derive(Clone, Copy, Kp, Cp)]
+enum AppAction { Panel(PanelAction) }
+
+#[derive(Clone, Copy, Kp, Cp)]
+enum PanelAction { Widget(WidgetAction) }
+
+#[derive(Clone, Copy, Kp, Cp)]
+enum WidgetAction { Tap, Submit }
+
+// Compose — same fluent shape for extract *and* embed:
+let to_widget = RootAction::app_cp()
+    .then(AppAction::panel_cp())
+    .chain(PanelAction::widget_cp());
+
+let root = RootAction::App(AppAction::Panel(PanelAction::Widget(WidgetAction::Tap)));
+assert_eq!(to_widget.get_ref(&root), Some(&WidgetAction::Tap));
+
+let rebuilt = to_widget.embed(WidgetAction::Submit);
+
+// Extract-only (no embed): chain `#[derive(Kp)]` variant keypaths instead:
+let read_only = RootAction::app()
+    .then(AppAction::panel())
+    .then(PanelAction::widget());
+```
+
+| Operation | API | Example |
+|-----------|-----|---------|
+| **Compose** casepaths | `.then(inner_cp)` / `.chain(inner_cp)` | `app_cp().then(panel_cp()).chain(widget_cp())` |
+| **Extract** leaf | `.get_ref(&root)` on composed casepath | `to_widget.get_ref(&root)` |
+| **Embed** leaf | `.embed(leaf)` on composed casepath | `to_widget.embed(WidgetAction::Submit)` |
+| **Extract-only** | `.then()` on `#[derive(Kp)]` extractors | `app().then(panel()).then(widget())` |
+
+Runnable example: [`examples/casepath.rs`](../examples/casepath.rs).
 
 ### Manual construction (without derive)
 
