@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
@@ -54,6 +54,7 @@ pub struct Runtime<S, M> {
     shutdown: Arc<AtomicBool>,
     _thread: Option<JoinHandle<()>>,
     _tokio: Arc<TokioRuntime>,
+    _subscriptions: Arc<crate::subscription::SubscriptionHandles>,
 }
 
 impl<S, M> Runtime<S, M>
@@ -111,6 +112,7 @@ where
             debounce_timers: Mutex::new(HashMap::new()),
             throttle_gates: Mutex::new(HashMap::new()),
         });
+        let sub_handles = Arc::new(crate::subscription::SubscriptionHandles::new());
         let backend = StoreBackend::new(state.clone(), bus.sender(), interpreter);
         let tx = bus.sender();
         let init_handles = tokio.block_on(interpret_effects_async(
@@ -134,9 +136,24 @@ where
         let tokio_for_thread = tokio.clone();
         let backend_for_thread = backend.clone();
         let tx_for_thread = tx;
+        let subs_registry = sub_handles.clone();
 
         let thread = thread::spawn(move || {
             let rt = tokio_for_thread;
+            let sync_subs = |state: &S| {
+                let sub = subs_fn(state);
+                crate::subscription::sync_subscriptions(
+                    &sub,
+                    &subs_registry,
+                    rt.handle().clone(),
+                    tx_for_thread.clone(),
+                    backend_for_thread.clone(),
+                    shutdown_for_thread.clone(),
+                );
+            };
+
+            sync_subs(&state_for_thread.lock());
+
             while !shutdown_for_thread.load(Ordering::Relaxed) {
                 match receiver.recv_timeout(Duration::from_millis(50)) {
                     Ok(msg) => {
@@ -173,12 +190,7 @@ where
                             });
                         }
 
-                        let sub = {
-                            let guard = state_for_thread.lock();
-                            subs_fn(&guard)
-                        };
-                        let mut active_subs = HashSet::new();
-                        diff_subscriptions(&sub, &mut active_subs);
+                        sync_subs(&state_for_thread.lock());
                     }
                     Err(RecvTimeoutError::Timeout) => continue,
                     Err(RecvTimeoutError::Disconnected) => break,
@@ -194,6 +206,7 @@ where
             shutdown,
             _thread: Some(thread),
             _tokio: tokio,
+            _subscriptions: sub_handles,
         }
     }
 
@@ -220,6 +233,7 @@ where
 
     pub fn shutdown(self) {
         self.shutdown.store(true, Ordering::Relaxed);
+        self._subscriptions.abort_all();
         if let Some(handle) = self._thread {
             let _ = handle.join();
         }
@@ -236,6 +250,17 @@ fn dispatch_from_effect<S, M>(
 {
     backend.begin_store_work();
     let _ = tx.send_blocking(msg);
+}
+
+pub(crate) fn dispatch_from_subscription<S, M>(
+    backend: &StoreBackend<S, M>,
+    tx: &BusSender<M>,
+    msg: M,
+) where
+    S: Send + 'static,
+    M: Send + 'static,
+{
+    dispatch_from_effect(backend, tx, msg);
 }
 
 async fn interpret_effects_async<S, M>(
@@ -615,28 +640,6 @@ where
     run_leaf(effect, &env).await
 }
 
-fn diff_subscriptions<M>(sub: &Sub<M>, active: &mut HashSet<u64>) {
-    let mut seen = HashSet::new();
-    collect_sub_ids(sub, &mut seen);
-    active.retain(|id| seen.contains(id));
-    active.extend(seen);
-}
-
-fn collect_sub_ids<M>(sub: &Sub<M>, out: &mut HashSet<u64>) {
-    match sub {
-        Sub::None => {}
-        Sub::Tick { id, .. } | Sub::Stream { id, .. } | Sub::WebSocket { id, .. } => {
-            out.insert(*id);
-        }
-        Sub::MapMsg { inner, .. } => collect_sub_ids(inner, out),
-        Sub::Batch(items) => {
-            for item in items {
-                collect_sub_ids(item, out);
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -661,6 +664,19 @@ mod tests {
 
     fn subs(_: &Counter) -> Sub<i32> {
         Sub::none()
+    }
+
+    #[test]
+    fn runtime_tick_subscription_dispatches() {
+        fn subs(_: &Counter) -> Sub<i32> {
+            Sub::tick(7, Duration::from_millis(30), || 1)
+        }
+
+        let program = Program::new(init, update, subs);
+        let runtime = Runtime::from_program(program, Environment::new(), 16);
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(runtime.state.lock().n >= 1);
+        runtime.shutdown();
     }
 
     #[test]

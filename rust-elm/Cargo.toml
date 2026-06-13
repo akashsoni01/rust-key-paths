@@ -39,6 +39,10 @@ name = "ecommerce"
 path = "examples/ecommerce.rs"
 
 [[test]]
+name = "subscription_integration"
+path = "tests/subscription_integration.rs"
+
+[[test]]
 name = "integration_basic"
 path = "tests/integration_basic.rs"
 

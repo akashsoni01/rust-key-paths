@@ -7,7 +7,7 @@
 //! - **Derived optics**: `Kp` / `Cp` keypaths for state and action scoping
 //! - **Reducer stack**: `CatchReducer` + `CombineReducers` + `ScopeReducer` + `IfLetReducer` + `ForEachReducer`
 //! - **Runtime**: bus-driven update loop, Tokio effect interpreter, `ScopedStore`, state subscription
-//! - **Effects**: `StoreTask`, cancel-on-dismiss (`IfLetReducer`); see `book/architecture.md` for debounce/async patterns
+//! - **Effects**: `StoreTask`, cancel-on-dismiss; **subscriptions**: tick, stream, websocket, map_msg, batch
 //!
 //! See [`../book/architecture.md`](../book/architecture.md) for threading, concurrency, and panic strategy.
 //!
@@ -29,6 +29,11 @@ use std::time::Duration;
 const CATALOG_CANCEL: EffectId = 2001;
 const CART_CANCEL: EffectId = 2002;
 const CHECKOUT_CANCEL: EffectId = 2003;
+
+const SUB_SESSION_TICK: u64 = 8001;
+const SUB_CATALOG_STREAM: u64 = 8002;
+const SUB_CHECKOUT_WS: u64 = 8003;
+const SUB_MAPMSG_UNIT: u64 = 8004;
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +99,14 @@ impl Identifiable for WishlistState {
     }
 }
 
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
+struct SubscriptionMetrics {
+    session_ticks: u32,
+    catalog_stream_pulses: u32,
+    checkout_ws_pulses: u32,
+    map_pings: u32,
+}
+
 #[derive(Default, Clone, Debug, PartialEq, Eq, Kp)]
 struct ShopState {
     session: SessionState,
@@ -102,6 +115,7 @@ struct ShopState {
     checkout: Option<CheckoutState>,
     wishlists: IdentifiedVec<WishlistId, WishlistState>,
     next_wishlist_id: WishlistId,
+    metrics: SubscriptionMetrics,
 }
 
 // ── Actions (4 nested levels under Catalog) ──────────────────────────────────
@@ -121,12 +135,15 @@ enum GlobalAction {
     SignIn(String),
     StartCheckout,
     SeedWishlist,
+    SessionTick,
+    SubscriptionPing,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
 enum CatalogAction {
     SetQuery(String),
     Browse(BrowseAction),
+    StreamPulse,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
@@ -163,6 +180,7 @@ enum CheckoutAction {
     Dismiss,
     Pay,
     PaymentDone,
+    WsPulse,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Kp)]
@@ -184,6 +202,18 @@ fn mock_catalog(sku: &str) -> (&'static str, u32) {
 // ── Child reducers ───────────────────────────────────────────────────────────
 
 fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> {
+    match &action {
+        ShopAction::Catalog(CatalogAction::StreamPulse) => {
+            state.metrics.catalog_stream_pulses += 1;
+            return Cmd::none();
+        }
+        ShopAction::Checkout(CheckoutAction::WsPulse) => {
+            state.metrics.checkout_ws_pulses += 1;
+            return Cmd::none();
+        }
+        _ => {}
+    }
+
     // Cross-scope bridge: product detail "add to cart" updates cart in the same reduce turn.
     if let ShopAction::Catalog(CatalogAction::Browse(BrowseAction::Product(
         ProductAction::Detail(DetailAction::AddToCart),
@@ -222,6 +252,14 @@ fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> 
             });
             Cmd::none()
         }
+        GlobalAction::SessionTick => {
+            state.metrics.session_ticks += 1;
+            Cmd::none()
+        }
+        GlobalAction::SubscriptionPing => {
+            state.metrics.map_pings += 1;
+            Cmd::none()
+        }
     }
 }
 
@@ -231,6 +269,7 @@ fn catalog_reducer(state: &mut CatalogState, action: CatalogAction) -> Cmd<Catal
             state.query = q;
             Cmd::none()
         }
+        CatalogAction::StreamPulse => Cmd::none(),
         CatalogAction::Browse(BrowseAction::Product(ProductAction::Detail(detail_action))) => {
             detail_reducer(state, detail_action)
         }
@@ -300,6 +339,7 @@ fn checkout_reducer(state: &mut CheckoutState, action: CheckoutAction) -> Cmd<Ch
             Cmd::none()
         }
         CheckoutAction::PaymentDone => Cmd::none(),
+        CheckoutAction::WsPulse => Cmd::none(),
     }
 }
 
@@ -420,8 +460,60 @@ fn init() -> (ShopState, Cmd<ShopAction>) {
     (ShopState::default(), Cmd::none())
 }
 
-fn subscriptions(_: &ShopState) -> Sub<ShopAction> {
-    Sub::none()
+fn sub_session_tick() -> ShopAction {
+    ShopAction::Global(GlobalAction::SessionTick)
+}
+
+fn sub_catalog_pulse() -> ShopAction {
+    ShopAction::Catalog(CatalogAction::StreamPulse)
+}
+
+fn sub_checkout_ws() -> ShopAction {
+    ShopAction::Checkout(CheckoutAction::WsPulse)
+}
+
+fn sub_unit() {}
+
+fn sub_map_ping(_: ()) -> ShopAction {
+    ShopAction::Global(GlobalAction::SubscriptionPing)
+}
+
+/// State-driven subscriptions — all five `Sub` varieties.
+fn subscriptions(state: &ShopState) -> Sub<ShopAction> {
+    let mut subs = Vec::new();
+
+    if state.session.user.is_some() {
+        subs.push(Sub::tick(
+            SUB_SESSION_TICK,
+            Duration::from_millis(120),
+            sub_session_tick,
+        ));
+    }
+
+    if !state.catalog.query.is_empty() {
+        subs.push(Sub::stream(
+            SUB_CATALOG_STREAM,
+            "catalog_search",
+            Duration::from_millis(150),
+            sub_catalog_pulse,
+        ));
+    }
+
+    if state.checkout.is_some() {
+        subs.push(Sub::websocket(
+            SUB_CHECKOUT_WS,
+            "wss://pay.example/status",
+            Duration::from_millis(200),
+            sub_checkout_ws,
+        ));
+    }
+
+    subs.push(Sub::map_msg(
+        Sub::tick(SUB_MAPMSG_UNIT, Duration::from_millis(100), sub_unit),
+        sub_map_ping,
+    ));
+
+    Sub::batch(subs)
 }
 
 // ── Demo scenario ────────────────────────────────────────────────────────────
@@ -470,7 +562,7 @@ fn main() {
 
     store.dispatch(ShopAction::Global(GlobalAction::StartCheckout));
     store.dispatch(ShopAction::Checkout(CheckoutAction::Pay));
-    std::thread::sleep(Duration::from_millis(150));
+    std::thread::sleep(Duration::from_millis(400));
 
     store.dispatch(ShopAction::WishlistRow(
         0,
@@ -486,6 +578,10 @@ fn main() {
         final_state.checkout.as_ref().map(|c| c.paid)
     );
     println!("wishlists: {}", final_state.wishlists.len());
+    println!(
+        "subscription metrics: {:?}",
+        final_state.metrics
+    );
 
     runtime.shutdown();
     println!("ecommerce example OK");

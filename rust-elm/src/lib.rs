@@ -24,6 +24,7 @@ pub mod scope;
 pub mod shared;
 pub mod store;
 pub mod sub;
+pub mod subscription;
 pub mod test_runtime;
 pub mod test_store;
 pub mod test_support;
