@@ -1,0 +1,17 @@
+[package]
+name = "rust_dependencies"
+version = "0.1.0"
+edition = "2024"
+authors = ["Codefonsi <info@codefonsi.com>"]
+license = "MPL-2.0"
+description = "Typed dependency injection for Rust — DependencyValues and DependencyKey with Clock, Uuid, Now, and Rng built-ins."
+readme = "README.md"
+repository = "https://github.com/codefonsi/rust-key-paths"
+homepage = "https://github.com/codefonsi/rust-key-paths/tree/main/rust_dependencies"
+documentation = "https://docs.rs/rust_dependencies"
+keywords = ["dependency-injection", "tca", "testing", "clock", "di"]
+categories = ["development-tools::testing"]
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE", "book/**/*"]
+
+[dependencies]
+parking_lot = "0.12"

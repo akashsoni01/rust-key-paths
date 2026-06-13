@@ -6,9 +6,9 @@ use std::time::{Duration, Instant};
 
 use parking_lot::{Mutex, RwLock};
 
-use crate::dependencies::{Clock, ClockDep, DependencyError, DependencyValues};
+use rust_dependencies::{Clock, ClockDep, DependencyError, DependencyValues};
 
-pub use crate::dependencies::{
+pub use rust_dependencies::{
     ClockKey, DepRng, DependencyKey, LiveRng, LiveUuidGen, Now, NowDep, NowKey, RealClock,
     RngDep, RngKey, SeededRng, SeededUuidGen, TestNow, UuidGen, UuidKey,
 };
@@ -211,7 +211,7 @@ pub type EnvFuture<M> = Pin<Box<dyn Future<Output = Result<M, crate::error::Effe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dependencies::{RngDep, SeededUuidGen, UuidDep};
+    use rust_dependencies::{RngDep, SeededUuidGen, UuidDep};
 
     #[test]
     fn fake_clock_advances() {

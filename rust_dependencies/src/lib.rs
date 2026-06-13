@@ -1,3 +1,8 @@
+//! Typed dependency injection for Rust — TCA [`DependencyValues`] / [`DependencyKey`] parity.
+//!
+//! Built-in keys cover monotonic clock, wall time, UUID generation, and RNG with
+//! deterministic test doubles. See the `book/dependencies.md` guide in the repository.
+
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hasher};
@@ -170,7 +175,7 @@ impl DependencyValues {
 ///
 /// ```
 /// use std::sync::Arc;
-/// use rust_elm::dependencies::{DependencyKey, DependencyValues};
+/// use rust_dependencies::{DependencyKey, DependencyValues};
 ///
 /// struct ConfigKey;
 ///
@@ -269,7 +274,7 @@ impl Clock for RealClock {
     }
 }
 
-/// Deterministic clock for tests (also available as [`crate::FakeClock`]).
+/// Deterministic monotonic clock for tests.
 #[derive(Debug, Clone)]
 pub struct TestClock {
     inner: Arc<parking_lot::Mutex<Instant>>,

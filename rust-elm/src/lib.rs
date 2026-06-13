@@ -11,7 +11,6 @@ pub mod batch;
 pub mod bus;
 pub mod cmd;
 pub mod component;
-pub mod dependencies;
 pub mod effect;
 pub mod env;
 pub mod error;
@@ -45,6 +44,7 @@ pub use dependencies::{
     LiveRng, LiveUuidGen, Now, NowDep, NowKey, RealClock, RngDep, RngKey, SeededRng,
     SeededUuidGen, TestClock, TestNow, UuidDep, UuidGen, UuidKey,
 };
+pub use rust_dependencies as dependencies;
 pub use env::{defer_batch, Environment, FakeClock, MockHttp};
 pub use error::EffectError;
 pub use interp::{flatten_effects, normalize, InterpretCtx};

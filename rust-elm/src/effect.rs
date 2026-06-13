@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use crate::bus::BusSender;
-use crate::dependencies::DependencyValues;
+use rust_dependencies::DependencyValues;
 use crate::env::Environment;
 use crate::error::EffectError;
 

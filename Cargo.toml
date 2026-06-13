@@ -28,12 +28,14 @@ members = [
     "key-paths-iter",
     "rust-elm",
     "rust_identified_vec",
+    "rust_dependencies",
 ]
 
 # Use local path when developing dependents
 [patch.crates-io]
 rust-key-paths = { path = "." }
 rust_identified_vec = { path = "rust_identified_vec" }
+rust_dependencies = { path = "rust_dependencies" }
 
 
 [features]

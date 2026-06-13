@@ -1,6 +1,6 @@
 # Identified collections
 
-The [`rust_identified_vec`](https://crates.io/crates/rust_identified_vec) crate provides **ordered, id-indexed collections** — the state-engine counterpart
+The [`rust_identified_vec`](https://crates.io/crates/rust_identified_vec) crate provides **ordered, id-indexed collections** — the state-engine counterpart.
 
 Use an `IdentifiedVec` when you need:
 

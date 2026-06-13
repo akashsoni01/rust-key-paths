@@ -1,6 +1,6 @@
 # Dependency injection
 
-The [`dependencies`](../src/dependencies.rs) module provides **typed dependency bags** for effects — the rust-elm counterpart to TCA's `DependencyValues` / `DependencyKey`.
+The [`dependencies`](../src/lib.rs) module provides **typed dependency bags** for effects — the rust-elm counterpart to TCA's `DependencyValues` / `DependencyKey`.
 
 Use it when an effect needs:
 
@@ -89,7 +89,7 @@ In **`DependencyValues::test()`**, both use the same `TestClock` instance so adv
 ### 1. Read a built-in dependency in an effect
 
 ```rust
-use rust_elm::dependencies::{ClockDep, DependencyValues};
+use rust_dependencies::{ClockDep, DependencyValues};
 use rust_elm::Environment;
 
 async fn measure<F, M>(env: &Environment, work: F) -> M
@@ -110,7 +110,7 @@ In tests, swap `Environment::test()` and advance the shared `TestClock` via `Fak
 ### 2. Register a custom dependency
 
 ```rust
-use rust_elm::dependencies::{DependencyKey, DependencyValues};
+use rust_dependencies::{DependencyKey, DependencyValues};
 
 struct ApiClientKey;
 
@@ -282,5 +282,5 @@ Prefer `MyKey::try_test()` in library code that should fall back gracefully.
 
 - [`env.rs`](../src/env.rs) — `Environment`, `FakeClock`, `MockHttp`, fiber-local `batch`
 - [`effect.rs`](../src/effect.rs) — `Effect::provide` for scoped dependency injection
-- [`tests/dependencies_integration.rs`](../tests/dependencies_integration.rs) — end-to-end override tests
+- [`tests/dependencies_integration.rs`](../../rust-elm/tests/dependencies_integration.rs) — end-to-end override tests (via `rust-elm`)
 - Workspace [`todo0.2.0.md`](../../todo0.2.0.md) — optimization and correctness changelog
