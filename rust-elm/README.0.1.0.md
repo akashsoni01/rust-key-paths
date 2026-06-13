@@ -53,6 +53,8 @@ fn main() {
 | `effect` | Pure async effect descriptions (`debounce`, `throttle`, `from_run`, `cancel`) |
 | `sub` | Subscription descriptions |
 | `runtime` | Bus-driven update loop + interpreter |
+| `dependencies` | `DependencyValues`, `DependencyKey`, Clock/Uuid/Now/Rng deps |
+| `env` | `Environment` (`live`/`test`), `FakeClock`, `MockHttp` |
 | `optics` | State/action focusing via `rust-key-paths` |
 | `test_runtime` | Sync testing without Tokio |
 | `reducer` | `Reducer` trait, `CombineReducers`, `reducers!` |

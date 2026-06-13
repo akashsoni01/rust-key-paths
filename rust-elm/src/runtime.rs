@@ -407,8 +407,7 @@ fn spawn_effect<M>(
             }
         }
         Effect::Provide { env: layer, inner } => {
-            let scoped = env.clone();
-            scoped.push_layer(layer);
+            let scoped = env.scoped_with(layer);
             spawn_effect(*inner, tx, scoped, handle, interpreter);
         }
         Effect::Retry { attempts, inner } => {

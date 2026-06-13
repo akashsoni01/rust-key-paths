@@ -11,6 +11,7 @@ pub mod batch;
 pub mod bus;
 pub mod cmd;
 pub mod component;
+pub mod dependencies;
 pub mod effect;
 pub mod env;
 pub mod error;
@@ -37,6 +38,11 @@ pub use bus::{Bus, BusSender};
 pub use cmd::Cmd;
 pub use component::{lift, Slot};
 pub use effect::{Effect, EffectId, EnvTaskFn, RunSender, TaskFn};
+pub use dependencies::{
+    Clock, ClockDep, ClockKey, DepRng, DependencyError, DependencyKey, DependencyValues,
+    LiveRng, LiveUuidGen, Now, NowDep, NowKey, RealClock, RngDep, RngKey, SeededRng,
+    SeededUuidGen, TestClock, TestNow, UuidDep, UuidGen, UuidKey,
+};
 pub use env::{defer_batch, Environment, FakeClock, MockHttp};
 pub use error::EffectError;
 pub use interp::{flatten_effects, normalize, InterpretCtx};

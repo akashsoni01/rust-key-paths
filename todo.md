@@ -134,13 +134,13 @@ Extend `src/effect.rs` + interpreter in `runtime.rs`.
 
 Upgrade `env.rs` into a typed dependency container.
 
-- [ ] **7.1** `DependencyValues` — typed map keyed by `TypeId`; `get::<D>()`, `with::<D>()`.
-- [ ] **7.2** `DependencyKey` trait with `live` / `test` / `preview` defaults;
+- [x] **7.1** `DependencyValues` — typed map keyed by `TypeId`; `get::<D>()`, `with::<D>()`.
+- [x] **7.2** `DependencyKey` trait with `live` / `test` / `preview` defaults;
       missing `test` value fails loudly.
-- [ ] **7.3** Scoped single-dependency override (generalize `Effect::provide`).
-- [ ] **7.4** Built-in controllable deps: `Clock` (real + `FakeClock`), `Uuid` (seeded),
+- [x] **7.3** Scoped single-dependency override (generalize `Effect::provide`).
+- [x] **7.4** Built-in controllable deps: `Clock` (real + `FakeClock`), `Uuid` (seeded),
       `Now`/date, `Rng` (seedable). Deterministic under test config.
-- [ ] Tests: deterministic uuid/clock/rng in tests; live vs test selection.
+- [x] Tests: deterministic uuid/clock/rng in tests; live vs test selection.
 
 ## 8. Store / Runtime ergonomics (TCA `Store.swift`, `Core.swift`)
 

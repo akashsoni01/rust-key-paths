@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use crate::bus::BusSender;
+use crate::dependencies::DependencyValues;
 use crate::env::Environment;
 use crate::error::EffectError;
 
@@ -487,6 +488,11 @@ impl<M> Effect<M> {
             env,
             inner: Box::new(inner),
         }
+    }
+
+    /// Scoped single-dependency override (TCA dependency override / `withDependencies`).
+    pub fn provide_dependency<D: Send + Sync + 'static>(value: D, inner: Effect<M>) -> Self {
+        Self::provide(Environment::from_values(DependencyValues::new().with(value)), inner)
     }
 
     pub fn retry(attempts: u32, inner: Effect<M>) -> Self {
