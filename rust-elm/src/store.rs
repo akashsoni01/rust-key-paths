@@ -164,10 +164,10 @@ where
     ) -> ScopedStore<S, M, CS, CM, AK, SK>
     where
         CS: Clone + PartialEq + Send + Sync + 'static,
-        CM: Copy + Send + 'static,
+        CM: Clone + Send + 'static,
         S: 'static,
         M: 'static,
-        AK: Casepath<M, CM> + Copy + Send + Sync + 'static,
+        AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
         SK: StateLens<S, CS> + Clone,
     {
         ScopedStore {
@@ -269,14 +269,14 @@ impl<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static, SK> Clone
 where
     S: Send,
     M: Send,
-    AK: Copy,
+    AK: Clone,
     SK: StateLens<S, CS> + Clone,
 {
     fn clone(&self) -> Self {
         Self {
             store: self.store.clone(),
             state_kp: self.state_kp.clone(),
-            action_kp: self.action_kp,
+            action_kp: self.action_kp.clone(),
             _marker: PhantomData,
         }
     }
@@ -288,8 +288,8 @@ where
     S: Send + Sync + Clone,
     M: Send,
     CS: Clone + PartialEq + Send + Sync,
-    CM: Copy + Send,
-    AK: Casepath<M, CM> + Copy + Send + Sync + 'static,
+    CM: Clone + Send,
+    AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
     SK: StateLens<S, CS> + Clone,
 {
     pub fn send(&self, action: CM) -> StoreTask {

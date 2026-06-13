@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 #[derive(Debug)]
 pub struct ScopeReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
 where
-    AK: Copy,
+    AK: Clone,
     SK: StateLens<PS, CS>,
 {
     pub state_kp: SK,
@@ -22,7 +22,7 @@ where
 impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
     ScopeReducer<R, PS, PA, CS, CA, AK, SK>
 where
-    AK: Copy,
+    AK: Clone,
     SK: StateLens<PS, CS>,
 {
     pub fn new(state_kp: SK, action_kp: AK, cancel_id: EffectId, child: R) -> Self {
@@ -41,8 +41,8 @@ impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK> Red
 where
     R: Reducer<State = CS, Action = CA>,
     PA: Send + 'static,
-    CA: Copy + Send + 'static,
-    AK: Casepath<PA, CA> + Copy + Send + Sync + 'static,
+    CA: Clone + Send + 'static,
+    AK: Casepath<PA, CA> + Clone + Send + Sync + 'static,
     SK: StateLens<PS, CS>,
 {
     type State = PS;
@@ -56,7 +56,7 @@ where
             return Cmd::none();
         };
         let cmd = self.child.reduce(child, child_action);
-        lift_cmd(cmd, self.action_kp, self.cancel_id)
+        lift_cmd(cmd, self.action_kp.clone(), self.cancel_id)
     }
 }
 
@@ -64,7 +64,7 @@ where
 #[derive(Debug)]
 pub struct IfLetReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
 where
-    AK: Copy,
+    AK: Clone,
     SK: StateLens<PS, CS>,
 {
     pub scope: ScopeReducer<R, PS, PA, CS, CA, AK, SK>,
@@ -76,7 +76,7 @@ where
 impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
     IfLetReducer<R, PS, PA, CS, CA, AK, SK>
 where
-    AK: Copy,
+    AK: Clone,
     SK: StateLens<PS, CS>,
 {
     pub fn new(
@@ -100,16 +100,16 @@ impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK> Red
     for IfLetReducer<R, PS, PA, CS, CA, AK, SK>
 where
     R: Reducer<State = CS, Action = CA>,
-    PA: Copy + Send + 'static,
-    CA: Copy + Send + 'static,
-    AK: Casepath<PA, CA> + Copy + Send + Sync + 'static,
+    PA: Clone + Send + 'static,
+    CA: Clone + Send + 'static,
+    AK: Casepath<PA, CA> + Clone + Send + Sync + 'static,
     SK: StateLens<PS, CS>,
 {
     type State = PS;
     type Action = PA;
 
     fn reduce(&self, state: &mut PS, action: PA) -> Cmd<PA> {
-        if (self.dismiss)(action) {
+        if (self.dismiss)(action.clone()) {
             let had_child = self.scope.state_kp.focus_mut(state).is_some();
             (self.clear)(state);
             if had_child {
@@ -165,14 +165,14 @@ where
     R: Reducer<State = CS, Action = CA>,
     CS: Identifiable<Id = Id>,
     Id: Copy + Eq + std::hash::Hash + Send + Sync + 'static,
-    PA: Copy + Send + 'static,
+    PA: Clone + Send + 'static,
     CA: Send + 'static,
 {
     type State = PS;
     type Action = PA;
 
     fn reduce(&self, state: &mut PS, action: PA) -> Cmd<PA> {
-        if let Some(id) = (self.extract_remove)(action) {
+        if let Some(id) = (self.extract_remove)(action.clone()) {
             let vec = (self.get_vec)(state);
             if vec.remove(id).is_some() {
                 return Cmd::single(Effect::cancel((self.cancel_id)(id)));
@@ -316,7 +316,7 @@ pub fn lift_cmd<PA, CA, CP>(cmd: Cmd<CA>, casepath: CP, cancel_id: EffectId) -> 
 where
     CA: Send + 'static,
     PA: Send + 'static,
-    CP: Casepath<PA, CA> + Copy + Send + Sync + 'static,
+    CP: Casepath<PA, CA> + Clone + Send + Sync + 'static,
 {
     match cmd {
         Cmd::None => Cmd::None,
@@ -326,7 +326,7 @@ where
         )),
         Cmd::Batch(cmds) => Cmd::Batch(
             cmds.into_iter()
-                .map(|c| lift_cmd(c, casepath, cancel_id))
+                .map(|c| lift_cmd(c, casepath.clone(), cancel_id))
                 .collect(),
         ),
     }
@@ -336,30 +336,46 @@ fn map_effect_with_casepath<PA, CA, CP>(effect: Effect<CA>, casepath: CP) -> Eff
 where
     CA: Send + 'static,
     PA: Send + 'static,
-    CP: Casepath<PA, CA> + Copy + Send + Sync + 'static,
+    CP: Casepath<PA, CA> + Clone + Send + Sync + 'static,
 {
     match effect {
         Effect::None => Effect::None,
-        Effect::Task { run, .. } => Effect::from_fn(move || {
-            let fut = run();
-            Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
-        }),
-        Effect::RegisteredTask { id: task_id } => Effect::from_fn(move || {
-            let fut = run_registered_task::<CA>(task_id);
-            Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
-        }),
-        Effect::EnvTask { run, .. } => Effect::from_env_fn(move |env| {
-            let fut = run(env);
-            Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
-        }),
-        Effect::RegisteredEnvTask { id: task_id } => Effect::from_env_fn(move |env| {
-            let fut = run_registered_env_task::<CA>(&env, task_id);
-            Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
-        }),
+        Effect::Task { run, .. } => {
+            let casepath = casepath.clone();
+            Effect::from_fn(move || {
+                let casepath = casepath.clone();
+                let fut = run();
+                Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
+            })
+        }
+        Effect::RegisteredTask { id: task_id } => {
+            let casepath = casepath.clone();
+            Effect::from_fn(move || {
+                let casepath = casepath.clone();
+                let fut = run_registered_task::<CA>(task_id);
+                Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
+            })
+        }
+        Effect::EnvTask { run, .. } => {
+            let casepath = casepath.clone();
+            Effect::from_env_fn(move |env| {
+                let casepath = casepath.clone();
+                let fut = run(env);
+                Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
+            })
+        }
+        Effect::RegisteredEnvTask { id: task_id } => {
+            let casepath = casepath.clone();
+            Effect::from_env_fn(move |env| {
+                let casepath = casepath.clone();
+                let fut = run_registered_env_task::<CA>(&env, task_id);
+                Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
+            })
+        }
         Effect::Batch(items) => Effect::Batch(
             items
                 .into_iter()
-                .map(|e| map_effect_with_casepath(e, casepath))
+                .map(|e| map_effect_with_casepath(e, casepath.clone()))
                 .collect(),
         ),
         Effect::Cancellable {
@@ -369,7 +385,7 @@ where
         } => Effect::Cancellable {
             id: cid,
             cancel_in_flight,
-            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+            inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
         },
         Effect::Debounce {
             id: did,
@@ -378,7 +394,7 @@ where
         } => Effect::Debounce {
             id: did,
             duration,
-            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+            inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
         },
         Effect::Throttle {
             id: tid,
@@ -389,31 +405,31 @@ where
             id: tid,
             duration,
             latest,
-            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+            inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
         },
         Effect::RegisteredRun { id: run_id } => Effect::RegisteredRun { id: run_id },
         Effect::Provide { env, inner } => Effect::Provide {
             env,
-            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+            inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
         },
         Effect::Retry { attempts, inner } => Effect::Retry {
             attempts,
-            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+            inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
         },
         Effect::Timeout { duration, inner } => Effect::Timeout {
             duration,
-            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+            inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
         },
         Effect::Sequence(items) => Effect::Sequence(
             items
                 .into_iter()
-                .map(|e| map_effect_with_casepath(e, casepath))
+                .map(|e| map_effect_with_casepath(e, casepath.clone()))
                 .collect(),
         ),
         Effect::Race(items) => Effect::Race(
             items
                 .into_iter()
-                .map(|e| map_effect_with_casepath(e, casepath))
+                .map(|e| map_effect_with_casepath(e, casepath.clone()))
                 .collect(),
         ),
         Effect::Catch { inner, recover: _ } => map_effect_with_casepath(*inner, casepath),
@@ -511,21 +527,21 @@ mod tests {
         child: Option<Child>,
     }
 
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Kp, Cp)]
+    #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
     enum ParentAction {
         Child(ChildAction),
         Dismiss,
         Other,
     }
 
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Kp)]
+    #[derive(Clone, Debug, PartialEq, Eq, Kp)]
     enum ChildAction {
-        Inc,
+        Inc(String),
     }
 
     fn child_reducer(s: &mut Child, a: ChildAction) -> Cmd<ChildAction> {
         match a {
-            ChildAction::Inc => s.n += 1,
+            ChildAction::Inc(_) => s.n += 1,
         }
         Cmd::none()
     }
@@ -566,7 +582,7 @@ mod tests {
         let mut parent = Parent {
             child: Some(Child { n: 0 }),
         };
-        scope.reduce(&mut parent, ParentAction::Child(ChildAction::Inc));
+        scope.reduce(&mut parent, ParentAction::Child(ChildAction::Inc("Akash Soni".to_string())));
         assert_eq!(parent.child.as_ref().unwrap().n, 1);
     }
 
@@ -581,7 +597,7 @@ mod tests {
         let mut parent = Parent {
             child: Some(Child { n: 0 }),
         };
-        scope.reduce(&mut parent, ParentAction::Child(ChildAction::Inc));
+        scope.reduce(&mut parent, ParentAction::Child(ChildAction::Inc("Akash Soni".to_string())));
         assert_eq!(parent.child.as_ref().unwrap().n, 1);
         scope.reduce(&mut parent, ParentAction::Other);
         assert_eq!(parent.child.as_ref().unwrap().n, 1);

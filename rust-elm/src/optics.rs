@@ -100,13 +100,13 @@ impl<Parent, Child, G, S, E> Casepath<Parent, Child>
     >
 where
     Parent: 'static,
-    Child: Copy + 'static,
+    Child: Clone + 'static,
     G: for<'b> Fn(&'b Parent) -> Option<&'b Child>,
     S: for<'b> Fn(&'b mut Parent) -> Option<&'b mut Child>,
-    E: Fn(Child) -> Parent + Copy,
+    E: Fn(Child) -> Parent + Clone,
 {
     fn extract(&self, parent: &Parent) -> Option<Child> {
-        self.get_ref(parent).copied()
+        self.get_ref(parent).cloned()
     }
 
     fn wrap(&self, child: Child) -> Parent {
