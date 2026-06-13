@@ -1,6 +1,6 @@
 //! State/action focusing for scoped reducers and stores.
 //!
-//! - **Keypath (lens)** — [`Kp`] / [`KpType`] / [`StateKey`] for struct fields.
+//! - **Keypath (lens)** — [`Kp`] / [`StateKp`] / [`StateKey`] for struct fields.
 //! - **Casepath (prism)** — [`EnumKp`] / [`CasePath`] for enum variants (extract + embed).
 //!
 //! Build casepaths with `#[derive(Cp)]` (`variant_cp()`), compose nested actions with
@@ -34,6 +34,41 @@ pub use rust_key_paths::{
 };
 
 /// Lens focusing `Part` within parent state `Whole`.
+///
+/// Matches the concrete [`Kp`] returned by `#[derive(Kp)]` field accessors (closure-backed
+/// `G`/`S`), not [`KpType`] (function-pointer closures).
+pub type StateKp<Whole, Part, G, Set> = Kp<
+    Whole,
+    Part,
+    &'static Whole,
+    &'static Part,
+    &'static mut Whole,
+    &'static mut Part,
+    G,
+    Set,
+>;
+
+/// Read/write navigation used by scoped reducers and stores.
+pub trait StateLens<Whole, Part> {
+    fn focus<'a>(&self, whole: &'a Whole) -> Option<&'a Part>;
+    fn focus_mut<'a>(&self, whole: &'a mut Whole) -> Option<&'a mut Part>;
+}
+
+impl<'a, R, V, G, Set> StateLens<R, V> for Kp<R, V, &'a R, &'a V, &'a mut R, &'a mut V, G, Set>
+where
+    G: for<'b> Fn(&'b R) -> Option<&'b V>,
+    Set: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+{
+    fn focus<'b>(&self, whole: &'b R) -> Option<&'b V> {
+        self.get_ref(whole)
+    }
+
+    fn focus_mut<'b>(&self, whole: &'b mut R) -> Option<&'b mut V> {
+        self.get_mut_ref(whole)
+    }
+}
+
+/// Back-compat alias when you build keypaths with `for<'b> fn(...)` closures ([`KpType`]).
 pub type StateKey<'a, Whole, Part> = KpType<'a, Whole, Part>;
 
 /// Single-step casepath (prism): parent enum → child payload.

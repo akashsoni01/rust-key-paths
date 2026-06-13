@@ -59,11 +59,15 @@ fn scope_child_state_isolated_from_sibling_field() {
         Cmd::none()
     }
 
+    fn child_get(p: &Parent) -> Option<&Child> {
+        p.child.as_ref()
+    }
+    fn child_get_mut(p: &mut Parent) -> Option<&mut Child> {
+        p.child.as_mut()
+    }
+
     let scope = ScopeReducer::new(
-        KpPath::new(
-            |p: &Parent| p.child.as_ref(),
-            |p: &mut Parent| p.child.as_mut(),
-        ),
+        KpPath::new(child_get, child_get_mut),
         PA::child_cp(),
         1,
         Reduce::new(child_r),
@@ -105,11 +109,15 @@ fn if_let_dismiss_returns_cancel_effect() {
         Cmd::none()
     }
 
+    fn child_get(p: &Parent) -> Option<&Child> {
+        p.child.as_ref()
+    }
+    fn child_get_mut(p: &mut Parent) -> Option<&mut Child> {
+        p.child.as_mut()
+    }
+
     let if_let = IfLetReducer::new(
-        KpPath::new(
-            |p: &Parent| p.child.as_ref(),
-            |p: &mut Parent| p.child.as_mut(),
-        ),
+        KpPath::new(child_get, child_get_mut),
         PA::child_cp(),
         |a| matches!(a, PA::Dismiss),
         |p| {

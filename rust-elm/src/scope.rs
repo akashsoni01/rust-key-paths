@@ -1,28 +1,31 @@
 use crate::cmd::Cmd;
 use crate::effect::{run_registered_env_task, run_registered_task, Effect, EffectId};
-use crate::optics::{Casepath, CasePath, KpType};
+use crate::optics::{Casepath, CasePath, StateLens};
 use rust_identified_vec::{Identifiable, IdentifiedVec};
 use crate::reducer::Reducer;
 use std::marker::PhantomData;
 
 /// Focuses nested state/action and runs a child reducer (TCA `Scope`).
-#[derive(Clone, Debug)]
-pub struct ScopeReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static>
+#[derive(Debug)]
+pub struct ScopeReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
 where
     AK: Copy,
+    SK: StateLens<PS, CS>,
 {
-    pub state_kp: KpType<'static, PS, CS>,
+    pub state_kp: SK,
     pub action_kp: AK,
     pub cancel_id: EffectId,
     pub child: R,
-    _marker: PhantomData<(PA, CA)>,
+    _marker: PhantomData<(PA, CA, PS, CS)>,
 }
 
-impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static> ScopeReducer<R, PS, PA, CS, CA, AK>
+impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
+    ScopeReducer<R, PS, PA, CS, CA, AK, SK>
 where
     AK: Copy,
+    SK: StateLens<PS, CS>,
 {
-    pub fn new(state_kp: KpType<'static, PS, CS>, action_kp: AK, cancel_id: EffectId, child: R) -> Self {
+    pub fn new(state_kp: SK, action_kp: AK, cancel_id: EffectId, child: R) -> Self {
         Self {
             state_kp,
             action_kp,
@@ -33,13 +36,14 @@ where
     }
 }
 
-impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static> Reducer
-    for ScopeReducer<R, PS, PA, CS, CA, AK>
+impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK> Reducer
+    for ScopeReducer<R, PS, PA, CS, CA, AK, SK>
 where
     R: Reducer<State = CS, Action = CA>,
     PA: Send + 'static,
     CA: Copy + Send + 'static,
     AK: Casepath<PA, CA> + Copy + Send + Sync + 'static,
+    SK: StateLens<PS, CS>,
 {
     type State = PS;
     type Action = PA;
@@ -48,7 +52,7 @@ where
         let Some(child_action) = self.action_kp.extract(&action) else {
             return Cmd::none();
         };
-        let Some(child) = self.state_kp.get_mut_ref(state) else {
+        let Some(child) = self.state_kp.focus_mut(state) else {
             return Cmd::none();
         };
         let cmd = self.child.reduce(child, child_action);
@@ -57,23 +61,26 @@ where
 }
 
 /// `ifLet` — run child reducer when optional state is `Some`; cancel on dismiss.
-#[derive(Clone, Debug)]
-pub struct IfLetReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static>
+#[derive(Debug)]
+pub struct IfLetReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
 where
     AK: Copy,
+    SK: StateLens<PS, CS>,
 {
-    pub scope: ScopeReducer<R, PS, PA, CS, CA, AK>,
+    pub scope: ScopeReducer<R, PS, PA, CS, CA, AK, SK>,
     pub dismiss: fn(PA) -> bool,
     pub clear: fn(&mut PS),
-    _marker: PhantomData<(PA, CA)>,
+    _marker: PhantomData<(PA, CA, PS, CS)>,
 }
 
-impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static> IfLetReducer<R, PS, PA, CS, CA, AK>
+impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
+    IfLetReducer<R, PS, PA, CS, CA, AK, SK>
 where
     AK: Copy,
+    SK: StateLens<PS, CS>,
 {
     pub fn new(
-        state_kp: KpType<'static, PS, CS>,
+        state_kp: SK,
         action_kp: AK,
         dismiss: fn(PA) -> bool,
         clear: fn(&mut PS),
@@ -89,20 +96,21 @@ where
     }
 }
 
-impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static> Reducer
-    for IfLetReducer<R, PS, PA, CS, CA, AK>
+impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK> Reducer
+    for IfLetReducer<R, PS, PA, CS, CA, AK, SK>
 where
     R: Reducer<State = CS, Action = CA>,
     PA: Copy + Send + 'static,
     CA: Copy + Send + 'static,
     AK: Casepath<PA, CA> + Copy + Send + Sync + 'static,
+    SK: StateLens<PS, CS>,
 {
     type State = PS;
     type Action = PA;
 
     fn reduce(&self, state: &mut PS, action: PA) -> Cmd<PA> {
         if (self.dismiss)(action) {
-            let had_child = self.scope.state_kp.get_mut_ref(state).is_some();
+            let had_child = self.scope.state_kp.focus_mut(state).is_some();
             (self.clear)(state);
             if had_child {
                 return Cmd::single(Effect::cancel(self.scope.cancel_id));
@@ -114,12 +122,12 @@ where
 }
 
 /// `ifCaseLet` — `ifLet` for enum-variant child state (same mechanics, enum-focused accessors).
-pub type IfCaseLetReducer<R, PS, PA, CS, CA> =
-    IfLetReducer<R, PS, PA, CS, CA, CasePath<'static, PA, CA>>;
+pub type IfCaseLetReducer<R, PS, PA, CS, CA, SK> =
+    IfLetReducer<R, PS, PA, CS, CA, CasePath<'static, PA, CA>, SK>;
 
 /// `optional` — scope that no-ops when child state is absent (no dismiss/cancel).
-pub type OptionalReducer<R, PS, PA, CS, CA> =
-    ScopeReducer<R, PS, PA, CS, CA, CasePath<'static, PA, CA>>;
+pub type OptionalReducer<R, PS, PA, CS, CA, SK> =
+    ScopeReducer<R, PS, PA, CS, CA, CasePath<'static, PA, CA>, SK>;
 
 /// Run a child reducer for each element in an [`IdentifiedVec`].
 #[derive(Clone, Debug)]
@@ -522,12 +530,15 @@ mod tests {
         Cmd::none()
     }
 
-    fn child_kp() -> rust_key_paths::KpType<'static, Parent, Child> {
-        rust_key_paths::Kp::new(
-            |p: &Parent| p.child.as_ref(),
-            |p: &mut Parent| p.child.as_mut(),
-        )
-    }
+    // fn child_kp() -> rust_key_paths::KpType<'static, Parent, Child> {
+    //     fn get(p: &Parent) -> Option<&Child> {
+    //         p.child.as_ref()
+    //     }
+    //     fn get_mut(p: &mut Parent) -> Option<&mut Child> {
+    //         p.child.as_mut()
+    //     }
+    //     rust_key_paths::Kp::new(get, get_mut)
+    // }
 
     fn child_action_kp() -> CasePath<'static, ParentAction, ChildAction> {
         ParentAction::child_cp()
@@ -542,10 +553,25 @@ mod tests {
     }
 
     #[test]
+    fn scope_accepts_derived_state_kp() {
+        let scope = ScopeReducer::new(
+            Parent::child(),
+            child_action_kp(),
+            1,
+            Reduce::new(child_reducer),
+        );
+        let mut parent = Parent {
+            child: Some(Child { n: 0 }),
+        };
+        scope.reduce(&mut parent, ParentAction::Child(ChildAction::Inc));
+        assert_eq!(parent.child.as_ref().unwrap().n, 1);
+    }
+
+    #[test]
     fn scope_isolates_child_state() {
         let scope = ScopeReducer::new(
-            child_kp(),
-            child_action_kp(),
+           Parent::child(),
+            ParentAction::child_cp(),
             1,
             Reduce::new(child_reducer),
         );
@@ -561,8 +587,8 @@ mod tests {
     #[test]
     fn if_let_dismiss_cancels_and_clears() {
         let if_let = IfLetReducer::new(
-            child_kp(),
-            child_action_kp(),
+            Parent::child(),
+            ParentAction::child_cp(),
             dismiss,
             clear,
             42,

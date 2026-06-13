@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::bus::BusSender;
 use crate::effect::EffectId;
-use crate::optics::{Casepath, KpType};
+use crate::optics::{Casepath, StateLens};
 use crate::runtime::InterpreterState;
 
 /// Cloneable dispatch handle for a running [`Runtime`](crate::Runtime).
@@ -157,17 +157,18 @@ where
     }
 
     /// Focus a child store via state and action casepaths (see [`crate::optics`]).
-    pub fn scope<CS, CM, AK>(
+    pub fn scope<CS, CM, AK, SK>(
         &self,
-        state_kp: KpType<'static, S, CS>,
+        state_kp: SK,
         action_kp: AK,
-    ) -> ScopedStore<S, M, CS, CM, AK>
+    ) -> ScopedStore<S, M, CS, CM, AK, SK>
     where
         CS: Clone + PartialEq + Send + Sync + 'static,
         CM: Copy + Send + 'static,
         S: 'static,
         M: 'static,
         AK: Casepath<M, CM> + Copy + Send + Sync + 'static,
+        SK: StateLens<S, CS> + Clone,
     {
         ScopedStore {
             store: self.clone(),
@@ -253,37 +254,43 @@ impl<S: PartialEq + Clone> StateSubscriber<S> {
 }
 
 /// Child store routing actions through a parent action casepath.
-pub struct ScopedStore<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static> {
+pub struct ScopedStore<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static, SK>
+where
+    SK: StateLens<S, CS> + Clone,
+{
     store: Store<S, M>,
-    state_kp: KpType<'static, S, CS>,
+    state_kp: SK,
     action_kp: AK,
-    _marker: PhantomData<(M, CM)>,
+    _marker: PhantomData<(M, CM, S, CS)>,
 }
 
-impl<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static> Clone
-    for ScopedStore<S, M, CS, CM, AK>
+impl<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static, SK> Clone
+    for ScopedStore<S, M, CS, CM, AK, SK>
 where
     S: Send,
     M: Send,
     AK: Copy,
+    SK: StateLens<S, CS> + Clone,
 {
     fn clone(&self) -> Self {
         Self {
             store: self.store.clone(),
-            state_kp: self.state_kp,
+            state_kp: self.state_kp.clone(),
             action_kp: self.action_kp,
             _marker: PhantomData,
         }
     }
 }
 
-impl<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static> ScopedStore<S, M, CS, CM, AK>
+impl<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static, SK>
+    ScopedStore<S, M, CS, CM, AK, SK>
 where
     S: Send + Sync + Clone,
     M: Send,
     CS: Clone + PartialEq + Send + Sync,
     CM: Copy + Send,
     AK: Casepath<M, CM> + Copy + Send + Sync + 'static,
+    SK: StateLens<S, CS> + Clone,
 {
     pub fn send(&self, action: CM) -> StoreTask {
         self.store.send(self.action_kp.wrap(action))
@@ -294,34 +301,41 @@ where
     }
 
     pub fn child_state(&self) -> Option<CS> {
-        self.state_kp.get_ref(&self.store.state()).cloned()
+        self.state_kp.focus(&self.store.state()).cloned()
     }
 
-    pub fn subscribe_state(&self) -> ScopedStateSubscriber<S, CS>
+    pub fn subscribe_state(&self) -> ScopedStateSubscriber<S, CS, SK>
     where
         S: Clone + PartialEq,
+        SK: Clone,
     {
         ScopedStateSubscriber {
             inner: self.store.subscribe_state(),
-            state_kp: self.state_kp,
+            state_kp: self.state_kp.clone(),
+            _marker: PhantomData,
         }
     }
 }
 
-pub struct ScopedStateSubscriber<S: 'static, CS: 'static> {
+pub struct ScopedStateSubscriber<S: 'static, CS: 'static, SK>
+where
+    SK: StateLens<S, CS> + Clone,
+{
     inner: StateSubscriber<S>,
-    state_kp: KpType<'static, S, CS>,
+    state_kp: SK,
+    _marker: PhantomData<(S, CS)>,
 }
 
-impl<S, CS> ScopedStateSubscriber<S, CS>
+impl<S, CS, SK> ScopedStateSubscriber<S, CS, SK>
 where
     S: PartialEq + Clone,
     CS: Clone + PartialEq,
+    SK: StateLens<S, CS> + Clone,
 {
     pub fn next(&mut self) -> Option<CS> {
         loop {
             let parent = self.inner.next()?;
-            let Some(child) = self.state_kp.get_ref(parent.as_ref()).cloned() else {
+            let Some(child) = self.state_kp.focus(parent.as_ref()).cloned() else {
                 continue;
             };
             return Some(child);
