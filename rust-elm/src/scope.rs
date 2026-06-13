@@ -229,10 +229,36 @@ where
                 .map(|e| map_effect_with_id(e, embed, id))
                 .collect(),
         ),
-        Effect::Cancellable { id: cid, inner } => Effect::Cancellable {
+        Effect::Cancellable {
             id: cid,
+            cancel_in_flight,
+            inner,
+        } => Effect::Cancellable {
+            id: cid,
+            cancel_in_flight,
             inner: Box::new(map_effect_with_id(*inner, embed, id)),
         },
+        Effect::Debounce {
+            id: did,
+            duration,
+            inner,
+        } => Effect::Debounce {
+            id: did,
+            duration,
+            inner: Box::new(map_effect_with_id(*inner, embed, id)),
+        },
+        Effect::Throttle {
+            id: tid,
+            duration,
+            latest,
+            inner,
+        } => Effect::Throttle {
+            id: tid,
+            duration,
+            latest,
+            inner: Box::new(map_effect_with_id(*inner, embed, id)),
+        },
+        Effect::RegisteredRun { id: run_id } => Effect::RegisteredRun { id: run_id },
         Effect::Provide { env, inner } => Effect::Provide {
             env,
             inner: Box::new(map_effect_with_id(*inner, embed, id)),
@@ -287,17 +313,42 @@ fn tag_cancel_id<M>(effect: Effect<M>, cancel_id: EffectId) -> Effect<M> {
     match effect {
         Effect::None => Effect::None,
         Effect::Task { run, .. } => Effect::Task { id: cancel_id, run },
-        Effect::RegisteredTask { .. } | Effect::EnvTask { .. } | Effect::RegisteredEnvTask { .. } => {
-            Effect::Cancellable {
-                id: cancel_id,
-                inner: Box::new(tag_cancel_id(effect, cancel_id)),
-            }
-        }
+        Effect::RegisteredTask { .. } | Effect::EnvTask { .. } | Effect::RegisteredEnvTask { .. }
+        | Effect::RegisteredRun { .. } => Effect::Cancellable {
+            id: cancel_id,
+            cancel_in_flight: true,
+            inner: Box::new(tag_cancel_id(effect, cancel_id)),
+        },
         Effect::Batch(items) => {
             Effect::Batch(items.into_iter().map(|e| tag_cancel_id(e, cancel_id)).collect())
         }
-        Effect::Cancellable { id, inner } => Effect::Cancellable {
+        Effect::Cancellable {
             id,
+            cancel_in_flight,
+            inner,
+        } => Effect::Cancellable {
+            id,
+            cancel_in_flight,
+            inner: Box::new(tag_cancel_id(*inner, cancel_id)),
+        },
+        Effect::Debounce {
+            id,
+            duration,
+            inner,
+        } => Effect::Debounce {
+            id,
+            duration,
+            inner: Box::new(tag_cancel_id(*inner, cancel_id)),
+        },
+        Effect::Throttle {
+            id,
+            duration,
+            latest,
+            inner,
+        } => Effect::Throttle {
+            id,
+            duration,
+            latest,
             inner: Box::new(tag_cancel_id(*inner, cancel_id)),
         },
         Effect::Provide { env, inner } => Effect::Provide {

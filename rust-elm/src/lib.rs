@@ -36,7 +36,7 @@ pub use batch::batch;
 pub use bus::{Bus, BusSender};
 pub use cmd::Cmd;
 pub use component::{lift, Slot};
-pub use effect::{Effect, EffectId, EnvTaskFn, TaskFn};
+pub use effect::{Effect, EffectId, EnvTaskFn, RunSender, TaskFn};
 pub use env::{defer_batch, Environment, FakeClock, MockHttp};
 pub use error::EffectError;
 pub use interp::{flatten_effects, normalize, InterpretCtx};

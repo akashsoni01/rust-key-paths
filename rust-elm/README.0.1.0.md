@@ -50,7 +50,7 @@ fn main() {
 | Module | Purpose |
 |--------|---------|
 | `cmd` | Commands returned from `update` |
-| `effect` | Pure async effect descriptions |
+| `effect` | Pure async effect descriptions (`debounce`, `throttle`, `from_run`, `cancel`) |
 | `sub` | Subscription descriptions |
 | `runtime` | Bus-driven update loop + interpreter |
 | `optics` | State/action focusing via `rust-key-paths` |

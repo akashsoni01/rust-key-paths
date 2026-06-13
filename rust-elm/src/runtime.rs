@@ -12,13 +12,37 @@ use tokio::time::timeout;
 
 use crate::bus::{Bus, BusSender};
 use crate::cmd::Cmd;
-use crate::effect::{run_leaf, run_registered_env_task, run_registered_task, Effect, EffectId};
+use crate::effect::{
+    run_leaf, run_registered_env_task, run_registered_run, run_registered_task, Effect, EffectId,
+};
 use crate::env::Environment;
 use crate::error::EffectError;
 use crate::interp::flatten_effects;
 use crate::program::{Program, ReducerProgram};
 use crate::reducer::Reducer;
 use crate::sub::Sub;
+
+struct ThrottleGate<M> {
+    latest: bool,
+    pending: Option<Effect<M>>,
+    timer: Option<TokioJoinHandle<()>>,
+}
+
+struct InterpreterState<M> {
+    cancel_tokens: Mutex<HashMap<EffectId, TokioJoinHandle<()>>>,
+    debounce_timers: Mutex<HashMap<EffectId, TokioJoinHandle<()>>>,
+    throttle_gates: Mutex<HashMap<EffectId, ThrottleGate<M>>>,
+}
+
+impl<M> InterpreterState<M> {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            cancel_tokens: Mutex::new(HashMap::new()),
+            debounce_timers: Mutex::new(HashMap::new()),
+            throttle_gates: Mutex::new(HashMap::new()),
+        })
+    }
+}
 
 /// Live runtime — bus-driven update loop on a pinned thread with Tokio effect interpreter.
 pub struct Runtime<S, M> {
@@ -28,7 +52,7 @@ pub struct Runtime<S, M> {
     shutdown: Arc<AtomicBool>,
     _thread: Option<JoinHandle<()>>,
     _tokio: Arc<TokioRuntime>,
-    cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>>,
+    interpreter: Arc<InterpreterState<M>>,
 }
 
 impl<S, M> Runtime<S, M>
@@ -81,8 +105,7 @@ where
         let tokio = Arc::new(
             TokioRuntime::new().expect("failed to create Tokio runtime for rust-elm"),
         );
-        let cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
+        let interpreter = InterpreterState::new();
 
         let tx = bus.sender();
         interpret_effects(
@@ -90,7 +113,7 @@ where
             tx.clone(),
             env.clone(),
             tokio.clone(),
-            cancel_tokens.clone(),
+            interpreter.clone(),
         );
 
         let receiver = bus.receiver().clone();
@@ -99,7 +122,7 @@ where
         let env_for_thread = env.clone();
         let shutdown_for_thread = shutdown.clone();
         let tokio_for_thread = tokio.clone();
-        let cancel_for_thread = cancel_tokens.clone();
+        let interpreter_for_thread = interpreter.clone();
         let tx_for_thread = tx.clone();
 
         let thread = thread::spawn(move || {
@@ -116,7 +139,7 @@ where
                             tx_for_thread.clone(),
                             env_for_thread.clone(),
                             rt.handle().clone(),
-                            cancel_for_thread.clone(),
+                            interpreter_for_thread.clone(),
                         ));
 
                         let sub = {
@@ -139,7 +162,7 @@ where
             shutdown,
             _thread: Some(thread),
             _tokio: tokio,
-            cancel_tokens,
+            interpreter,
         }
     }
 
@@ -152,7 +175,7 @@ where
     }
 
     pub fn cancel(&self, id: EffectId) {
-        if let Some(handle) = self.cancel_tokens.lock().remove(&id) {
+        if let Some(handle) = self.interpreter.cancel_tokens.lock().remove(&id) {
             handle.abort();
         }
     }
@@ -170,7 +193,7 @@ async fn interpret_effects_async<M>(
     tx: BusSender<M>,
     env: Environment,
     handle: tokio::runtime::Handle,
-    cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>>,
+    interpreter: Arc<InterpreterState<M>>,
 ) where
     M: Send + 'static,
 {
@@ -181,7 +204,7 @@ async fn interpret_effects_async<M>(
                 tx.clone(),
                 env.clone(),
                 handle.clone(),
-                cancel_tokens.clone(),
+                interpreter.clone(),
             );
         }
     }
@@ -192,7 +215,7 @@ fn interpret_effects<M>(
     tx: BusSender<M>,
     env: Environment,
     tokio: Arc<TokioRuntime>,
-    cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>>,
+    interpreter: Arc<InterpreterState<M>>,
 ) where
     M: Send + 'static,
 {
@@ -201,7 +224,7 @@ fn interpret_effects<M>(
         tx,
         env,
         tokio.handle().clone(),
-        cancel_tokens,
+        interpreter,
     ));
 }
 
@@ -210,14 +233,14 @@ fn spawn_effect<M>(
     tx: BusSender<M>,
     env: Environment,
     handle: tokio::runtime::Handle,
-    cancel_tokens: Arc<Mutex<HashMap<EffectId, TokioJoinHandle<()>>>>,
+    interpreter: Arc<InterpreterState<M>>,
 ) where
     M: Send + 'static,
 {
     match effect {
         Effect::None => {}
         Effect::Cancel { id } => {
-            if let Some(old) = cancel_tokens.lock().remove(&id) {
+            if let Some(old) = interpreter.cancel_tokens.lock().remove(&id) {
                 old.abort();
             }
         }
@@ -228,7 +251,7 @@ fn spawn_effect<M>(
                     let _ = tx.send_blocking(msg);
                 }
             });
-            cancel_tokens.lock().insert(id, join);
+            interpreter.cancel_tokens.lock().insert(id, join);
         }
         Effect::RegisteredTask { id } => {
             let tx = tx.clone();
@@ -237,7 +260,14 @@ fn spawn_effect<M>(
                     let _ = tx.send_blocking(msg);
                 }
             });
-            cancel_tokens.lock().insert(id, join);
+            interpreter.cancel_tokens.lock().insert(id, join);
+        }
+        Effect::RegisteredRun { id } => {
+            let tx = tx.clone();
+            let join = handle.spawn(async move {
+                let _ = run_registered_run::<M>(id, tx.clone()).await;
+            });
+            interpreter.cancel_tokens.lock().insert(id, join);
         }
         Effect::EnvTask { id, run } => {
             let tx = tx.clone();
@@ -247,7 +277,7 @@ fn spawn_effect<M>(
                     let _ = tx.send_blocking(msg);
                 }
             });
-            cancel_tokens.lock().insert(id, join);
+            interpreter.cancel_tokens.lock().insert(id, join);
         }
         Effect::RegisteredEnvTask { id } => {
             let tx = tx.clone();
@@ -257,7 +287,7 @@ fn spawn_effect<M>(
                     let _ = tx.send_blocking(msg);
                 }
             });
-            cancel_tokens.lock().insert(id, join);
+            interpreter.cancel_tokens.lock().insert(id, join);
         }
         Effect::Batch(items) | Effect::Race(items) => {
             for item in items {
@@ -266,7 +296,7 @@ fn spawn_effect<M>(
                     tx.clone(),
                     env.clone(),
                     handle.clone(),
-                    cancel_tokens.clone(),
+                    interpreter.clone(),
                 );
             }
         }
@@ -282,16 +312,104 @@ fn spawn_effect<M>(
                 }
             });
         }
-        Effect::Cancellable { id, inner } => {
-            if let Some(old) = cancel_tokens.lock().remove(&id) {
+        Effect::Cancellable {
+            id,
+            cancel_in_flight,
+            inner,
+        } => {
+            if cancel_in_flight {
+                if let Some(old) = interpreter.cancel_tokens.lock().remove(&id) {
+                    old.abort();
+                }
+            }
+            spawn_effect(*inner, tx, env, handle, interpreter);
+        }
+        Effect::Debounce { id, duration, inner } => {
+            if let Some(old) = interpreter.debounce_timers.lock().remove(&id) {
                 old.abort();
             }
-            spawn_effect(*inner, tx, env, handle, cancel_tokens);
+            let inner = *inner;
+            let tx = tx.clone();
+            let env = env.clone();
+            let handle_worker = handle.clone();
+            let interpreter_worker = interpreter.clone();
+            let join = handle.spawn(async move {
+                tokio::time::sleep(duration).await;
+                interpreter_worker.debounce_timers.lock().remove(&id);
+                spawn_effect(
+                    inner,
+                    tx,
+                    env,
+                    handle_worker,
+                    interpreter_worker,
+                );
+            });
+            interpreter.debounce_timers.lock().insert(id, join);
+        }
+        Effect::Throttle {
+            id,
+            duration,
+            latest,
+            inner,
+        } => {
+            let mut gates = interpreter.throttle_gates.lock();
+            let gate = gates.entry(id).or_insert(ThrottleGate {
+                latest,
+                pending: None,
+                timer: None,
+            });
+            gate.latest = latest;
+
+            if gate.timer.is_none() {
+                if latest {
+                    gate.pending = Some(*inner);
+                } else {
+                    let tx_now = tx.clone();
+                    let env_now = env.clone();
+                    let handle_now = handle.clone();
+                    let interpreter_now = interpreter.clone();
+                    spawn_effect(*inner, tx_now, env_now, handle_now, interpreter_now);
+                }
+                let tx_timer = tx.clone();
+                let env_timer = env.clone();
+                let handle_timer = handle.clone();
+                let interpreter_timer = interpreter.clone();
+                let join = handle.spawn(async move {
+                    tokio::time::sleep(duration).await;
+                    let effect_to_run = {
+                        let mut gates = interpreter_timer.throttle_gates.lock();
+                        if let Some(g) = gates.get_mut(&id) {
+                            g.timer = None;
+                            if g.latest {
+                                g.pending.take()
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    };
+                    if let Some(effect) = effect_to_run {
+                        spawn_effect(
+                            effect,
+                            tx_timer,
+                            env_timer,
+                            handle_timer,
+                            interpreter_timer,
+                        );
+                    } else {
+                        interpreter_timer.throttle_gates.lock().remove(&id);
+                    }
+                });
+                gate.timer = Some(join);
+            } else if latest {
+                gate.pending = Some(*inner);
+            }
         }
         Effect::Provide { env: layer, inner } => {
-            let mut scoped = env.clone();
+            let scoped = env.clone();
             scoped.push_layer(layer);
-            spawn_effect(*inner, tx, scoped, handle, cancel_tokens);
+            spawn_effect(*inner, tx, scoped, handle, interpreter);
         }
         Effect::Retry { attempts, inner } => {
             let tx = tx.clone();
@@ -327,7 +445,7 @@ fn spawn_effect<M>(
             let tx = tx.clone();
             let env = env.clone();
             let handle_worker = handle.clone();
-            let cancel_tokens = cancel_tokens.clone();
+            let interpreter_worker = interpreter.clone();
             handle.spawn(async move {
                 match run_effect_once(*inner, env.clone()).await {
                     Ok(msg) => {
@@ -339,7 +457,7 @@ fn spawn_effect<M>(
                             tx,
                             env,
                             handle_worker,
-                            cancel_tokens,
+                            interpreter_worker,
                         )
                         .await;
                     }

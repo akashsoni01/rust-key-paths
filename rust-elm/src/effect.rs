@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
+use crate::bus::BusSender;
 use crate::env::Environment;
 use crate::error::EffectError;
 
@@ -25,8 +26,17 @@ type ErasedEnvTask = Arc<
         + Sync,
 >;
 
+type ErasedRun = Arc<
+    dyn Fn(
+            Box<dyn Any + Send>,
+        ) -> Pin<Box<dyn Future<Output = Result<(), EffectError>> + Send>>
+        + Send
+        + Sync,
+>;
+
 static TASK_REGISTRY: OnceLock<Mutex<HashMap<EffectId, ErasedTask>>> = OnceLock::new();
 static ENV_TASK_REGISTRY: OnceLock<Mutex<HashMap<EffectId, ErasedEnvTask>>> = OnceLock::new();
+static RUN_REGISTRY: OnceLock<Mutex<HashMap<EffectId, ErasedRun>>> = OnceLock::new();
 static NEXT_REGISTRY_ID: AtomicU64 = AtomicU64::new(1);
 
 fn task_registry() -> &'static Mutex<HashMap<EffectId, ErasedTask>> {
@@ -35,6 +45,21 @@ fn task_registry() -> &'static Mutex<HashMap<EffectId, ErasedTask>> {
 
 fn env_task_registry() -> &'static Mutex<HashMap<EffectId, ErasedEnvTask>> {
     ENV_TASK_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn run_registry() -> &'static Mutex<HashMap<EffectId, ErasedRun>> {
+    RUN_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Emitter passed to [`Effect::from_run`] closures (TCA `.run { send in … }`).
+pub struct RunSender<M> {
+    pub(crate) tx: BusSender<M>,
+}
+
+impl<M> RunSender<M> {
+    pub fn send(&self, msg: M) {
+        let _ = self.tx.send_blocking(msg);
+    }
 }
 
 pub(crate) fn register_task<M, F>(run: F) -> EffectId
@@ -106,6 +131,37 @@ pub(crate) fn run_registered_env_task<M: Send + 'static>(
     })
 }
 
+pub(crate) fn register_run<M, F>(run: F) -> EffectId
+where
+    M: Send + 'static,
+    F: Fn(RunSender<M>) -> Pin<Box<dyn Future<Output = Result<(), EffectError>> + Send>>
+        + Send
+        + Sync
+        + 'static,
+{
+    let id = NEXT_REGISTRY_ID.fetch_add(1, Ordering::Relaxed);
+    run_registry().lock().unwrap().insert(
+        id,
+        Arc::new(move |any: Box<dyn Any + Send>| {
+            let tx = *any
+                .downcast::<BusSender<M>>()
+                .expect("run sender type mismatch");
+            run(RunSender { tx })
+        }),
+    );
+    id
+}
+
+pub(crate) fn run_registered_run<M: Send + 'static>(
+    id: EffectId,
+    tx: BusSender<M>,
+) -> Pin<Box<dyn Future<Output = Result<(), EffectError>> + Send>> {
+    let registry = run_registry().lock().unwrap();
+    let run = registry.get(&id).expect("missing registered run").clone();
+    drop(registry);
+    Box::pin(async move { (run)(Box::new(tx) as Box<dyn Any + Send>).await })
+}
+
 /// Async work descriptor — fn pointer at the description boundary.
 pub type TaskFn<M> = fn() -> Pin<Box<dyn Future<Output = Result<M, EffectError>> + Send>>;
 
@@ -113,14 +169,33 @@ pub type EnvTaskFn<M> =
     fn(&Environment) -> Pin<Box<dyn Future<Output = Result<M, EffectError>> + Send>>;
 
 /// Pure effect descriptions — interpreted only in `runtime.rs`.
+///
+/// - [`Effect::merge`] / [`Effect::batch`] — run children concurrently (TCA merge).
+/// - [`Effect::concatenate`] / [`Effect::sequence`] — run children in order (TCA concatenate).
 pub enum Effect<M> {
     None,
     Task { id: EffectId, run: TaskFn<M> },
     RegisteredTask { id: EffectId },
     EnvTask { id: EffectId, run: EnvTaskFn<M> },
     RegisteredEnvTask { id: EffectId },
+    RegisteredRun { id: EffectId },
     Batch(Vec<Effect<M>>),
-    Cancellable { id: EffectId, inner: Box<Effect<M>> },
+    Cancellable {
+        id: EffectId,
+        cancel_in_flight: bool,
+        inner: Box<Effect<M>>,
+    },
+    Debounce {
+        id: EffectId,
+        duration: Duration,
+        inner: Box<Effect<M>>,
+    },
+    Throttle {
+        id: EffectId,
+        duration: Duration,
+        latest: bool,
+        inner: Box<Effect<M>>,
+    },
     Provide {
         env: Environment,
         inner: Box<Effect<M>>,
@@ -150,9 +225,35 @@ impl<M> Clone for Effect<M> {
             Self::RegisteredTask { id } => Self::RegisteredTask { id: *id },
             Self::EnvTask { id, run } => Self::EnvTask { id: *id, run: *run },
             Self::RegisteredEnvTask { id } => Self::RegisteredEnvTask { id: *id },
+            Self::RegisteredRun { id } => Self::RegisteredRun { id: *id },
             Self::Batch(items) => Self::Batch(items.clone()),
-            Self::Cancellable { id, inner } => Self::Cancellable {
+            Self::Cancellable {
+                id,
+                cancel_in_flight,
+                inner,
+            } => Self::Cancellable {
                 id: *id,
+                cancel_in_flight: *cancel_in_flight,
+                inner: inner.clone(),
+            },
+            Self::Debounce {
+                id,
+                duration,
+                inner,
+            } => Self::Debounce {
+                id: *id,
+                duration: *duration,
+                inner: inner.clone(),
+            },
+            Self::Throttle {
+                id,
+                duration,
+                latest,
+                inner,
+            } => Self::Throttle {
+                id: *id,
+                duration: *duration,
+                latest: *latest,
                 inner: inner.clone(),
             },
             Self::Provide { env, inner } => Self::Provide {
@@ -215,6 +316,42 @@ impl<M> Effect<M> {
         Self::RegisteredEnvTask { id }
     }
 
+    pub fn from_run<F>(run: F) -> Self
+    where
+        M: Send + 'static,
+        F: Fn(RunSender<M>) -> Pin<Box<dyn Future<Output = Result<(), EffectError>> + Send>>
+            + Send
+            + Sync
+            + 'static,
+    {
+        let id = register_run(run);
+        Self::RegisteredRun { id }
+    }
+
+    /// Single-shot async task (alias for [`Effect::task`]).
+    pub fn task_try(id: EffectId, run: TaskFn<M>) -> Self {
+        Self::task(id, run)
+    }
+
+    /// Map a `Result<T, E>` leaf task into `M` via fn pointers (TCA `TaskResult`).
+    pub fn result_task<T, E>(run: TaskFn<Result<T, E>>, on_ok: fn(T) -> M, on_err: fn(E) -> M) -> Self
+    where
+        T: Send + 'static,
+        E: Send + 'static,
+        M: Send + 'static,
+    {
+        Self::from_fn(move || {
+            let fut = run();
+            Box::pin(async move {
+                match fut.await {
+                    Ok(Ok(value)) => Ok(on_ok(value)),
+                    Ok(Err(err)) => Ok(on_err(err)),
+                    Err(effect_err) => Err(effect_err),
+                }
+            })
+        })
+    }
+
     pub fn batch(effects: impl IntoIterator<Item = Effect<M>>) -> Self {
         let effects: Vec<_> = effects.into_iter().collect();
         if effects.is_empty() {
@@ -262,9 +399,35 @@ impl<M> Effect<M> {
                 let fut = run_registered_env_task::<M>(&env, id);
                 Box::pin(async move { fut.await.map(f) })
             }),
+            Self::RegisteredRun { id } => Effect::RegisteredRun { id },
             Self::Batch(items) => Effect::Batch(items.into_iter().map(|e| e.map(f)).collect()),
-            Self::Cancellable { id, inner } => Effect::Cancellable {
+            Self::Cancellable {
                 id,
+                cancel_in_flight,
+                inner,
+            } => Effect::Cancellable {
+                id,
+                cancel_in_flight,
+                inner: Box::new(inner.map(f)),
+            },
+            Self::Debounce {
+                id,
+                duration,
+                inner,
+            } => Effect::Debounce {
+                id,
+                duration,
+                inner: Box::new(inner.map(f)),
+            },
+            Self::Throttle {
+                id,
+                duration,
+                latest,
+                inner,
+            } => Effect::Throttle {
+                id,
+                duration,
+                latest,
                 inner: Box::new(inner.map(f)),
             },
             Self::Provide { env, inner } => Effect::Provide {
@@ -287,8 +450,30 @@ impl<M> Effect<M> {
     }
 
     pub fn cancellable(id: EffectId, inner: Effect<M>) -> Self {
+        Self::cancellable_with(id, true, inner)
+    }
+
+    pub fn cancellable_with(id: EffectId, cancel_in_flight: bool, inner: Effect<M>) -> Self {
         Self::Cancellable {
             id,
+            cancel_in_flight,
+            inner: Box::new(inner),
+        }
+    }
+
+    pub fn debounce(id: EffectId, duration: Duration, inner: Effect<M>) -> Self {
+        Self::Debounce {
+            id,
+            duration,
+            inner: Box::new(inner),
+        }
+    }
+
+    pub fn throttle(id: EffectId, duration: Duration, latest: bool, inner: Effect<M>) -> Self {
+        Self::Throttle {
+            id,
+            duration,
+            latest,
             inner: Box::new(inner),
         }
     }
@@ -353,8 +538,22 @@ impl<M> std::fmt::Debug for Effect<M> {
             Self::RegisteredTask { id } => write!(f, "Effect::RegisteredTask({id})"),
             Self::EnvTask { id, .. } => write!(f, "Effect::EnvTask({id})"),
             Self::RegisteredEnvTask { id } => write!(f, "Effect::RegisteredEnvTask({id})"),
+            Self::RegisteredRun { id } => write!(f, "Effect::RegisteredRun({id})"),
             Self::Batch(n) => write!(f, "Effect::Batch({})", n.len()),
-            Self::Cancellable { id, .. } => write!(f, "Effect::Cancellable({id})"),
+            Self::Cancellable {
+                id,
+                cancel_in_flight,
+                ..
+            } => write!(f, "Effect::Cancellable({id}, in_flight={cancel_in_flight})"),
+            Self::Debounce { id, duration, .. } => {
+                write!(f, "Effect::Debounce({id}, {duration:?})")
+            }
+            Self::Throttle {
+                id,
+                duration,
+                latest,
+                ..
+            } => write!(f, "Effect::Throttle({id}, {duration:?}, latest={latest})"),
             Self::Provide { .. } => write!(f, "Effect::Provide"),
             Self::Retry { attempts, .. } => write!(f, "Effect::Retry({attempts})"),
             Self::Timeout { duration, .. } => write!(f, "Effect::Timeout({duration:?})"),
@@ -397,5 +596,43 @@ mod tests {
         let b = Effect::<i32>::none();
         assert!(matches!(Effect::merge([a, b]), Effect::Batch(_)));
         assert!(matches!(Effect::concatenate([] as [Effect<i32>; 0]), Effect::None));
+    }
+
+    #[test]
+    fn result_task_maps_ok_and_err() {
+        fn load() -> Pin<Box<dyn Future<Output = Result<Result<i32, &'static str>, EffectError>> + Send>> {
+            Box::pin(async { Ok(Ok(7)) })
+        }
+        fn fail() -> Pin<Box<dyn Future<Output = Result<Result<i32, &'static str>, EffectError>> + Send>> {
+            Box::pin(async { Ok(Err("nope")) })
+        }
+        fn ok(n: i32) -> String {
+            format!("ok:{n}")
+        }
+        fn err(e: &'static str) -> String {
+            format!("err:{e}")
+        }
+
+        let ok_effect = Effect::result_task(load, ok, err);
+        let err_effect = Effect::result_task(fail, ok, err);
+        assert!(matches!(ok_effect, Effect::RegisteredTask { .. }));
+        assert!(matches!(err_effect, Effect::RegisteredTask { .. }));
+    }
+
+    #[test]
+    fn debounce_and_throttle_constructors() {
+        let inner = Effect::<i32>::task(1, || Box::pin(async { Ok(1) }));
+        assert!(matches!(
+            Effect::debounce(9, Duration::from_millis(50), inner.clone()),
+            Effect::Debounce { id: 9, .. }
+        ));
+        assert!(matches!(
+            Effect::throttle(9, Duration::from_millis(50), true, inner),
+            Effect::Throttle {
+                id: 9,
+                latest: true,
+                ..
+            }
+        ));
     }
 }

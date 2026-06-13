@@ -120,15 +120,15 @@ All built on §2 `Kp` + §3 `Reducer`.
 
 Extend `src/effect.rs` + interpreter in `runtime.rs`.
 
-- [ ] **6.1** `Effect::cancel(id)` as a first-class effect (today external via `Runtime::cancel`).
-- [ ] **6.2** `Effect::cancellable(id, cancel_in_flight: bool)` flag (TCA option).
-- [ ] **6.3** `Effect::debounce(id, dur)`.
-- [ ] **6.4** `Effect::throttle(id, dur, latest)`.
-- [ ] **6.5** `Effect::run` — emitter effect that can `send` *many* actions over time
+- [x] **6.1** `Effect::cancel(id)` as a first-class effect (today external via `Runtime::cancel`).
+- [x] **6.2** `Effect::cancellable(id, cancel_in_flight: bool)` flag (TCA option).
+- [x] **6.3** `Effect::debounce(id, dur)`.
+- [x] **6.4** `Effect::throttle(id, dur, latest)`.
+- [x] **6.5** `Effect::run` — emitter effect that can `send` *many* actions over time
       (TCA `.run { send in … }`); today `Task` yields exactly one `Msg`.
-- [ ] **6.6** Document/alias `Batch` = merge, `Sequence` = concatenate; add `merge`/`concatenate` ctors.
-- [ ] **6.7** `Result`→action helper alongside existing `task_try` (TCA `TaskResult`).
-- [ ] Tests: debounce coalescing, throttle-latest, cancel-in-flight, multi-send run, cancel-by-id.
+- [x] **6.6** Document/alias `Batch` = merge, `Sequence` = concatenate; add `merge`/`concatenate` ctors.
+- [x] **6.7** `Result`→action helper alongside existing `task_try` (TCA `TaskResult`).
+- [x] Tests: debounce coalescing, throttle-latest, cancel-in-flight, multi-send run, cancel-by-id.
 
 ## 7. Dependencies (TCA `Dependencies/*`)
 

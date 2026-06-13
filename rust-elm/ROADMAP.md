@@ -14,9 +14,10 @@ Evolution toward [TCA](https://github.com/pointfreeco/swift-composable-architect
 - Identified collections (phase 5): `Identifiable`, `IdentifiedVec` with serde round-trip
 - Scope combinators (phase 4): `ScopeReducer`, `IfLetReducer`, `IfCaseLetReducer`, `ForEachReducer`, `OptionalReducer`, `lift_cmd` / `lift_cmd_with_id`
 - Effect cancel (partial 6.1): `Effect::cancel(id)` interpreted in `Runtime`
+- Effects parity (phase 6): `debounce`, `throttle`, `from_run`/`RunSender`, `cancellable_with`, `result_task`, `task_try`
 
 ## Next
 
-- Phase 6–11: effects parity (debounce/throttle/run), dependencies, store, test store, shared state, polish
+- Phase 7–11: dependencies, store, test store, shared state, polish
 
 See [`todo.md`](../todo.md) for the full checklist.
