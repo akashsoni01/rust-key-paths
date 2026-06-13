@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use rust_elm::{Cmd, Effect, Environment, Program, Runtime, Sub};
+use rust_key_paths::Kp;
 
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
 struct App {
@@ -55,8 +56,14 @@ fn embed(a: ChildAction) -> Action {
     Action::Child(a)
 }
 
-fn child_state(app: &App) -> Option<i32> {
-    Some(app.count)
+fn count_kp() -> rust_key_paths::KpType<'static, App, i32> {
+    fn get(app: &App) -> Option<&i32> {
+        Some(&app.count)
+    }
+    fn get_mut(app: &mut App) -> Option<&mut i32> {
+        Some(&mut app.count)
+    }
+    Kp::new(get, get_mut)
 }
 
 #[test]
@@ -93,7 +100,7 @@ fn store_subscribe_state_dedupes() {
 fn scoped_store_routes_child_actions() {
     let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
     let store = runtime.store();
-    let child = store.scope(child_state, embed);
+    let child = store.scope(count_kp(), embed);
     child.dispatch(ChildAction::Bump);
     std::thread::sleep(Duration::from_millis(100));
     assert_eq!(child.child_state(), Some(10));

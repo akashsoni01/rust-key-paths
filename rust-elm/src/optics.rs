@@ -1,23 +1,11 @@
 use key_paths_core::{Readable, Writable};
-use rust_key_paths::Kp;
+pub use rust_key_paths::KpType;
 
 /// Lens focusing `Part` within parent state `Whole`.
 pub type StateKey<'a, Whole, Part> = KpType<'a, Whole, Part>;
 
 /// Prism focusing child action `Part` within parent action enum `Whole`.
 pub type ActionCase<'a, Whole, Part> = KpType<'a, Whole, Part>;
-
-/// Re-export the standard reference keypath alias used throughout the crate.
-pub type KpType<'a, R, V> = Kp<
-    R,
-    V,
-    &'a R,
-    &'a V,
-    &'a mut R,
-    &'a mut V,
-    for<'b> fn(&'b R) -> Option<&'b V>,
-    for<'b> fn(&'b mut R) -> Option<&'b mut V>,
->;
 
 /// Wrap a child action into a parent enum variant.
 pub fn wrap_action<Whole, Part>(embed: fn(Part) -> Whole, part: Part) -> Whole {

@@ -2,6 +2,7 @@ use rust_elm::{
     reducer::Reduce, Identifiable, IdentifiedVec, ScopeReducer, IfLetReducer, Cmd, Reducer,
     Effect,
 };
+use rust_key_paths::Kp;
 
 #[test]
 fn identified_vec_ordering_and_remove() {
@@ -68,11 +69,21 @@ fn scope_child_state_isolated_from_sibling_field() {
         }
     }
 
-    fn get_mut(p: &mut Parent) -> Option<&mut Child> {
+    fn get_child(p: &Parent) -> Option<&Child> {
+        p.child.as_ref()
+    }
+
+    fn get_child_mut(p: &mut Parent) -> Option<&mut Child> {
         p.child.as_mut()
     }
 
-    let scope = ScopeReducer::new(get_mut, embed, extract, 1, Reduce::new(child_r));
+    let scope = ScopeReducer::new(
+        Kp::new(get_child, get_child_mut),
+        embed,
+        extract,
+        1,
+        Reduce::new(child_r),
+    );
     let mut parent = Parent {
         child: Some(Child::default()),
         other: 5,
@@ -111,7 +122,10 @@ fn if_let_dismiss_returns_cancel_effect() {
     }
 
     let if_let = IfLetReducer::new(
-        |p: &mut Parent| p.child.as_mut(),
+        Kp::new(
+            |p: &Parent| p.child.as_ref(),
+            |p: &mut Parent| p.child.as_mut(),
+        ),
         |c| PA::Child(c),
         |a| match a {
             PA::Child(c) => Some(c),

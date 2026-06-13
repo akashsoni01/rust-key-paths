@@ -992,7 +992,6 @@ impl<Root> fmt::Display for PKp<Root> {
 ///
 /// For manual reference-shaped paths, [`constrain_get`] and [`constrain_set`] help closures satisfy
 /// `for<'b> Fn(&'b R) -> Option<&'b V>`; use [`Kp::get_ref`] / [`Kp::get_mut_ref`] to call them explicitly.
-#[derive(Clone)]
 pub struct Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
 where
     Root: std::borrow::Borrow<R>,
@@ -1007,6 +1006,26 @@ where
     set: S,
     _p: std::marker::PhantomData<(R, V, Root, Value, MutRoot, MutValue)>,
 }
+
+impl<R, V, Root, Value, MutRoot, MutValue, G, S> Clone
+    for Kp<R, V, Root, Value, MutRoot, MutValue, G, S>
+where
+    Root: std::borrow::Borrow<R>,
+    MutRoot: std::borrow::BorrowMut<R>,
+    MutValue: std::borrow::BorrowMut<V>,
+    G: Fn(Root) -> Option<Value> + Clone,
+    S: Fn(MutRoot) -> Option<MutValue> + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            get: self.get.clone(),
+            set: self.set.clone(),
+            _p: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, R, V> Copy for KpType<'a, R, V> where R: 'static, V: 'static {}
 
 /// Forces the compiler to treat a closure as `for<'b> Fn(&'b R) -> Option<&'b V>`.
 #[inline]

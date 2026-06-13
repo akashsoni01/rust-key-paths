@@ -8,6 +8,7 @@ use parking_lot::Mutex;
 
 use crate::bus::BusSender;
 use crate::effect::EffectId;
+use crate::optics::KpType;
 use crate::runtime::InterpreterState;
 
 /// Cloneable dispatch handle for a running [`Runtime`](crate::Runtime).
@@ -154,19 +155,20 @@ where
         }
     }
 
-    /// Focus a child store via fn-pointer state/action accessors (see [`crate::optics`]).
+    /// Focus a child store via a state keypath and parent action embed fn (see [`crate::optics`]).
     pub fn scope<CS, CM>(
         &self,
-        get: fn(&S) -> Option<CS>,
+        state_kp: KpType<'static, S, CS>,
         embed: fn(CM) -> M,
     ) -> ScopedStore<S, M, CS, CM>
     where
         CS: Clone + PartialEq + Send + Sync + 'static,
         CM: Send + 'static,
+        S: 'static,
     {
         ScopedStore {
             store: self.clone(),
-            get,
+            state_kp,
             embed,
         }
     }
@@ -247,9 +249,9 @@ impl<S: PartialEq + Clone> StateSubscriber<S> {
 }
 
 /// Child store routing actions through a parent action embed fn.
-pub struct ScopedStore<S, M, CS, CM> {
+pub struct ScopedStore<S: 'static, M, CS: 'static, CM> {
     store: Store<S, M>,
-    get: fn(&S) -> Option<CS>,
+    state_kp: KpType<'static, S, CS>,
     embed: fn(CM) -> M,
 }
 
@@ -261,7 +263,7 @@ where
     fn clone(&self) -> Self {
         Self {
             store: self.store.clone(),
-            get: self.get,
+            state_kp: self.state_kp,
             embed: self.embed,
         }
     }
@@ -283,7 +285,7 @@ where
     }
 
     pub fn child_state(&self) -> Option<CS> {
-        (self.get)(&self.store.state())
+        self.state_kp.get_ref(&self.store.state()).cloned()
     }
 
     pub fn subscribe_state(&self) -> ScopedStateSubscriber<S, CS>
@@ -292,14 +294,14 @@ where
     {
         ScopedStateSubscriber {
             inner: self.store.subscribe_state(),
-            get: self.get,
+            state_kp: self.state_kp,
         }
     }
 }
 
-pub struct ScopedStateSubscriber<S, CS> {
+pub struct ScopedStateSubscriber<S: 'static, CS: 'static> {
     inner: StateSubscriber<S>,
-    get: fn(&S) -> Option<CS>,
+    state_kp: KpType<'static, S, CS>,
 }
 
 impl<S, CS> ScopedStateSubscriber<S, CS>
@@ -310,7 +312,7 @@ where
     pub fn next(&mut self) -> Option<CS> {
         loop {
             let parent = self.inner.next()?;
-            let Some(child) = (self.get)(parent.as_ref()) else {
+            let Some(child) = self.state_kp.get_ref(parent.as_ref()).cloned() else {
                 continue;
             };
             return Some(child);
