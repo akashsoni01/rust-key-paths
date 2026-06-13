@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use crate::dependencies::{Clock, ClockDep, DependencyError, DependencyValues};
 
@@ -69,6 +69,7 @@ impl MockHttp {
 #[derive(Clone)]
 pub struct Environment {
     layers: Arc<Mutex<Vec<DependencyValues>>>,
+    merged_cache: Arc<RwLock<Option<DependencyValues>>>,
 }
 
 impl Default for Environment {
@@ -101,15 +102,24 @@ impl Environment {
     pub fn from_values(base: DependencyValues) -> Self {
         Self {
             layers: Arc::new(Mutex::new(vec![base])),
+            merged_cache: Arc::new(RwLock::new(None)),
         }
     }
 
+    fn invalidate_merged_cache(&self) {
+        *self.merged_cache.write() = None;
+    }
+
     pub fn values(&self) -> DependencyValues {
+        if let Some(cached) = self.merged_cache.read().clone() {
+            return cached;
+        }
         let layers = self.layers.lock();
         let merged = DependencyValues::new();
         for layer in layers.iter() {
             merged.merge_from(layer);
         }
+        *self.merged_cache.write() = Some(merged.clone());
         merged
     }
 
@@ -137,6 +147,7 @@ impl Environment {
 
     pub fn push_values(&self, overlay: DependencyValues) {
         self.layers.lock().push(overlay);
+        self.invalidate_merged_cache();
     }
 
     /// Fork the environment and append overlay dependency layers (for `Effect::provide`).
@@ -145,6 +156,7 @@ impl Environment {
         layers.extend(overlay.layers.lock().iter().cloned());
         Self {
             layers: Arc::new(Mutex::new(layers)),
+            merged_cache: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -169,6 +181,7 @@ impl Environment {
         self.layers
             .lock()
             .extend(overlay.layers.lock().iter().cloned());
+        self.invalidate_merged_cache();
     }
 }
 
