@@ -477,10 +477,13 @@ impl Default for LiveRng {
 
 impl DepRng for LiveRng {
     fn next_u64(&self) -> u64 {
+        // `fetch_update` returns the *previous* state; map through xorshift so callers
+        // receive the newly computed draw, not the raw internal seed.
         self.state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
                 Some(xorshift64(state))
             })
+            .map(xorshift64)
             .expect("xorshift always produces a value")
     }
 }
@@ -694,5 +697,239 @@ mod tests {
         let removed = values.remove::<String>().unwrap();
         assert_eq!(&*removed, "hello");
         assert!(!values.contains::<String>());
+    }
+
+    #[test]
+    fn require_missing_returns_typed_error() {
+        let values = DependencyValues::new();
+        let err = match values.require::<UuidDep>() {
+            Err(e) => e,
+            Ok(_) => panic!("expected missing dependency"),
+        };
+        assert!(err.to_string().contains("missing dependency"));
+        assert!(err.name.contains("UuidDep"));
+    }
+
+    #[test]
+    fn insert_overwrites_existing_entry() {
+        let values = DependencyValues::new();
+        values.insert(1_u32);
+        values.insert(2_u32);
+        assert_eq!(*values.get::<u32>().unwrap(), 2);
+    }
+
+    #[test]
+    fn merge_from_overwrites_conflicting_keys() {
+        let base = DependencyValues::new();
+        base.insert("base".to_string());
+        let overlay = DependencyValues::new();
+        overlay.insert("overlay".to_string());
+        base.merge_from(&overlay);
+        assert_eq!(*base.get::<String>().unwrap(), "overlay");
+    }
+
+    #[test]
+    fn merge_from_empty_overlay_is_noop() {
+        let base = DependencyValues::new();
+        base.insert(7_u32);
+        base.merge_from(&DependencyValues::new());
+        assert_eq!(*base.get::<u32>().unwrap(), 7);
+    }
+
+    #[test]
+    fn merge_from_self_does_not_deadlock() {
+        let values = DependencyValues::test();
+        values.merge_from(&values);
+        assert!(values.contains::<UuidDep>());
+    }
+
+    #[test]
+    fn cloned_bags_share_underlying_map() {
+        let a = DependencyValues::new();
+        a.insert(1_u32);
+        let b = a.clone();
+        b.insert(99_u64);
+        assert!(a.contains::<u64>());
+        assert_eq!(*b.get::<u32>().unwrap(), 1);
+    }
+
+    #[test]
+    fn live_and_test_bags_include_all_builtins() {
+        for bag in [DependencyValues::live(), DependencyValues::test()] {
+            assert!(bag.require::<ClockDep>().is_ok());
+            assert!(bag.require::<UuidDep>().is_ok());
+            assert!(bag.require::<NowDep>().is_ok());
+            assert!(bag.require::<RngDep>().is_ok());
+        }
+    }
+
+    #[test]
+    fn seeded_rng_zero_seed_clamps_to_one() {
+        let zero = SeededRng::new(0);
+        let one = SeededRng::new(1);
+        assert_eq!(zero.next_u64(), one.next_u64());
+    }
+
+    #[test]
+    fn seeded_uuid_gen_produces_distinct_sequence() {
+        let uuid_gen = SeededUuidGen::new(10);
+        let a = uuid_gen.next();
+        let b = uuid_gen.next();
+        let c = uuid_gen.next();
+        assert_ne!(a, b);
+        assert_ne!(b, c);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn live_uuid_gen_instances_are_independent() {
+        let a = LiveUuidGen::new();
+        let b = LiveUuidGen::new();
+        let seq_a: Vec<_> = (0..4).map(|_| a.next()).collect();
+        let seq_b: Vec<_> = (0..4).map(|_| b.next()).collect();
+        assert_ne!(seq_a, seq_b);
+    }
+
+    #[test]
+    fn live_uuid_gen_concurrent_unique() {
+        let uuid_gen = Arc::new(LiveUuidGen::new());
+        const THREADS: usize = 4;
+        const PER_THREAD: usize = 500;
+        let barrier = Arc::new(Barrier::new(THREADS));
+        let results = Arc::new(parking_lot::Mutex::new(Vec::new()));
+
+        let handles: Vec<_> = (0..THREADS)
+            .map(|_| {
+                let uuid_gen = uuid_gen.clone();
+                let barrier = barrier.clone();
+                let results = results.clone();
+                thread::spawn(move || {
+                    barrier.wait();
+                    let mut local = Vec::with_capacity(PER_THREAD);
+                    for _ in 0..PER_THREAD {
+                        local.push(uuid_gen.next());
+                    }
+                    results.lock().extend(local);
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let all = results.lock();
+        let set: HashSet<_> = all.iter().collect();
+        assert_eq!(set.len(), all.len());
+    }
+
+    #[test]
+    fn live_rng_returns_xorshift_draws() {
+        let rng = LiveRng::from_seed(99);
+        assert_eq!(rng.next_u64(), xorshift64(99));
+        assert_eq!(rng.next_u64(), xorshift64(xorshift64(99)));
+    }
+
+    #[test]
+    fn live_rng_concurrent_unique_values() {
+        let rng = Arc::new(LiveRng::from_seed(0xBEEF));
+        const THREADS: usize = 4;
+        const PER_THREAD: usize = 500;
+        let barrier = Arc::new(Barrier::new(THREADS));
+        let results = Arc::new(parking_lot::Mutex::new(Vec::new()));
+
+        let handles: Vec<_> = (0..THREADS)
+            .map(|_| {
+                let rng = rng.clone();
+                let barrier = barrier.clone();
+                let results = results.clone();
+                thread::spawn(move || {
+                    barrier.wait();
+                    let mut local = Vec::with_capacity(PER_THREAD);
+                    for _ in 0..PER_THREAD {
+                        local.push(rng.next_u64());
+                    }
+                    results.lock().extend(local);
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let all = results.lock();
+        let set: HashSet<_> = all.iter().collect();
+        assert_eq!(set.len(), all.len());
+    }
+
+    #[test]
+    fn test_now_elapsed_matches_clock_advance() {
+        let clock = TestClock::new(Instant::now());
+        let epoch = test_epoch_system();
+        let now = TestNow::new(clock.clone(), epoch);
+        let before = now.system_time();
+        clock.advance(std::time::Duration::from_millis(250));
+        assert_eq!(
+            now.system_time(),
+            before + std::time::Duration::from_millis(250)
+        );
+    }
+
+    #[test]
+    fn test_clock_clones_share_state() {
+        let clock = TestClock::new(Instant::now());
+        let clone = clock.clone();
+        clock.advance(std::time::Duration::from_secs(3));
+        assert_eq!(clone.now(), clock.now());
+    }
+
+    #[test]
+    fn dependency_key_register_inserts_into_bag() {
+        let bag = DependencyValues::new();
+        UuidKey::register(&bag, UuidKey::test());
+        assert!(bag.contains::<UuidDep>());
+    }
+
+    #[test]
+    fn dependency_error_display_and_eq() {
+        let a = DependencyError::missing("Foo");
+        let b = DependencyError::missing("Foo");
+        assert_eq!(a, b);
+        assert_eq!(a.to_string(), "missing dependency: Foo");
+    }
+
+    #[test]
+    fn remove_missing_returns_none() {
+        let values = DependencyValues::new();
+        assert!(values.remove::<i32>().is_none());
+    }
+
+    #[test]
+    fn get_or_insert_with_runs_factory_once() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let values = DependencyValues::new();
+        let factory_calls = Arc::new(AtomicUsize::new(0));
+        let on_first = factory_calls.clone();
+        values.get_or_insert_with(|| {
+            on_first.fetch_add(1, Ordering::SeqCst);
+            42_u32
+        });
+        let on_second = factory_calls.clone();
+        values.get_or_insert_with(|| {
+            on_second.fetch_add(1, Ordering::SeqCst);
+            99_u32
+        });
+        assert_eq!(factory_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(*values.get::<u32>().unwrap(), 42);
+    }
+}
+
+#[cfg(test)]
+impl LiveRng {
+    fn from_seed(seed: u64) -> Self {
+        Self {
+            state: AtomicU64::new(seed.max(1)),
+        }
     }
 }

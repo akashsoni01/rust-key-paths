@@ -57,7 +57,7 @@ fn main() {
 | `store` | `Store`, `StoreTask`, `ScopedStore`, state subscription |
 | `test_store` | `ExhaustiveTestStore` for synchronous effect/action testing |
 | `shared` | `Shared<T>`, `Storage`, `InMemoryStorage`, `FileStorage` (serde) |
-| `dependencies` | `DependencyValues`, `DependencyKey`, Clock/Uuid/Now/Rng deps |
+| `dependencies` | `DependencyValues`, `DependencyKey`, Clock/Uuid/Now/Rng deps — see [`book/dependencies.md`](book/dependencies.md) |
 | `env` | `Environment` (`live`/`test`), `FakeClock`, `MockHttp` |
 | `optics` | State/action focusing via `rust-key-paths` |
 | `test_runtime` | Sync testing without Tokio |
