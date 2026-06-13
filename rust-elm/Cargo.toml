@@ -30,6 +30,10 @@ default = ["runtime"]
 runtime = []
 serde = ["dep:serde", "dep:serde_json", "rust_identified_vec/serde"]
 
+[[example]]
+name = "catch_reduce"
+path = "examples/catch_reduce.rs"
+
 [[test]]
 name = "integration_basic"
 path = "tests/integration_basic.rs"

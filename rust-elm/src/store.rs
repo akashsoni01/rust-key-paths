@@ -46,17 +46,28 @@ where
     }
 }
 
-/// Run `reduce` inside [`catch_unwind`], restoring `state` from a snapshot on panic.
-pub fn catch_reduce<S, M, F>(state: &mut S, reduce: F, action: M) -> Result<Cmd<M>, ReducePanic>
+/// Run `reduce` inside [`catch_unwind`], rolling back via `checkpoint` on panic.
+///
+/// `checkpoint` must hold the last committed state (see [`CatchReducer`](crate::reducer::CatchReducer)).
+/// On panic, `state` and `checkpoint` are swapped — no clone on the failure path. After a
+/// successful reduce, `checkpoint` is updated from `state` (one clone on the success path only).
+pub fn catch_reduce<S, M, F>(
+    state: &mut S,
+    checkpoint: &mut S,
+    reduce: F,
+    action: M,
+) -> Result<Cmd<M>, ReducePanic>
 where
     S: Clone,
     F: FnOnce(&mut S, M) -> Cmd<M>,
 {
-    let snapshot = state.clone();
     match catch_unwind(AssertUnwindSafe(|| reduce(state, action))) {
-        Ok(cmd) => Ok(cmd),
+        Ok(cmd) => {
+            checkpoint.clone_from(state);
+            Ok(cmd)
+        }
         Err(payload) => {
-            *state = snapshot;
+            std::mem::swap(state, checkpoint);
             Err(ReducePanic::from_payload(payload))
         }
     }

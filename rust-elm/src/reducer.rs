@@ -1,3 +1,5 @@
+use parking_lot::Mutex;
+
 use crate::cmd::Cmd;
 use crate::store::{catch_reduce, ReducePanic};
 
@@ -82,19 +84,57 @@ impl_combine_reducers!(R1, R2, R3, R4);
 impl_combine_reducers!(R1, R2, R3, R4, R5);
 
 /// Wraps a reducer with panic recovery — state is rolled back on panic (TCA `catch` parity).
-#[derive(Clone, Debug)]
-pub struct CatchReducer<R, F> {
+///
+/// Keeps a committed checkpoint updated after each successful reduce; panics swap back without
+/// cloning on the failure path.
+pub struct CatchReducer<R, F, S> {
     inner: R,
     recover: F,
+    checkpoint: Mutex<S>,
 }
 
-impl<R, F> CatchReducer<R, F> {
-    pub fn new(inner: R, recover: F) -> Self {
-        Self { inner, recover }
+impl<R, F, S> CatchReducer<R, F, S>
+where
+    S: Clone,
+{
+    pub fn new(inner: R, recover: F, committed: &S) -> Self {
+        Self {
+            inner,
+            recover,
+            checkpoint: Mutex::new(committed.clone()),
+        }
     }
 }
 
-impl<R, F, S, A> Reducer for CatchReducer<R, F>
+impl<R, F, S> Clone for CatchReducer<R, F, S>
+where
+    R: Clone,
+    F: Clone,
+    S: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            recover: self.recover.clone(),
+            checkpoint: Mutex::new(self.checkpoint.lock().clone()),
+        }
+    }
+}
+
+impl<R, F, S> std::fmt::Debug for CatchReducer<R, F, S>
+where
+    R: std::fmt::Debug,
+    F: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CatchReducer")
+            .field("inner", &self.inner)
+            .field("recover", &self.recover)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<R, F, S, A> Reducer for CatchReducer<R, F, S>
 where
     R: Reducer<State = S, Action = A>,
     S: Clone,
@@ -104,7 +144,8 @@ where
     type Action = A;
 
     fn reduce(&self, state: &mut S, action: A) -> Cmd<A> {
-        match catch_reduce(state, |s, a| self.inner.reduce(s, a), action) {
+        let mut checkpoint = self.checkpoint.lock();
+        match catch_reduce(state, &mut *checkpoint, |s, a| self.inner.reduce(s, a), action) {
             Ok(cmd) => cmd,
             Err(panic) => (self.recover)(panic),
         }
@@ -211,9 +252,9 @@ mod tests {
             Cmd::none()
         }
 
-        let caught = CatchReducer::new(coerce_fn(panicking), recover);
         let mut app = App::default();
-        let cmd = allow_state_clones(1, || caught.reduce(&mut app, Action::Tick));
+        let caught = allow_state_clones(1, || CatchReducer::new(coerce_fn(panicking), recover, &app));
+        let cmd = caught.reduce(&mut app, Action::Tick);
         assert_eq!(app.a, 0);
         assert!(cmd.is_none());
     }
