@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::bus::BusSender;
 use crate::effect::EffectId;
-use crate::optics::{EnumKpType, KpType};
+use crate::optics::{Casepath, KpType};
 use crate::runtime::InterpreterState;
 
 /// Cloneable dispatch handle for a running [`Runtime`](crate::Runtime).
@@ -155,22 +156,24 @@ where
         }
     }
 
-    /// Focus a child store via state and action keypaths (see [`crate::optics`]).
-    pub fn scope<CS, CM>(
+    /// Focus a child store via state and action casepaths (see [`crate::optics`]).
+    pub fn scope<CS, CM, AK>(
         &self,
         state_kp: KpType<'static, S, CS>,
-        action_kp: EnumKpType<'static, M, CM>,
-    ) -> ScopedStore<S, M, CS, CM>
+        action_kp: AK,
+    ) -> ScopedStore<S, M, CS, CM, AK>
     where
         CS: Clone + PartialEq + Send + Sync + 'static,
         CM: Copy + Send + 'static,
         S: 'static,
         M: 'static,
+        AK: Casepath<M, CM> + Copy + Send + Sync + 'static,
     {
         ScopedStore {
             store: self.clone(),
             state_kp,
             action_kp,
+            _marker: PhantomData,
         }
     }
 }
@@ -249,40 +252,45 @@ impl<S: PartialEq + Clone> StateSubscriber<S> {
     }
 }
 
-/// Child store routing actions through a parent action keypath.
-pub struct ScopedStore<S: 'static, M: 'static, CS: 'static, CM: 'static> {
+/// Child store routing actions through a parent action casepath.
+pub struct ScopedStore<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static> {
     store: Store<S, M>,
     state_kp: KpType<'static, S, CS>,
-    action_kp: EnumKpType<'static, M, CM>,
+    action_kp: AK,
+    _marker: PhantomData<(M, CM)>,
 }
 
-impl<S, M, CS, CM> Clone for ScopedStore<S, M, CS, CM>
+impl<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static> Clone
+    for ScopedStore<S, M, CS, CM, AK>
 where
-    S: Send + 'static,
-    M: Send + 'static,
+    S: Send,
+    M: Send,
+    AK: Copy,
 {
     fn clone(&self) -> Self {
         Self {
             store: self.store.clone(),
             state_kp: self.state_kp,
             action_kp: self.action_kp,
+            _marker: PhantomData,
         }
     }
 }
 
-impl<S, M, CS, CM> ScopedStore<S, M, CS, CM>
+impl<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static> ScopedStore<S, M, CS, CM, AK>
 where
-    S: Send + Sync + Clone + 'static,
-    M: Send + 'static,
-    CS: Clone + PartialEq + Send + Sync + 'static,
-    CM: Copy + Send + 'static,
+    S: Send + Sync + Clone,
+    M: Send,
+    CS: Clone + PartialEq + Send + Sync,
+    CM: Copy + Send,
+    AK: Casepath<M, CM> + Copy + Send + Sync + 'static,
 {
     pub fn send(&self, action: CM) -> StoreTask {
-        self.store.send(self.action_kp.embed(action))
+        self.store.send(self.action_kp.wrap(action))
     }
 
     pub fn dispatch(&self, action: CM) {
-        self.store.dispatch(self.action_kp.embed(action));
+        self.store.dispatch(self.action_kp.wrap(action));
     }
 
     pub fn child_state(&self) -> Option<CS> {

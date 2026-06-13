@@ -1,68 +1,80 @@
 use crate::cmd::Cmd;
 use crate::effect::{run_registered_env_task, run_registered_task, Effect, EffectId};
-use crate::optics::{EnumKpType, KpType};
+use crate::optics::{Casepath, CasePath, KpType};
 use rust_identified_vec::{Identifiable, IdentifiedVec};
 use crate::reducer::Reducer;
+use std::marker::PhantomData;
 
 /// Focuses nested state/action and runs a child reducer (TCA `Scope`).
 #[derive(Clone, Debug)]
-pub struct ScopeReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static> {
+pub struct ScopeReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static>
+where
+    AK: Copy,
+{
     pub state_kp: KpType<'static, PS, CS>,
-    pub action_kp: EnumKpType<'static, PA, CA>,
+    pub action_kp: AK,
     pub cancel_id: EffectId,
     pub child: R,
+    _marker: PhantomData<(PA, CA)>,
 }
 
-impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static> ScopeReducer<R, PS, PA, CS, CA> {
-    pub fn new(
-        state_kp: KpType<'static, PS, CS>,
-        action_kp: EnumKpType<'static, PA, CA>,
-        cancel_id: EffectId,
-        child: R,
-    ) -> Self {
+impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static> ScopeReducer<R, PS, PA, CS, CA, AK>
+where
+    AK: Copy,
+{
+    pub fn new(state_kp: KpType<'static, PS, CS>, action_kp: AK, cancel_id: EffectId, child: R) -> Self {
         Self {
             state_kp,
             action_kp,
             cancel_id,
             child,
+            _marker: PhantomData,
         }
     }
 }
 
-impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static> Reducer
-    for ScopeReducer<R, PS, PA, CS, CA>
+impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static> Reducer
+    for ScopeReducer<R, PS, PA, CS, CA, AK>
 where
     R: Reducer<State = CS, Action = CA>,
     PA: Send + 'static,
     CA: Copy + Send + 'static,
+    AK: Casepath<PA, CA> + Copy + Send + Sync + 'static,
 {
     type State = PS;
     type Action = PA;
 
     fn reduce(&self, state: &mut PS, action: PA) -> Cmd<PA> {
-        let Some(child_action) = self.action_kp.get(&action).copied() else {
+        let Some(child_action) = self.action_kp.extract(&action) else {
             return Cmd::none();
         };
         let Some(child) = self.state_kp.get_mut_ref(state) else {
             return Cmd::none();
         };
         let cmd = self.child.reduce(child, child_action);
-        lift_cmd(cmd, self.action_kp.embed_fn(), self.cancel_id)
+        lift_cmd(cmd, self.action_kp, self.cancel_id)
     }
 }
 
 /// `ifLet` — run child reducer when optional state is `Some`; cancel on dismiss.
 #[derive(Clone, Debug)]
-pub struct IfLetReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static> {
-    pub scope: ScopeReducer<R, PS, PA, CS, CA>,
+pub struct IfLetReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static>
+where
+    AK: Copy,
+{
+    pub scope: ScopeReducer<R, PS, PA, CS, CA, AK>,
     pub dismiss: fn(PA) -> bool,
     pub clear: fn(&mut PS),
+    _marker: PhantomData<(PA, CA)>,
 }
 
-impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static> IfLetReducer<R, PS, PA, CS, CA> {
+impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static> IfLetReducer<R, PS, PA, CS, CA, AK>
+where
+    AK: Copy,
+{
     pub fn new(
         state_kp: KpType<'static, PS, CS>,
-        action_kp: EnumKpType<'static, PA, CA>,
+        action_kp: AK,
         dismiss: fn(PA) -> bool,
         clear: fn(&mut PS),
         cancel_id: EffectId,
@@ -72,16 +84,18 @@ impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static> IfLetReducer<R, PS, 
             scope: ScopeReducer::new(state_kp, action_kp, cancel_id, child),
             dismiss,
             clear,
+            _marker: PhantomData,
         }
     }
 }
 
-impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static> Reducer
-    for IfLetReducer<R, PS, PA, CS, CA>
+impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static> Reducer
+    for IfLetReducer<R, PS, PA, CS, CA, AK>
 where
     R: Reducer<State = CS, Action = CA>,
     PA: Copy + Send + 'static,
     CA: Copy + Send + 'static,
+    AK: Casepath<PA, CA> + Copy + Send + Sync + 'static,
 {
     type State = PS;
     type Action = PA;
@@ -100,10 +114,12 @@ where
 }
 
 /// `ifCaseLet` — `ifLet` for enum-variant child state (same mechanics, enum-focused accessors).
-pub type IfCaseLetReducer<R, PS, PA, CS, CA> = IfLetReducer<R, PS, PA, CS, CA>;
+pub type IfCaseLetReducer<R, PS, PA, CS, CA> =
+    IfLetReducer<R, PS, PA, CS, CA, CasePath<'static, PA, CA>>;
 
 /// `optional` — scope that no-ops when child state is absent (no dismiss/cancel).
-pub type OptionalReducer<R, PS, PA, CS, CA> = ScopeReducer<R, PS, PA, CS, CA>;
+pub type OptionalReducer<R, PS, PA, CS, CA> =
+    ScopeReducer<R, PS, PA, CS, CA, CasePath<'static, PA, CA>>;
 
 /// Run a child reducer for each element in an [`IdentifiedVec`].
 #[derive(Clone, Debug)]
@@ -288,23 +304,112 @@ where
 }
 
 /// Lift child command into parent action space and tag effects with a cancel id.
-pub fn lift_cmd<PA, CA>(
-    cmd: Cmd<CA>,
-    embed: fn(CA) -> PA,
-    cancel_id: EffectId,
-) -> Cmd<PA>
+pub fn lift_cmd<PA, CA, CP>(cmd: Cmd<CA>, casepath: CP, cancel_id: EffectId) -> Cmd<PA>
 where
     CA: Send + 'static,
     PA: Send + 'static,
+    CP: Casepath<PA, CA> + Copy + Send + Sync + 'static,
 {
     match cmd {
         Cmd::None => Cmd::None,
-        Cmd::Single(effect) => Cmd::Single(tag_cancel_id(effect.map(embed), cancel_id)),
+        Cmd::Single(effect) => Cmd::Single(tag_cancel_id(
+            map_effect_with_casepath(effect, casepath),
+            cancel_id,
+        )),
         Cmd::Batch(cmds) => Cmd::Batch(
             cmds.into_iter()
-                .map(|c| lift_cmd(c, embed, cancel_id))
+                .map(|c| lift_cmd(c, casepath, cancel_id))
                 .collect(),
         ),
+    }
+}
+
+fn map_effect_with_casepath<PA, CA, CP>(effect: Effect<CA>, casepath: CP) -> Effect<PA>
+where
+    CA: Send + 'static,
+    PA: Send + 'static,
+    CP: Casepath<PA, CA> + Copy + Send + Sync + 'static,
+{
+    match effect {
+        Effect::None => Effect::None,
+        Effect::Task { run, .. } => Effect::from_fn(move || {
+            let fut = run();
+            Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
+        }),
+        Effect::RegisteredTask { id: task_id } => Effect::from_fn(move || {
+            let fut = run_registered_task::<CA>(task_id);
+            Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
+        }),
+        Effect::EnvTask { run, .. } => Effect::from_env_fn(move |env| {
+            let fut = run(env);
+            Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
+        }),
+        Effect::RegisteredEnvTask { id: task_id } => Effect::from_env_fn(move |env| {
+            let fut = run_registered_env_task::<CA>(&env, task_id);
+            Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
+        }),
+        Effect::Batch(items) => Effect::Batch(
+            items
+                .into_iter()
+                .map(|e| map_effect_with_casepath(e, casepath))
+                .collect(),
+        ),
+        Effect::Cancellable {
+            id: cid,
+            cancel_in_flight,
+            inner,
+        } => Effect::Cancellable {
+            id: cid,
+            cancel_in_flight,
+            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+        },
+        Effect::Debounce {
+            id: did,
+            duration,
+            inner,
+        } => Effect::Debounce {
+            id: did,
+            duration,
+            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+        },
+        Effect::Throttle {
+            id: tid,
+            duration,
+            latest,
+            inner,
+        } => Effect::Throttle {
+            id: tid,
+            duration,
+            latest,
+            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+        },
+        Effect::RegisteredRun { id: run_id } => Effect::RegisteredRun { id: run_id },
+        Effect::Provide { env, inner } => Effect::Provide {
+            env,
+            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+        },
+        Effect::Retry { attempts, inner } => Effect::Retry {
+            attempts,
+            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+        },
+        Effect::Timeout { duration, inner } => Effect::Timeout {
+            duration,
+            inner: Box::new(map_effect_with_casepath(*inner, casepath)),
+        },
+        Effect::Sequence(items) => Effect::Sequence(
+            items
+                .into_iter()
+                .map(|e| map_effect_with_casepath(e, casepath))
+                .collect(),
+        ),
+        Effect::Race(items) => Effect::Race(
+            items
+                .into_iter()
+                .map(|e| map_effect_with_casepath(e, casepath))
+                .collect(),
+        ),
+        Effect::Catch { inner, recover: _ } => map_effect_with_casepath(*inner, casepath),
+        Effect::Cancel { id: cancel_id } => Effect::Cancel { id: cancel_id },
     }
 }
 
@@ -383,6 +488,7 @@ fn tag_cancel_id<M>(effect: Effect<M>, cancel_id: EffectId) -> Effect<M> {
 mod tests {
     use super::*;
     use crate::effect::Effect;
+    use crate::optics::CasePath;
     use key_paths_derive::{Cp, Kp};
     use rust_identified_vec::IdentifiedVec;
     use crate::reducer::Reduce;
@@ -423,7 +529,7 @@ mod tests {
         )
     }
 
-    fn child_action_kp() -> rust_key_paths::EnumKpType<'static, ParentAction, ChildAction> {
+    fn child_action_kp() -> CasePath<'static, ParentAction, ChildAction> {
         ParentAction::child_cp()
     }
 

@@ -23,7 +23,7 @@ enum DashAction {
     Refresh,
 }
 
-#[derive(Debug, Kp, Clone, PartialEq)]
+#[derive(Debug, Kp, Clone, Copy, PartialEq)]
 enum PanelAction {
     Select(i32),
 }

@@ -51,7 +51,8 @@ pub use interp::{flatten_effects, normalize, InterpretCtx};
 pub use rust_identified_vec::{Identifiable, IdentifiedVec};
 pub use optics::{
     enum_err, enum_ok, enum_some, enum_variant, extract, extract_action, extract_mut, variant_of,
-    wrap_action, ActionCase, ActionEnum, EnumKp, EnumKpType, EnumValueKpType, Kp, KpType, StateKey,
+    wrap_action, ActionCase, ActionEnum, CasePath, Casepath, EnumKp, EnumKpType, EnumValueKpType,
+    Kp, KpType, StateKey,
 };
 pub use program::{Program, ReducerProgram};
 pub use reducer::{coerce_fn, CombineReducers, Reduce, Reducer};

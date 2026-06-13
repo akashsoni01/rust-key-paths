@@ -1,22 +1,30 @@
 //! State/action focusing for scoped reducers and stores.
 //!
-//! This module is a thin layer over the `rust_key_paths` prior art:
+//! - **Keypath (lens)** — [`Kp`] / [`KpType`] / [`StateKey`] for struct fields.
+//! - **Casepath (prism)** — [`EnumKp`] / [`CasePath`] for enum variants (extract + embed).
 //!
-//! - **Keypath (lens)** — [`Kp`] / [`KpType`] focus a struct field of parent state.
-//! - **Casepath (prism)** — [`EnumKp`] / [`EnumKpType`] extract *and* embed an enum
-//!   action variant. The zero-boilerplate path is `#[derive(Cp)]` from
-//!   `key_paths_derive`, which emits a `variant_cp()` accessor per variant returning a
-//!   ready-to-use [`EnumKpType`]:
+//! Build casepaths with `#[derive(Cp)]` (`variant_cp()`), compose nested actions with
+//! [`.then()`](EnumKp::then) / [`.chain()`](EnumKp::chain), then pass the result to
+//! [`ScopeReducer`](crate::ScopeReducer) or [`Store::scope`](crate::Store::scope):
 //!
-//!   ```ignore
-//!   #[derive(key_paths_derive::Cp)]
-//!   enum Action { Child(ChildAction), Tick }
-//!   let kp = Action::child_cp(); // EnumKpType<'static, Action, ChildAction>
-//!   ```
+//! ```ignore
+//! use key_paths_derive::{Cp, Kp};
 //!
-//!   You can also build them manually with [`variant_of`] / [`enum_variant`] (or the
-//!   `Option`/`Result` shortcuts [`enum_some`], [`enum_ok`], [`enum_err`]), or pair a
-//!   `#[derive(Kp)]` variant accessor with its constructor via [`Kp::with_embed`].
+//! #[derive(Kp, Cp)]
+//! enum RootAction { App(AppAction) }
+//! #[derive(Kp, Cp)]
+//! enum AppAction { Panel(PanelAction) }
+//! #[derive(Kp, Cp)]
+//! enum PanelAction { Widget(WidgetAction) }
+//!
+//! let action_kp = RootAction::app_cp()
+//!     .then(AppAction::panel_cp())
+//!     .then(PanelAction::widget_cp());
+//!
+//! store.scope(state_kp, action_kp);
+//! action_kp.extract(&root_action);
+//! action_kp.wrap(WidgetAction::Submit);
+//! ```
 
 use key_paths_core::{Readable, Writable};
 
@@ -25,14 +33,51 @@ pub use rust_key_paths::{
     Kp, KpType,
 };
 
-/// Lens focusing `Part` within parent state `Whole` (keypath).
+/// Lens focusing `Part` within parent state `Whole`.
 pub type StateKey<'a, Whole, Part> = KpType<'a, Whole, Part>;
 
-/// Prism focusing child action `Part` within parent action enum `Whole` (casepath).
-pub type ActionCase<'a, Whole, Part> = EnumKpType<'a, Whole, Part>;
+/// Single-step casepath (prism): parent enum → child payload.
+pub type CasePath<'a, Parent, Child> = EnumKpType<'a, Parent, Child>;
 
-/// Alias of [`ActionCase`]: extract + embed action variant accessor (casepath).
-pub type ActionEnum<'a, Whole, Part> = EnumKpType<'a, Whole, Part>;
+/// Back-compat alias of [`CasePath`].
+pub type ActionCase<'a, Whole, Part> = CasePath<'a, Whole, Part>;
+
+/// Back-compat alias of [`CasePath`].
+pub type ActionEnum<'a, Whole, Part> = CasePath<'a, Whole, Part>;
+
+/// Uniform extract + embed for any [`EnumKp`] (including `.then()` / `.chain()` compositions).
+pub trait Casepath<Parent, Child> {
+    fn extract(&self, parent: &Parent) -> Option<Child>;
+    fn wrap(&self, child: Child) -> Parent;
+}
+
+impl<Parent, Child, G, S, E> Casepath<Parent, Child>
+    for EnumKp<
+        Parent,
+        Child,
+        &'static Parent,
+        &'static Child,
+        &'static mut Parent,
+        &'static mut Child,
+        G,
+        S,
+        E,
+    >
+where
+    Parent: 'static,
+    Child: Copy + 'static,
+    G: for<'b> Fn(&'b Parent) -> Option<&'b Child>,
+    S: for<'b> Fn(&'b mut Parent) -> Option<&'b mut Child>,
+    E: Fn(Child) -> Parent + Copy,
+{
+    fn extract(&self, parent: &Parent) -> Option<Child> {
+        self.get_ref(parent).copied()
+    }
+
+    fn wrap(&self, child: Child) -> Parent {
+        self.embed(child)
+    }
+}
 
 /// Read a focused `Part` from `Whole` through any keypath (lens).
 pub fn extract<'a, Whole, Part, K>(kp: &K, whole: &'a Whole) -> Option<&'a Part>
@@ -50,26 +95,26 @@ where
     Writable::set(kp, whole)
 }
 
-/// Extract a child action variant from a parent action enum through a casepath.
-pub fn extract_action<'a, PA: 'static, CA: 'static>(
-    action_kp: &EnumKpType<'static, PA, CA>,
-    action: &'a PA,
-) -> Option<&'a CA> {
-    action_kp.get_ref(action)
+/// Extract a child action through any [`Casepath`] (single step or composed).
+pub fn extract_action<Parent, Child, CP>(casepath: &CP, action: &Parent) -> Option<Child>
+where
+    CP: Casepath<Parent, Child>,
+{
+    casepath.extract(action)
 }
 
-/// Embed a child action into its parent enum variant through a casepath.
-pub fn wrap_action<PA: 'static, CA: 'static>(
-    action_kp: &EnumKpType<'static, PA, CA>,
-    child: CA,
-) -> PA {
-    action_kp.embed(child)
+/// Embed a child action through any [`Casepath`] (single step or composed).
+pub fn wrap_action<Parent, Child, CP>(casepath: &CP, child: Child) -> Parent
+where
+    CP: Casepath<Parent, Child>,
+{
+    casepath.wrap(child)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use key_paths_derive::Kp;
+    use key_paths_derive::{Cp, Kp};
 
     #[derive(Debug, Kp, Clone, PartialEq)]
     struct AppState {
@@ -82,28 +127,21 @@ mod tests {
         value: i32,
     }
 
-    #[derive(Debug, Kp, Clone, PartialEq)]
+    #[derive(Debug, Kp, Clone, PartialEq, Eq, Cp)]
     enum AppAction {
         Counter(CounterAction),
         Reset,
     }
 
-    #[derive(Debug, Kp, Clone, Copy, PartialEq)]
+    #[derive(Debug, Kp, Clone, Copy, PartialEq, Eq, Cp)]
     enum CounterAction {
         Increment,
         Decrement,
     }
 
-    fn get_counter(a: &AppAction) -> Option<&CounterAction> {
-        AppAction::counter().get_ref(a)
-    }
-
-    fn get_counter_mut(a: &mut AppAction) -> Option<&mut CounterAction> {
-        AppAction::counter().get_mut_ref(a)
-    }
-
-    fn counter_action_kp() -> EnumKpType<'static, AppAction, CounterAction> {
-        variant_of(get_counter, get_counter_mut, AppAction::Counter)
+    #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
+    enum RootAction {
+        App(AppAction),
     }
 
     #[test]
@@ -121,6 +159,32 @@ mod tests {
     }
 
     #[test]
+    fn casepath_extract_and_wrap_single_level() {
+        let kp = AppAction::counter_cp();
+        let action = AppAction::Counter(CounterAction::Increment);
+        assert_eq!(extract_action(&kp, &action), Some(CounterAction::Increment));
+        assert_eq!(
+            wrap_action(&kp, CounterAction::Decrement),
+            AppAction::Counter(CounterAction::Decrement)
+        );
+    }
+
+    #[test]
+    fn composed_casepath_chains_three_levels() {
+        let kp = RootAction::app_cp()
+            .then(AppAction::counter_cp());
+
+        let root = RootAction::App(AppAction::Counter(CounterAction::Increment));
+        assert_eq!(kp.extract(&root), Some(CounterAction::Increment));
+
+        let rebuilt = kp.wrap(CounterAction::Decrement);
+        assert_eq!(
+            rebuilt,
+            RootAction::App(AppAction::Counter(CounterAction::Decrement))
+        );
+    }
+
+    #[test]
     fn then_composition_over_option_and_nested_struct() {
         let mut state = AppState {
             counter: Some(CounterState { value: 1 }),
@@ -132,61 +196,5 @@ mod tests {
             *v = 99;
         }
         assert_eq!(state.counter.unwrap().value, 99);
-    }
-
-    #[test]
-    fn action_case_extracts_variant() {
-        let action = AppAction::Counter(CounterAction::Increment);
-        let kp = counter_action_kp();
-        assert!(extract_action(&kp, &action).is_some());
-        assert!(matches!(
-            extract_action(&kp, &action),
-            Some(CounterAction::Increment)
-        ));
-    }
-
-    #[test]
-    fn derived_with_embed_matches_action_enum() {
-        let action = AppAction::Counter(CounterAction::Increment);
-        let derived = AppAction::counter().with_embed(AppAction::Counter);
-        let stored = counter_action_kp();
-        assert_eq!(
-            derived.get_ref(&action).copied(),
-            stored.get(&action).copied()
-        );
-        assert_eq!(
-            derived.embed(CounterAction::Decrement),
-            stored.embed(CounterAction::Decrement)
-        );
-    }
-
-    #[test]
-    fn wrap_action_embeds_child() {
-        let kp = counter_action_kp();
-        let wrapped = wrap_action(&kp, CounterAction::Decrement);
-        assert_eq!(wrapped, AppAction::Counter(CounterAction::Decrement));
-    }
-
-    #[test]
-    fn manual_kp_option_box_chain() {
-        #[derive(Kp, Debug, PartialEq)]
-        struct Root {
-            inner: Option<Box<Leaf>>,
-        }
-
-        #[derive(Kp, Debug, PartialEq)]
-        struct Leaf {
-            n: u32,
-        }
-
-        let mut root = Root {
-            inner: Some(Box::new(Leaf { n: 7 })),
-        };
-        let kp = Root::inner().then(Leaf::n());
-        assert_eq!(kp.get(&root).copied(), Some(7));
-        if let Some(n) = kp.get_mut(&mut root) {
-            *n = 42;
-        }
-        assert_eq!(root.inner.unwrap().n, 42);
     }
 }

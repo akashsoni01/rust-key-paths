@@ -55,7 +55,7 @@ fn subs(_: &App) -> Sub<Action> {
     Sub::none()
 }
 
-fn child_action_kp() -> rust_key_paths::EnumKpType<'static, Action, ChildAction> {
+fn child_action_kp() -> rust_elm::CasePath<'static, Action, ChildAction> {
     Action::child_cp()
 }
 
@@ -164,7 +164,7 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         Panel(PanelAction),
     }
 
-    fn panel_action_kp() -> rust_key_paths::EnumKpType<'static, PanelParentAction, PanelAction> {
+    fn panel_action_kp() -> rust_elm::CasePath<'static, PanelParentAction, PanelAction> {
         PanelParentAction::panel_cp()
     }
 
