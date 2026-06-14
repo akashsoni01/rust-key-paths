@@ -9,17 +9,21 @@
 //! - **Runtime**: bus-driven update loop, Tokio effect interpreter, `ScopedStore`, state subscription
 //! - **Effects**: `StoreTask`, cancel-on-dismiss; **subscriptions**: tick, stream, websocket, map_msg, batch
 //!
-//! See [`../book/architecture.md`](../book/architecture.md) for threading, concurrency, and panic strategy.
+//! - **Environment / DI**: live vs mock HTTP + date deps via [`Environment::with`]
 //!
 //! ```bash
-//! cargo run -p rust-elm --example ecommerce
+//! cargo run -p rust-elm --example ecommerce          # live + mock scenarios
 //! ```
 
+#[path = "ecommerce/deps.rs"]
+mod deps;
+
+use deps::{DateDep, HttpDep, HTTPBIN_GET};
 use key_paths_derive::{Cp, Kp};
 use rust_elm::{
-    CatchReducer, Cmd, CombineReducers, EffectId, Environment, ForEachReducer,
-    Identifiable, IdentifiedVec, IfLetReducer, Reducer, ReducerProgram, Reduce, Runtime, ScopeReducer,
-    Sub,
+    CatchReducer, Cmd, CombineReducers, Effect, EffectError, EffectId, Environment,
+    ForEachReducer, Identifiable, IdentifiedVec, IfLetReducer, Reducer, ReducerProgram, Reduce,
+    Runtime, ScopeReducer, Sub,
 };
 use rust_key_paths::Kp as KpPath;
 use std::time::Duration;
@@ -43,6 +47,8 @@ type WishlistId = u64;
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 struct SessionState {
     user: Option<String>,
+    http_origin: Option<String>,
+    server_time: Option<String>,
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -137,6 +143,11 @@ enum GlobalAction {
     SeedWishlist,
     SessionTick,
     SubscriptionPing,
+    EnvProbe,
+    EnvLoaded {
+        origin: String,
+        server_time: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
@@ -199,16 +210,50 @@ fn mock_catalog(sku: &str) -> (&'static str, u32) {
     }
 }
 
+fn env_probe_effect() -> Effect<ShopAction> {
+    Effect::from_env_fn(|env| {
+        let http = match env.require::<HttpDep>() {
+            Ok(h) => h,
+            Err(e) => {
+                return Box::pin(async move { Err(EffectError::EnvMissing(e.name)) });
+            }
+        };
+        let date = match env.require::<DateDep>() {
+            Ok(d) => d,
+            Err(e) => {
+                return Box::pin(async move { Err(EffectError::EnvMissing(e.name)) });
+            }
+        };
+
+        Box::pin(async move {
+            let bin = http
+                .0
+                .get_request(HTTPBIN_GET.to_string())
+                .await
+                .map_err(EffectError::Other)?;
+            let now = date.0.current().await;
+            println!("date = {now:?}");
+
+            Ok(ShopAction::Global(GlobalAction::EnvLoaded {
+                origin: bin.origin,
+                server_time: now.to_rfc3339(),
+            }))
+        })
+    })
+}
+
 // ── Child reducers ───────────────────────────────────────────────────────────
 
 fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> {
     match &action {
         ShopAction::Catalog(CatalogAction::StreamPulse) => {
             state.metrics.catalog_stream_pulses += 1;
+            println!("global_reducer state update to catalog_stream_pulses = {:?}", state.metrics.catalog_stream_pulses);
             return Cmd::none();
         }
         ShopAction::Checkout(CheckoutAction::WsPulse) => {
             state.metrics.checkout_ws_pulses += 1;
+            println!("global_reducer state update to checkout_ws_pulses= {:?}", state.metrics.checkout_ws_pulses);
             return Cmd::none();
         }
         _ => {}
@@ -234,7 +279,7 @@ fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> 
     match action {
         GlobalAction::SignIn(user) => {
             state.session.user = Some(user);
-            Cmd::none()
+            Cmd::single(env_probe_effect())
         }
         GlobalAction::StartCheckout => {
             if state.checkout.is_none() && !state.cart.lines.is_empty() {
@@ -258,6 +303,12 @@ fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> 
         }
         GlobalAction::SubscriptionPing => {
             state.metrics.map_pings += 1;
+            Cmd::none()
+        }
+        GlobalAction::EnvProbe => Cmd::single(env_probe_effect()),
+        GlobalAction::EnvLoaded { origin, server_time } => {
+            state.session.http_origin = Some(origin);
+            state.session.server_time = Some(server_time);
             Cmd::none()
         }
     }
@@ -457,7 +508,10 @@ fn shop_reducer() -> impl Reducer<State = ShopState, Action = ShopAction> {
 }
 
 fn init() -> (ShopState, Cmd<ShopAction>) {
-    (ShopState::default(), Cmd::none())
+    (
+        ShopState::default(),
+        Cmd::single(env_probe_effect()),
+    )
 }
 
 fn sub_session_tick() -> ShopAction {
@@ -518,17 +572,33 @@ fn subscriptions(state: &ShopState) -> Sub<ShopAction> {
 
 // ── Demo scenario ────────────────────────────────────────────────────────────
 
-fn main() {
+fn run_shop(label: &str, env: Environment) {
+    println!("\n========== {label} environment ==========");
+
     let program = ReducerProgram::new(shop_reducer(), init, subscriptions);
-    let runtime = Runtime::from_reducer_program(program, Environment::new(), 64);
+    let runtime = Runtime::from_reducer_program(program, env, 64);
     let store = runtime.store();
 
-    // Scoped cart UI — dispatches only `CartAction` on the parent bus.
+    std::thread::sleep(Duration::from_millis(600));
+    let boot = store.state();
+    println!(
+        "{label} boot: origin={:?} time={:?}",
+        boot.session.http_origin, boot.session.server_time
+    );
+
     let cart_store = store.scope(cart_lens(), ShopAction::cart_cp());
 
     store.dispatch(ShopAction::Global(GlobalAction::SignIn(
         "alex@shop.example".into(),
     )));
+    std::thread::sleep(Duration::from_millis(600));
+
+    let after_sign_in = store.state();
+    println!(
+        "{label} after sign-in: origin={:?} time={:?}",
+        after_sign_in.session.http_origin, after_sign_in.session.server_time
+    );
+
     store.dispatch(ShopAction::Global(GlobalAction::SeedWishlist));
 
     let mut catalog_sub = store.subscribe_state();
@@ -570,19 +640,25 @@ fn main() {
     ));
 
     let final_state = store.state();
-    println!("\n=== final shop state ===");
+    println!("\n--- {label} final ---");
     println!("user: {:?}", final_state.session.user);
+    println!(
+        "env: origin={:?} time={:?}",
+        final_state.session.http_origin, final_state.session.server_time
+    );
     println!("cart lines: {}", final_state.cart.lines.len());
     println!(
         "checkout paid: {:?}",
         final_state.checkout.as_ref().map(|c| c.paid)
     );
     println!("wishlists: {}", final_state.wishlists.len());
-    println!(
-        "subscription metrics: {:?}",
-        final_state.metrics
-    );
+    println!("subscription metrics: {:?}", final_state.metrics);
 
     runtime.shutdown();
-    println!("ecommerce example OK");
+}
+
+fn main() {
+    run_shop("live", deps::shop_environment_live());
+    run_shop("mock", deps::shop_environment_mock());
+    println!("\necommerce example OK");
 }
