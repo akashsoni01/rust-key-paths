@@ -46,6 +46,15 @@ websocket = ["runtime", "dep:tokio-tungstenite", "dep:futures-util"]
 serde = ["dep:serde", "dep:serde_json", "rust_identified_vec/serde"]
 
 [[example]]
+name = "pain"
+path = "examples/pain.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "calculator"
+path = "examples/calculator.rs"
+
+[[example]]
 name = "throughput"
 path = "examples/throughput.rs"
 required-features = ["runtime"]

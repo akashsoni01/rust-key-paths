@@ -459,6 +459,7 @@ fn cart_reducer(state: &mut CartState, action: CartAction) -> Cmd<CartAction> {
             Cmd::none()
         }
         CartAction::Line(id, line_action) => {
+            println!("this is fking working......");
             let Some(line) = state.lines.get_mut(id) else {
                 return Cmd::none();
             };
@@ -631,8 +632,8 @@ fn run_shop(label: &str, env: Environment) {
     println!("\n========== {label} environment ==========");
 
     let program = ReducerProgram::new(shop_reducer(), init, subscriptions);
-    let runtime = Runtime::from_reducer_program(program, env, 64);
-    let store = runtime.store();
+    let runtime: Runtime<ShopState, ShopAction> = Runtime::from_reducer_program(program, env, 64);
+    let store: rust_elm::Store<ShopState, ShopAction> = runtime.store();
 
     std::thread::sleep(Duration::from_millis(600));
     let boot = store.state();
@@ -693,6 +694,8 @@ fn run_shop(label: &str, env: Environment) {
     std::thread::sleep(Duration::from_millis(100));
 
     cart_store.dispatch(CartAction::Line(0, CartLineAction::Inc));
+    store.dispatch(ShopAction::Cart(CartAction::Line(0, CartLineAction::Inc)));
+
     std::thread::sleep(Duration::from_millis(50));
 
     store.dispatch(ShopAction::Global(GlobalAction::StartCheckout));
