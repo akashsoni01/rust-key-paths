@@ -5,11 +5,12 @@
 //! - **Child state variety**: scoped catalog/cart, optional checkout (`IfLetReducer`),
 //!   identified wishlists (`ForEachReducer`), cart lines (`IdentifiedVec`)
 //! - **Derived optics**: `Kp` / `Cp` keypaths for state and action scoping
-//! - **Reducer stack**: `CatchReducer` + `CombineReducers` + `ScopeReducer` + `IfLetReducer` + `ForEachReducer`
+//! - **Reducer stack**: 6-way `CombineReducers` + `CatchReducer` + scoped / ifLet / forEach children
 //! - **Runtime**: bus-driven update loop, Tokio effect interpreter, `ScopedStore`, state subscription
 //! - **Effects**: `StoreTask`, cancel-on-dismiss; **subscriptions**: tick, stream, websocket, map_msg, batch
 //!
 //! - **Environment / DI**: live vs mock HTTP + date deps via [`Environment::with`]
+//! - **Panic demo**: `GlobalAction::TriggerPanic` — see [`book/ecommerce.md`](../book/ecommerce.md)
 //!
 //! ```bash
 //! cargo run -p rust-elm --example ecommerce          # live + mock scenarios
@@ -49,6 +50,8 @@ struct SessionState {
     user: Option<String>,
     http_origin: Option<String>,
     server_time: Option<String>,
+    /// Set `true` immediately before the demo panic — proves partial state is kept.
+    panic_survived: bool,
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -144,6 +147,8 @@ enum GlobalAction {
     SessionTick,
     SubscriptionPing,
     EnvProbe,
+    /// Intentionally panics after mutating `session.panic_survived` (demo only).
+    TriggerPanic,
     EnvLoaded {
         origin: String,
         server_time: String,
@@ -244,50 +249,60 @@ fn env_probe_effect() -> Effect<ShopAction> {
 
 // ── Child reducers ───────────────────────────────────────────────────────────
 
-fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> {
-    match &action {
+/// Subscription pulses arrive on child action paths; metrics live on root state.
+fn subscription_metrics_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> {
+    match action {
         ShopAction::Catalog(CatalogAction::StreamPulse) => {
             state.metrics.catalog_stream_pulses += 1;
-            println!("global_reducer state update to catalog_stream_pulses = {:?}", state.metrics.catalog_stream_pulses);
-            return Cmd::none();
+            println!(
+                "subscription_metrics: catalog_stream_pulses = {:?}",
+                state.metrics.catalog_stream_pulses
+            );
+            Cmd::none()
         }
         ShopAction::Checkout(CheckoutAction::WsPulse) => {
             state.metrics.checkout_ws_pulses += 1;
-            println!("global_reducer state update to checkout_ws_pulses= {:?}", state.metrics.checkout_ws_pulses);
-            return Cmd::none();
-        }
-        _ => {}
-    }
-
-    // Cross-scope bridge: product detail "add to cart" updates cart in the same reduce turn.
-    if let ShopAction::Catalog(CatalogAction::Browse(BrowseAction::Product(
-        ProductAction::Detail(DetailAction::AddToCart),
-    ))) = &action
-    {
-        if let Some(sku) = state.catalog.detail.as_ref().map(|d| d.sku.clone()) {
-            let _ = cart_reducer(
-                &mut state.cart,
-                CartAction::AddLine { sku, qty: 1 },
+            println!(
+                "subscription_metrics: checkout_ws_pulses = {:?}",
+                state.metrics.checkout_ws_pulses
             );
+            Cmd::none()
         }
-        return Cmd::none();
+        _ => Cmd::none(),
     }
+}
 
-    let ShopAction::Global(action) = action else {
-        return Cmd::none();
-    };
+/// Cross-scope bridge: product detail "add to cart" updates cart in the same reduce turn.
+fn detail_cart_bridge_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> {
     match action {
-        GlobalAction::SignIn(user) => {
+        ShopAction::Catalog(CatalogAction::Browse(BrowseAction::Product(
+            ProductAction::Detail(DetailAction::AddToCart),
+        ))) => {
+            if let Some(sku) = state.catalog.detail.as_ref().map(|d| d.sku.clone()) {
+                let _ = cart_reducer(
+                    &mut state.cart,
+                    CartAction::AddLine { sku, qty: 1 },
+                );
+            }
+            Cmd::none()
+        }
+        _ => Cmd::none(),
+    }
+}
+
+fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> {
+    match action {
+        ShopAction::Global(GlobalAction::SignIn(user)) => {
             state.session.user = Some(user);
             Cmd::single(env_probe_effect())
         }
-        GlobalAction::StartCheckout => {
+        ShopAction::Global(GlobalAction::StartCheckout) => {
             if state.checkout.is_none() && !state.cart.lines.is_empty() {
                 state.checkout = Some(CheckoutState::default());
             }
             Cmd::none()
         }
-        GlobalAction::SeedWishlist => {
+        ShopAction::Global(GlobalAction::SeedWishlist) => {
             let id = state.next_wishlist_id;
             state.next_wishlist_id += 1;
             state.wishlists.insert(WishlistState {
@@ -297,21 +312,76 @@ fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> 
             });
             Cmd::none()
         }
-        GlobalAction::SessionTick => {
+        ShopAction::Global(GlobalAction::SessionTick) => {
             state.metrics.session_ticks += 1;
             Cmd::none()
         }
-        GlobalAction::SubscriptionPing => {
+        ShopAction::Global(GlobalAction::SubscriptionPing) => {
             state.metrics.map_pings += 1;
             Cmd::none()
         }
-        GlobalAction::EnvProbe => Cmd::single(env_probe_effect()),
-        GlobalAction::EnvLoaded { origin, server_time } => {
+        ShopAction::Global(GlobalAction::EnvProbe) => Cmd::single(env_probe_effect()),
+        ShopAction::Global(GlobalAction::TriggerPanic) => {
+            state.session.panic_survived = true;
+            panic!("ecommerce demo: intentional reducer panic (state.panic_survived kept)");
+        }
+        ShopAction::Global(GlobalAction::EnvLoaded { origin, server_time }) => {
             state.session.http_origin = Some(origin);
             state.session.server_time = Some(server_time);
             Cmd::none()
         }
+        _ => Cmd::none(),
     }
+}
+
+fn checkout_and_wishlist_reducer() -> impl Reducer<State = ShopState, Action = ShopAction> {
+    CombineReducers((
+        IfLetReducer::new(
+            checkout_lens(),
+            ShopAction::checkout_cp(),
+            checkout_dismiss,
+            checkout_clear,
+            CHECKOUT_CANCEL,
+            Reduce::new(checkout_reducer),
+        ),
+        ForEachReducer::new(
+            wishlists_vec,
+            embed_wishlist,
+            extract_wishlist,
+            extract_remove_wishlist,
+            wishlist_cancel_id,
+            Reduce::new(wishlist_reducer),
+        ),
+    ))
+}
+
+// ── Root reducer stack ───────────────────────────────────────────────────────
+
+fn shop_reducer() -> impl Reducer<State = ShopState, Action = ShopAction> {
+    CatchReducer::new(
+        CombineReducers((
+            Reduce::new(subscription_metrics_reducer),
+            Reduce::new(detail_cart_bridge_reducer),
+            Reduce::new(global_reducer),
+            ScopeReducer::new(
+                ShopState::catalog(),
+                ShopAction::catalog_cp(),
+                CATALOG_CANCEL,
+                Reduce::new(catalog_reducer),
+            ),
+            ScopeReducer::new(
+                ShopState::cart(),
+                ShopAction::cart_cp(),
+                CART_CANCEL,
+                Reduce::new(cart_reducer),
+            ),
+            checkout_and_wishlist_reducer(),
+        )),
+        |panic| {
+            eprintln!("shop reducer panic (state kept): {panic:?}");
+            Cmd::none()
+        },
+    )
 }
 
 fn catalog_reducer(state: &mut CatalogState, action: CatalogAction) -> Cmd<CatalogAction> {
@@ -320,7 +390,7 @@ fn catalog_reducer(state: &mut CatalogState, action: CatalogAction) -> Cmd<Catal
             state.query = q;
             Cmd::none()
         }
-        CatalogAction::StreamPulse => Cmd::none(),
+        CatalogAction::StreamPulse => Cmd::none(), // metrics: subscription_metrics_reducer
         CatalogAction::Browse(BrowseAction::Product(ProductAction::Detail(detail_action))) => {
             detail_reducer(state, detail_action)
         }
@@ -347,7 +417,7 @@ fn detail_reducer(state: &mut CatalogState, action: DetailAction) -> Cmd<Catalog
             }
             Cmd::none()
         }
-        DetailAction::AddToCart => Cmd::none(),
+        DetailAction::AddToCart => Cmd::none(), // bridge: detail_cart_bridge_reducer
     }
 }
 
@@ -390,7 +460,7 @@ fn checkout_reducer(state: &mut CheckoutState, action: CheckoutAction) -> Cmd<Ch
             Cmd::none()
         }
         CheckoutAction::PaymentDone => Cmd::none(),
-        CheckoutAction::WsPulse => Cmd::none(),
+        CheckoutAction::WsPulse => Cmd::none(), // metrics: subscription_metrics_reducer
     }
 }
 
@@ -463,48 +533,6 @@ fn checkout_lens() -> impl rust_elm::optics::StateLens<ShopState, CheckoutState>
         s.checkout.as_mut()
     }
     KpPath::new(get, get_mut)
-}
-
-// ── Root reducer stack ───────────────────────────────────────────────────────
-
-fn shop_reducer() -> impl Reducer<State = ShopState, Action = ShopAction> {
-    CatchReducer::new(
-        CombineReducers((
-            Reduce::new(global_reducer),
-            ScopeReducer::new(
-                ShopState::catalog(),
-                ShopAction::catalog_cp(),
-                CATALOG_CANCEL,
-                Reduce::new(catalog_reducer),
-            ),
-            ScopeReducer::new(
-                ShopState::cart(),
-                ShopAction::cart_cp(),
-                CART_CANCEL,
-                Reduce::new(cart_reducer),
-            ),
-            IfLetReducer::new(
-                checkout_lens(),
-                ShopAction::checkout_cp(),
-                checkout_dismiss,
-                checkout_clear,
-                CHECKOUT_CANCEL,
-                Reduce::new(checkout_reducer),
-            ),
-            ForEachReducer::new(
-                wishlists_vec,
-                embed_wishlist,
-                extract_wishlist,
-                extract_remove_wishlist,
-                wishlist_cancel_id,
-                Reduce::new(wishlist_reducer),
-            ),
-        )),
-        |panic| {
-            eprintln!("shop reducer panic (state kept): {panic:?}");
-            Cmd::none()
-        },
-    )
 }
 
 fn init() -> (ShopState, Cmd<ShopAction>) {
@@ -599,6 +627,16 @@ fn run_shop(label: &str, env: Environment) {
         after_sign_in.session.http_origin, after_sign_in.session.server_time
     );
 
+    println!("{label}: dispatching TriggerPanic (intentional)…");
+    store.dispatch(ShopAction::Global(GlobalAction::TriggerPanic));
+    std::thread::sleep(Duration::from_millis(50));
+    let after_panic = store.state();
+    println!(
+        "{label} after panic: panic_survived={} user={:?} (app continues)",
+        after_panic.session.panic_survived,
+        after_panic.session.user
+    );
+
     store.dispatch(ShopAction::Global(GlobalAction::SeedWishlist));
 
     let mut catalog_sub = store.subscribe_state();
@@ -642,6 +680,7 @@ fn run_shop(label: &str, env: Environment) {
     let final_state = store.state();
     println!("\n--- {label} final ---");
     println!("user: {:?}", final_state.session.user);
+    println!("panic_survived: {}", final_state.session.panic_survived);
     println!(
         "env: origin={:?} time={:?}",
         final_state.session.http_origin, final_state.session.server_time

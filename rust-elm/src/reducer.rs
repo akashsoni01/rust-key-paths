@@ -80,6 +80,7 @@ impl_combine_reducers!(R1, R2);
 impl_combine_reducers!(R1, R2, R3);
 impl_combine_reducers!(R1, R2, R3, R4);
 impl_combine_reducers!(R1, R2, R3, R4, R5);
+impl_combine_reducers!(R1, R2, R3, R4, R5, R6);
 
 /// Wraps a reducer with panic recovery — default behavior matches the runtime: panics are
 /// caught and state is **not** reverted (see [`catch_reduce_panic`]).
@@ -252,6 +253,34 @@ mod tests {
         }
 
         let combined = CombineReducers((coerce_fn(inc_a), coerce_fn(inc_b), coerce_fn(noop)));
+        let mut app = App::default();
+        combined.reduce(&mut app, Action::Tick);
+        assert_eq!(app.a, 1);
+        assert_eq!(app.b, 1);
+    }
+
+    #[test]
+    fn combine_six_reducers() {
+        fn inc_a(s: &mut App, _: Action) -> Cmd<Action> {
+            s.a += 1;
+            Cmd::none()
+        }
+        fn inc_b(s: &mut App, _: Action) -> Cmd<Action> {
+            s.b += 1;
+            Cmd::none()
+        }
+        fn noop(_: &mut App, _: Action) -> Cmd<Action> {
+            Cmd::none()
+        }
+
+        let combined = CombineReducers((
+            coerce_fn(inc_a),
+            coerce_fn(inc_b),
+            coerce_fn(noop),
+            coerce_fn(noop),
+            coerce_fn(noop),
+            coerce_fn(noop),
+        ));
         let mut app = App::default();
         combined.reduce(&mut app, Action::Tick);
         assert_eq!(app.a, 1);

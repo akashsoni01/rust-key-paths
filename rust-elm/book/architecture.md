@@ -247,13 +247,14 @@ ShopAction::Catalog(
 )
 ```
 
-**Reducer stack** (5-way `CombineReducers` + `CatchReducer`):
+**Reducer stack** (6-way `CombineReducers` + `CatchReducer` — see [ecommerce.md](./ecommerce.md)):
 
-1. Global (session, checkout entry, cross-scope add-to-cart bridge)
-2. `ScopeReducer` — catalog
-3. `ScopeReducer` — cart
-4. `IfLetReducer` — checkout sheet
-5. `ForEachReducer` — wishlists
+1. `subscription_metrics_reducer` — root metrics for child subscription pulses
+2. `detail_cart_bridge_reducer` — catalog detail → cart bridge
+3. `global_reducer` — session, env, panic demo
+4. `ScopeReducer` — catalog
+5. `ScopeReducer` — cart
+6. Nested pair — `IfLetReducer` (checkout) + `ForEachReducer` (wishlists)
 
 Run it:
 
