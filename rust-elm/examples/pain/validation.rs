@@ -53,11 +53,15 @@ impl<V> Rule<V> {
 
 /// Accumulates [`FieldError`]s for a single `root`, prefixing every path.
 ///
-/// Chain `field` / `value` / `ensure` / `each`, then call `finish`.
+/// Chain `field` / `value` / `ensure` / `each` to **accumulate** all errors, or
+/// `require` / `require_value` / `must` to **fail fast** — once a mandatory check
+/// fails, every later step is skipped. Finish with `finish` / `finish_result` / `first_error`.
 pub struct Validator<'r, R> {
     root: &'r R,
     prefix: String,
     errors: Vec<FieldError>,
+    /// Set when a mandatory (`require*` / `must`) check fails; skips all later steps.
+    aborted: bool,
 }
 
 impl<'r, R> Validator<'r, R> {
@@ -66,6 +70,7 @@ impl<'r, R> Validator<'r, R> {
             root,
             prefix: String::new(),
             errors: Vec::new(),
+            aborted: false,
         }
     }
 
@@ -74,6 +79,7 @@ impl<'r, R> Validator<'r, R> {
             root,
             prefix: prefix.into(),
             errors: Vec::new(),
+            aborted: false,
         }
     }
 
@@ -85,9 +91,12 @@ impl<'r, R> Validator<'r, R> {
         }
     }
 
-    fn run_rules<V>(&mut self, path: &str, value: &V, rules: &[Rule<V>]) {
+    /// Runs `rules` against `value`. Returns `true` if at least one rule failed.
+    fn run_rules<V>(&mut self, path: &str, value: &V, rules: &[Rule<V>]) -> bool {
+        let mut failed = false;
         for rule in rules {
             if let Some(message) = rule.check(value) {
+                failed = true;
                 let full = self.full_path(path);
                 self.errors.push(FieldError {
                     path: full,
@@ -95,12 +104,18 @@ impl<'r, R> Validator<'r, R> {
                 });
             }
         }
+        failed
     }
 
     /// Validate the value reached by `kp`; records `missing` when the path is absent.
     pub fn field<V>(mut self, path: &str, kp: KpType<'static, R, V>, rules: &[Rule<V>]) -> Self {
+        if self.aborted {
+            return self;
+        }
         match kp.get(self.root) {
-            Some(value) => self.run_rules(path, value, rules),
+            Some(value) => {
+                self.run_rules(path, value, rules);
+            }
             None => {
                 let full = self.full_path(path);
                 self.errors.push(FieldError {
@@ -114,18 +129,76 @@ impl<'r, R> Validator<'r, R> {
 
     /// Validate a directly-borrowed value (e.g. an `Option<_>` field) without a keypath.
     pub fn value<V>(mut self, path: &str, value: &V, rules: &[Rule<V>]) -> Self {
+        if self.aborted {
+            return self;
+        }
         self.run_rules(path, value, rules);
         self
     }
 
     /// Record an error at `path` unless `condition` holds.
     pub fn ensure(mut self, condition: bool, path: &str, message: impl Into<Message>) -> Self {
+        if self.aborted {
+            return self;
+        }
         if !condition {
             let full = self.full_path(path);
             self.errors.push(FieldError {
                 path: full,
                 message: message.into(),
             });
+        }
+        self
+    }
+
+    /// **Mandatory** keypath field: on failure (or missing) record the error and **abort** —
+    /// every later step is skipped so `finish_result` / `first_error` returns immediately.
+    pub fn require<V>(mut self, path: &str, kp: KpType<'static, R, V>, rules: &[Rule<V>]) -> Self {
+        if self.aborted {
+            return self;
+        }
+        match kp.get(self.root) {
+            Some(value) => {
+                if self.run_rules(path, value, rules) {
+                    self.aborted = true;
+                }
+            }
+            None => {
+                let full = self.full_path(path);
+                self.errors.push(FieldError {
+                    path: full,
+                    message: Cow::Borrowed("missing"),
+                });
+                self.aborted = true;
+            }
+        }
+        self
+    }
+
+    /// **Mandatory** borrowed value: abort on first failure.
+    #[allow(dead_code)]
+    pub fn require_value<V>(mut self, path: &str, value: &V, rules: &[Rule<V>]) -> Self {
+        if self.aborted {
+            return self;
+        }
+        if self.run_rules(path, value, rules) {
+            self.aborted = true;
+        }
+        self
+    }
+
+    /// **Mandatory** condition: record the error and abort unless `condition` holds.
+    pub fn must(mut self, condition: bool, path: &str, message: impl Into<Message>) -> Self {
+        if self.aborted {
+            return self;
+        }
+        if !condition {
+            let full = self.full_path(path);
+            self.errors.push(FieldError {
+                path: full,
+                message: message.into(),
+            });
+            self.aborted = true;
         }
         self
     }
@@ -137,6 +210,9 @@ impl<'r, R> Validator<'r, R> {
         items: &[T],
         validate_item: impl Fn(&T, &str) -> Vec<FieldError>,
     ) -> Self {
+        if self.aborted {
+            return self;
+        }
         for (i, item) in items.iter().enumerate() {
             let prefix = self.full_path(&format!("{path}[{i}]"));
             self.errors.extend(validate_item(item, &prefix));
@@ -146,12 +222,35 @@ impl<'r, R> Validator<'r, R> {
 
     /// Merge already-prefixed errors (e.g. from cross-field checks).
     pub fn merge(mut self, errors: impl IntoIterator<Item = FieldError>) -> Self {
+        if self.aborted {
+            return self;
+        }
         self.errors.extend(errors);
         self
     }
 
+    /// All accumulated errors.
     pub fn finish(self) -> Vec<FieldError> {
         self.errors
+    }
+
+    /// `Ok(())` when clean, else every accumulated error.
+    #[allow(dead_code)]
+    pub fn finish_result(self) -> Result<(), Vec<FieldError>> {
+        if self.errors.is_empty() {
+            Ok(())
+        } else {
+            Err(self.errors)
+        }
+    }
+
+    /// The first error (the mandatory one when a `require*` / `must` aborted), if any.
+    pub fn first_error(mut self) -> Option<FieldError> {
+        if self.errors.is_empty() {
+            None
+        } else {
+            Some(self.errors.swap_remove(0))
+        }
     }
 }
 
@@ -361,15 +460,41 @@ pub fn validate_control_sum(payload: &Pain001) -> Option<FieldError> {
     })
 }
 
-/// Full payload validation — reusable from reducer, tests, or API ingress.
-pub fn validate_pain001(payload: &Pain001) -> Vec<FieldError> {
-    Validator::new(payload)
-        .merge(validate_group_header(payload))
-        .ensure(
+/// Mandatory pre-check — **fails fast**: returns the first missing/invalid mandatory
+/// field and stops, before any full field-by-field accumulation runs.
+///
+/// These are the structural minimums an ISO 20022 PAIN.001 needs to be processable at all.
+pub fn validate_mandatory(payload: &Pain001) -> Result<(), FieldError> {
+    match Validator::new(payload)
+        .require("GrpHdr/MsgId", pain_message_id(), &[rules::required()])
+        .require("GrpHdr/CreDtTm", pain_creation_date_time(), &[rules::required()])
+        .require(
+            "GrpHdr/InitgPty/Id",
+            pain_initiating_party_id(),
+            &[rules::required()],
+        )
+        .must(
             !payload.payment_informations.is_empty(),
             "PmtInf",
             "at least one payment information block required",
         )
+        .first_error()
+    {
+        Some(err) => Err(err),
+        None => Ok(()),
+    }
+}
+
+/// Full payload validation — reusable from reducer, tests, or API ingress.
+///
+/// Runs the mandatory pre-check first: if it fails, returns **only** that single error
+/// immediately; otherwise accumulates every field error.
+pub fn validate_pain001(payload: &Pain001) -> Vec<FieldError> {
+    if let Err(err) = validate_mandatory(payload) {
+        return vec![err];
+    }
+    Validator::new(payload)
+        .merge(validate_group_header(payload))
         .each(
             "PmtInf",
             &payload.payment_informations,
@@ -380,13 +505,21 @@ pub fn validate_pain001(payload: &Pain001) -> Vec<FieldError> {
         .finish()
 }
 
-/// Anything that can validate itself into a flat error list.
+/// Anything that can validate itself.
 pub trait Validate {
+    /// Accumulate all field errors (mandatory pre-check still short-circuits).
     fn validate(&self) -> Vec<FieldError>;
+
+    /// Fail-fast: return the first mandatory error immediately, or `Ok(())`.
+    fn validate_mandatory(&self) -> Result<(), FieldError>;
 }
 
 impl Validate for Pain001 {
     fn validate(&self) -> Vec<FieldError> {
         validate_pain001(self)
+    }
+
+    fn validate_mandatory(&self) -> Result<(), FieldError> {
+        validate_mandatory(self)
     }
 }

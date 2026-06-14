@@ -114,6 +114,45 @@ Validator::new(payload)
 | `each(path, items, f)` | validate a collection with indexed, auto-prefixed sub-validators |
 | `merge(errors)` | fold in already-prefixed errors (cross-field checks, nested results) |
 | `finish()` | return `Vec<FieldError>` |
+| `finish_result()` | `Result<(), Vec<FieldError>>` |
+| `first_error()` | `Option<FieldError>` (the mandatory one when aborted) |
+
+### Mandatory checks — fail fast
+
+`require` / `require_value` / `must` are the mandatory counterparts of `field` / `value` /
+`ensure`. The moment one fails, the validator **aborts**: every later step (including
+accumulating ones) is skipped, so the result holds only that first error.
+
+```rust
+Validator::new(payload)
+    .require("GrpHdr/MsgId", pain_message_id(), &[rules::required()])
+    .require("GrpHdr/CreDtTm", pain_creation_date_time(), &[rules::required()])
+    .must(!payload.payment_informations.is_empty(), "PmtInf", "at least one payment information block required")
+    .first_error()        // Some(first mandatory error) or None
+```
+
+| Method | Use |
+|--------|-----|
+| `require(path, kp, rules)` | mandatory keypath field — abort on failure/missing |
+| `require_value(path, &v, rules)` | mandatory borrowed value — abort on failure |
+| `must(cond, path, msg)` | mandatory condition — abort unless `cond` holds |
+
+Run mandatory checks **before** full accumulation so callers get an immediate, single error
+for structural problems and the noisy field-by-field list only once the payload is processable:
+
+```rust
+pub fn validate_pain001(payload: &Pain001) -> Vec<FieldError> {
+    if let Err(err) = validate_mandatory(payload) {
+        return vec![err];          // fail fast: one error, immediately
+    }
+    Validator::new(payload)
+        .merge(validate_group_header(payload))
+        .each("PmtInf", &payload.payment_informations, validate_payment_information)
+        .merge(validate_transaction_count(payload))
+        .merge(validate_control_sum(payload))
+        .finish()
+}
+```
 
 ### Path prefixing
 
@@ -152,19 +191,23 @@ Give a type a one-call entry point:
 
 ```rust
 pub trait Validate {
+    /// Accumulate all field errors (mandatory pre-check still short-circuits).
     fn validate(&self) -> Vec<FieldError>;
-}
-
-impl Validate for Pain001 {
-    fn validate(&self) -> Vec<FieldError> {
-        validate_pain001(self)
-    }
+    /// Fail-fast: return the first mandatory error immediately, or `Ok(())`.
+    fn validate_mandatory(&self) -> Result<(), FieldError>;
 }
 ```
 
 Then from a reducer, test, or API handler:
 
 ```rust
+// fail fast — reject the request on the first mandatory problem
+if let Err(err) = state.payload.validate_mandatory() {
+    state.errors = vec![err];
+    return;
+}
+
+// otherwise gather everything
 state.errors = state.payload.validate();
 state.submitted = state.errors.is_empty();
 ```

@@ -1,8 +1,9 @@
 //! ISO 20022 **PAIN.001** API payload as app state — field validation via reusable keypath rules.
 //!
 //! - **State**: full `Pain001` message + validation errors
-//! - **Actions**: load samples, patch fields through keypaths, validate, submit
-//! - **Validation**: composable `validate_at(kp, rules)` — see [`book/pain.md`](../book/pain.md)
+//! - **Actions**: load samples, patch fields through keypaths, mandatory check, validate, submit
+//! - **Validation**: mandatory fail-fast (`validate_mandatory`) then full accumulation
+//!   (`validate`) — see [`book/validation.md`](../book/validation.md)
 //!
 //! ```bash
 //! cargo run -p rust-elm --example pain
@@ -36,6 +37,7 @@ struct PainAppState {
 enum PainAction {
     LoadValid,
     LoadInvalid,
+    CheckMandatory,
     Validate,
     SetMessageId(String),
     Submit,
@@ -61,6 +63,13 @@ fn pain_reducer(state: &mut PainAppState, action: PainAction) -> Cmd<PainAction>
         PainAction::LoadInvalid => {
             state.payload = sample_invalid();
             state.errors.clear();
+            state.submitted = false;
+        }
+        PainAction::CheckMandatory => {
+            state.errors = match state.payload.validate_mandatory() {
+                Ok(()) => Vec::new(),
+                Err(err) => vec![err],
+            };
             state.submitted = false;
         }
         PainAction::Validate => {
@@ -112,8 +121,16 @@ fn main() {
     assert!(store.state().errors.is_empty());
 
     dispatch(&store, PainAction::LoadInvalid);
+    dispatch(&store, PainAction::CheckMandatory);
+    print_report("invalid sample — mandatory check (fail-fast)", &store.state());
+    {
+        let s = store.state();
+        assert_eq!(s.errors.len(), 1, "mandatory check returns a single error");
+        assert_eq!(s.errors[0].path, "GrpHdr/MsgId");
+    }
+
     dispatch(&store, PainAction::Validate);
-    print_report("invalid sample", &store.state());
+    print_report("invalid sample — full validate (short-circuits on mandatory)", &store.state());
     assert!(!store.state().errors.is_empty());
 
     dispatch(&store, PainAction::SetMessageId("MSG-FIXED-2024".into()));
