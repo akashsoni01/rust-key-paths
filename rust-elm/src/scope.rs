@@ -243,7 +243,7 @@ where
             Box::pin(async move { fut.await.map(|a| embed(id, a)) })
         }),
         Effect::RegisteredEnvTask { id: task_id } => Effect::from_env_fn(move |env| {
-            let fut = run_registered_env_task::<CA>(&env, task_id);
+            let fut = run_registered_env_task::<CA>(env, task_id);
             Box::pin(async move { fut.await.map(|a| embed(id, a)) })
         }),
         Effect::Batch(items) => Effect::Batch(
@@ -368,7 +368,7 @@ where
             let casepath = casepath.clone();
             Effect::from_env_fn(move |env| {
                 let casepath = casepath.clone();
-                let fut = run_registered_env_task::<CA>(&env, task_id);
+                let fut = run_registered_env_task::<CA>(env, task_id);
                 Box::pin(async move { fut.await.map(|a| casepath.wrap(a)) })
             })
         }
@@ -509,6 +509,7 @@ fn tag_cancel_id<M>(effect: Effect<M>, cancel_id: EffectId) -> Effect<M> {
 }
 
 #[cfg(test)]
+#[allow(dead_code, clippy::type_complexity, clippy::redundant_closure)]
 mod tests {
     use super::*;
     use crate::effect::Effect;

@@ -12,6 +12,20 @@ key-paths-derive = "3.1.0"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
 ```
 
+### Feature flags
+
+| Feature | Default | Purpose |
+|---------|---------|---------|
+| `runtime` | yes | Tokio interpreter, `Runtime`, `Store`, subscriptions |
+| `websocket` | yes | Real `Sub::websocket` via `tokio-tungstenite` (interval stub without it) |
+| `serde` | no | `FileStorage`, replay snapshots |
+
+Build without Tokio (pure descriptions only):
+
+```bash
+cargo build -p rust-elm --no-default-features
+```
+
 ## Quick start
 
 ```rust
@@ -40,13 +54,6 @@ fn main() {
     store.dispatch(1);
     runtime.shutdown();
 }
-
-// Or with composable reducers:
-// let program = ReducerProgram::new(reducers![update_a, update_b], init, subscriptions);
-// let runtime = Runtime::from_reducer_program(program, Environment::new(), 64);
-//
-// Full shop demo: cargo run -p rust-elm --example ecommerce
-// Architecture: book/architecture.md
 ```
 
 ## Modules
@@ -55,19 +62,45 @@ fn main() {
 |--------|---------|
 | `cmd` | Commands returned from `update` |
 | `effect` | Pure async effect descriptions (`debounce`, `throttle`, `from_run`, `cancel`) |
-| `sub` | Subscription descriptions |
-| `runtime` | Bus-driven update loop + interpreter |
-| `store` | `Store`, `StoreTask`, `ScopedStore`, state subscription |
+| `sub` | Subscription descriptions (runtime-agnostic data) |
+| `reduce_panic` | `catch_reduce_panic`, `catch_reduce`, `ReducePanic` |
+| `runtime` | Bus-driven update loop + Tokio interpreter (`runtime` feature) |
+| `subscription` | Sub interpreter — tick/stream/websocket (`runtime` feature) |
+| `store` | `Store`, `StoreTask`, `ScopedStore`, state subscription (`runtime` feature) |
 | `test_store` | `ExhaustiveTestStore` for synchronous effect/action testing |
+| `test_runtime` | Sync testing without Tokio |
 | `shared` | `Shared<T>`, `Storage`, `InMemoryStorage`, `FileStorage` (serde) |
-| `dependencies` | Re-exports [`rust_dependencies`](../rust_dependencies) — see [`book/dependencies.md`](../rust_dependencies/book/dependencies.md) |
+| `dependencies` | Re-exports [`rust_dependencies`](../rust_dependencies) |
 | `env` | `Environment` (`live`/`test`), `FakeClock`, `MockHttp` |
 | `optics` | State/action focusing via `rust-key-paths` |
-| `test_runtime` | Sync testing without Tokio |
-| `reducer` | `Reducer` trait, `CombineReducers`, `reducers!` |
-| `identified` | Re-exports [`rust_identified_vec`](../rust_identified_vec) — see [`book/identified.md`](../rust_identified_vec/book/identified.md) |
+| `reducer` | `Reducer` trait, `CombineReducers` (up to **6** siblings), `reducers!` |
 | `scope` | `ScopeReducer`, `IfLetReducer`, `ForEachReducer`, `lift_cmd` |
-| `replay` | Action log + replay harness; `snapshot`/`restore` for state checkpoints |
+| `identified` | Re-exports [`rust_identified_vec`](../rust_identified_vec) |
+| `replay` | Action log + replay harness |
+
+## Examples (one per feature area)
+
+| Example | Command | Shows |
+|---------|---------|-------|
+| `catch_reduce` | `cargo run -p rust-elm --example catch_reduce` | Panic: default vs rollback |
+| `subscriptions` | `cargo run -p rust-elm --example subscriptions` | Tick + map_msg subs |
+| `scope_for_each` | `cargo run -p rust-elm --example scope_for_each` | Scope + ForEach without Runtime |
+| `dependencies` | `cargo run -p rust-elm --example dependencies` | `Environment` live vs test |
+| `shared_state` | `cargo run -p rust-elm --example shared_state` | `Shared<T>` observers |
+| `ecommerce` | `cargo run -p rust-elm --example ecommerce` | Full shop (all features) |
+
+## Quality tooling
+
+```bash
+# Clippy (crate only)
+cargo clippy -p rust-elm --all-targets --no-deps -- -D warnings
+
+# Miri (identified, shared, scope — no runtime)
+./scripts/miri-rust-elm.sh
+
+# Scope / ForEach benchmarks
+cargo bench -p rust-elm --bench scope_dispatch
+```
 
 ## Key paths prelude
 
@@ -76,4 +109,4 @@ use rust_elm::keypath::{Kp, KpType, Readable, Writable};
 use key_paths_derive::Kp;
 ```
 
-See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), and workspace [`todo.md`](../todo.md).
+See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/ecommerce.md`](book/ecommerce.md).

@@ -14,9 +14,11 @@ rust-key-paths = { path = "..", version = "3.2.0" }
 rust_identified_vec = { path = "../rust_identified_vec", version = "0.1.1" }
 rust_dependencies = { path = "../rust_dependencies", version = "0.1.1" }
 key-paths-core = { path = "../key-paths-core", version = "2.0.2" }
-tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros", "time"] }
 crossbeam-channel = "0.5"
 parking_lot = "0.12"
+tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros", "time", "net"], optional = true }
+tokio-tungstenite = { version = "0.26", optional = true }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
@@ -26,11 +28,17 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros", "time", "test-util"] }
+tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros", "time", "net", "test-util"] }
+tokio-tungstenite = "0.26"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
-default = ["runtime"]
-runtime = []
+default = ["runtime", "websocket"]
+# Pure descriptions (Cmd, Effect, Sub, Reducer, scope) compile without Tokio.
+runtime = ["dep:tokio"]
+# Real WebSocket subscriptions via tokio-tungstenite (simulated interval stub when disabled).
+websocket = ["runtime", "dep:tokio-tungstenite", "dep:futures-util"]
 serde = ["dep:serde", "dep:serde_json", "rust_identified_vec/serde"]
 
 [[example]]
@@ -41,14 +49,79 @@ path = "examples/catch_reduce.rs"
 name = "ecommerce"
 path = "examples/ecommerce.rs"
 
+[[example]]
+name = "subscriptions"
+path = "examples/subscriptions.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "scope_for_each"
+path = "examples/scope_for_each.rs"
+
+[[example]]
+name = "dependencies"
+path = "examples/dependencies.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "shared_state"
+path = "examples/shared_state.rs"
+
+[[bench]]
+name = "scope_dispatch"
+harness = false
+required-features = ["runtime"]
+
+[[test]]
+name = "miri_smoke"
+path = "tests/miri_smoke.rs"
+
+[[test]]
+name = "ws_echo_server"
+path = "tests/ws_echo_server.rs"
+required-features = ["runtime", "websocket"]
+
 [[test]]
 name = "subscription_integration"
 path = "tests/subscription_integration.rs"
+required-features = ["runtime"]
 
 [[test]]
-name = "integration_basic"
-path = "tests/integration_basic.rs"
+name = "identified_scope_integration"
+path = "tests/identified_scope_integration.rs"
 
 [[test]]
 name = "optics_smoke"
 path = "tests/optics_smoke.rs"
+
+[[test]]
+name = "integration_basic"
+path = "tests/integration_basic.rs"
+required-features = ["runtime"]
+
+[[test]]
+name = "shared_integration"
+path = "tests/shared_integration.rs"
+
+[[test]]
+name = "store_integration"
+path = "tests/store_integration.rs"
+required-features = ["runtime"]
+
+[[test]]
+name = "test_store_integration"
+path = "tests/test_store_integration.rs"
+required-features = ["runtime"]
+
+[[test]]
+name = "reducer_integration"
+path = "tests/reducer_integration.rs"
+
+[[test]]
+name = "effect_integration"
+path = "tests/effect_integration.rs"
+
+[[test]]
+name = "dependencies_integration"
+path = "tests/dependencies_integration.rs"
+required-features = ["runtime"]

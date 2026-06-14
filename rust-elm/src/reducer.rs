@@ -1,5 +1,5 @@
 use crate::cmd::Cmd;
-use crate::store::{catch_reduce, catch_reduce_panic, ReducePanic};
+use crate::reduce_panic::{catch_reduce, catch_reduce_panic, ReducePanic};
 
 /// Composable update logic (UDF `Reducer` parity).
 pub trait Reducer {
@@ -26,6 +26,7 @@ pub const fn coerce_fn<S, A>(f: fn(&mut S, A) -> Cmd<A>) -> fn(&mut S, A) -> Cmd
 }
 
 /// Named inline reducer wrapping a fn pointer.
+/// Type-erased reducer wrapper for composition.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Reduce<S, A> {
     reduce: fn(&mut S, A) -> Cmd<A>,
@@ -180,6 +181,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(dead_code, clippy::type_complexity, clippy::redundant_closure)]
 mod tests {
     use super::*;
     use crate::effect::Effect;

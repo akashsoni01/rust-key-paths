@@ -5,9 +5,6 @@
 
 use std::cell::Cell;
 
-use crate::optics::Casepath;
-use crate::store::{ScopedStateSubscriber, StateSubscriber};
-
 thread_local! {
     static CLONE_BUDGET: Cell<usize> = const { Cell::new(0) };
 }
@@ -35,78 +32,89 @@ pub fn allow_state_clones<T>(count: usize, f: impl FnOnce() -> T) -> T {
     })
 }
 
-/// [`Store::state`] clones feature state once — use in tests that intentionally read a snapshot.
-pub fn store_state<S, M>(store: &crate::Store<S, M>) -> S
-where
-    S: Send + Sync + Clone + 'static,
-    M: Send + 'static,
-{
-    allow_state_clones(1, || store.state())
+#[cfg(feature = "runtime")]
+mod store_helpers {
+    use super::allow_state_clones;
+    use crate::optics::Casepath;
+    use crate::store::{ScopedStateSubscriber, StateSubscriber};
+
+    /// [`Store::state`] clones feature state once — use in tests that intentionally read a snapshot.
+    pub fn store_state<S, M>(store: &crate::Store<S, M>) -> S
+    where
+        S: Send + Sync + Clone + 'static,
+        M: Send + 'static,
+    {
+        allow_state_clones(1, || store.state())
+    }
+
+    /// [`Store::subscribe_state`] clones once when the subscriber is created.
+    pub fn subscribe_state<S, M>(store: &crate::Store<S, M>) -> crate::StateSubscriber<S>
+    where
+        S: Clone + PartialEq + Send + Sync + 'static,
+        M: Send + 'static,
+    {
+        allow_state_clones(1, || store.subscribe_state())
+    }
+
+    /// [`ScopedStore::child_state`] clones parent state once via [`Store::state`].
+    pub fn scoped_child_state<S, M, CS, CM, AK, SK>(
+        scoped: &crate::ScopedStore<S, M, CS, CM, AK, SK>,
+    ) -> Option<CS>
+    where
+        S: Send + Sync + Clone,
+        M: Send,
+        CS: Clone + PartialEq + Send + Sync,
+        CM: Clone + Send,
+        AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
+        SK: crate::StateLens<S, CS> + Clone,
+    {
+        allow_state_clones(1, || scoped.child_state())
+    }
+
+    /// [`ScopedStore::subscribe_state`] clones parent state once when the subscriber is created.
+    pub fn scoped_subscribe_state<S, M, CS, CM, AK, SK>(
+        scoped: &crate::ScopedStore<S, M, CS, CM, AK, SK>,
+    ) -> ScopedStateSubscriber<S, CS, SK>
+    where
+        S: Send + Sync + Clone + PartialEq,
+        M: Send,
+        CS: Clone + PartialEq + Send + Sync,
+        CM: Clone + Send,
+        AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
+        SK: crate::StateLens<S, CS> + Clone,
+    {
+        allow_state_clones(1, || scoped.subscribe_state())
+    }
+
+    /// One [`StateSubscriber::next`] / [`StateSubscriber::wait_next`] may clone feature state once.
+    pub fn subscriber_wait_next<S>(
+        sub: &mut StateSubscriber<S>,
+        timeout: std::time::Duration,
+    ) -> Option<std::sync::Arc<S>>
+    where
+        S: PartialEq + Clone,
+    {
+        allow_state_clones(1, || sub.wait_next(timeout))
+    }
+
+    /// One [`ScopedStateSubscriber::next`] may clone parent feature state once.
+    pub fn scoped_subscriber_next<S, CS, SK>(
+        sub: &mut ScopedStateSubscriber<S, CS, SK>,
+    ) -> Option<CS>
+    where
+        S: PartialEq + Clone,
+        CS: Clone + PartialEq,
+        SK: crate::StateLens<S, CS> + Clone,
+    {
+        allow_state_clones(1, || sub.next())
+    }
 }
 
-/// [`Store::subscribe_state`] clones once when the subscriber is created.
-pub fn subscribe_state<S, M>(
-    store: &crate::Store<S, M>,
-) -> crate::StateSubscriber<S>
-where
-    S: Clone + PartialEq + Send + Sync + 'static,
-    M: Send + 'static,
-{
-    allow_state_clones(1, || store.subscribe_state())
-}
-
-/// [`ScopedStore::child_state`] clones parent state once via [`Store::state`].
-pub fn scoped_child_state<S, M, CS, CM, AK, SK>(
-    scoped: &crate::ScopedStore<S, M, CS, CM, AK, SK>,
-) -> Option<CS>
-where
-    S: Send + Sync + Clone,
-    M: Send,
-    CS: Clone + PartialEq + Send + Sync,
-    CM: Clone + Send,
-    AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
-    SK: crate::StateLens<S, CS> + Clone,
-{
-    allow_state_clones(1, || scoped.child_state())
-}
-
-/// [`ScopedStore::subscribe_state`] clones parent state once when the subscriber is created.
-pub fn scoped_subscribe_state<S, M, CS, CM, AK, SK>(
-    scoped: &crate::ScopedStore<S, M, CS, CM, AK, SK>,
-) -> ScopedStateSubscriber<S, CS, SK>
-where
-    S: Send + Sync + Clone + PartialEq,
-    M: Send,
-    CS: Clone + PartialEq + Send + Sync,
-    CM: Clone + Send,
-    AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
-    SK: crate::StateLens<S, CS> + Clone,
-{
-    allow_state_clones(1, || scoped.subscribe_state())
-}
-
-/// One [`StateSubscriber::next`] / [`StateSubscriber::wait_next`] may clone feature state once.
-pub fn subscriber_wait_next<S>(
-    sub: &mut StateSubscriber<S>,
-    timeout: std::time::Duration,
-) -> Option<std::sync::Arc<S>>
-where
-    S: PartialEq + Clone,
-{
-    allow_state_clones(1, || sub.wait_next(timeout))
-}
-
-/// One [`ScopedStateSubscriber::next`] may clone parent feature state once.
-pub fn scoped_subscriber_next<S, CS, SK>(
-    sub: &mut ScopedStateSubscriber<S, CS, SK>,
-) -> Option<CS>
-where
-    S: PartialEq + Clone,
-    CS: Clone + PartialEq,
-    SK: crate::StateLens<S, CS> + Clone,
-{
-    allow_state_clones(1, || sub.next())
-}
+#[cfg(feature = "runtime")]
+pub use store_helpers::{
+    scoped_child_state, scoped_subscribe_state, scoped_subscriber_next, store_state,
+    subscribe_state, subscriber_wait_next,
+};
 
 /// [`ReplayHarness::snapshot`] clones feature state once.
 pub fn replay_snapshot<S, M>(harness: &crate::ReplayHarness<S, M>) -> S
@@ -157,5 +165,3 @@ macro_rules! panic_on_state_clone {
         }
     };
 }
-
-pub use panic_on_state_clone;

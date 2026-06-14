@@ -237,6 +237,7 @@ pub struct SharedSubscriber<T> {
 }
 
 impl<T: Clone + PartialEq> SharedSubscriber<T> {
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<T> {
         loop {
             match self.rx.try_recv() {

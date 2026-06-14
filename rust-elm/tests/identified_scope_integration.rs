@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use key_paths_derive::{Cp, Kp};
 use rust_elm::{
     reducer::Reduce, Identifiable, IdentifiedVec, ScopeReducer, IfLetReducer, Cmd,

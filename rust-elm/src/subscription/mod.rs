@@ -1,4 +1,6 @@
 //! Subscription interpreter — starts/stops long-lived Tokio sources declared by [`Sub`].
+mod websocket;
+
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -85,12 +87,12 @@ fn spawn_subscriptions<S, M>(
         }
         Sub::Stream { id, name, every, produce } => {
             spawn_if_new(*id, active, || {
-                spawn_stream(*name, *every, *produce, handle, tx, backend, shutdown)
+                spawn_stream(name, *every, *produce, handle, tx, backend, shutdown)
             });
         }
         Sub::WebSocket { id, url, every, produce } => {
             spawn_if_new(*id, active, || {
-                spawn_websocket(*url, *every, *produce, handle, tx, backend, shutdown)
+                websocket::spawn_websocket(url, *every, *produce, handle, tx, backend, shutdown)
             });
         }
         Sub::MapMsg { inner, map } => spawn_unit_subscriptions(
@@ -138,12 +140,12 @@ fn spawn_unit_subscriptions<S, M>(
         }
         Sub::Stream { id, name, every, .. } => {
             spawn_if_new(*id, active, || {
-                spawn_stream_mapped(*name, *every, map, handle, tx, backend, shutdown)
+                spawn_stream_mapped(name, *every, map, handle, tx, backend, shutdown)
             });
         }
         Sub::WebSocket { id, url, every, .. } => {
             spawn_if_new(*id, active, || {
-                spawn_websocket_mapped(*url, *every, map, handle, tx, backend, shutdown)
+                websocket::spawn_websocket_mapped(url, *every, map, handle, tx, backend, shutdown)
             });
         }
         Sub::MapMsg { .. } => {}
@@ -289,66 +291,6 @@ where
                     break;
                 }
                 crate::runtime::dispatch_from_subscription(&backend, &tx, map(()));
-            }
-        })
-        .abort_handle()
-}
-
-fn spawn_websocket<S, M>(
-    _url: &'static str,
-    every: std::time::Duration,
-    produce: fn() -> M,
-    handle: Handle,
-    tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
-    shutdown: Arc<AtomicBool>,
-) -> AbortHandle
-where
-    S: Send + 'static,
-    M: Send + 'static,
-{
-    handle
-        .spawn(async move {
-            loop {
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                tokio::time::sleep(every / 2).await;
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                crate::runtime::dispatch_from_subscription(&backend, &tx, produce());
-                tokio::time::sleep(every).await;
-            }
-        })
-        .abort_handle()
-}
-
-fn spawn_websocket_mapped<S, M>(
-    _url: &'static str,
-    every: std::time::Duration,
-    map: fn(()) -> M,
-    handle: Handle,
-    tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
-    shutdown: Arc<AtomicBool>,
-) -> AbortHandle
-where
-    S: Send + 'static,
-    M: Send + 'static,
-{
-    handle
-        .spawn(async move {
-            loop {
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                tokio::time::sleep(every / 2).await;
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                crate::runtime::dispatch_from_subscription(&backend, &tx, map(()));
-                tokio::time::sleep(every).await;
             }
         })
         .abort_handle()

@@ -283,7 +283,7 @@ Swap `shop_environment_live()` vs `shop_environment_mock()` at `Runtime::from_re
 | Area | Example status | Production gap |
 |------|----------------|----------------|
 | State model | Rich demo | Persistence, migrations, schema versioning |
-| Network | httpbin + simulated subs | Real APIs, retries, auth, circuit breakers |
+| Network | httpbin + **real WebSocket** (`tokio-tungstenite`, `websocket` feature) | TLS, auth, circuit breakers |
 | Subscriptions | Interval-based simulation | Real WebSocket/Tokio streams, reconnect |
 | Errors | Log + continue | User-visible error state, telemetry |
 | Panics | Caught at root | Avoid panics in prod; use `Result` paths |

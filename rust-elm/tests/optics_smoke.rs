@@ -1,3 +1,5 @@
+#![allow(dead_code, clippy::bool_assert_comparison)]
+
 use key_paths_derive::{Cp, Kp};
 use rust_elm::optics::{extract_action, wrap_action};
 

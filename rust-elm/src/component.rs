@@ -43,6 +43,7 @@ pub fn lift<PA: Send + 'static, CA: Send + 'static>(
 }
 
 #[cfg(test)]
+#[allow(dead_code, clippy::bool_assert_comparison)]
 mod tests {
     use super::*;
 
@@ -78,7 +79,7 @@ mod tests {
         let slot = Slot::new(
             |p: &Parent| p.child.as_ref(),
             |p: &mut Parent| p.child.as_mut(),
-            |c| PMsg::Child(c),
+            PMsg::Child,
             child_update,
         );
         let mut parent = Parent {

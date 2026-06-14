@@ -24,6 +24,12 @@ pub struct ReplayLog<M> {
     entries: Vec<(M, usize)>,
 }
 
+impl<M: Clone> Default for ReplayLog<M> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<M: Clone> ReplayLog<M> {
     pub fn new() -> Self {
         Self {

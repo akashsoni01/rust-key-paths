@@ -1,7 +1,5 @@
-use std::any::Any;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,69 +8,9 @@ use crossbeam_channel::{Receiver, Sender};
 use parking_lot::Mutex;
 
 use crate::bus::BusSender;
-use crate::cmd::Cmd;
 use crate::effect::EffectId;
 use crate::optics::{Casepath, StateLens};
 use crate::runtime::InterpreterState;
-
-/// A reducer panic caught by [`catch_reduce`] or [`CatchReducer`](crate::reducer::CatchReducer).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReducePanic {
-    message: Option<String>,
-}
-
-impl ReducePanic {
-    pub fn message(&self) -> Option<&str> {
-        self.message.as_deref()
-    }
-
-    fn from_payload(payload: Box<dyn Any + Send>) -> Self {
-        let message = payload
-            .downcast_ref::<&str>()
-            .map(|s| (*s).to_string())
-            .or_else(|| payload.downcast_ref::<String>().cloned());
-        Self { message }
-    }
-}
-
-/// Run `reduce` inside [`catch_unwind`]. This is the default for [`Runtime`] and [`CatchReducer`]:
-/// panics are caught but `state` is not reverted. Use [`catch_reduce`] only when you want rollback.
-pub fn catch_reduce_panic<S, M, F>(state: &mut S, reduce: F, action: M) -> Result<Cmd<M>, ReducePanic>
-where
-    F: FnOnce(&mut S, M) -> Cmd<M>,
-{
-    match catch_unwind(AssertUnwindSafe(|| reduce(state, action))) {
-        Ok(cmd) => Ok(cmd),
-        Err(payload) => Err(ReducePanic::from_payload(payload)),
-    }
-}
-
-/// Run `reduce` inside [`catch_unwind`], rolling back via `checkpoint` on panic.
-///
-/// `checkpoint` must hold the last committed state (see [`RollbackCatchReducer`](crate::reducer::RollbackCatchReducer)).
-/// On panic, `state` and `checkpoint` are swapped — no clone on the failure path. After a
-/// successful reduce, `checkpoint` is updated from `state` (one clone on the success path only).
-pub fn catch_reduce<S, M, F>(
-    state: &mut S,
-    checkpoint: &mut S,
-    reduce: F,
-    action: M,
-) -> Result<Cmd<M>, ReducePanic>
-where
-    S: Clone,
-    F: FnOnce(&mut S, M) -> Cmd<M>,
-{
-    match catch_unwind(AssertUnwindSafe(|| reduce(state, action))) {
-        Ok(cmd) => {
-            checkpoint.clone_from(state);
-            Ok(cmd)
-        }
-        Err(payload) => {
-            std::mem::swap(state, checkpoint);
-            Err(ReducePanic::from_payload(payload))
-        }
-    }
-}
 
 /// Calls [`StoreBackend::end_store_work`] on drop unless [`Self::disarm`]d.
 ///
@@ -319,6 +257,7 @@ pub struct StateSubscriber<S> {
 }
 
 impl<S: PartialEq + Clone> StateSubscriber<S> {
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<Arc<S>> {
         loop {
             match self.rx.try_recv() {
@@ -436,6 +375,7 @@ where
     CS: Clone + PartialEq,
     SK: StateLens<S, CS> + Clone,
 {
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<CS> {
         loop {
             let parent = self.inner.next()?;

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-/// Subscription descriptions — interpreted in [`crate::subscription`] / [`crate::runtime`].
+/// Subscription descriptions — interpreted in [`crate::subscription`] / [`crate::runtime`] (requires `runtime` feature).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Sub<M> {
     None,

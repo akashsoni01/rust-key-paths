@@ -1,17 +1,21 @@
+//! Elm `Program` — init, update, subscriptions (fn-pointer path).
+
 use crate::cmd::Cmd;
 use crate::reducer::Reducer;
 use crate::sub::Sub;
 
+type InitPair<S, M> = (S, Cmd<M>);
+
 /// Elm `Program` — init, update, subscriptions (fn-pointer path).
 pub struct Program<S, M> {
-    pub init: fn() -> (S, Cmd<M>),
+    pub init: fn() -> InitPair<S, M>,
     pub update: fn(&mut S, M) -> Cmd<M>,
     pub subscriptions: fn(&S) -> Sub<M>,
 }
 
 impl<S, M> Program<S, M> {
     pub fn new(
-        init: fn() -> (S, Cmd<M>),
+        init: fn() -> InitPair<S, M>,
         update: fn(&mut S, M) -> Cmd<M>,
         subscriptions: fn(&S) -> Sub<M>,
     ) -> Self {
@@ -26,14 +30,14 @@ impl<S, M> Program<S, M> {
 /// Program backed by any [`Reducer`] value.
 pub struct ReducerProgram<R: Reducer> {
     pub reducer: R,
-    pub init: fn() -> (R::State, Cmd<R::Action>),
+    pub init: fn() -> InitPair<R::State, R::Action>,
     pub subscriptions: fn(&R::State) -> Sub<R::Action>,
 }
 
 impl<R: Reducer> ReducerProgram<R> {
     pub fn new(
         reducer: R,
-        init: fn() -> (R::State, Cmd<R::Action>),
+        init: fn() -> InitPair<R::State, R::Action>,
         subscriptions: fn(&R::State) -> Sub<R::Action>,
     ) -> Self {
         Self {
@@ -45,7 +49,7 @@ impl<R: Reducer> ReducerProgram<R> {
 
     pub fn from_parts(
         reducer: R,
-        init: fn() -> (R::State, Cmd<R::Action>),
+        init: fn() -> InitPair<R::State, R::Action>,
         subscriptions: fn(&R::State) -> Sub<R::Action>,
     ) -> Self {
         Self::new(reducer, init, subscriptions)
@@ -53,6 +57,7 @@ impl<R: Reducer> ReducerProgram<R> {
 }
 
 #[cfg(test)]
+#[allow(dead_code, clippy::type_complexity)]
 mod tests {
     use super::*;
     use crate::reducer::{coerce_fn, CombineReducers, Reduce};

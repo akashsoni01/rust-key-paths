@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use rust_elm::{
     reducer::coerce_fn, reducers, Cmd, CombineReducers, Reduce, Reducer, ReducerProgram, Runtime,
     panic_on_state_clone, Sub, Environment,
@@ -25,16 +27,14 @@ fn subscriptions(_: &App) -> Sub<Action> {
 }
 
 fn count_reducer(state: &mut App, action: Action) -> Cmd<Action> {
-    if let Action::N(n) = action {
-        state.count += n;
-    }
+    let Action::N(n) = action;
+    state.count += n;
     Cmd::none()
 }
 
 fn double_reducer(state: &mut App, action: Action) -> Cmd<Action> {
-    if let Action::N(n) = action {
-        state.doubled += n * 2;
-    }
+    let Action::N(n) = action;
+    state.doubled += n * 2;
     Cmd::none()
 }
 

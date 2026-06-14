@@ -1,4 +1,5 @@
 //! End-to-end ecommerce store — demonstrates real-world composition of rust-elm.
+#![allow(clippy::collapsible_if)]
 //!
 //! Features showcased:
 //! - **4-level actions**: `Shop → Catalog → Browse → Product → Detail`
@@ -129,6 +130,7 @@ struct ShopState {
 
 // ── Actions (4 nested levels under Catalog) ──────────────────────────────────
 
+#[allow(dead_code)] // demo-only variants for API illustration
 #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
 enum ShopAction {
     Global(GlobalAction),
@@ -139,6 +141,7 @@ enum ShopAction {
     RemoveWishlist(WishlistId),
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
 enum GlobalAction {
     SignIn(String),
@@ -155,6 +158,7 @@ enum GlobalAction {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
 enum CatalogAction {
     SetQuery(String),
@@ -172,6 +176,7 @@ enum ProductAction {
     Detail(DetailAction),
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
 enum DetailAction {
     Load { sku: String },
@@ -185,12 +190,14 @@ enum CartAction {
     Line(LineId, CartLineAction),
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Kp)]
 enum CartLineAction {
     Inc,
     Dec,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
 enum CheckoutAction {
     Dismiss,
@@ -199,6 +206,7 @@ enum CheckoutAction {
     WsPulse,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Kp)]
 enum WishlistAction {
     Rename(String),

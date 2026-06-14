@@ -1,5 +1,13 @@
+#[cfg(feature = "websocket")]
+#[path = "support/ws_echo.rs"]
+mod ws_echo;
+
 use rust_elm::{Environment, Program, ReducerProgram, Runtime, Sub};
+use std::sync::Mutex;
 use std::time::Duration;
+
+#[cfg(feature = "websocket")]
+static WS_URL: Mutex<Option<&'static str>> = Mutex::new(None);
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 struct App {
@@ -40,6 +48,21 @@ fn ping(_: ()) -> Action {
     Action::Ping
 }
 
+fn ws_url() -> &'static str {
+    #[cfg(feature = "websocket")]
+    {
+        let guard = WS_URL.lock().expect("ws url lock");
+        match guard.as_ref() {
+            Some(url) => url,
+            None => panic!("WS_URL set in test setup"),
+        }
+    }
+    #[cfg(not(feature = "websocket"))]
+    {
+        "wss://demo/ws"
+    }
+}
+
 fn subscriptions(app: &App) -> Sub<Action> {
     let mut subs = Vec::new();
     if app.logged_in {
@@ -52,7 +75,7 @@ fn subscriptions(app: &App) -> Sub<Action> {
         ));
         subs.push(Sub::websocket(
             3,
-            "wss://demo/ws",
+            ws_url(),
             Duration::from_millis(60),
             || Action::WsHit,
         ));
@@ -66,10 +89,17 @@ fn subscriptions(app: &App) -> Sub<Action> {
 
 #[test]
 fn all_subscription_varieties_fire() {
+    #[cfg(feature = "websocket")]
+    let _echo = {
+        let server = ws_echo::EchoServer::start();
+        *WS_URL.lock().expect("ws url lock") = Some(server.url());
+        server
+    };
+
     let program = Program::new(init, update, subscriptions);
     let runtime = Runtime::from_program(program, Environment::new(), 32);
     runtime.dispatch(Action::Login);
-    std::thread::sleep(Duration::from_millis(350));
+    std::thread::sleep(Duration::from_millis(500));
     let app = *runtime.state.lock();
     assert!(app.ticks >= 1, "tick: {}", app.ticks);
     assert!(app.stream_hits >= 1, "stream: {}", app.stream_hits);
@@ -80,6 +110,13 @@ fn all_subscription_varieties_fire() {
 
 #[test]
 fn subscriptions_stop_when_logged_out() {
+    #[cfg(feature = "websocket")]
+    let _echo = {
+        let server = ws_echo::EchoServer::start();
+        *WS_URL.lock().expect("ws url lock") = Some(server.url());
+        server
+    };
+
     let program = ReducerProgram::new(
         rust_elm::Reduce::new(update),
         init,

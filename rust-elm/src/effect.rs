@@ -397,7 +397,7 @@ impl<M> Effect<M> {
                 Box::pin(async move { fut.await.map(f) })
             }),
             Self::RegisteredEnvTask { id } => Effect::from_env_fn(move |env| {
-                let fut = run_registered_env_task::<M>(&env, id);
+                let fut = run_registered_env_task::<M>(env, id);
                 Box::pin(async move { fut.await.map(f) })
             }),
             Self::RegisteredRun { id } => Effect::RegisteredRun { id },
@@ -593,6 +593,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(dead_code, clippy::redundant_closure, clippy::type_complexity)]
 mod tests {
     use super::*;
 

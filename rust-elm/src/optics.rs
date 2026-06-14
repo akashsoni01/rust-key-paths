@@ -147,6 +147,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(dead_code, clippy::bool_assert_comparison)]
 mod tests {
     use super::*;
     use key_paths_derive::{Cp, Kp};

@@ -20,7 +20,8 @@ use crate::error::EffectError;
 use crate::interp::flatten_effects;
 use crate::program::{Program, ReducerProgram};
 use crate::reducer::Reducer;
-use crate::store::{catch_reduce_panic, StoreBackend, StoreWorkUnwindGuard};
+use crate::reduce_panic::catch_reduce_panic;
+use crate::store::{StoreBackend, StoreWorkUnwindGuard};
 use crate::sub::Sub;
 
 pub(crate) struct InterpreterState<M> {
@@ -30,7 +31,7 @@ pub(crate) struct InterpreterState<M> {
 }
 
 impl<M> InterpreterState<M> {
-    fn new() -> Arc<Self> {
+    pub(crate) fn new() -> Arc<Self> {
         Arc::new(Self {
             cancel_tokens: Mutex::new(HashMap::new()),
             debounce_timers: Mutex::new(HashMap::new()),
@@ -63,10 +64,9 @@ where
     M: Send + 'static,
 {
     pub fn from_program(program: Program<S, M>, env: Environment, bus_capacity: usize) -> Self {
-        let update = program.update;
         Self::bootstrap(
             program.init,
-            move |state, msg| update(state, msg),
+            program.update,
             program.subscriptions,
             env,
             bus_capacity,
@@ -107,11 +107,7 @@ where
         let tokio = Arc::new(
             TokioRuntime::new().expect("failed to create Tokio runtime for rust-elm"),
         );
-        let interpreter = Arc::new(InterpreterState {
-            cancel_tokens: Mutex::new(HashMap::new()),
-            debounce_timers: Mutex::new(HashMap::new()),
-            throttle_gates: Mutex::new(HashMap::new()),
-        });
+        let interpreter = InterpreterState::new();
         let sub_handles = Arc::new(crate::subscription::SubscriptionHandles::new());
         let backend = StoreBackend::new(state.clone(), bus.sender(), interpreter);
         let tx = bus.sender();
@@ -454,10 +450,10 @@ fn spawn_effect_inner<S, M>(
             cancel_in_flight,
             inner,
         } => {
-            if cancel_in_flight {
-                if let Some(old) = interpreter.cancel_tokens.lock().remove(&id) {
-                    old.abort();
-                }
+            if cancel_in_flight
+                && let Some(old) = interpreter.cancel_tokens.lock().remove(&id)
+            {
+                old.abort();
             }
             spawn_effect_inner(*inner, tx, env, handle, interpreter, backend, batch);
         }
@@ -587,11 +583,8 @@ fn spawn_effect_inner<S, M>(
             let backend = backend.clone();
             track_spawn(
                 handle.spawn(async move {
-                    match timeout(duration, run_effect_once(*inner, env)).await {
-                        Ok(Ok(msg)) => {
-                            dispatch_from_effect(&backend, &tx, msg);
-                        }
-                        _ => {}
+                    if let Ok(Ok(msg)) = timeout(duration, run_effect_once(*inner, env)).await {
+                        dispatch_from_effect(&backend, &tx, msg);
                     }
                 }),
                 None,
