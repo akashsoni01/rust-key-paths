@@ -20,3 +20,14 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+
+  rust-elm:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build rust-elm
+      run: cargo build -p rust-elm --all-targets --verbose
+    - name: Test rust-elm
+      run: cargo test -p rust-elm --verbose

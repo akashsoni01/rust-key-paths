@@ -9,27 +9,39 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "3.2.0"
-key-paths-derive = "3.1.0"
+rust-key-paths = "3.3.0"
+key-paths-derive = "3.2.0"
 # Optional: trait-only contracts (pulled in by rust-key-paths 3.1+)
 # key-paths-core = "2.0"
+```
+
+`rust-key-paths` does **not** depend on [`rust-elm`](./rust-elm/) — that relationship runs the other way. Add `rust-elm` only if you want the Elm/TCA store:
+
+```toml
+[dependencies]
+rust-elm = "0.2.0"
+rust-key-paths = "3.3.0"
+key-paths-derive = "3.2.0"
 ```
 
 ### Latest releases
 
 | Crate | Version | Notes |
 |-------|---------|--------|
-| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.2** | `#![no_std]` traits; docs for generic `Readable` / `Writable` APIs |
-| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.2.0** | `Kp`, locks, HOF; re-exports core traits |
-| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.1.0** | `#[derive(Kp)]`, `#[derive(Cp)]` — see [derive README](./key-paths-derive/README.md) |
+| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.3** | `#![no_std]` traits; docs for generic `Readable` / `Writable` APIs |
+| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.3.0** | `Kp`, locks, HOF; re-exports core traits |
+| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.2.0** | `#[derive(Kp)]`, `#[derive(Cp)]` — see [derive README](./key-paths-derive/README.md) |
+| [`rust-elm`](https://crates.io/crates/rust-elm) | **0.2.0** | Optional — Elm/TCA store; **depends on** `rust-key-paths` (not included by default) |
+| [`rust_identified_vec`](https://crates.io/crates/rust_identified_vec) | **0.1.2** | Identified collections (used by `rust-elm`) |
+| [`rust_dependencies`](https://crates.io/crates/rust_dependencies) | **0.1.2** | Typed DI for effects (used by `rust-elm`) |
 
-#### 3.2.0 / 2.0.2 / 3.1.0
+#### 3.3.0 / 2.0.3 / 3.2.0
 
 - **`EnumKp` / `EnumValueKpType`** — casepaths (prisms) for enum variants: extract + embed.
 - **`EnumKp::get_ref`**, **`EnumKp::then` / `chain`** — compose nested casepaths.
-- **`#[derive(Cp)]`** on enums and structs in `key-paths-derive` 3.1.0.
-- **`rust-elm` 0.1.0** — Elm/TCA-style store (first publish).
-- **`rust_identified_vec` 0.1.1**, **`rust_dependencies` 0.1.1** — patch releases.
+- **`#[derive(Cp)]`** on enums and structs in `key-paths-derive` 3.2.0.
+- **`rust-elm` 0.2.0** — separate crate: WebSocket subs, runtime features, ecommerce example (depends on this crate).
+- **`rust_identified_vec` 0.1.2**, **`rust_dependencies` 0.1.2** — patch releases.
 
 #### 3.1.1 / 2.0.1 / 3.0.2 (documentation)
 

@@ -30,6 +30,15 @@ members = [
     "rust_identified_vec",
     "rust_dependencies",
 ]
+# Keypaths crates only — `rust-elm` is a separate consumer (depends on rust-key-paths, not vice versa).
+default-members = [
+    ".",
+    "key-paths-core",
+    "key-paths-derive",
+    "key-paths-iter",
+    "rust_identified_vec",
+    "rust_dependencies",
+]
 
 # Use local path when developing dependents
 [patch.crates-io]
