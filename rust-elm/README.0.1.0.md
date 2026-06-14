@@ -1,4 +1,4 @@
-# rust-elm 0.1.0
+# rust-elm 0.2.0
 
 Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 
@@ -7,8 +7,8 @@ Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 ```toml
 [dependencies]
 rust-elm = { path = "../rust-elm" }
-rust-key-paths = "3.2.0"
-key-paths-derive = "3.1.0"
+rust-key-paths = "3.3.0"
+key-paths-derive = "3.2.0"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
 ```
 
