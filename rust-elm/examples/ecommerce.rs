@@ -10,7 +10,7 @@
 //! - **Runtime**: bus-driven update loop, Tokio effect interpreter, `ScopedStore`, state subscription
 //! - **Effects**: `StoreTask`, cancel-on-dismiss; **subscriptions**: tick, stream, websocket, map_msg, batch
 //!
-//! - **Environment / DI**: live vs mock HTTP + date deps via [`Environment::with`]
+//! - **Environment / DI**: live vs mock HTTP + date + WebSocket deps via [`Environment::with`]
 //! - **Panic demo**: `GlobalAction::TriggerPanic` — see [`book/ecommerce.md`](../book/ecommerce.md)
 //!
 //! ```bash
@@ -20,7 +20,7 @@
 #[path = "ecommerce/deps.rs"]
 mod deps;
 
-use deps::{DateDep, HttpDep, HTTPBIN_GET};
+use deps::{DateDep, HttpDep, WebDep, HTTPBIN_GET};
 use key_paths_derive::{Cp, Kp};
 use rust_elm::{
     CatchReducer, Cmd, CombineReducers, Effect, EffectError, EffectId, Environment,
@@ -51,6 +51,8 @@ struct SessionState {
     user: Option<String>,
     http_origin: Option<String>,
     server_time: Option<String>,
+    /// Resolved from [`WebDep`] during env probe — drives checkout `Sub::websocket`.
+    checkout_ws_url: Option<&'static str>,
     /// Set `true` immediately before the demo panic — proves partial state is kept.
     panic_survived: bool,
 }
@@ -155,6 +157,7 @@ enum GlobalAction {
     EnvLoaded {
         origin: String,
         server_time: String,
+        checkout_ws_url: &'static str,
     },
 }
 
@@ -237,6 +240,13 @@ fn env_probe_effect() -> Effect<ShopAction> {
                 return Box::pin(async move { Err(EffectError::EnvMissing(e.name)) });
             }
         };
+        let ws = match env.require::<WebDep>() {
+            Ok(w) => w,
+            Err(e) => {
+                return Box::pin(async move { Err(EffectError::EnvMissing(e.name)) });
+            }
+        };
+        let checkout_ws_url = ws.0.checkout_status_url();
 
         Box::pin(async move {
             let bin = http
@@ -246,10 +256,12 @@ fn env_probe_effect() -> Effect<ShopAction> {
                 .map_err(EffectError::Other)?;
             let now = date.0.current().await;
             println!("date = {now:?}");
+            println!("checkout ws url = {checkout_ws_url}");
 
             Ok(ShopAction::Global(GlobalAction::EnvLoaded {
                 origin: bin.origin,
                 server_time: now.to_rfc3339(),
+                checkout_ws_url,
             }))
         })
     })
@@ -333,9 +345,14 @@ fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> 
             state.session.panic_survived = true;
             panic!("ecommerce demo: intentional reducer panic (state.panic_survived kept)");
         }
-        ShopAction::Global(GlobalAction::EnvLoaded { origin, server_time }) => {
+        ShopAction::Global(GlobalAction::EnvLoaded {
+            origin,
+            server_time,
+            checkout_ws_url,
+        }) => {
             state.session.http_origin = Some(origin);
             state.session.server_time = Some(server_time);
+            state.session.checkout_ws_url = Some(checkout_ws_url);
             Cmd::none()
         }
         _ => Cmd::none(),
@@ -590,12 +607,14 @@ fn subscriptions(state: &ShopState) -> Sub<ShopAction> {
     }
 
     if state.checkout.is_some() {
-        subs.push(Sub::websocket(
-            SUB_CHECKOUT_WS,
-            "wss://pay.example/status",
-            Duration::from_millis(200),
-            sub_checkout_ws,
-        ));
+        if let Some(url) = state.session.checkout_ws_url {
+            subs.push(Sub::websocket(
+                SUB_CHECKOUT_WS,
+                url,
+                Duration::from_millis(200),
+                sub_checkout_ws,
+            ));
+        }
     }
 
     subs.push(Sub::map_msg(
@@ -618,8 +637,8 @@ fn run_shop(label: &str, env: Environment) {
     std::thread::sleep(Duration::from_millis(600));
     let boot = store.state();
     println!(
-        "{label} boot: origin={:?} time={:?}",
-        boot.session.http_origin, boot.session.server_time
+        "{label} boot: origin={:?} time={:?} ws={:?}",
+        boot.session.http_origin, boot.session.server_time, boot.session.checkout_ws_url
     );
 
     let cart_store = store.scope(cart_lens(), ShopAction::cart_cp());
@@ -690,8 +709,10 @@ fn run_shop(label: &str, env: Environment) {
     println!("user: {:?}", final_state.session.user);
     println!("panic_survived: {}", final_state.session.panic_survived);
     println!(
-        "env: origin={:?} time={:?}",
-        final_state.session.http_origin, final_state.session.server_time
+        "env: origin={:?} time={:?} ws={:?}",
+        final_state.session.http_origin,
+        final_state.session.server_time,
+        final_state.session.checkout_ws_url
     );
     println!("cart lines: {}", final_state.cart.lines.len());
     println!(

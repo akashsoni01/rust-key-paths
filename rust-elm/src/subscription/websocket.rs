@@ -60,6 +60,31 @@ where
 }
 
 #[cfg(feature = "websocket")]
+async fn websocket_simulated_loop<S, M, F>(
+    every: Duration,
+    produce: F,
+    backend: &StoreBackend<S, M>,
+    tx: &BusSender<M>,
+    shutdown: &Arc<AtomicBool>,
+) where
+    S: Send + 'static,
+    M: Send + 'static,
+    F: Fn() -> M,
+{
+    loop {
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
+        tokio::time::sleep(every / 2).await;
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
+        crate::runtime::dispatch_from_subscription(backend, tx, produce());
+        tokio::time::sleep(every).await;
+    }
+}
+
+#[cfg(feature = "websocket")]
 async fn websocket_loop_impl<S, M, F>(
     url: &str,
     reconnect_every: Duration,
@@ -72,6 +97,11 @@ async fn websocket_loop_impl<S, M, F>(
     M: Send + 'static,
     F: Fn() -> M,
 {
+    if url.starts_with("mock://") {
+        websocket_simulated_loop(reconnect_every, produce, backend, tx, shutdown).await;
+        return;
+    }
+
     use futures_util::{SinkExt, StreamExt};
     use tokio_tungstenite::connect_async;
     use tokio_tungstenite::tungstenite::Message;
@@ -148,6 +178,31 @@ where
 }
 
 #[cfg(not(feature = "websocket"))]
+async fn websocket_simulated_loop<S, M, F>(
+    every: Duration,
+    produce: F,
+    backend: &StoreBackend<S, M>,
+    tx: &BusSender<M>,
+    shutdown: &Arc<AtomicBool>,
+) where
+    S: Send + 'static,
+    M: Send + 'static,
+    F: Fn() -> M,
+{
+    loop {
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
+        tokio::time::sleep(every / 2).await;
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
+        crate::runtime::dispatch_from_subscription(backend, tx, produce());
+        tokio::time::sleep(every).await;
+    }
+}
+
+#[cfg(not(feature = "websocket"))]
 fn spawn_websocket_simulated<S, M>(
     every: Duration,
     produce: fn() -> M,
@@ -162,17 +217,7 @@ where
 {
     handle
         .spawn(async move {
-            loop {
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                tokio::time::sleep(every / 2).await;
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                crate::runtime::dispatch_from_subscription(&backend, &tx, produce());
-                tokio::time::sleep(every).await;
-            }
+            websocket_simulated_loop(every, produce, &backend, &tx, &shutdown).await;
         })
         .abort_handle()
 }
@@ -192,17 +237,7 @@ where
 {
     handle
         .spawn(async move {
-            loop {
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                tokio::time::sleep(every / 2).await;
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                crate::runtime::dispatch_from_subscription(&backend, &tx, map(()));
-                tokio::time::sleep(every).await;
-            }
+            websocket_simulated_loop(every, move || map(()), &backend, &tx, &shutdown).await;
         })
         .abort_handle()
 }

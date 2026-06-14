@@ -1,7 +1,7 @@
 //! Shop dependencies — live vs mock implementations registered on [`Environment`].
 //!
-//! Mirrors the httpbin + chrono pattern: swap `Environment::new().with(...)` to test
-//! without network calls.
+//! Mirrors the httpbin + chrono + WebSocket pattern: swap `Environment::new().with(...)` to
+//! test without network calls.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -32,11 +32,19 @@ pub trait DateDependency: Send + Sync {
     fn current(&self) -> Pin<Box<dyn Future<Output = DateTime<Local>> + Send + '_>>;
 }
 
+/// Checkout payment-status WebSocket URL (used by `Sub::websocket` in subscriptions).
+pub trait WebSocketDependency: Send + Sync {
+    fn checkout_status_url(&self) -> &'static str;
+}
+
 #[derive(Clone)]
 pub struct HttpDep(pub Arc<dyn HttpRequestDependency>);
 
 #[derive(Clone)]
 pub struct DateDep(pub Arc<dyn DateDependency>);
+
+#[derive(Clone)]
+pub struct WebDep(pub Arc<dyn WebSocketDependency>);
 
 // ── Live implementations ───────────────────────────────────────────────────
 
@@ -87,6 +95,14 @@ impl DateDependency for DateServiceLive {
     }
 }
 
+pub struct CheckoutWebSocketLive;
+
+impl WebSocketDependency for CheckoutWebSocketLive {
+    fn checkout_status_url(&self) -> &'static str {
+        "wss://echo.websocket.org"
+    }
+}
+
 // ── Mock implementations ─────────────────────────────────────────────────────
 
 pub struct HttpBinServiceMock;
@@ -116,6 +132,14 @@ impl DateDependency for DateServiceMock {
                 .single()
                 .expect("valid mock timestamp")
         })
+    }
+}
+
+pub struct CheckoutWebSocketMock;
+
+impl WebSocketDependency for CheckoutWebSocketMock {
+    fn checkout_status_url(&self) -> &'static str {
+        "mock://checkout/status"
     }
 }
 
@@ -149,11 +173,26 @@ impl DependencyKey for DateDepKey {
     }
 }
 
+pub struct WebDepKey;
+
+impl DependencyKey for WebDepKey {
+    type Value = WebDep;
+
+    fn live() -> Self::Value {
+        WebDep(Arc::new(CheckoutWebSocketLive))
+    }
+
+    fn try_test() -> Result<Self::Value, DependencyError> {
+        Ok(WebDep(Arc::new(CheckoutWebSocketMock)))
+    }
+}
+
 pub fn shop_environment_live() -> Environment {
     Environment::from_values(
         DependencyValues::live()
             .with(HttpDepKey::live())
-            .with(DateDepKey::live()),
+            .with(DateDepKey::live())
+            .with(WebDepKey::live()),
     )
 }
 
@@ -161,6 +200,7 @@ pub fn shop_environment_mock() -> Environment {
     Environment::from_values(
         DependencyValues::live()
             .with(HttpDepKey::test())
-            .with(DateDepKey::test()),
+            .with(DateDepKey::test())
+            .with(WebDepKey::test()),
     )
 }

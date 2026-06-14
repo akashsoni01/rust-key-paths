@@ -42,6 +42,11 @@ websocket = ["runtime", "dep:tokio-tungstenite", "dep:futures-util"]
 serde = ["dep:serde", "dep:serde_json", "rust_identified_vec/serde"]
 
 [[example]]
+name = "throughput"
+path = "examples/throughput.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "catch_reduce"
 path = "examples/catch_reduce.rs"
 
@@ -69,6 +74,11 @@ path = "examples/shared_state.rs"
 
 [[bench]]
 name = "scope_dispatch"
+harness = false
+required-features = ["runtime"]
+
+[[bench]]
+name = "hashmap_dispatch"
 harness = false
 required-features = ["runtime"]
 
