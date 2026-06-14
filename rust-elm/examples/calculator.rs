@@ -32,7 +32,7 @@ fn calculator_reducer(state: &mut Calculator, action: CalculatorAction) -> Cmd<C
 }
 
 impl Calculator {
-    fn new() -> Self{
+    fn new() -> Self {
         Self{
             result: 0,
         }

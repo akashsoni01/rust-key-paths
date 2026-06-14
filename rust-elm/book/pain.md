@@ -69,55 +69,71 @@ sequenceDiagram
 
 ## Reusable keypath validation
 
-Core helper in [`examples/pain/validation.rs`](../examples/pain/validation.rs):
+The framework in [`examples/pain/validation.rs`](../examples/pain/validation.rs) has three reusable, **domain-agnostic** pieces (documented in full in [validation.md](./validation.md)):
+
+| Type | Role |
+|------|------|
+| `Rule<V>` | A composable check `Fn(&V) -> Option<Message>` (boxed, so it can be parameterized) |
+| `Validator<R>` | Fluent accumulator over one root, prefixing every error path |
+| `Validate` | Trait — `payload.validate() -> Vec<FieldError>` |
+
+### Composable rules (combinators, not constants)
+
+Rules are **factory functions** so they parameterize and compose, instead of fixed `fn` pointers:
 
 ```rust
-pub fn validate_at<Root, V>(
-    root: &Root,
-    iso_path: &str,
-    kp: KpType<'static, Root, V>,
-    rules: &[Rule<V>],
-) -> Vec<FieldError>
+rules::required()          // Rule<String>
+rules::max_len(35)         // parameterized
+rules::min_len(2)
+rules::one_of(&["TRF"])
+rules::len_in(&[8, 11])
+rules::iso_currency()
+rules::positive()          // Rule<f64>
+rules::optional(rules::max_len(140))  // lifts Rule<V> -> Rule<Option<V>>
 ```
 
-- **`iso_path`** — error label matching ISO (e.g. `"GrpHdr/MsgId"`)
-- **`kp`** — any `KpType` or composed chain (`.then()`)
-- **`rules`** — slice of pure `fn(&V) -> Option<&'static str>`
+`optional(..)` is the key combinator — wrap any rule to make it pass on `None`, reuse it for every optional ISO field (`BICFI`, `RmtInf/Ustrd`).
 
-### Composed keypath example
+### Fluent validator
 
-Fn-pointer keypaths in [`keypaths.rs`](../examples/pain/keypaths.rs) compose with `validate_at`:
+`Validator` removes the repeated `errors.extend(...)` boilerplate. Each method returns `Self`:
 
 ```rust
-validate_at(
-    payload,
-    "GrpHdr/MsgId",
-    pain_message_id(),
-    rules::MSG_ID,
-);
+Validator::new(payload)
+    .field("GrpHdr/MsgId", pain_message_id(), &[rules::required(), rules::max_len(35)])
+    .field("GrpHdr/CreDtTm", pain_creation_date_time(), &[rules::required(), rules::iso8601_datetime()])
+    .field("GrpHdr/InitgPty/Id", pain_initiating_party_id(), &[rules::required()])
+    .finish()
 ```
 
-Use `Kp::new(get, get_mut)` for nested paths so validators share one `KpType` type (required by `validate_at`). Derived `#[derive(Kp)]` accessors work for direct fields on leaf structs.
+| Method | Use |
+|--------|-----|
+| `field(path, kp, rules)` | Validate the value reached by a keypath (records `missing` if absent) |
+| `value(path, &v, rules)` | Validate a borrowed value directly (e.g. `Option<_>` fields) |
+| `ensure(cond, path, msg)` | Push an error unless `cond` holds |
+| `each(path, items, f)` | Validate a collection with indexed, auto-prefixed sub-validators |
+| `merge(errors)` | Fold in already-prefixed errors (cross-field checks, nested results) |
 
-Rule sets are shared constants:
+### Nested collections via `each`
+
+`each` auto-prefixes `PmtInf[i]/CdtTrfTxInf[j]/...`, so nested validators stay flat:
 
 ```rust
-pub const MSG_ID: &[Rule<String>] = &[required_string, max_len_35];
-pub const CURRENCY: &[Rule<String>] = &[required_string, iso_currency];
-pub const AMOUNT: &[Rule<f64>] = &[positive_amount];
+Validator::with_prefix(pmt, prefix)
+    .field("PmtMtd", pmt_payment_method(), &[rules::required(), rules::one_of(&["TRF"])])
+    .each("CdtTrfTxInf", &pmt.credit_transfer_tx_infos, validate_credit_transfer)
+    .finish()
 ```
-
-The same `rules::CURRENCY` applies whether you validate from `Pain001` root or a nested `CreditTransferTxInfo` via `CreditTransferTxInfo::currency()`.
 
 ### Cross-field rules
 
-Some checks are not single-field keypaths:
+Checks that span fields return `Option<FieldError>` and fold in via `merge`:
 
 | Rule | Function |
 |------|----------|
 | `NbOfTxs` vs actual tx count | `validate_transaction_count` |
 | `CtrlSum` vs sum of amounts | `validate_control_sum` |
-| Non-empty `PmtInf` / `CdtTrfTxInf` | collection guards in `validate_pain001` |
+| Non-empty `PmtInf` / `CdtTrfTxInf` | `ensure(..)` guards |
 
 ---
 
@@ -150,11 +166,11 @@ After a patch, the example clears errors and re-runs `Validate` on demand — ty
 ## Extending validation
 
 1. Add field to `model.rs` with `#[derive(Kp)]`.
-2. Add rule fn + const slice in `validation::rules`.
-3. Call `validate_at` from the appropriate `validate_*` function with ISO path label.
-4. For new cross-field invariant, add a `validate_*` helper and call it from `validate_pain001`.
+2. Add a keypath in `keypaths.rs` (`Kp::new(get, get_mut)`).
+3. Add `.field("IsoPath", kp(), &[rules::..])` to the matching `validate_*` function — reuse existing combinators or add a new one in `rules`.
+4. For a cross-field invariant, write a `fn(&Pain001) -> Option<FieldError>` and `.merge(..)` it in `validate_pain001`.
 
-For HTTP ingress, dispatch `PainAction::LoadFromJson` from an effect and return `PainAction::Validate` — keep validation pure in the reducer.
+Need a new reusable check? Add a combinator returning `Rule<V>` (parameterized via a closure) and it works on any struct/keypath of that value type. For HTTP ingress, dispatch `LoadFromJson` from an effect and return `Validate` — keep validation pure in the reducer.
 
 ---
 

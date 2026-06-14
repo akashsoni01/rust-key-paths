@@ -20,11 +20,10 @@ mod sample;
 use model::Pain001;
 use keypaths::pain_message_id;
 use sample::{sample_invalid, sample_valid};
-use validation::{validate_pain001, FieldError};
+use validation::{FieldError, Validate};
 
 use key_paths_derive::Kp;
 use rust_elm::{Cmd, Environment, Reduce, ReducerProgram, Runtime, Sub};
-use rust_key_paths::Writable as _;
 
 #[derive(Clone, Debug, Default, PartialEq, Kp)]
 struct PainAppState {
@@ -65,7 +64,7 @@ fn pain_reducer(state: &mut PainAppState, action: PainAction) -> Cmd<PainAction>
             state.submitted = false;
         }
         PainAction::Validate => {
-            state.errors = validate_pain001(&state.payload);
+            state.errors = state.payload.validate();
         }
         PainAction::SetMessageId(id) => {
             pain_message_id().get_mut(&mut state.payload).map(|msg| *msg = id);
@@ -73,7 +72,7 @@ fn pain_reducer(state: &mut PainAppState, action: PainAction) -> Cmd<PainAction>
             state.submitted = false;
         }
         PainAction::Submit => {
-            state.errors = validate_pain001(&state.payload);
+            state.errors = state.payload.validate();
             state.submitted = state.errors.is_empty();
         }
     }
