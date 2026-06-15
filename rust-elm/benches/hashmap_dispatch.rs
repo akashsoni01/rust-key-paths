@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
-use rust_elm::{Cmd, Environment, Program, Runtime, Sub};
+use rust_elm::{Cmd, Environment, Program, Runtime, RuntimeConfig, Sub};
 
 #[derive(Default, Clone)]
 struct State {
@@ -67,7 +67,7 @@ fn bench_runtime_dispatch(c: &mut Criterion) {
     group.bench_function("single_thread_dispatch", |b| {
         b.iter_custom(|iters| {
             let program = Program::new(init, update, subs);
-            let runtime = Runtime::from_program(program, Environment::new(), 16_384);
+            let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16_384));
             let store = runtime.store();
             let start = Instant::now();
             for i in 0..iters {

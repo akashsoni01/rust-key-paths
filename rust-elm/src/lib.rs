@@ -72,7 +72,7 @@ pub use replay::{ReplayHarness, ReplayLog};
 #[cfg(feature = "serde")]
 pub use replay::StateSnapshot;
 #[cfg(feature = "runtime")]
-pub use runtime::Runtime;
+pub use runtime::{Runtime, RuntimeConfig};
 pub use scope::{
     lift_cmd, lift_cmd_with_id, ForEachReducer, IfCaseLetReducer, IfLetReducer, OptionalReducer,
     ScopeReducer,

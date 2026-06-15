@@ -4,7 +4,7 @@
 //! cargo run -p rust-elm --example subscriptions
 //! ```
 
-use rust_elm::{Cmd, Environment, Program, Runtime, Sub};
+use rust_elm::{Cmd, Environment, Program, Runtime, RuntimeConfig, Sub};
 use std::time::Duration;
 
 #[derive(Default, Debug)]
@@ -49,7 +49,7 @@ fn subscriptions(_: &App) -> Sub<Action> {
 
 fn main() {
     let program = Program::new(init, update, subscriptions);
-    let runtime = Runtime::from_program(program, Environment::new(), 32);
+    let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(32));
     std::thread::sleep(Duration::from_millis(400));
     let ticks = runtime.state.lock().ticks;
     let pings = runtime.state.lock().pings;

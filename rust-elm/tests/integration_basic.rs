@@ -1,4 +1,4 @@
-use rust_elm::{Cmd, Effect, Program, ReplayHarness, Runtime, Sub, TestRuntime, Environment, panic_on_state_clone};
+use rust_elm::{Cmd, Effect, Program, ReplayHarness, Runtime, RuntimeConfig, Sub, TestRuntime, Environment, panic_on_state_clone};
 
 panic_on_state_clone! {
     #[derive(Default, PartialEq, Eq, Debug)]
@@ -40,7 +40,7 @@ fn replay_harness_replays_actions() {
 #[test]
 fn runtime_dispatches_and_updates_state() {
     let program = Program::new(init, update, subscriptions);
-    let runtime = Runtime::from_program(program, Environment::new(), 8);
+    let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(8));
     runtime.dispatch(10);
     std::thread::sleep(std::time::Duration::from_millis(50));
     assert_eq!(runtime.state.lock().count, 10);
@@ -58,7 +58,7 @@ fn effect_task_produces_follow_up_message() {
         }
     }
     let program = Program::new(init, update_with_task, subscriptions);
-    let runtime = Runtime::from_program(program, Environment::new(), 8);
+    let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(8));
     runtime.dispatch(0);
     std::thread::sleep(std::time::Duration::from_millis(100));
     assert_eq!(runtime.state.lock().count, 7);

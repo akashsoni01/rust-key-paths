@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
 
-use rust_elm::{Cmd, Effect, Environment, panic_on_state_clone, Program, Runtime, RunSender};
+use rust_elm::{Cmd, Effect, Environment, panic_on_state_clone, Program, Runtime, RuntimeConfig, RunSender};
 
 panic_on_state_clone! {
     #[derive(Default)]
@@ -41,7 +41,7 @@ fn cancel_effect_aborts_in_flight_task() {
         }
     }
 
-    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
+    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), RuntimeConfig::new(16));
     runtime.dispatch(0);
     std::thread::sleep(Duration::from_millis(50));
     runtime.dispatch(1);
@@ -67,7 +67,7 @@ fn debounce_coalesces_rapid_fire_to_last() {
         ))
     }
 
-    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
+    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), RuntimeConfig::new(16));
     runtime.dispatch(1);
     runtime.dispatch(2);
     runtime.dispatch(3);
@@ -92,7 +92,7 @@ fn throttle_latest_runs_last_in_window() {
         ))
     }
 
-    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
+    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), RuntimeConfig::new(16));
     runtime.dispatch(1);
     runtime.dispatch(2);
     runtime.dispatch(9);
@@ -117,7 +117,7 @@ fn throttle_first_wins_when_not_latest() {
         ))
     }
 
-    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
+    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), RuntimeConfig::new(16));
     runtime.dispatch(4);
     runtime.dispatch(5);
     std::thread::sleep(Duration::from_millis(200));
@@ -142,7 +142,7 @@ fn run_effect_can_send_multiple_actions() {
         }
     }
 
-    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
+    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), RuntimeConfig::new(16));
     runtime.dispatch(0);
     std::thread::sleep(Duration::from_millis(200));
     assert_eq!(runtime.state.lock().n, 5);
@@ -178,7 +178,7 @@ fn cancellable_cancel_in_flight_replaces_previous() {
         ))
     }
 
-    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
+    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), RuntimeConfig::new(16));
     runtime.dispatch(1);
     std::thread::sleep(Duration::from_millis(20));
     runtime.dispatch(2);

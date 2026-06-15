@@ -4,7 +4,7 @@
 //! cargo run -p rust-elm --example calculator
 //! ```
 
-use rust_elm::{CatchReducer, Cmd, Environment, Reduce, Reducer, ReducerProgram, Runtime};
+use rust_elm::{CatchReducer, Cmd, Environment, Reduce, Reducer, ReducerProgram, Runtime, RuntimeConfig};
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 struct Calculator {
@@ -50,7 +50,7 @@ fn main() {
         Cmd::none()
     });
     let program = ReducerProgram::new(safe, init, subscriptions);
-    let runtime: Runtime<Calculator, CalculatorAction> = Runtime::from_reducer_program(program, Environment::test(), 64);
+    let runtime: Runtime<Calculator, CalculatorAction> = Runtime::from_reducer_program(program, Environment::test(), RuntimeConfig::new(64));
     let store: rust_elm::Store<ShopState, ShopAction> = runtime.store();
 
 

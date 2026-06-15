@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use rust_elm::{
     scoped_child_state, scoped_subscribe_state, scoped_subscriber_next, store_state,
-    subscribe_state, subscriber_wait_next, Cmd, Effect, Environment, Program, Runtime, Sub,
+    subscribe_state, subscriber_wait_next, Cmd, Effect, Environment, Program, Runtime, RuntimeConfig,
+    Sub,
 };
 use key_paths_derive::{Cp, Kp};
 use rust_elm::panic_on_state_clone;
@@ -87,7 +88,7 @@ fn store_send_finishes_after_effects() {
     let runtime = Runtime::from_program(
         Program::new(init, update_with_effect, subs),
         Environment::new(),
-        16,
+        RuntimeConfig::new(16),
     );
     let store = runtime.store();
     let task = store.send(Action::Inc);
@@ -98,7 +99,7 @@ fn store_send_finishes_after_effects() {
 
 #[test]
 fn store_subscribe_state_dedupes() {
-    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
+    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), RuntimeConfig::new(16));
     let store = runtime.store();
     let mut sub = subscribe_state(&store);
     store.dispatch(Action::Inc);
@@ -114,7 +115,7 @@ fn store_subscribe_state_dedupes() {
 
 #[test]
 fn scoped_store_routes_child_actions() {
-    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), 16);
+    let runtime = Runtime::from_program(Program::new(init, update, subs), Environment::new(), RuntimeConfig::new(16));
     let store = runtime.store();
     let child = store.scope(count_kp(), child_action_kp());
     child.dispatch(ChildAction::Bump);
@@ -217,7 +218,7 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
     let runtime = Runtime::from_program(
         Program::new(panel_init, panel_update, panel_subs),
         Environment::new(),
-        16,
+        RuntimeConfig::new(16),
     );
     let store = runtime.store();
 

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use rust_elm::{Cmd, Environment, Program, Runtime, Sub};
+use rust_elm::{Cmd, Environment, Program, Runtime, RuntimeConfig, Sub};
 
 #[derive(Default, Clone)]
 struct State {
@@ -54,7 +54,7 @@ fn run_parallel(threads: usize, per: usize, bus: usize) -> (f64, u64) {
     let runtime = Runtime::from_program(
         Program::new(init, update, subs),
         Environment::new(),
-        bus,
+        RuntimeConfig::new(bus),
     );
     let store = runtime.store();
     let start = Instant::now();

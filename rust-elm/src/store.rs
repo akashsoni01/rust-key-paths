@@ -229,8 +229,12 @@ pub struct StoreTask {
 
 impl StoreTask {
     pub fn finish(self) -> Result<(), StoreTaskError> {
+        self.finish_with_timeout(Duration::from_secs(5))
+    }
+
+    pub fn finish_with_timeout(self, timeout: Duration) -> Result<(), StoreTaskError> {
         self.rx
-            .recv_timeout(Duration::from_secs(5))
+            .recv_timeout(timeout)
             .map_err(|_| StoreTaskError::Timeout)
     }
 }

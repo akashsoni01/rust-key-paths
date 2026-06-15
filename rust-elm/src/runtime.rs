@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use crossbeam_channel::RecvTimeoutError;
 use parking_lot::Mutex;
-use tokio::runtime::Runtime as TokioRuntime;
+use tokio::runtime::{Builder as TokioRuntimeBuilder, Runtime as TokioRuntime};
 use tokio::task::JoinHandle as TokioJoinHandle;
 use tokio::time::timeout;
 
@@ -46,6 +46,39 @@ struct ThrottleGate<M> {
     timer: Option<TokioJoinHandle<()>>,
 }
 
+/// Configuration for [`Runtime::from_program`] / [`Runtime::from_reducer_program`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeConfig {
+    /// Bounded capacity of the action bus (`send_blocking` back-pressures when full).
+    pub bus_capacity: usize,
+    /// Tokio runtime worker threads (async effects / subscriptions).
+    pub worker_threads: usize,
+    /// Name of the dedicated reducer thread.
+    pub thread_name: &'static str,
+}
+
+impl Default for RuntimeConfig {
+    fn default() -> Self {
+        Self {
+            bus_capacity: 4_096,
+            worker_threads: std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1),
+            thread_name: "rust-elm",
+        }
+    }
+}
+
+impl RuntimeConfig {
+    /// `bus_capacity` only; other fields from [`Default`].
+    pub fn new(bus_capacity: usize) -> Self {
+        Self {
+            bus_capacity,
+            ..Self::default()
+        }
+    }
+}
+
 /// Live runtime — bus-driven update loop on a pinned thread with Tokio effect interpreter.
 pub struct Runtime<S, M> {
     pub state: Arc<Mutex<S>>,
@@ -63,20 +96,20 @@ where
     S: Send + Sync + 'static,
     M: Send + 'static,
 {
-    pub fn from_program(program: Program<S, M>, env: Environment, bus_capacity: usize) -> Self {
+    pub fn from_program(program: Program<S, M>, env: Environment, config: RuntimeConfig) -> Self {
         Self::bootstrap(
             program.init,
             program.update,
             program.subscriptions,
             env,
-            bus_capacity,
+            config,
         )
     }
 
     pub fn from_reducer_program<R>(
         program: ReducerProgram<R>,
         env: Environment,
-        bus_capacity: usize,
+        config: RuntimeConfig,
     ) -> Self
     where
         R: Reducer<State = S, Action = M> + Send + Sync + 'static,
@@ -89,7 +122,7 @@ where
             move |state, msg| reducer.reduce(state, msg),
             subscriptions,
             env,
-            bus_capacity,
+            config,
         )
     }
 
@@ -98,14 +131,24 @@ where
         update: impl Fn(&mut S, M) -> Cmd<M> + Send + Sync + 'static,
         subscriptions: fn(&S) -> Sub<M>,
         env: Environment,
-        bus_capacity: usize,
+        config: RuntimeConfig,
     ) -> Self {
+        let RuntimeConfig {
+            bus_capacity,
+            worker_threads,
+            thread_name,
+        } = config;
         let (initial_state, init_cmd) = init();
         let state = Arc::new(Mutex::new(initial_state));
         let bus = Bus::new(bus_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
         let tokio = Arc::new(
-            TokioRuntime::new().expect("failed to create Tokio runtime for rust-elm"),
+            TokioRuntimeBuilder::new_multi_thread()
+                .worker_threads(worker_threads.max(1))
+                .thread_name(thread_name)
+                .enable_all()
+                .build()
+                .expect("failed to create Tokio runtime for rust-elm"),
         );
         let interpreter = InterpreterState::new();
         let sub_handles = Arc::new(crate::subscription::SubscriptionHandles::new());
@@ -134,7 +177,9 @@ where
         let tx_for_thread = tx;
         let subs_registry = sub_handles.clone();
 
-        let thread = thread::spawn(move || {
+        let thread = thread::Builder::new()
+            .name(thread_name.to_string())
+            .spawn(move || {
             let rt = tokio_for_thread;
             let sync_subs = |state: &S| {
                 let sub = subs_fn(state);
@@ -192,7 +237,8 @@ where
                     Err(RecvTimeoutError::Disconnected) => break,
                 }
             }
-        });
+        })
+        .expect("failed to spawn rust-elm reducer thread");
 
         Self {
             state,
@@ -666,7 +712,7 @@ mod tests {
         }
 
         let program = Program::new(init, update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), 16);
+        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
         std::thread::sleep(Duration::from_millis(200));
         assert!(runtime.state.lock().n >= 1);
         runtime.shutdown();
@@ -675,7 +721,7 @@ mod tests {
     #[test]
     fn runtime_applies_dispatched_messages() {
         let program = Program::new(init, update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), 16);
+        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
         runtime.dispatch(3);
         runtime.dispatch(4);
         std::thread::sleep(Duration::from_millis(200));
@@ -694,7 +740,7 @@ mod tests {
             }
         }
         let program = Program::new(init, update_with_effect, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), 16);
+        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
         runtime.dispatch(0);
         std::thread::sleep(Duration::from_millis(200));
         assert_eq!(runtime.state.lock().n, 10);
@@ -713,7 +759,7 @@ mod tests {
         }
 
         let program = Program::new(init, panicking_update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), 16);
+        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
         let store = runtime.store();
         let task = store.send(-1);
         assert!(task.finish().is_ok());

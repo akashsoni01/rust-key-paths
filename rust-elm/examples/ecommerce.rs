@@ -26,7 +26,7 @@ use key_paths_derive::{Cp, Kp};
 use rust_elm::{
     CatchReducer, Cmd, CombineReducers, Effect, EffectError, EffectId, Environment,
     ForEachReducer, Identifiable, IdentifiedVec, IfLetReducer, Reducer, ReducerProgram, Reduce,
-    Runtime, ScopeReducer, Sub,
+    Runtime, RuntimeConfig, ScopeReducer, Sub,
 };
 use std::time::Duration;
 
@@ -654,7 +654,7 @@ fn run_shop(label: &str, env: Environment) {
     println!("\n========== {label} environment ==========");
 
     let program = ReducerProgram::new(shop_reducer(), init, subscriptions);
-    let runtime: Runtime<ShopState, ShopAction> = Runtime::from_reducer_program(program, env, 64);
+    let runtime: Runtime<ShopState, ShopAction> = Runtime::from_reducer_program(program, env, RuntimeConfig::new(64));
     let store: rust_elm::Store<ShopState, ShopAction> = runtime.store();
 
     std::thread::sleep(Duration::from_millis(600));
