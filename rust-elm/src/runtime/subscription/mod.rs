@@ -197,7 +197,7 @@ where
                 if shutdown.load(Ordering::Relaxed) {
                     break;
                 }
-                crate::runtime::dispatch_from_subscription(&backend, &tx, produce());
+                crate::runtime::dispatch::dispatch_from_subscription(&backend, &tx, produce());
             }
         })
         .abort_handle()
@@ -228,7 +228,7 @@ where
                 if shutdown.load(Ordering::Relaxed) {
                     break;
                 }
-                crate::runtime::dispatch_from_subscription(&backend, &tx, map(()));
+                crate::runtime::dispatch::dispatch_from_subscription(&backend, &tx, map(()));
             }
         })
         .abort_handle()
@@ -259,7 +259,7 @@ where
                 if shutdown.load(Ordering::Relaxed) {
                     break;
                 }
-                crate::runtime::dispatch_from_subscription(&backend, &tx, produce());
+                crate::runtime::dispatch::dispatch_from_subscription(&backend, &tx, produce());
             }
         })
         .abort_handle()
@@ -290,7 +290,7 @@ where
                 if shutdown.load(Ordering::Relaxed) {
                     break;
                 }
-                crate::runtime::dispatch_from_subscription(&backend, &tx, map(()));
+                crate::runtime::dispatch::dispatch_from_subscription(&backend, &tx, map(()));
             }
         })
         .abort_handle()

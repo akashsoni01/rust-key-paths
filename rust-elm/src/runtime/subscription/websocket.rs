@@ -79,7 +79,7 @@ async fn websocket_simulated_loop<S, M, F>(
         if shutdown.load(Ordering::Relaxed) {
             break;
         }
-        crate::runtime::dispatch_from_subscription(backend, tx, produce());
+        crate::runtime::dispatch::dispatch_from_subscription(backend, tx, produce());
         tokio::time::sleep(every).await;
     }
 }
@@ -124,7 +124,7 @@ async fn websocket_loop_impl<S, M, F>(
                         | Some(Ok(Message::Binary(_)))
                         | Some(Ok(Message::Ping(_)))
                         | Some(Ok(Message::Pong(_))) => {
-                            crate::runtime::dispatch_from_subscription(backend, tx, produce());
+                            crate::runtime::dispatch::dispatch_from_subscription(backend, tx, produce());
                         }
                         Some(Ok(Message::Frame(_))) | Some(Ok(Message::Close(_))) => {}
                         Some(Err(_)) | None => break,
@@ -197,7 +197,7 @@ async fn websocket_simulated_loop<S, M, F>(
         if shutdown.load(Ordering::Relaxed) {
             break;
         }
-        crate::runtime::dispatch_from_subscription(backend, tx, produce());
+        crate::runtime::dispatch::dispatch_from_subscription(backend, tx, produce());
         tokio::time::sleep(every).await;
     }
 }

@@ -11,7 +11,7 @@ use crate::bus::BusSender;
 use crate::effect::EffectId;
 use crate::optics::Casepath;
 use key_paths_core::RefKpTrait;
-use crate::runtime::InterpreterState;
+use super::interpreter::InterpreterState;
 
 /// Calls [`StoreBackend::end_store_work`] on drop unless [`Self::disarm`]d.
 ///

@@ -5,40 +5,38 @@
 //! - **Pure descriptions**: `Cmd`, `Effect`, and `Sub` are data — interpretation lives in [`Runtime`] (requires `runtime` feature).
 //! - **Zero-cost updates**: `update` uses fn pointers; no `Box<dyn Fn>` on hot paths.
 //! - **Composition**: [`Slot`](component::Slot), [`optics`](optics), [`Reducer`](reducer::Reducer) / `CombineReducers`.
+//!
+//! ## Source layout
+//!
+//! | Directory | Role |
+//! |-----------|------|
+//! | [`core/`](core) | `Cmd`, `Effect`, `Sub`, `Program`, `bus` — pure data |
+//! | [`compose/`](compose) | `Reducer`, `ScopeReducer`, optics, panic recovery |
+//! | [`infra/`](infra) | `Environment`, `Shared`, replay |
+//! | [`runtime/`](runtime) | Store, Tokio interpreter, subscriptions (`runtime` feature) |
+//! | [`testing/`](testing) | `TestRuntime`, `ExhaustiveTestStore`, macros |
 
 #![allow(
     non_snake_case,
     unpredictable_function_pointer_comparisons,
 )]
 
-pub mod batch;
-pub mod bus;
-pub mod cmd;
-pub mod component;
-pub mod effect;
-pub mod env;
-pub mod error;
-pub mod interp;
-pub mod macros;
-pub mod optics;
-pub mod program;
-pub mod reduce_panic;
-pub mod reducer;
-pub mod replay;
-pub mod scope;
-pub mod shared;
-pub mod sub;
-pub mod test_runtime;
-#[cfg(feature = "runtime")]
-pub mod test_store;
-pub mod test_support;
-
+pub mod compose;
+pub mod core;
+pub mod infra;
 #[cfg(feature = "runtime")]
 pub mod runtime;
+pub mod testing;
+
+// Flat re-exports — stable public API.
+pub use core::{batch, bus, cmd, effect, error, interp, program, sub};
+pub use compose::{component, optics, reduce_panic, reducer, scope};
+pub use infra::{env, replay, shared};
+pub use testing::{macros, test_runtime, test_support};
 #[cfg(feature = "runtime")]
-pub mod store;
+pub use testing::test_store;
 #[cfg(feature = "runtime")]
-pub mod subscription;
+pub use runtime::{store, subscription};
 
 /// Re-export keypath types for state/action focusing (see `optics`).
 pub mod keypath {
