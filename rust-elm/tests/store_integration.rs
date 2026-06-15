@@ -63,7 +63,16 @@ fn child_action_kp() -> rust_elm::CasePath<'static, Action, ChildAction> {
     Action::child_cp()
 }
 
-fn count_kp() -> rust_key_paths::KpType<'static, App, i32> {
+fn count_kp() -> KpPath<
+    App,
+    i32,
+    &'static App,
+    &'static i32,
+    &'static mut App,
+    &'static mut i32,
+    for<'b> fn(&'b App) -> Option<&'b i32>,
+    for<'b> fn(&'b mut App) -> Option<&'b mut i32>,
+> {
     fn get(app: &App) -> Option<&i32> {
         Some(&app.count)
     }
@@ -186,7 +195,16 @@ fn scoped_store_keypath_does_not_retain_extra_state() {
         Sub::none()
     }
 
-    fn child_panel_kp() -> rust_key_paths::KpType<'static, PanelApp, ChildPanel> {
+    fn child_panel_kp() -> KpPath<
+        PanelApp,
+        ChildPanel,
+        &'static PanelApp,
+        &'static ChildPanel,
+        &'static mut PanelApp,
+        &'static mut ChildPanel,
+        for<'b> fn(&'b PanelApp) -> Option<&'b ChildPanel>,
+        for<'b> fn(&'b mut PanelApp) -> Option<&'b mut ChildPanel>,
+    > {
         fn get(app: &PanelApp) -> Option<&ChildPanel> {
             Some(&app.child)
         }

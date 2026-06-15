@@ -66,7 +66,7 @@ mod store_helpers {
         CS: Clone + PartialEq + Send + Sync,
         CM: Clone + Send,
         AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
-        SK: crate::StateLens<S, CS> + Clone,
+        SK: crate::StateKeypath<S, CS> + Clone,
     {
         allow_state_clones(1, || scoped.child_state())
     }
@@ -81,7 +81,7 @@ mod store_helpers {
         CS: Clone + PartialEq + Send + Sync,
         CM: Clone + Send,
         AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
-        SK: crate::StateLens<S, CS> + Clone,
+        SK: crate::StateKeypath<S, CS> + Clone,
     {
         allow_state_clones(1, || scoped.subscribe_state())
     }
@@ -104,7 +104,7 @@ mod store_helpers {
     where
         S: PartialEq + Clone,
         CS: Clone + PartialEq,
-        SK: crate::StateLens<S, CS> + Clone,
+        SK: crate::StateKeypath<S, CS> + Clone,
     {
         allow_state_clones(1, || sub.next())
     }

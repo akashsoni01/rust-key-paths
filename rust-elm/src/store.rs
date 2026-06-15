@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::bus::BusSender;
 use crate::effect::EffectId;
-use crate::optics::{Casepath, StateLens};
+use crate::optics::{extract, Casepath, StateKeypath};
 use crate::runtime::InterpreterState;
 
 /// Calls [`StoreBackend::end_store_work`] on drop unless [`Self::disarm`]d.
@@ -210,7 +210,7 @@ where
         S: 'static,
         M: 'static,
         AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
-        SK: StateLens<S, CS> + Clone,
+        SK: StateKeypath<S, CS> + Clone,
     {
         ScopedStore {
             store: self.clone(),
@@ -299,7 +299,7 @@ impl<S: PartialEq + Clone> StateSubscriber<S> {
 /// Child store routing actions through a parent action casepath.
 pub struct ScopedStore<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static, SK>
 where
-    SK: StateLens<S, CS> + Clone,
+    SK: StateKeypath<S, CS> + Clone,
 {
     store: Store<S, M>,
     state_kp: SK,
@@ -313,7 +313,7 @@ where
     S: Send,
     M: Send,
     AK: Clone,
-    SK: StateLens<S, CS> + Clone,
+    SK: StateKeypath<S, CS> + Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -333,7 +333,7 @@ where
     CS: Clone + PartialEq + Send + Sync,
     CM: Clone + Send,
     AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
-    SK: StateLens<S, CS> + Clone,
+    SK: StateKeypath<S, CS> + Clone,
 {
     pub fn send(&self, action: CM) -> StoreTask {
         self.store.send(self.action_kp.wrap(action))
@@ -344,7 +344,7 @@ where
     }
 
     pub fn child_state(&self) -> Option<CS> {
-        self.state_kp.focus(&self.store.state()).cloned()
+        extract(&self.state_kp, &self.store.state()).cloned()
     }
 
     pub fn subscribe_state(&self) -> ScopedStateSubscriber<S, CS, SK>
@@ -362,7 +362,7 @@ where
 
 pub struct ScopedStateSubscriber<S: 'static, CS: 'static, SK>
 where
-    SK: StateLens<S, CS> + Clone,
+    SK: StateKeypath<S, CS> + Clone,
 {
     inner: StateSubscriber<S>,
     state_kp: SK,
@@ -373,13 +373,13 @@ impl<S, CS, SK> ScopedStateSubscriber<S, CS, SK>
 where
     S: PartialEq + Clone,
     CS: Clone + PartialEq,
-    SK: StateLens<S, CS> + Clone,
+    SK: StateKeypath<S, CS> + Clone,
 {
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<CS> {
         loop {
             let parent = self.inner.next()?;
-            let Some(child) = self.state_kp.focus(parent.as_ref()).cloned() else {
+            let Some(child) = extract(&self.state_kp, parent.as_ref()).cloned() else {
                 continue;
             };
             return Some(child);

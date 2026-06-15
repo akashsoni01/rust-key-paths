@@ -6,7 +6,7 @@
 
 use std::borrow::Cow;
 
-use rust_key_paths::KpType;
+use rust_elm::StateLens;
 
 use super::keypaths::{
     pain_creation_date_time, pain_initiating_party_id, pain_message_id, pmt_debtor_account_id,
@@ -108,11 +108,14 @@ impl<'r, R> Validator<'r, R> {
     }
 
     /// Validate the value reached by `kp`; records `missing` when the path is absent.
-    pub fn field<V>(mut self, path: &str, kp: KpType<'static, R, V>, rules: &[Rule<V>]) -> Self {
+    pub fn field<K, V>(mut self, path: &str, kp: K, rules: &[Rule<V>]) -> Self
+    where
+        K: StateLens<R, V>,
+    {
         if self.aborted {
             return self;
         }
-        match kp.get(self.root) {
+        match kp.focus(self.root) {
             Some(value) => {
                 self.run_rules(path, value, rules);
             }
@@ -153,11 +156,14 @@ impl<'r, R> Validator<'r, R> {
 
     /// **Mandatory** keypath field: on failure (or missing) record the error and **abort** —
     /// every later step is skipped so `finish_result` / `first_error` returns immediately.
-    pub fn require<V>(mut self, path: &str, kp: KpType<'static, R, V>, rules: &[Rule<V>]) -> Self {
+    pub fn require<K, V>(mut self, path: &str, kp: K, rules: &[Rule<V>]) -> Self
+    where
+        K: StateLens<R, V>,
+    {
         if self.aborted {
             return self;
         }
-        match kp.get(self.root) {
+        match kp.focus(self.root) {
             Some(value) => {
                 if self.run_rules(path, value, rules) {
                     self.aborted = true;

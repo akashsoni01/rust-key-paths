@@ -43,7 +43,7 @@ pub mod subscription;
 /// Re-export keypath types for state/action focusing (see `optics`).
 pub mod keypath {
     pub use key_paths_core::{KeyPath, KpTrait, Readable, Writable};
-    pub use rust_key_paths::{EnumKp, EnumKpType, EnumValueKpType, Kp, KpType};
+    pub use rust_key_paths::{EnumKp, EnumKpType, EnumValueKpType, Kp};
 }
 
 pub use batch::batch;
@@ -64,7 +64,7 @@ pub use rust_identified_vec::{Identifiable, IdentifiedVec};
 pub use optics::{
     enum_err, enum_ok, enum_some, enum_variant, extract, extract_action, extract_mut, variant_of,
     wrap_action, ActionCase, ActionEnum, CasePath, Casepath, EnumKp, EnumKpType, EnumValueKpType,
-    Kp, KpType, StateKey, StateKp, StateLens,
+    Kp, StateKeypath, StateKp, StateLens,
 };
 pub use program::{Program, ReducerProgram};
 pub use reduce_panic::{catch_reduce, catch_reduce_panic, ReducePanic};

@@ -21,13 +21,13 @@
 mod deps;
 
 use deps::{DateDep, HttpDep, WebDep, HTTPBIN_GET};
+use rust_key_paths::Kp as KpPath;
 use key_paths_derive::{Cp, Kp};
 use rust_elm::{
     CatchReducer, Cmd, CombineReducers, Effect, EffectError, EffectId, Environment,
     ForEachReducer, Identifiable, IdentifiedVec, IfLetReducer, Reducer, ReducerProgram, Reduce,
     Runtime, ScopeReducer, Sub,
 };
-use rust_key_paths::Kp as KpPath;
 use std::time::Duration;
 
 // ── Effect ids (cancel / debounce / task identity) ─────────────────────────
@@ -541,7 +541,29 @@ fn checkout_clear(state: &mut ShopState) {
     state.checkout = None;
 }
 
-fn cart_lens() -> impl rust_elm::optics::StateLens<ShopState, CartState> + Clone {
+type CartStateKp = KpPath<
+    ShopState,
+    CartState,
+    &'static ShopState,
+    &'static CartState,
+    &'static mut ShopState,
+    &'static mut CartState,
+    for<'b> fn(&'b ShopState) -> Option<&'b CartState>,
+    for<'b> fn(&'b mut ShopState) -> Option<&'b mut CartState>,
+>;
+
+type CheckoutStateKp = KpPath<
+    ShopState,
+    CheckoutState,
+    &'static ShopState,
+    &'static CheckoutState,
+    &'static mut ShopState,
+    &'static mut CheckoutState,
+    for<'b> fn(&'b ShopState) -> Option<&'b CheckoutState>,
+    for<'b> fn(&'b mut ShopState) -> Option<&'b mut CheckoutState>,
+>;
+
+fn cart_lens() -> CartStateKp {
     fn get(s: &ShopState) -> Option<&CartState> {
         Some(&s.cart)
     }
@@ -551,7 +573,7 @@ fn cart_lens() -> impl rust_elm::optics::StateLens<ShopState, CartState> + Clone
     KpPath::new(get, get_mut)
 }
 
-fn checkout_lens() -> impl rust_elm::optics::StateLens<ShopState, CheckoutState> + Clone {
+fn checkout_lens() -> CheckoutStateKp {
     fn get(s: &ShopState) -> Option<&CheckoutState> {
         s.checkout.as_ref()
     }

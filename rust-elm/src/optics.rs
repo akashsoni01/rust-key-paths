@@ -1,6 +1,6 @@
 //! State/action focusing for scoped reducers and stores.
 //!
-//! - **Keypath (lens)** — [`Kp`] / [`StateKp`] / [`StateKey`] for struct fields.
+//! - **Keypath (lens)** — [`Kp`] / [`StateKp`] for struct fields, bounded by [`KpTrait`].
 //! - **Casepath (prism)** — [`EnumKp`] / [`CasePath`] for enum variants (extract + embed).
 //!
 //! Build casepaths with `#[derive(Cp)]` (`variant_cp()`), compose nested actions with
@@ -26,17 +26,17 @@
 //! action_kp.wrap(WidgetAction::Submit);
 //! ```
 
-use key_paths_core::{Readable, Writable};
+use key_paths_core::KpTrait;
 
 pub use rust_key_paths::{
     enum_err, enum_ok, enum_some, enum_variant, variant_of, EnumKp, EnumKpType, EnumValueKpType,
-    Kp, KpType,
+    Kp,
 };
 
 /// Lens focusing `Part` within parent state `Whole`.
 ///
 /// Matches the concrete [`Kp`] returned by `#[derive(Kp)]` field accessors (closure-backed
-/// `G`/`S`), not [`KpType`] (function-pointer closures).
+/// `G`/`S`) and manual `Kp::new` fn-pointer paths alike.
 pub type StateKp<Whole, Part, G, Set> = Kp<
     Whole,
     Part,
@@ -47,6 +47,46 @@ pub type StateKp<Whole, Part, G, Set> = Kp<
     G,
     Set,
 >;
+
+/// Reference-shaped state keypath — static dispatch via [`KpTrait`].
+///
+/// ```ignore
+/// fn validate_field<F, R, V>(kp: F, root: &R) -> Option<&V>
+/// where
+///     F: KpTrait<R, V, &'static R, &'static V, &'static mut R, &'static mut V>,
+/// {
+///     kp.get(root)
+/// }
+/// ```
+pub trait StateKeypath<Whole, Part>:
+    KpTrait<
+        Whole,
+        Part,
+        &'static Whole,
+        &'static Part,
+        &'static mut Whole,
+        &'static mut Part,
+    > + StateLens<Whole, Part>
+where
+    Whole: 'static,
+    Part: 'static,
+{
+}
+
+impl<K, Whole, Part> StateKeypath<Whole, Part> for K
+where
+    Whole: 'static,
+    Part: 'static,
+    K: KpTrait<
+            Whole,
+            Part,
+            &'static Whole,
+            &'static Part,
+            &'static mut Whole,
+            &'static mut Part,
+        > + StateLens<Whole, Part>,
+{
+}
 
 /// Read/write navigation used by scoped reducers and stores.
 pub trait StateLens<Whole, Part> {
@@ -67,9 +107,6 @@ where
         self.get_mut_ref(whole)
     }
 }
-
-/// Back-compat alias when you build keypaths with `for<'b> fn(...)` closures ([`KpType`]).
-pub type StateKey<'a, Whole, Part> = KpType<'a, Whole, Part>;
 
 /// Single-step casepath (prism): parent enum → child payload.
 pub type CasePath<'a, Parent, Child> = EnumKpType<'a, Parent, Child>;
@@ -114,20 +151,20 @@ where
     }
 }
 
-/// Read a focused `Part` from `Whole` through any keypath (lens).
+/// Read a focused `Part` from `Whole` through any [`StateLens`].
 pub fn extract<'a, Whole, Part, K>(kp: &K, whole: &'a Whole) -> Option<&'a Part>
 where
-    K: Readable<&'a Whole, &'a Part>,
+    K: StateLens<Whole, Part>,
 {
-    kp.get(whole)
+    kp.focus(whole)
 }
 
-/// Mutably focus a `Part` within `Whole` through any keypath (lens).
+/// Mutably focus a `Part` within `Whole` through any [`StateLens`].
 pub fn extract_mut<'a, Whole, Part, K>(kp: &K, whole: &'a mut Whole) -> Option<&'a mut Part>
 where
-    K: Writable<&'a mut Whole, &'a mut Part>,
+    K: StateLens<Whole, Part>,
 {
-    Writable::set(kp, whole)
+    kp.focus_mut(whole)
 }
 
 /// Extract a child action through any [`Casepath`] (single step or composed).
@@ -180,14 +217,29 @@ mod tests {
         App(AppAction),
     }
 
+    fn accepts_state_kp<K>(kp: K) -> K
+    where
+        K: KpTrait<
+            AppState,
+            CounterState,
+            &'static AppState,
+            &'static CounterState,
+            &'static mut AppState,
+            &'static mut CounterState,
+        >,
+    {
+        kp
+    }
+
     #[test]
     fn state_key_get_and_get_mut_round_trip() {
         let mut state = AppState {
             counter: Some(CounterState { value: 0 }),
             label: "app".into(),
         };
-        let kp = AppState::counter();
+        let kp = accepts_state_kp(AppState::counter());
         assert_eq!(kp.get(&state).map(|c| c.value), Some(0));
+        assert_eq!(extract(&kp, &state).map(|c| c.value), Some(0));
         if let Some(counter) = kp.get_mut(&mut state) {
             counter.value = 5;
         }
