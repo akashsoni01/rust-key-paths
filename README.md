@@ -9,7 +9,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "3.3.0"
+rust-key-paths = "3.3.1"
 key-paths-derive = "3.2.0"
 # Optional: trait-only contracts (pulled in by rust-key-paths 3.1+)
 # key-paths-core = "2.0"
@@ -19,8 +19,8 @@ key-paths-derive = "3.2.0"
 
 ```toml
 [dependencies]
-rust-elm = "0.2.0"
-rust-key-paths = "3.3.0"
+rust-elm = "0.3.0"
+rust-key-paths = "3.3.1"
 key-paths-derive = "3.2.0"
 ```
 
@@ -28,12 +28,18 @@ key-paths-derive = "3.2.0"
 
 | Crate | Version | Notes |
 |-------|---------|--------|
-| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.3** | `#![no_std]` traits; docs for generic `Readable` / `Writable` APIs |
-| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.3.0** | `Kp`, locks, HOF; re-exports core traits |
+| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.4** | `#![no_std]` traits; `RefKpTrait` for HRTB `focus` / `focus_mut` |
+| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.3.1** | `Kp`, locks, HOF; `RefKpTrait` on `Kp` |
 | [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.2.0** | `#[derive(Kp)]`, `#[derive(Cp)]` — see [derive README](./key-paths-derive/README.md) |
-| [`rust-elm`](https://crates.io/crates/rust-elm) | **0.2.0** | Optional — Elm/TCA store; **depends on** `rust-key-paths` (not included by default) |
+| [`rust-elm`](https://crates.io/crates/rust-elm) | **0.3.0** | Elm/TCA store — `RuntimeConfig`, `RefKpTrait` scope/store, pain validation example |
 | [`rust_identified_vec`](https://crates.io/crates/rust_identified_vec) | **0.1.2** | Identified collections (used by `rust-elm`) |
 | [`rust_dependencies`](https://crates.io/crates/rust_dependencies) | **0.1.2** | Typed DI for effects (used by `rust-elm`) |
+
+#### 3.3.1 / 2.0.4 / 0.3.0
+
+- **`RefKpTrait`** in `key-paths-core` — HRTB `focus` / `focus_mut` for local borrows; `rust-key-paths` `Kp` implements it via `get_ref` / `get_mut_ref`.
+- **`rust-elm` 0.3.0** — `RuntimeConfig` (bus capacity, Tokio workers, reducer thread name); scope/store use `RefKpTrait` directly (`StateLens` removed); `StoreTask::finish_with_timeout`; pain/ISO 20022 validation example.
+- **`key-paths-derive` 3.2.0** — unchanged; still compatible.
 
 #### 3.3.0 / 2.0.3 / 3.2.0
 

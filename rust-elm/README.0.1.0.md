@@ -1,4 +1,4 @@
-# rust-elm 0.2.0
+# rust-elm 0.3.0
 
 Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 
@@ -7,7 +7,8 @@ Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 ```toml
 [dependencies]
 rust-elm = { path = "../rust-elm" }
-rust-key-paths = "3.3.0"
+rust-elm = "0.3.0"
+rust-key-paths = "3.3.1"
 key-paths-derive = "3.2.0"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
 ```
@@ -29,7 +30,7 @@ cargo build -p rust-elm --no-default-features
 ## Quick start
 
 ```rust
-use rust_elm::{Cmd, Program, Runtime, Sub, Environment};
+use rust_elm::{Cmd, Program, Runtime, RuntimeConfig, Sub, Environment};
 
 #[derive(Default)]
 struct State { count: i32 }
@@ -49,12 +50,25 @@ fn subscriptions(_: &State) -> Sub<i32> {
 
 fn main() {
     let program = Program::new(init, update, subscriptions);
-    let runtime = Runtime::from_program(program, Environment::new(), 64);
+    let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(64));
     let store = runtime.store();
     store.dispatch(1);
     runtime.shutdown();
 }
 ```
+
+## Release notes
+
+### 0.3.0
+
+- **`RuntimeConfig`** — `bus_capacity`, `worker_threads`, `thread_name` for `Runtime::from_program`.
+- **`RefKpTrait`** — scope/store/optics use core traits directly; `StateLens` / `StateKeypath` removed.
+- **`StoreTask::finish_with_timeout`** — configurable wait for store work.
+- **`pain` example** — ISO 20022-style validation with fail-fast `Validator`.
+
+### 0.2.0
+
+- WebSocket subscriptions, runtime feature flags, ecommerce example.
 
 ## Modules
 
@@ -105,7 +119,7 @@ cargo bench -p rust-elm --bench scope_dispatch
 ## Key paths prelude
 
 ```rust
-use rust_elm::keypath::{Kp, KpType, Readable, Writable};
+use rust_elm::keypath::{Kp, KpTrait, RefKpTrait, Readable, Writable};
 use key_paths_derive::Kp;
 ```
 

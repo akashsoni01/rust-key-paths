@@ -8,7 +8,7 @@ Register values by type, swap live vs test implementations, and override individ
 
 ```toml
 [dependencies]
-rust_dependencies = "0.1.1"
+rust_dependencies = "0.1.2"
 ```
 
 ## Quick start

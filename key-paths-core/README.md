@@ -8,6 +8,14 @@ For a full reference implementation (derive macros, `Kp`, sync/async locks, comp
 
 ## Release notes
 
+### 2.0.4
+
+- **`RefKpTrait<R, V>`** — HRTB `focus` / `focus_mut` for navigating with local borrows; extends `KpTrait` with `'static` link types for `then` composition.
+
+### 2.0.3
+
+- Published aligned with `rust-key-paths` 3.3.0.
+
 ### 2.0.2
 
 - Patch release aligned with `rust-key-paths` 3.2.0 publish.
@@ -33,6 +41,7 @@ For a full reference implementation (derive macros, `Kp`, sync/async locks, comp
 | [`KeyPath<Root, Value, MutRoot, MutValue>`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KeyPath.html) | Marker: both read and write |
 | [`KpTrait<R, V, Root, Value, MutRoot, MutValue>`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KpTrait.html) | Above + `TypeId` helpers + [`then`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KpTrait.html#tymethod.then) |
 | [`KeyPathValueTarget`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.KeyPathValueTarget.html) | Maps `&T` / `&mut T` → `T` for generic chaining |
+| [`RefKpTrait<R, V>`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.RefKpTrait.html) | `KpTrait` + HRTB `focus` / `focus_mut` for local borrows |
 | [`AccessorTrait`](https://docs.rs/key-paths-core/latest/key_paths_core/trait.AccessorTrait.html) | Optional-root and `or_else` helpers (default methods) |
 
 ## Architecture: adapting keypaths in your crate

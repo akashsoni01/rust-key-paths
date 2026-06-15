@@ -1,6 +1,6 @@
 [package]
 name = "rust-key-paths"
-version = "3.3.0"
+version = "3.3.1"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -13,7 +13,7 @@ readme = "./README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
-key-paths-core = { path = "key-paths-core", version = "2.0.3" }
+key-paths-core = { path = "key-paths-core", version = "2.0.4" }
 async-trait = "0.1"
 pin-project = { version = "1.1", optional = true }
 tokio = { version = "1.38.0", features = ["sync", "rt", "rt-multi-thread", "macros", "time"], optional = true }
