@@ -11,7 +11,8 @@
 //! - **Effects**: `StoreTask`, cancel-on-dismiss; **subscriptions**: tick, stream, websocket, map_msg, batch
 //!
 //! - **Environment / DI**: live vs mock HTTP + date + WebSocket deps via [`Environment::with`]
-//! - **Panic demo**: `GlobalAction::TriggerPanic` — see [`book/ecommerce.md`](../book/ecommerce.md)
+//! - **Panic demo**: `GlobalAction::TriggerPanic` (action path) and
+//!   `GlobalAction::RunEffectPanicDemo` (effect path) — see [`book/ecommerce.md`](../book/ecommerce.md)
 //!
 //! ```bash
 //! cargo run -p rust-elm --example ecommerce          # live + mock scenarios
@@ -53,8 +54,12 @@ struct SessionState {
     server_time: Option<String>,
     /// Resolved from [`WebDep`] during env probe — drives checkout `Sub::websocket`.
     checkout_ws_url: Option<&'static str>,
-    /// Set `true` immediately before the demo panic — proves partial state is kept.
+    /// Set `true` immediately before the demo action panic — proves partial state is kept.
     panic_survived: bool,
+    /// Set `true` when an effect-delivered action panics in the reducer (`CatchReducer`).
+    effect_panic_survived: bool,
+    /// Set `true` when the effect panic sequence arms, before the effect-body `panic!`.
+    effect_body_armed: bool,
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -154,6 +159,12 @@ enum GlobalAction {
     EnvProbe,
     /// Intentionally panics after mutating `session.panic_survived` (demo only).
     TriggerPanic,
+    /// Runs [`effect_panic_demo`] — effect-body panic + effect-delivered reducer panic.
+    RunEffectPanicDemo,
+    /// Step 1 of effect panic sequence — arms before effect-body `panic!`.
+    ArmEffectBodyPanic,
+    /// Step 2 — dispatched from an effect; panics in reducer (`CatchReducer` recovers).
+    TriggerEffectReducerPanic,
     EnvLoaded {
         origin: String,
         server_time: String,
@@ -267,6 +278,30 @@ fn env_probe_effect() -> Effect<ShopAction> {
     })
 }
 
+/// Effect panic demo — three steps in one [`Effect::sequence`]:
+///
+/// 1. Dispatch `ArmEffectBodyPanic` (reducer mutates state; no panic).
+/// 2. Dispatch `TriggerEffectReducerPanic` (reducer panics; root [`CatchReducer`] recovers).
+/// 3. `panic!` inside the effect interpreter task (Tokio absorbs; runtime continues).
+///
+/// Effect-returned actions are reduced on the bus thread inside [`CatchReducer`], same as UI
+/// dispatches. Effect-body panics do not reach the reducer — only the async task ends.
+fn effect_panic_demo() -> Effect<ShopAction> {
+    Effect::sequence([
+        Effect::from_fn(|| {
+            Box::pin(async { Ok(ShopAction::Global(GlobalAction::ArmEffectBodyPanic)) })
+        }),
+        Effect::from_fn(|| {
+            Box::pin(async {
+                Ok(ShopAction::Global(GlobalAction::TriggerEffectReducerPanic))
+            })
+        }),
+        Effect::from_fn(|| {
+            Box::pin(async { panic!("ecommerce demo: intentional effect-body panic") })
+        }),
+    ])
+}
+
 // ── Child reducers ───────────────────────────────────────────────────────────
 
 /// Subscription pulses arrive on child action paths; metrics live on root state.
@@ -341,6 +376,17 @@ fn global_reducer(state: &mut ShopState, action: ShopAction) -> Cmd<ShopAction> 
             Cmd::none()
         }
         ShopAction::Global(GlobalAction::EnvProbe) => Cmd::single(env_probe_effect()),
+        ShopAction::Global(GlobalAction::RunEffectPanicDemo) => Cmd::single(effect_panic_demo()),
+        ShopAction::Global(GlobalAction::ArmEffectBodyPanic) => {
+            state.session.effect_body_armed = true;
+            Cmd::none()
+        }
+        ShopAction::Global(GlobalAction::TriggerEffectReducerPanic) => {
+            state.session.effect_panic_survived = true;
+            panic!(
+                "ecommerce demo: intentional reducer panic from effect-delivered action"
+            );
+        }
         ShopAction::Global(GlobalAction::TriggerPanic) => {
             state.session.panic_survived = true;
             panic!("ecommerce demo: intentional reducer panic (state.panic_survived kept)");
@@ -682,9 +728,20 @@ fn run_shop(label: &str, env: Environment) {
     std::thread::sleep(Duration::from_millis(50));
     let after_panic = store.state();
     println!(
-        "{label} after panic: panic_survived={} user={:?} (app continues)",
+        "{label} after action panic: panic_survived={} user={:?} (app continues)",
         after_panic.session.panic_survived,
         after_panic.session.user
+    );
+
+    println!("{label}: dispatching RunEffectPanicDemo (effect-body + effect→reducer panic)…");
+    store.dispatch(ShopAction::Global(GlobalAction::RunEffectPanicDemo));
+    std::thread::sleep(Duration::from_millis(150));
+    let after_effect_panic = store.state();
+    println!(
+        "{label} after effect panic: body_armed={} effect_panic_survived={} user={:?} (app continues)",
+        after_effect_panic.session.effect_body_armed,
+        after_effect_panic.session.effect_panic_survived,
+        after_effect_panic.session.user
     );
 
     store.dispatch(ShopAction::Global(GlobalAction::SeedWishlist));
@@ -733,6 +790,8 @@ fn run_shop(label: &str, env: Environment) {
     println!("\n--- {label} final ---");
     println!("user: {:?}", final_state.session.user);
     println!("panic_survived: {}", final_state.session.panic_survived);
+    println!("effect_body_armed: {}", final_state.session.effect_body_armed);
+    println!("effect_panic_survived: {}", final_state.session.effect_panic_survived);
     println!(
         "env: origin={:?} time={:?} ws={:?}",
         final_state.session.http_origin,
