@@ -6,7 +6,7 @@
 
 use std::borrow::Cow;
 
-use rust_elm::StateLens;
+use rust_elm::StateKeypath;
 
 use super::keypaths::{
     pain_creation_date_time, pain_initiating_party_id, pain_message_id, pmt_debtor_account_id,
@@ -110,7 +110,9 @@ impl<'r, R> Validator<'r, R> {
     /// Validate the value reached by `kp`; records `missing` when the path is absent.
     pub fn field<K, V>(mut self, path: &str, kp: K, rules: &[Rule<V>]) -> Self
     where
-        K: StateLens<R, V>,
+        R: 'static,
+        V: 'static,
+        K: StateKeypath<R, V>,
     {
         if self.aborted {
             return self;
@@ -158,7 +160,9 @@ impl<'r, R> Validator<'r, R> {
     /// every later step is skipped so `finish_result` / `first_error` returns immediately.
     pub fn require<K, V>(mut self, path: &str, kp: K, rules: &[Rule<V>]) -> Self
     where
-        K: StateLens<R, V>,
+        R: 'static,
+        V: 'static,
+        K: StateKeypath<R, V>,
     {
         if self.aborted {
             return self;

@@ -62,9 +62,9 @@ pub use error::EffectError;
 pub use interp::{flatten_effects, normalize, InterpretCtx};
 pub use rust_identified_vec::{Identifiable, IdentifiedVec};
 pub use optics::{
-    enum_err, enum_ok, enum_some, enum_variant, extract, extract_action, extract_mut, variant_of,
+    enum_err, enum_ok, enum_some, enum_variant, extract_action, variant_of,
     wrap_action, ActionCase, ActionEnum, CasePath, Casepath, EnumKp, EnumKpType, EnumValueKpType,
-    Kp, StateKeypath, StateKp, StateLens,
+    Kp, StateKeypath, StateKp,
 };
 pub use program::{Program, ReducerProgram};
 pub use reduce_panic::{catch_reduce, catch_reduce_panic, ReducePanic};

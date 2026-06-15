@@ -1,6 +1,6 @@
 use crate::cmd::Cmd;
 use crate::effect::{run_registered_env_task, run_registered_task, Effect, EffectId};
-use crate::optics::{extract_mut, Casepath, CasePath, StateKeypath};
+use crate::optics::{Casepath, CasePath, StateKeypath};
 use rust_identified_vec::{Identifiable, IdentifiedVec};
 use crate::reducer::Reducer;
 use std::marker::PhantomData;
@@ -52,7 +52,7 @@ where
         let Some(child_action) = self.action_kp.extract(&action) else {
             return Cmd::none();
         };
-        let Some(child) = extract_mut(&self.state_kp, state) else {
+        let Some(child) = self.state_kp.focus_mut(state) else {
             return Cmd::none();
         };
         let cmd = self.child.reduce(child, child_action);
@@ -110,7 +110,7 @@ where
 
     fn reduce(&self, state: &mut PS, action: PA) -> Cmd<PA> {
         if (self.dismiss)(action.clone()) {
-            let had_child = extract_mut(&self.scope.state_kp, state).is_some();
+            let had_child = self.scope.state_kp.focus_mut(state).is_some();
             (self.clear)(state);
             if had_child {
                 return Cmd::single(Effect::cancel(self.scope.cancel_id));

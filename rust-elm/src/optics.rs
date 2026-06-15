@@ -50,12 +50,15 @@ pub type StateKp<Whole, Part, G, Set> = Kp<
 
 /// Reference-shaped state keypath — static dispatch via [`KpTrait`].
 ///
+/// Use [`Self::focus`] / [`Self::focus_mut`] for HRTB-safe navigation with local borrows;
+/// [`Readable::get`] / [`Writable::set`] require `'static` link types and are for composition (`then`, etc.).
+///
 /// ```ignore
 /// fn validate_field<F, R, V>(kp: F, root: &R) -> Option<&V>
 /// where
-///     F: KpTrait<R, V, &'static R, &'static V, &'static mut R, &'static mut V>,
+///     F: StateKeypath<R, V>,
 /// {
-///     kp.get(root)
+///     kp.focus(root)
 /// }
 /// ```
 pub trait StateKeypath<Whole, Part>:
@@ -66,45 +69,29 @@ pub trait StateKeypath<Whole, Part>:
         &'static Part,
         &'static mut Whole,
         &'static mut Part,
-    > + StateLens<Whole, Part>
+    >
 where
     Whole: 'static,
     Part: 'static,
 {
+    fn focus<'a>(&self, root: &'a Whole) -> Option<&'a Part>;
+    fn focus_mut<'a>(&self, root: &'a mut Whole) -> Option<&'a mut Part>;
 }
 
-impl<K, Whole, Part> StateKeypath<Whole, Part> for K
+impl<R, V, G, S> StateKeypath<R, V>
+    for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
 where
-    Whole: 'static,
-    Part: 'static,
-    K: KpTrait<
-            Whole,
-            Part,
-            &'static Whole,
-            &'static Part,
-            &'static mut Whole,
-            &'static mut Part,
-        > + StateLens<Whole, Part>,
-{
-}
-
-/// Read/write navigation used by scoped reducers and stores.
-pub trait StateLens<Whole, Part> {
-    fn focus<'a>(&self, whole: &'a Whole) -> Option<&'a Part>;
-    fn focus_mut<'a>(&self, whole: &'a mut Whole) -> Option<&'a mut Part>;
-}
-
-impl<'a, R, V, G, Set> StateLens<R, V> for Kp<R, V, &'a R, &'a V, &'a mut R, &'a mut V, G, Set>
-where
+    R: 'static,
+    V: 'static,
     G: for<'b> Fn(&'b R) -> Option<&'b V>,
-    Set: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
 {
-    fn focus<'b>(&self, whole: &'b R) -> Option<&'b V> {
-        self.get_ref(whole)
+    fn focus<'a>(&self, root: &'a R) -> Option<&'a V> {
+        self.get_ref(root)
     }
 
-    fn focus_mut<'b>(&self, whole: &'b mut R) -> Option<&'b mut V> {
-        self.get_mut_ref(whole)
+    fn focus_mut<'a>(&self, root: &'a mut R) -> Option<&'a mut V> {
+        self.get_mut_ref(root)
     }
 }
 
@@ -149,22 +136,6 @@ where
     fn wrap(&self, child: Child) -> Parent {
         self.embed(child)
     }
-}
-
-/// Read a focused `Part` from `Whole` through any [`StateLens`].
-pub fn extract<'a, Whole, Part, K>(kp: &K, whole: &'a Whole) -> Option<&'a Part>
-where
-    K: StateLens<Whole, Part>,
-{
-    kp.focus(whole)
-}
-
-/// Mutably focus a `Part` within `Whole` through any [`StateLens`].
-pub fn extract_mut<'a, Whole, Part, K>(kp: &K, whole: &'a mut Whole) -> Option<&'a mut Part>
-where
-    K: StateLens<Whole, Part>,
-{
-    kp.focus_mut(whole)
 }
 
 /// Extract a child action through any [`Casepath`] (single step or composed).
@@ -219,14 +190,7 @@ mod tests {
 
     fn accepts_state_kp<K>(kp: K) -> K
     where
-        K: KpTrait<
-            AppState,
-            CounterState,
-            &'static AppState,
-            &'static CounterState,
-            &'static mut AppState,
-            &'static mut CounterState,
-        >,
+        K: StateKeypath<AppState, CounterState>,
     {
         kp
     }
@@ -239,7 +203,6 @@ mod tests {
         };
         let kp = accepts_state_kp(AppState::counter());
         assert_eq!(kp.get(&state).map(|c| c.value), Some(0));
-        assert_eq!(extract(&kp, &state).map(|c| c.value), Some(0));
         if let Some(counter) = kp.get_mut(&mut state) {
             counter.value = 5;
         }

@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::bus::BusSender;
 use crate::effect::EffectId;
-use crate::optics::{extract, Casepath, StateKeypath};
+use crate::optics::{Casepath, StateKeypath};
 use crate::runtime::InterpreterState;
 
 /// Calls [`StoreBackend::end_store_work`] on drop unless [`Self::disarm`]d.
@@ -344,7 +344,7 @@ where
     }
 
     pub fn child_state(&self) -> Option<CS> {
-        extract(&self.state_kp, &self.store.state()).cloned()
+        self.state_kp.focus(&self.store.state()).cloned()
     }
 
     pub fn subscribe_state(&self) -> ScopedStateSubscriber<S, CS, SK>
@@ -379,7 +379,7 @@ where
     pub fn next(&mut self) -> Option<CS> {
         loop {
             let parent = self.inner.next()?;
-            let Some(child) = extract(&self.state_kp, parent.as_ref()).cloned() else {
+            let Some(child) = self.state_kp.focus(parent.as_ref()).cloned() else {
                 continue;
             };
             return Some(child);
