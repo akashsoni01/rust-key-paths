@@ -79,16 +79,167 @@ impl RuntimeConfig {
     }
 }
 
+struct AppRunner {
+    shutdown: Arc<AtomicBool>,
+    thread: Mutex<Option<JoinHandle<()>>>,
+    subscriptions: Arc<crate::subscription::SubscriptionHandles>,
+}
+
+impl AppRunner {
+    fn new(
+        shutdown: Arc<AtomicBool>,
+        thread: JoinHandle<()>,
+        subscriptions: Arc<crate::subscription::SubscriptionHandles>,
+    ) -> Self {
+        Self {
+            shutdown,
+            thread: Mutex::new(Some(thread)),
+            subscriptions,
+        }
+    }
+
+    fn shutdown(&self) {
+        if self.shutdown.swap(true, Ordering::Relaxed) {
+            return;
+        }
+        self.subscriptions.abort_all();
+        if let Some(handle) = self.thread.lock().take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+fn build_tokio(config: &RuntimeConfig) -> Arc<TokioRuntime> {
+    Arc::new(
+        TokioRuntimeBuilder::new_multi_thread()
+            .worker_threads(config.worker_threads.max(1))
+            .thread_name(config.thread_name)
+            .enable_all()
+            .build()
+            .expect("failed to create Tokio runtime for rust-elm"),
+    )
+}
+
+/// Shared Tokio pool and environment for many isolated [`Runtime`] instances.
+///
+/// Each [`RuntimeHost::spawn_program`] still gets its own action bus, state, and reducer
+/// thread, but async effects and subscriptions share one Tokio runtime.
+///
+/// ```
+/// use rust_elm::{Environment, Program, RuntimeConfig, RuntimeHost};
+///
+/// fn init() -> (i32, rust_elm::Cmd<i32>) { (0, rust_elm::Cmd::none()) }
+/// fn update(n: &mut i32, m: i32) -> rust_elm::Cmd<i32> { *n += m; rust_elm::Cmd::none() }
+/// fn subs(_: &i32) -> rust_elm::Sub<i32> { rust_elm::Sub::none() }
+///
+/// let host = RuntimeHost::new(Environment::new(), RuntimeConfig::new(1024));
+/// let programs = [
+///     Program::new(init, update, subs),
+///     Program::new(init, update, subs),
+/// ];
+/// let runtimes: Vec<_> = programs.iter().map(|p| host.spawn_program(*p)).collect();
+/// // ... use runtimes ...
+/// host.shutdown();
+/// ```
+pub struct RuntimeHost {
+    tokio: Arc<TokioRuntime>,
+    env: Environment,
+    config: RuntimeConfig,
+    apps: Mutex<Vec<Arc<AppRunner>>>,
+}
+
+impl RuntimeHost {
+    pub fn new(env: Environment, config: RuntimeConfig) -> Self {
+        let tokio = build_tokio(&config);
+        Self {
+            tokio,
+            env,
+            config,
+            apps: Mutex::new(Vec::new()),
+        }
+    }
+
+    pub fn env(&self) -> &Environment {
+        &self.env
+    }
+
+    pub fn config(&self) -> &RuntimeConfig {
+        &self.config
+    }
+
+    pub fn tokio(&self) -> &TokioRuntime {
+        &self.tokio
+    }
+
+    pub fn app_count(&self) -> usize {
+        self.apps.lock().len()
+    }
+
+    pub fn spawn_program<S, M>(&self, program: Program<S, M>) -> Runtime<S, M>
+    where
+        S: Send + Sync + 'static,
+        M: Send + 'static,
+    {
+        self.spawn(program.init, program.update, program.subscriptions)
+    }
+
+    pub fn spawn_reducer_program<R>(&self, program: ReducerProgram<R>) -> Runtime<R::State, R::Action>
+    where
+        R: Reducer + Send + Sync + 'static,
+        R::State: Send + Sync + 'static,
+        R::Action: Send + 'static,
+    {
+        let reducer = Arc::new(program.reducer);
+        let init = program.init;
+        let subscriptions = program.subscriptions;
+        self.spawn(
+            init,
+            move |state, msg| reducer.reduce(state, msg),
+            subscriptions,
+        )
+    }
+
+    fn spawn<S, M>(
+        &self,
+        init: fn() -> (S, Cmd<M>),
+        update: impl Fn(&mut S, M) -> Cmd<M> + Send + Sync + 'static,
+        subscriptions: fn(&S) -> Sub<M>,
+    ) -> Runtime<S, M>
+    where
+        S: Send + Sync + 'static,
+        M: Send + 'static,
+    {
+        let app_id = self.apps.lock().len();
+        let reducer_thread_name = format!("{}-{}", self.config.thread_name, app_id);
+        let runtime = Runtime::bootstrap(
+            init,
+            update,
+            subscriptions,
+            self.env.clone(),
+            self.config.clone(),
+            self.tokio.clone(),
+            reducer_thread_name,
+        );
+        self.apps.lock().push(runtime.runner.clone());
+        runtime
+    }
+
+    /// Shut down every program spawned on this host (idempotent).
+    pub fn shutdown(self) {
+        for app in self.apps.lock().drain(..) {
+            app.shutdown();
+        }
+    }
+}
+
 /// Live runtime — bus-driven update loop on a pinned thread with Tokio effect interpreter.
 pub struct Runtime<S, M> {
     pub state: Arc<Mutex<S>>,
     pub bus: Bus<M>,
     pub env: Environment,
     backend: StoreBackend<S, M>,
-    shutdown: Arc<AtomicBool>,
-    _thread: Option<JoinHandle<()>>,
+    runner: Arc<AppRunner>,
     _tokio: Arc<TokioRuntime>,
-    _subscriptions: Arc<crate::subscription::SubscriptionHandles>,
 }
 
 impl<S, M> Runtime<S, M>
@@ -97,12 +248,16 @@ where
     M: Send + 'static,
 {
     pub fn from_program(program: Program<S, M>, env: Environment, config: RuntimeConfig) -> Self {
+        let tokio = build_tokio(&config);
+        let reducer_thread_name = config.thread_name.to_string();
         Self::bootstrap(
             program.init,
             program.update,
             program.subscriptions,
             env,
             config,
+            tokio,
+            reducer_thread_name,
         )
     }
 
@@ -114,6 +269,8 @@ where
     where
         R: Reducer<State = S, Action = M> + Send + Sync + 'static,
     {
+        let tokio = build_tokio(&config);
+        let reducer_thread_name = config.thread_name.to_string();
         let reducer = Arc::new(program.reducer);
         let init = program.init;
         let subscriptions = program.subscriptions;
@@ -123,6 +280,8 @@ where
             subscriptions,
             env,
             config,
+            tokio,
+            reducer_thread_name,
         )
     }
 
@@ -132,24 +291,14 @@ where
         subscriptions: fn(&S) -> Sub<M>,
         env: Environment,
         config: RuntimeConfig,
+        tokio: Arc<TokioRuntime>,
+        reducer_thread_name: String,
     ) -> Self {
-        let RuntimeConfig {
-            bus_capacity,
-            worker_threads,
-            thread_name,
-        } = config;
+        let RuntimeConfig { bus_capacity, .. } = config;
         let (initial_state, init_cmd) = init();
         let state = Arc::new(Mutex::new(initial_state));
         let bus = Bus::new(bus_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
-        let tokio = Arc::new(
-            TokioRuntimeBuilder::new_multi_thread()
-                .worker_threads(worker_threads.max(1))
-                .thread_name(thread_name)
-                .enable_all()
-                .build()
-                .expect("failed to create Tokio runtime for rust-elm"),
-        );
         let interpreter = InterpreterState::new();
         let sub_handles = Arc::new(crate::subscription::SubscriptionHandles::new());
         let backend = StoreBackend::new(state.clone(), bus.sender(), interpreter);
@@ -178,7 +327,7 @@ where
         let subs_registry = sub_handles.clone();
 
         let thread = thread::Builder::new()
-            .name(thread_name.to_string())
+            .name(reducer_thread_name)
             .spawn(move || {
             let rt = tokio_for_thread;
             let sync_subs = |state: &S| {
@@ -240,15 +389,15 @@ where
         })
         .expect("failed to spawn rust-elm reducer thread");
 
+        let runner = Arc::new(AppRunner::new(shutdown, thread, sub_handles));
+
         Self {
             state,
             bus,
             env,
             backend,
-            shutdown,
-            _thread: Some(thread),
+            runner,
             _tokio: tokio,
-            _subscriptions: sub_handles,
         }
     }
 
@@ -274,11 +423,7 @@ where
     }
 
     pub fn shutdown(self) {
-        self.shutdown.store(true, Ordering::Relaxed);
-        self._subscriptions.abort_all();
-        if let Some(handle) = self._thread {
-            let _ = handle.join();
-        }
+        self.runner.shutdown();
     }
 }
 
@@ -745,6 +890,20 @@ mod tests {
         std::thread::sleep(Duration::from_millis(200));
         assert_eq!(runtime.state.lock().n, 10);
         runtime.shutdown();
+    }
+
+    #[test]
+    fn runtime_host_spawns_multiple_programs_on_shared_tokio() {
+        let host = RuntimeHost::new(Environment::new(), RuntimeConfig::new(16));
+        let a = host.spawn_program(Program::new(init, update, subs));
+        let b = host.spawn_program(Program::new(init, update, subs));
+        a.dispatch(2);
+        b.dispatch(5);
+        std::thread::sleep(Duration::from_millis(200));
+        assert_eq!(a.state.lock().n, 2);
+        assert_eq!(b.state.lock().n, 5);
+        assert_eq!(host.app_count(), 2);
+        host.shutdown();
     }
 
     #[test]
