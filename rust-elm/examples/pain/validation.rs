@@ -6,7 +6,7 @@
 
 use std::borrow::Cow;
 
-use rust_elm::StateKeypath;
+use key_paths_core::RefKpTrait;
 
 use super::keypaths::{
     pain_creation_date_time, pain_initiating_party_id, pain_message_id, pmt_debtor_account_id,
@@ -112,7 +112,7 @@ impl<'r, R> Validator<'r, R> {
     where
         R: 'static,
         V: 'static,
-        K: StateKeypath<R, V>,
+        K: RefKpTrait<R, V>,
     {
         if self.aborted {
             return self;
@@ -162,7 +162,7 @@ impl<'r, R> Validator<'r, R> {
     where
         R: 'static,
         V: 'static,
-        K: StateKeypath<R, V>,
+        K: RefKpTrait<R, V>,
     {
         if self.aborted {
             return self;

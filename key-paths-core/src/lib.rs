@@ -83,6 +83,20 @@ pub trait KpTrait<R, V, Root, Value, MutRoot, MutValue>:
         Next: Readable<Value, SubValue> + Writable<MutValue, MutSubValue> + Clone;
 }
 
+/// Reference-shaped [`KpTrait`] (`Root = &R`, `Value = &V`) with HRTB navigation.
+///
+/// Use [`Self::focus`] / [`Self::focus_mut`] for local borrows; [`Readable::get`] / [`Writable::set`]
+/// use the `'static` link types and are intended for composition ([`KpTrait::then`], etc.).
+pub trait RefKpTrait<R, V>:
+    KpTrait<R, V, &'static R, &'static V, &'static mut R, &'static mut V>
+where
+    R: 'static,
+    V: 'static,
+{
+    fn focus<'a>(&self, root: &'a R) -> Option<&'a V>;
+    fn focus_mut<'a>(&self, root: &'a mut R) -> Option<&'a mut V>;
+}
+
 /// Optional-root and fallback helpers built on [`Readable`] / [`Writable`].
 pub trait AccessorTrait<Root, Value, MutRoot, MutValue>:
     Readable<Root, Value> + Writable<MutRoot, MutValue>

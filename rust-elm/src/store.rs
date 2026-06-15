@@ -9,7 +9,8 @@ use parking_lot::Mutex;
 
 use crate::bus::BusSender;
 use crate::effect::EffectId;
-use crate::optics::{Casepath, StateKeypath};
+use crate::optics::Casepath;
+use key_paths_core::RefKpTrait;
 use crate::runtime::InterpreterState;
 
 /// Calls [`StoreBackend::end_store_work`] on drop unless [`Self::disarm`]d.
@@ -210,7 +211,7 @@ where
         S: 'static,
         M: 'static,
         AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
-        SK: StateKeypath<S, CS> + Clone,
+        SK: RefKpTrait<S, CS> + Clone,
     {
         ScopedStore {
             store: self.clone(),
@@ -299,7 +300,7 @@ impl<S: PartialEq + Clone> StateSubscriber<S> {
 /// Child store routing actions through a parent action casepath.
 pub struct ScopedStore<S: 'static, M: 'static, CS: 'static, CM: 'static, AK: 'static, SK>
 where
-    SK: StateKeypath<S, CS> + Clone,
+    SK: RefKpTrait<S, CS> + Clone,
 {
     store: Store<S, M>,
     state_kp: SK,
@@ -313,7 +314,7 @@ where
     S: Send,
     M: Send,
     AK: Clone,
-    SK: StateKeypath<S, CS> + Clone,
+    SK: RefKpTrait<S, CS> + Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -333,7 +334,7 @@ where
     CS: Clone + PartialEq + Send + Sync,
     CM: Clone + Send,
     AK: Casepath<M, CM> + Clone + Send + Sync + 'static,
-    SK: StateKeypath<S, CS> + Clone,
+    SK: RefKpTrait<S, CS> + Clone,
 {
     pub fn send(&self, action: CM) -> StoreTask {
         self.store.send(self.action_kp.wrap(action))
@@ -362,7 +363,7 @@ where
 
 pub struct ScopedStateSubscriber<S: 'static, CS: 'static, SK>
 where
-    SK: StateKeypath<S, CS> + Clone,
+    SK: RefKpTrait<S, CS> + Clone,
 {
     inner: StateSubscriber<S>,
     state_kp: SK,
@@ -373,7 +374,7 @@ impl<S, CS, SK> ScopedStateSubscriber<S, CS, SK>
 where
     S: PartialEq + Clone,
     CS: Clone + PartialEq,
-    SK: StateKeypath<S, CS> + Clone,
+    SK: RefKpTrait<S, CS> + Clone,
 {
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<CS> {

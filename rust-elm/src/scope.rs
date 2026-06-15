@@ -1,6 +1,7 @@
 use crate::cmd::Cmd;
 use crate::effect::{run_registered_env_task, run_registered_task, Effect, EffectId};
-use crate::optics::{Casepath, CasePath, StateKeypath};
+use crate::optics::{Casepath, CasePath};
+use key_paths_core::RefKpTrait;
 use rust_identified_vec::{Identifiable, IdentifiedVec};
 use crate::reducer::Reducer;
 use std::marker::PhantomData;
@@ -10,7 +11,7 @@ use std::marker::PhantomData;
 pub struct ScopeReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
 where
     AK: Clone,
-    SK: StateKeypath<PS, CS>,
+    SK: RefKpTrait<PS, CS>,
 {
     pub state_kp: SK,
     pub action_kp: AK,
@@ -23,7 +24,7 @@ impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
     ScopeReducer<R, PS, PA, CS, CA, AK, SK>
 where
     AK: Clone,
-    SK: StateKeypath<PS, CS>,
+    SK: RefKpTrait<PS, CS>,
 {
     pub fn new(state_kp: SK, action_kp: AK, cancel_id: EffectId, child: R) -> Self {
         Self {
@@ -43,7 +44,7 @@ where
     PA: Send + 'static,
     CA: Clone + Send + 'static,
     AK: Casepath<PA, CA> + Clone + Send + Sync + 'static,
-    SK: StateKeypath<PS, CS>,
+    SK: RefKpTrait<PS, CS>,
 {
     type State = PS;
     type Action = PA;
@@ -65,7 +66,7 @@ where
 pub struct IfLetReducer<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
 where
     AK: Clone,
-    SK: StateKeypath<PS, CS>,
+    SK: RefKpTrait<PS, CS>,
 {
     pub scope: ScopeReducer<R, PS, PA, CS, CA, AK, SK>,
     pub dismiss: fn(PA) -> bool,
@@ -77,7 +78,7 @@ impl<R, PS: 'static, PA: 'static, CS: 'static, CA: 'static, AK: 'static, SK>
     IfLetReducer<R, PS, PA, CS, CA, AK, SK>
 where
     AK: Clone,
-    SK: StateKeypath<PS, CS>,
+    SK: RefKpTrait<PS, CS>,
 {
     pub fn new(
         state_kp: SK,
@@ -103,7 +104,7 @@ where
     PA: Clone + Send + 'static,
     CA: Clone + Send + 'static,
     AK: Casepath<PA, CA> + Clone + Send + Sync + 'static,
-    SK: StateKeypath<PS, CS>,
+    SK: RefKpTrait<PS, CS>,
 {
     type State = PS;
     type Action = PA;

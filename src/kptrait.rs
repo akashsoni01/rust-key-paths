@@ -2,7 +2,7 @@
 //!
 //! Core read/write traits live in [`key_paths_core`]. This module adds `Kp`-specific APIs.
 
-pub use key_paths_core::{AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait, Readable, Writable};
+pub use key_paths_core::{AccessorTrait, KeyPath, KeyPathValueTarget, KpTrait, Readable, RefKpTrait, Writable};
 
 use crate::Kp;
 
@@ -697,6 +697,24 @@ where
                 first_set(root).and_then(|value| Writable::set(&next_set, value))
             },
         )
+    }
+}
+
+impl<R, V, G, S> RefKpTrait<R, V> for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
+where
+    R: 'static,
+    V: 'static,
+    G: for<'b> Fn(&'b R) -> Option<&'b V>,
+    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
+{
+    #[inline]
+    fn focus<'a>(&self, root: &'a R) -> Option<&'a V> {
+        self.get_ref(root)
+    }
+
+    #[inline]
+    fn focus_mut<'a>(&self, root: &'a mut R) -> Option<&'a mut V> {
+        self.get_mut_ref(root)
     }
 }
 

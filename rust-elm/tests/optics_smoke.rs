@@ -1,7 +1,7 @@
 #![allow(dead_code, clippy::bool_assert_comparison)]
 
 use key_paths_derive::{Cp, Kp};
-use rust_elm::optics::{extract_action, wrap_action};
+use rust_elm::optics::Casepath;
 
 #[derive(Debug, Kp, Clone, PartialEq)]
 struct Dashboard {
@@ -53,10 +53,10 @@ fn nested_option_panel_smoke() {
 fn enum_action_prism_extract_and_wrap() {
     let action = DashAction::Panel(PanelAction::Select(3));
     let action_kp = DashAction::panel_cp();
-    let inner = extract_action(&action_kp, &action).expect("variant");
+    let inner = action_kp.extract(&action).expect("variant");
     assert!(matches!(inner, PanelAction::Select(3)));
 
-    let wrapped = wrap_action(&action_kp, PanelAction::Select(5));
+    let wrapped = action_kp.wrap(PanelAction::Select(5));
     assert_eq!(wrapped, DashAction::Panel(PanelAction::Select(5)));
 }
 

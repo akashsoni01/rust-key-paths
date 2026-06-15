@@ -1,110 +1,18 @@
-//! State/action focusing for scoped reducers and stores.
+//! Enum casepath (prism) helpers for scoped reducers and stores.
 //!
-//! - **Keypath (lens)** — [`Kp`] / [`StateKp`] for struct fields, bounded by [`KpTrait`].
-//! - **Casepath (prism)** — [`EnumKp`] / [`CasePath`] for enum variants (extract + embed).
-//!
-//! Build casepaths with `#[derive(Cp)]` (`variant_cp()`), compose nested actions with
-//! [`.then()`](EnumKp::then) / [`.chain()`](EnumKp::chain), then pass the result to
-//! [`ScopeReducer`](crate::ScopeReducer) or [`Store::scope`](crate::Store::scope):
-//!
-//! ```ignore
-//! use key_paths_derive::{Cp, Kp};
-//!
-//! #[derive(Kp, Cp)]
-//! enum RootAction { App(AppAction) }
-//! #[derive(Kp, Cp)]
-//! enum AppAction { Panel(PanelAction) }
-//! #[derive(Kp, Cp)]
-//! enum PanelAction { Widget(WidgetAction) }
-//!
-//! let action_kp = RootAction::app_cp()
-//!     .then(AppAction::panel_cp())
-//!     .then(PanelAction::widget_cp());
-//!
-//! store.scope(state_kp, action_kp);
-//! action_kp.extract(&root_action);
-//! action_kp.wrap(WidgetAction::Submit);
-//! ```
-
-use key_paths_core::KpTrait;
+//! State keypaths use [`Kp`] + [`RefKpTrait`](key_paths_core::RefKpTrait) from `keypath` prelude.
+//! Build casepaths with `#[derive(Cp)]` (`variant_cp()`), compose with [`.then()`](EnumKp::then),
+//! then pass to [`ScopeReducer`](crate::ScopeReducer) or [`Store::scope`](crate::Store::scope).
 
 pub use rust_key_paths::{
     enum_err, enum_ok, enum_some, enum_variant, variant_of, EnumKp, EnumKpType, EnumValueKpType,
     Kp,
 };
 
-/// Lens focusing `Part` within parent state `Whole`.
-///
-/// Matches the concrete [`Kp`] returned by `#[derive(Kp)]` field accessors (closure-backed
-/// `G`/`S`) and manual `Kp::new` fn-pointer paths alike.
-pub type StateKp<Whole, Part, G, Set> = Kp<
-    Whole,
-    Part,
-    &'static Whole,
-    &'static Part,
-    &'static mut Whole,
-    &'static mut Part,
-    G,
-    Set,
->;
-
-/// Reference-shaped state keypath — static dispatch via [`KpTrait`].
-///
-/// Use [`Self::focus`] / [`Self::focus_mut`] for HRTB-safe navigation with local borrows;
-/// [`Readable::get`] / [`Writable::set`] require `'static` link types and are for composition (`then`, etc.).
-///
-/// ```ignore
-/// fn validate_field<F, R, V>(kp: F, root: &R) -> Option<&V>
-/// where
-///     F: StateKeypath<R, V>,
-/// {
-///     kp.focus(root)
-/// }
-/// ```
-pub trait StateKeypath<Whole, Part>:
-    KpTrait<
-        Whole,
-        Part,
-        &'static Whole,
-        &'static Part,
-        &'static mut Whole,
-        &'static mut Part,
-    >
-where
-    Whole: 'static,
-    Part: 'static,
-{
-    fn focus<'a>(&self, root: &'a Whole) -> Option<&'a Part>;
-    fn focus_mut<'a>(&self, root: &'a mut Whole) -> Option<&'a mut Part>;
-}
-
-impl<R, V, G, S> StateKeypath<R, V>
-    for Kp<R, V, &'static R, &'static V, &'static mut R, &'static mut V, G, S>
-where
-    R: 'static,
-    V: 'static,
-    G: for<'b> Fn(&'b R) -> Option<&'b V>,
-    S: for<'b> Fn(&'b mut R) -> Option<&'b mut V>,
-{
-    fn focus<'a>(&self, root: &'a R) -> Option<&'a V> {
-        self.get_ref(root)
-    }
-
-    fn focus_mut<'a>(&self, root: &'a mut R) -> Option<&'a mut V> {
-        self.get_mut_ref(root)
-    }
-}
-
 /// Single-step casepath (prism): parent enum → child payload.
 pub type CasePath<'a, Parent, Child> = EnumKpType<'a, Parent, Child>;
 
-/// Back-compat alias of [`CasePath`].
-pub type ActionCase<'a, Whole, Part> = CasePath<'a, Whole, Part>;
-
-/// Back-compat alias of [`CasePath`].
-pub type ActionEnum<'a, Whole, Part> = CasePath<'a, Whole, Part>;
-
-/// Uniform extract + embed for any [`EnumKp`] (including `.then()` / `.chain()` compositions).
+/// Extract + embed for any [`EnumKp`] (including `.then()` / `.chain()` compositions).
 pub trait Casepath<Parent, Child> {
     fn extract(&self, parent: &Parent) -> Option<Child>;
     fn wrap(&self, child: Child) -> Parent;
@@ -138,26 +46,11 @@ where
     }
 }
 
-/// Extract a child action through any [`Casepath`] (single step or composed).
-pub fn extract_action<Parent, Child, CP>(casepath: &CP, action: &Parent) -> Option<Child>
-where
-    CP: Casepath<Parent, Child>,
-{
-    casepath.extract(action)
-}
-
-/// Embed a child action through any [`Casepath`] (single step or composed).
-pub fn wrap_action<Parent, Child, CP>(casepath: &CP, child: Child) -> Parent
-where
-    CP: Casepath<Parent, Child>,
-{
-    casepath.wrap(child)
-}
-
 #[cfg(test)]
 #[allow(dead_code, clippy::bool_assert_comparison)]
 mod tests {
     use super::*;
+    use key_paths_core::RefKpTrait;
     use key_paths_derive::{Cp, Kp};
 
     #[derive(Debug, Kp, Clone, PartialEq)]
@@ -188,22 +81,15 @@ mod tests {
         App(AppAction),
     }
 
-    fn accepts_state_kp<K>(kp: K) -> K
-    where
-        K: StateKeypath<AppState, CounterState>,
-    {
-        kp
-    }
-
     #[test]
-    fn state_key_get_and_get_mut_round_trip() {
+    fn ref_kp_trait_focus_round_trip() {
         let mut state = AppState {
             counter: Some(CounterState { value: 0 }),
             label: "app".into(),
         };
-        let kp = accepts_state_kp(AppState::counter());
-        assert_eq!(kp.get(&state).map(|c| c.value), Some(0));
-        if let Some(counter) = kp.get_mut(&mut state) {
+        let kp = AppState::counter();
+        assert_eq!(kp.focus(&state).map(|c| c.value), Some(0));
+        if let Some(counter) = kp.focus_mut(&mut state) {
             counter.value = 5;
         }
         assert_eq!(state.counter.unwrap().value, 5);
@@ -213,9 +99,9 @@ mod tests {
     fn casepath_extract_and_wrap_single_level() {
         let kp = AppAction::counter_cp();
         let action = AppAction::Counter(CounterAction::Increment);
-        assert_eq!(extract_action(&kp, &action), Some(CounterAction::Increment));
+        assert_eq!(kp.extract(&action), Some(CounterAction::Increment));
         assert_eq!(
-            wrap_action(&kp, CounterAction::Decrement),
+            kp.wrap(CounterAction::Decrement),
             AppAction::Counter(CounterAction::Decrement)
         );
     }
