@@ -1,6 +1,6 @@
 [package]
 name = "rust-elm"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
@@ -14,10 +14,10 @@ categories = ["asynchronous", "development-tools"]
 include = ["src/**/*", "Cargo.toml", "README.0.1.0.md", "LICENSE", "book/**/*"]
 
 [dependencies]
-rust-key-paths = { path = "..", version = "3.3.1" }
+rust-key-paths = { path = "..", version = "3.4.0" }
 rust_identified_vec = { path = "../rust_identified_vec", version = "0.1.2" }
 rust_dependencies = { path = "../rust_dependencies", version = "0.1.2" }
-key-paths-core = { path = "../key-paths-core", version = "2.0.4" }
+key-paths-core = { path = "../key-paths-core", version = "2.1.0" }
 crossbeam-channel = "0.5"
 parking_lot = "0.12"
 tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros", "time", "net"], optional = true }

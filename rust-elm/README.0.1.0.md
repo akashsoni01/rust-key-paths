@@ -8,8 +8,8 @@ Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 [dependencies]
 rust-elm = { path = "../rust-elm" }
 rust-elm = "0.3.0"
-rust-key-paths = "3.3.1"
-key-paths-derive = "3.2.0"
+rust-key-paths = "3.4.0"
+key-paths-derive = "3.3.0"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
 ```
 

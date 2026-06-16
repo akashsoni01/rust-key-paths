@@ -9,8 +9,8 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-key-paths = "3.3.1"
-key-paths-derive = "3.2.0"
+rust-key-paths = "3.4.0"
+key-paths-derive = "3.3.0"
 # Optional: trait-only contracts (pulled in by rust-key-paths 3.1+)
 # key-paths-core = "2.0"
 ```
@@ -19,21 +19,27 @@ key-paths-derive = "3.2.0"
 
 ```toml
 [dependencies]
-rust-elm = "0.3.0"
-rust-key-paths = "3.3.1"
-key-paths-derive = "3.2.0"
+rust-elm = "0.5.0"
+rust-key-paths = "3.4.0"
+key-paths-derive = "3.3.0"
 ```
 
 ### Latest releases
 
 | Crate | Version | Notes |
 |-------|---------|--------|
-| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.0.4** | `#![no_std]` traits; `RefKpTrait` for HRTB `focus` / `focus_mut` |
-| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.3.1** | `Kp`, locks, HOF; `RefKpTrait` on `Kp` |
-| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.2.0** | `#[derive(Kp)]`, `#[derive(Cp)]` — see [derive README](./key-paths-derive/README.md) |
-| [`rust-elm`](https://crates.io/crates/rust-elm) | **0.3.0** | Elm/TCA store — `RuntimeConfig`, `RefKpTrait` scope/store, pain validation example |
+| [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.1.0** | `#![no_std]` traits; `FieldDiff` + `hash_value` for per-field change signals |
+| [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.4.0** | `Kp`, locks, HOF; `RefKpTrait` on `Kp` |
+| [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.3.0** | `#[derive(Kp)]`, `#[derive(Cp)]`, `#[derive(FieldDiff)]` |
+| [`rust-elm`](https://crates.io/crates/rust-elm) | **0.5.0** | Zero-copy `StateBinding`, `subscribe_changes`, scoped field signals |
 | [`rust_identified_vec`](https://crates.io/crates/rust_identified_vec) | **0.1.2** | Identified collections (used by `rust-elm`) |
 | [`rust_dependencies`](https://crates.io/crates/rust_dependencies) | **0.1.2** | Typed DI for effects (used by `rust-elm`) |
+
+#### 3.4.0 / 2.1.0 / 3.3.0 / 0.5.0
+
+- **`FieldDiff`** in `key-paths-core` — per-field hashing for change signals without cloning whole state.
+- **`#[derive(FieldDiff)]`** in `key-paths-derive` 3.3.0 — generates `{Struct}Field` path enum + `field_hashes`.
+- **`rust-elm` 0.5.0** — `StateBinding` / keypath projection, `subscribe_changes`, `ScopedChangeSubscriber`; see [binding.md](./rust-elm/book/binding.md).
 
 #### 3.3.1 / 2.0.4 / 0.3.0
 

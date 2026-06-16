@@ -496,14 +496,14 @@ where
         self.store.backend.state_listeners.lock().push(tx);
         let (last_hash, last_fields) = {
             let guard = self.store.backend.state.lock();
-            let child = self
-                .state_kp
-                .focus(&*guard)
-                .expect("scoped subscribe_changes: child missing at subscribe time");
-            let root = hash_value(child);
-            let mut fields = Vec::new();
-            child.field_hashes(&mut fields);
-            (Some(root), fields)
+            if let Some(child) = self.state_kp.focus(&*guard) {
+                let root = hash_value(child);
+                let mut fields = Vec::new();
+                child.field_hashes(&mut fields);
+                (Some(root), fields)
+            } else {
+                (None, Vec::new())
+            }
         };
         ScopedChangeSubscriber {
             rx,

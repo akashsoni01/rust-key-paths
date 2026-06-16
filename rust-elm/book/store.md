@@ -65,7 +65,10 @@ reducers can't re-enter themselves from your call stack (UDF parity).
 
 Two halves: **read** state out, **dispatch** actions in.
 
-### Read: subscribe to snapshots
+> **Zero-copy path (recommended):** see [binding.md](./binding.md) for `StateBinding`,
+> keypath projection, and `subscribe_changes()` — no full-state clone on the hot path.
+
+### Read: subscribe to snapshots (legacy)
 
 ```189:200:rust-elm/src/runtime/store.rs
     pub fn subscribe_state(&self) -> StateSubscriber<S>
@@ -570,9 +573,12 @@ reducer panic is contained and the app keeps running.
 | Fire-and-forget | `store.dispatch(action)` |
 | Dispatch + await effects | `store.send(action).finish()` |
 | Read snapshot (clones `S`) | `store.state()` |
-| Read borrow (no clone) | `runtime.state.lock()` |
-| Observe changes | `store.subscribe_state()` → `next()` / `wait_next()` |
+| Read borrow (no clone) | `store.binding()` → `with` / `with_mut` — see [binding.md](./binding.md) |
+| Observe field changes (no clone) | `store.subscribe_changes()` → `next()` / `wait_next()` |
+| Observe full snapshots (legacy) | `store.subscribe_state()` → `next()` / `wait_next()` |
 | Child handle | `store.scope(state_kp, action_cp)` |
-| Child snapshot | `scoped.child_state()` |
-| Observe child | `scoped.subscribe_state()` |
+| Child binding (no clone) | `scoped.binding()` |
+| Child snapshot (clones parent) | `scoped.child_state()` |
+| Observe child snapshots (legacy) | `scoped.subscribe_state()` |
+| Observe child field changes | `scoped.subscribe_changes()` |
 | Cancel effect | `store.cancel(effect_id)` |

@@ -8,6 +8,11 @@ For a full reference implementation (derive macros, `Kp`, sync/async locks, comp
 
 ## Release notes
 
+### 2.1.0
+
+- **`FieldDiff`** trait — per-field `(Path, u64)` hashes via `field_hashes`.
+- **`hash_value`** — FNV-1a hasher (`no_std`).
+
 ### 2.0.4
 
 - **`RefKpTrait<R, V>`** — HRTB `focus` / `focus_mut` for navigating with local borrows; extends `KpTrait` with `'static` link types for `then` composition.

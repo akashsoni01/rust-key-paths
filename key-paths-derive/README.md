@@ -6,10 +6,15 @@ Proc-macro derives that generate `rust_key_paths` accessors on your types:
 |--------|---------|
 | **`Kp`** | Keypaths for struct fields and enum variant **extractors** |
 | **`Cp`** | Casepaths (prisms) for enum variants — **extract + embed** |
+| **`FieldDiff`** | Per-field hashes for change signals (requires `Hash` on fields) |
 | **`Pkp`** | `partial_kps()` — type-erased partial keypaths (requires `Kp`) |
 | **`Akp`** | `any_kps()` — fully type-erased keypaths (requires `Kp`) |
 
 ## Release notes
+
+### 3.3.0
+
+- **`#[derive(FieldDiff)]`** — generates `{Struct}Field` enum and `field_hashes` impl (uses `key_paths_core::FieldDiff`).
 
 ### 3.1.0
 
@@ -30,14 +35,14 @@ Proc-macro derives that generate `rust_key_paths` accessors on your types:
 |-------|----------------------------------|
 | **key-paths-derive** | No dependency on `key-paths-core` (only `syn` / `quote` / `proc-macro2`). |
 | **Generated code** | Expands to `rust_key_paths::Kp`, `SyncKp`, etc.—not `key_paths_core` types directly. |
-| **Your app** | Depend on **`rust-key-paths` ≥ 3.2.0** (pulls in `key-paths-core` 2.x). Pin **`key-paths-derive` = "3.1.0"**. |
+| **Your app** | Depend on **`rust-key-paths` ≥ 3.4.0** (pulls in `key-paths-core` 2.1+). Pin **`key-paths-derive` = "3.3.0"**. |
 
 **`key-paths-core` 2.x** does **not** change what the derive macro emits. **`rust-key-paths` 3.2+** re-exports `Readable`, `Writable`, `KpTrait` so you can write generic APIs over any keypath—including paths from `#[derive(Kp)]`.
 
 ```toml
 [dependencies]
-rust-key-paths = "3.2.0"
-key-paths-derive = "3.1.0"
+rust-key-paths = "3.4.0"
+key-paths-derive = "3.3.0"
 ```
 
 ## Generic APIs over derived keypaths

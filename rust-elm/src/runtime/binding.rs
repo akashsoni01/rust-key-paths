@@ -2,6 +2,9 @@
 //!
 //! Reads and writes go through the store's shared mutex — no full-state clone.
 //! Project a field with [`StateBinding::project`] / [`ProjectedBinding::project`].
+//!
+//! When a keypath cannot focus (e.g. `None` in an `Option` field), [`ProjectedBinding::with`]
+//! and [`ProjectedBinding::with_mut`] return [`None`] instead of panicking.
 
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -71,24 +74,18 @@ where
     Focus: 'static,
     SK: RefKpTrait<Root, Focus>,
 {
-    /// Borrow the focused value under the root lock.
-    pub fn with<R>(&self, f: impl FnOnce(&Focus) -> R) -> R {
+    /// Borrow the focused value under the root lock, or [`None`] if the keypath misses.
+    pub fn with<R>(&self, f: impl FnOnce(&Focus) -> R) -> Option<R> {
         let guard = self.state.lock();
-        let focused = self
-            .kp
-            .focus(&*guard)
-            .expect("keypath projection failed: field not present");
-        f(focused)
+        let focused = self.kp.focus(&*guard)?;
+        Some(f(focused))
     }
 
-    /// Mutably borrow the focused value under the root lock.
-    pub fn with_mut<R>(&self, f: impl FnOnce(&mut Focus) -> R) -> R {
+    /// Mutably borrow the focused value under the root lock, or [`None`] if the keypath misses.
+    pub fn with_mut<R>(&self, f: impl FnOnce(&mut Focus) -> R) -> Option<R> {
         let mut guard = self.state.lock();
-        let focused = self
-            .kp
-            .focus_mut(&mut *guard)
-            .expect("keypath projection failed: field not present");
-        f(focused)
+        let focused = self.kp.focus_mut(&mut *guard)?;
+        Some(f(focused))
     }
 
     /// Chain another keypath segment (consumes `self`; parent keypath must be [`Clone`]).
@@ -122,30 +119,20 @@ where
     ParentKP: RefKpTrait<Root, Mid>,
     SubKP: RefKpTrait<Mid, Focus>,
 {
-    pub fn with<R>(&self, f: impl FnOnce(&Focus) -> R) -> R {
+    /// Borrow through parent then child keypath; [`None`] if either segment misses.
+    pub fn with<R>(&self, f: impl FnOnce(&Focus) -> R) -> Option<R> {
         let guard = self.state.lock();
-        let mid = self
-            .parent_kp
-            .focus(&*guard)
-            .expect("keypath projection failed: parent field not present");
-        let focused = self
-            .sub_kp
-            .focus(mid)
-            .expect("keypath projection failed: child field not present");
-        f(focused)
+        let mid = self.parent_kp.focus(&*guard)?;
+        let focused = self.sub_kp.focus(mid)?;
+        Some(f(focused))
     }
 
-    pub fn with_mut<R>(&self, f: impl FnOnce(&mut Focus) -> R) -> R {
+    /// Mutably borrow through parent then child keypath; [`None`] if either segment misses.
+    pub fn with_mut<R>(&self, f: impl FnOnce(&mut Focus) -> R) -> Option<R> {
         let mut guard = self.state.lock();
-        let mid = self
-            .parent_kp
-            .focus_mut(&mut *guard)
-            .expect("keypath projection failed: parent field not present");
-        let focused = self
-            .sub_kp
-            .focus_mut(mid)
-            .expect("keypath projection failed: child field not present");
-        f(focused)
+        let mid = self.parent_kp.focus_mut(&mut *guard)?;
+        let focused = self.sub_kp.focus_mut(mid)?;
+        Some(f(focused))
     }
 }
 
@@ -208,7 +195,7 @@ mod tests {
         let binding = StateBinding::new(state);
 
         let position = binding.project(position_kp());
-        assert_eq!(position.with(|p| *p), 1);
+        assert_eq!(position.with(|p| *p), Some(1));
 
         position.with_mut(|p| *p = 2);
         assert_eq!(binding.with(|e| e.current_position), 2);
@@ -216,5 +203,37 @@ mod tests {
         let favorite = binding.project(favorite_kp());
         favorite.with_mut(|f| *f = true);
         assert!(binding.with(|e| e.is_favorite));
+    }
+
+    #[test]
+    fn projected_binding_returns_none_when_keypath_misses() {
+        #[derive(Kp, Clone, Hash, FieldDiff, PartialEq, Debug)]
+        struct Root {
+            child: Option<Episode>,
+        }
+
+        fn child_kp() -> KpPath<
+            Root,
+            Episode,
+            &'static Root,
+            &'static Episode,
+            &'static mut Root,
+            &'static mut Episode,
+            for<'b> fn(&'b Root) -> Option<&'b Episode>,
+            for<'b> fn(&'b mut Root) -> Option<&'b mut Episode>,
+        > {
+            fn get(r: &Root) -> Option<&Episode> {
+                r.child.as_ref()
+            }
+            fn get_mut(r: &mut Root) -> Option<&mut Episode> {
+                r.child.as_mut()
+            }
+            KpPath::new(get, get_mut)
+        }
+
+        let binding = StateBinding::new(Arc::new(Mutex::new(Root { child: None })));
+        let child = binding.project(child_kp());
+        assert!(child.with(|_| ()).is_none());
+        assert!(child.with_mut(|_| ()).is_none());
     }
 }

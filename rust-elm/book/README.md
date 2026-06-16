@@ -3,6 +3,8 @@
 | Document | Description |
 |----------|-------------|
 | [architecture.md](./architecture.md) | Runtime, threading, effects, composition, actors comparison, panic strategy |
+| [store.md](./store.md) | Store dispatch, scoping, legacy snapshot subscription (`subscribe_state`) |
+| [binding.md](./binding.md) | Zero-copy bindings, keypath projection, field change signals (`subscribe_changes`) |
 | [ecommerce.md](./ecommerce.md) | Shop example: scoping, subs, locks, panic demo, production notes, cross-thread store |
 | [pain.md](./pain.md) | ISO 20022 PAIN.001 payload state + keypath field validation |
 | [validation.md](./validation.md) | Reusable keypath validation framework (`Rule`, `Validator`, `Validate`) |
@@ -73,7 +75,9 @@ let runtime = Runtime::from_program(program, Environment::new(), 65_536);
 | `runtime.sender().send_blocking(action)` | Lowest-level enqueue; use when you own the sender |
 | `store.send(action).finish()` | Wait for effects — **avoid** on hot path (extra channel + in-flight counter) |
 | `store.state()` | **Avoid** during burst — clones entire state |
-| `store.subscribe_state()` | UI / readers — coalesce updates outside the hot loop |
+| `store.binding()` | Zero-copy read/write under lock — prefer over `state()` |
+| `store.subscribe_changes()` | UI / readers — field-level signals, no full-state clone |
+| `store.subscribe_state()` | Legacy — coalesced `Arc<S>` snapshots (clones `S`) |
 
 Clone `Store` onto each worker thread (`store.clone()` is cheap — shared `Arc` backend).
 
