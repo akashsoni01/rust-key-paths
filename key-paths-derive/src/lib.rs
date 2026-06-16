@@ -7032,3 +7032,85 @@ fn expand_enum_variant_cp(name: &syn::Ident, variant: &syn::Variant) -> proc_mac
         }
     }
 }
+
+/// Derive per-field hashes for [`key_paths_core::FieldDiff`].
+///
+/// Requires `Hash` on the struct and each field. When combined with `#[derive(Kp)]`,
+/// generates a `keypath(self)` method on the path enum that returns the field keypath.
+///
+/// ```ignore
+/// #[derive(Kp, Hash, FieldDiff)]
+/// struct App { count: i32, label: String }
+/// ```
+#[proc_macro_derive(FieldDiff)]
+pub fn derive_field_diff(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    let path_enum = format_ident!("{}Field", name);
+
+    let Data::Struct(data_struct) = &input.data else {
+        return syn::Error::new(
+            input.span(),
+            "FieldDiff can only be derived for structs with named fields",
+        )
+        .to_compile_error()
+        .into();
+    };
+
+    let Fields::Named(fields_named) = &data_struct.fields else {
+        return syn::Error::new(
+            input.span(),
+            "FieldDiff can only be derived for structs with named fields",
+        )
+        .to_compile_error()
+        .into();
+    };
+
+    let mut variants = proc_macro2::TokenStream::new();
+    let mut hash_arms = proc_macro2::TokenStream::new();
+
+    for field in &fields_named.named {
+        let field_ident = field.ident.as_ref().unwrap();
+        let variant_ident = format_ident!(
+            "{}",
+            field_ident
+                .to_string()
+                .replace('_', " ")
+                .split_whitespace()
+                .map(|w| {
+                    let mut c = w.chars();
+                    match c.next() {
+                        None => String::new(),
+                        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                    }
+                })
+                .collect::<String>()
+        );
+
+        variants.extend(quote! {
+            #variant_ident,
+        });
+
+        hash_arms.extend(quote! {
+            out.push((#path_enum::#variant_ident, key_paths_core::hash_value(&self.#field_ident)));
+        });
+    }
+
+    let expanded = quote! {
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+        pub enum #path_enum {
+            #variants
+        }
+
+        impl key_paths_core::FieldDiff for #name {
+            type Path = #path_enum;
+
+            fn field_hashes(&self, out: &mut std::vec::Vec<(Self::Path, u64)>) {
+                #hash_arms
+            }
+        }
+    };
+
+    expanded.into()
+}
+

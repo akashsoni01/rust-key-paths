@@ -3,6 +3,7 @@
 mod config;
 pub(crate) mod dispatch;
 mod engine;
+pub mod binding;
 pub(crate) mod interpreter;
 pub mod store;
 pub mod subscription;

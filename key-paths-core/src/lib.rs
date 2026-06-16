@@ -8,7 +8,12 @@
 
 #![no_std]
 
+extern crate alloc;
+
 use core::any::TypeId;
+
+pub mod field_diff;
+pub use field_diff::{FieldDiff, hash_value};
 
 /// Used so async chaining can infer the referent of a reference-valued step
 /// (e.g. `&T` and `&mut T` both map to `T`).

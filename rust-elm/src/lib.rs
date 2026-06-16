@@ -40,7 +40,7 @@ pub use runtime::{store, subscription};
 
 /// Re-export keypath types for state/action focusing (see `optics`).
 pub mod keypath {
-    pub use key_paths_core::{KeyPath, KpTrait, Readable, RefKpTrait, Writable};
+pub use key_paths_core::{FieldDiff, hash_value, KeyPath, KpTrait, Readable, RefKpTrait, Writable};
     pub use rust_key_paths::{EnumKp, EnumKpType, EnumValueKpType, Kp};
 }
 
@@ -80,8 +80,10 @@ pub use shared::{InMemoryStorage, Shared, SharedSubscriber, Storage, StorageErro
 pub use shared::FileStorage;
 #[cfg(feature = "runtime")]
 pub use store::{
-    ScopedStore, StateSubscriber, Store, StoreTask, StoreTaskError,
+    ChangeSet, ChangeSubscriber, ScopedChangeSubscriber, ScopedStore, StateSubscriber, Store,
+    StoreTask, StoreTaskError,
 };
+pub use runtime::binding::{ComposedBinding, ProjectedBinding, StateBinding};
 pub use sub::Sub;
 pub use test_runtime::TestRuntime;
 #[cfg(feature = "runtime")]

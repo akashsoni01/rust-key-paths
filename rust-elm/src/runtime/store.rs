@@ -1,15 +1,18 @@
 use std::collections::VecDeque;
+use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender};
+use key_paths_core::{FieldDiff, hash_value};
 use parking_lot::Mutex;
 
 use crate::bus::BusSender;
 use crate::effect::EffectId;
 use crate::optics::Casepath;
+use crate::runtime::binding::StateBinding;
 use key_paths_core::RefKpTrait;
 use super::interpreter::InterpreterState;
 
@@ -179,6 +182,11 @@ where
         self.backend.state.lock().clone()
     }
 
+    /// Zero-copy read/write handle to store state (no clone of `S`).
+    pub fn binding(&self) -> StateBinding<S> {
+        StateBinding::new(Arc::clone(&self.backend.state))
+    }
+
     pub fn cancel(&self, id: EffectId) {
         if let Some(handle) = self.backend.interpreter.cancel_tokens.lock().remove(&id) {
             handle.abort();
@@ -196,6 +204,32 @@ where
             rx,
             state: self.backend.state.clone(),
             last: Some(Arc::new(self.backend.state.lock().clone())),
+        }
+    }
+
+    /// Subscribe to field-level change signals without cloning whole state.
+    ///
+    /// Dedup uses root + per-field hashes ([`FieldDiff`]); subscribers read changed
+    /// fields on demand via keypaths / [`StateBinding`].
+    pub fn subscribe_changes(&self) -> ChangeSubscriber<S>
+    where
+        S: FieldDiff + Hash,
+    {
+        let (tx, rx) = crossbeam_channel::unbounded();
+        self.backend.state_listeners.lock().push(tx);
+        let (last_hash, last_fields) = {
+            let guard = self.backend.state.lock();
+            let root = hash_value(&*guard);
+            let mut fields = Vec::new();
+            guard.field_hashes(&mut fields);
+            (Some(root), fields)
+        };
+        ChangeSubscriber {
+            rx,
+            state: self.backend.state.clone(),
+            last_hash,
+            last_fields,
+            _marker: PhantomData,
         }
     }
 
@@ -253,6 +287,90 @@ impl std::fmt::Display for StoreTaskError {
 }
 
 impl std::error::Error for StoreTaskError {}
+
+/// Which top-level (or derived) fields changed since the last signal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangeSet<P> {
+    pub paths: Vec<P>,
+}
+
+/// Iterator-like subscription to field change signals (no full-state clone).
+pub struct ChangeSubscriber<S>
+where
+    S: FieldDiff + Hash,
+{
+    rx: Receiver<()>,
+    state: Arc<Mutex<S>>,
+    last_hash: Option<u64>,
+    last_fields: Vec<(S::Path, u64)>,
+    _marker: PhantomData<S>,
+}
+
+impl<S> ChangeSubscriber<S>
+where
+    S: FieldDiff + Hash,
+{
+    fn snapshot_fields(&self) -> (u64, Vec<(S::Path, u64)>) {
+        let guard = self.state.lock();
+        let root = hash_value(&*guard);
+        let mut fields = Vec::new();
+        guard.field_hashes(&mut fields);
+        (root, fields)
+    }
+
+    fn diff_fields(&self, fields: &[(S::Path, u64)]) -> Vec<S::Path> {
+        fields
+            .iter()
+            .filter(|(path, hash)| {
+                self.last_fields
+                    .iter()
+                    .find(|(prev_path, _)| prev_path == path)
+                    .is_none_or(|(_, prev_hash)| prev_hash != hash)
+            })
+            .map(|(path, _)| *path)
+            .collect()
+    }
+
+    /// Zero-copy binding to read changed fields after a signal.
+    pub fn binding(&self) -> StateBinding<S> {
+        StateBinding::new(Arc::clone(&self.state))
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<ChangeSet<S::Path>> {
+        loop {
+            match self.rx.try_recv() {
+                Ok(()) => {
+                    while self.rx.try_recv().is_ok() {}
+                    let (root_hash, fields) = self.snapshot_fields();
+                    if Some(root_hash) == self.last_hash {
+                        continue;
+                    }
+                    let paths = self.diff_fields(&fields);
+                    self.last_hash = Some(root_hash);
+                    self.last_fields = fields;
+                    if paths.is_empty() {
+                        continue;
+                    }
+                    return Some(ChangeSet { paths });
+                }
+                Err(crossbeam_channel::TryRecvError::Empty) => return None,
+                Err(crossbeam_channel::TryRecvError::Disconnected) => return None,
+            }
+        }
+    }
+
+    pub fn wait_next(&mut self, timeout: Duration) -> Option<ChangeSet<S::Path>> {
+        let deadline = std::time::Instant::now() + timeout;
+        while std::time::Instant::now() < deadline {
+            if let Some(change) = self.next() {
+                return Some(change);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        None
+    }
+}
 
 /// Iterator-like subscription to state snapshots.
 pub struct StateSubscriber<S> {
@@ -352,6 +470,11 @@ where
         self.state_kp.focus(&self.store.state()).cloned()
     }
 
+    /// Zero-copy binding projected to the scoped child via keypath.
+    pub fn binding(&self) -> crate::runtime::binding::ProjectedBinding<S, CS, SK> {
+        self.store.binding().project(self.state_kp.clone())
+    }
+
     pub fn subscribe_state(&self) -> ScopedStateSubscriber<S, CS, SK>
     where
         S: Clone + PartialEq,
@@ -360,6 +483,34 @@ where
         ScopedStateSubscriber {
             inner: self.store.subscribe_state(),
             state_kp: self.state_kp.clone(),
+            _marker: PhantomData,
+        }
+    }
+
+    /// Field-level changes for the scoped child (hashes computed under lock, no clone of `S`).
+    pub fn subscribe_changes(&self) -> ScopedChangeSubscriber<S, CS, SK>
+    where
+        CS: FieldDiff + Hash,
+    {
+        let (tx, rx) = crossbeam_channel::unbounded();
+        self.store.backend.state_listeners.lock().push(tx);
+        let (last_hash, last_fields) = {
+            let guard = self.store.backend.state.lock();
+            let child = self
+                .state_kp
+                .focus(&*guard)
+                .expect("scoped subscribe_changes: child missing at subscribe time");
+            let root = hash_value(child);
+            let mut fields = Vec::new();
+            child.field_hashes(&mut fields);
+            (Some(root), fields)
+        };
+        ScopedChangeSubscriber {
+            rx,
+            state: self.store.backend.state.clone(),
+            state_kp: self.state_kp.clone(),
+            last_hash,
+            last_fields,
             _marker: PhantomData,
         }
     }
@@ -389,5 +540,90 @@ where
             };
             return Some(child);
         }
+    }
+}
+
+/// Field change subscription focused to a scoped child store.
+pub struct ScopedChangeSubscriber<S: 'static, CS: 'static, SK>
+where
+    CS: FieldDiff,
+    SK: RefKpTrait<S, CS> + Clone,
+{
+    rx: Receiver<()>,
+    state: Arc<Mutex<S>>,
+    state_kp: SK,
+    last_hash: Option<u64>,
+    last_fields: Vec<(CS::Path, u64)>,
+    _marker: PhantomData<(S, CS)>,
+}
+
+impl<S, CS, SK> ScopedChangeSubscriber<S, CS, SK>
+where
+    S: Send + Sync,
+    CS: FieldDiff + Hash + Send + Sync,
+    SK: RefKpTrait<S, CS> + Clone,
+{
+    fn snapshot_fields(&self) -> Option<(u64, Vec<(CS::Path, u64)>)> {
+        let guard = self.state.lock();
+        let child = self.state_kp.focus(&*guard)?;
+        let root = hash_value(child);
+        let mut fields = Vec::new();
+        child.field_hashes(&mut fields);
+        Some((root, fields))
+    }
+
+    fn diff_fields(&self, fields: &[(CS::Path, u64)]) -> Vec<CS::Path> {
+        fields
+            .iter()
+            .filter(|(path, hash)| {
+                self.last_fields
+                    .iter()
+                    .find(|(prev_path, _)| prev_path == path)
+                    .is_none_or(|(_, prev_hash)| prev_hash != hash)
+            })
+            .map(|(path, _)| *path)
+            .collect()
+    }
+
+    pub fn binding(&self) -> crate::runtime::binding::ProjectedBinding<S, CS, SK> {
+        crate::runtime::binding::StateBinding::new(Arc::clone(&self.state))
+            .project(self.state_kp.clone())
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<ChangeSet<CS::Path>> {
+        loop {
+            match self.rx.try_recv() {
+                Ok(()) => {
+                    while self.rx.try_recv().is_ok() {}
+                    let Some((root_hash, fields)) = self.snapshot_fields() else {
+                        continue;
+                    };
+                    if Some(root_hash) == self.last_hash {
+                        continue;
+                    }
+                    let paths = self.diff_fields(&fields);
+                    self.last_hash = Some(root_hash);
+                    self.last_fields = fields;
+                    if paths.is_empty() {
+                        continue;
+                    }
+                    return Some(ChangeSet { paths });
+                }
+                Err(crossbeam_channel::TryRecvError::Empty) => return None,
+                Err(crossbeam_channel::TryRecvError::Disconnected) => return None,
+            }
+        }
+    }
+
+    pub fn wait_next(&mut self, timeout: Duration) -> Option<ChangeSet<CS::Path>> {
+        let deadline = std::time::Instant::now() + timeout;
+        while std::time::Instant::now() < deadline {
+            if let Some(change) = self.next() {
+                return Some(change);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        None
     }
 }
