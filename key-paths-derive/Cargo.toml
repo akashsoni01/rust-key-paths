@@ -23,8 +23,8 @@ syn = { version = "2", features = ["full"] }
 
 [dev-dependencies]
 async-trait = "0.1"
-key-paths-core = { path = "../key-paths-core", version = "2.1.0" }
-rust-key-paths = { path = "../", version = "3.4.0", features = ["tokio", "parking_lot", "pin_project"] }
+key-paths-core = "2.1"
+rust-key-paths = { version = "3.3", features = ["tokio", "parking_lot", "pin_project"] }
 tokio = { version = "1.38", features = ["sync", "rt", "macros"] }
 parking_lot = "0.12"
 pin-project = "1.1"
