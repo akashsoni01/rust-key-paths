@@ -1,7 +1,8 @@
-//! [`RwLock`](parking_lot::RwLock)-backed store flavors for read-heavy workloads.
+//! [`RwLock`](parking_lot::RwLock)-backed store for read-heavy workloads.
 //!
-//! - [`RwStore`] — dispatch + write access (reducer holds write lock).
-//! - [`ReadStore`] — read-only handle: concurrent `read()` for bindings and subscribers.
+//! Use one [`RwStore`] handle from [`RwRuntime::rw_store`](crate::RwRuntime::rw_store).
+//! Call [`RwStore::read_store`] when you need concurrent readers — you do not need a
+//! separate runtime accessor.
 
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -69,7 +70,7 @@ where
     }
 }
 
-/// Writable store backed by [`RwLock`] — reducer thread takes write lock; readers use [`ReadStore`].
+/// Writable store backed by [`RwLock`]. Readers use [`Self::read_store`].
 pub struct RwStore<S, M> {
     pub(crate) backend: RwStoreBackend<S, M>,
 }
@@ -111,6 +112,7 @@ where
         RwStateBinding::new(Arc::clone(&self.backend.state))
     }
 
+    /// Read-only view for concurrent `read()` — obtain per reader thread from one [`RwStore`].
     pub fn read_store(&self) -> ReadStore<S, M> {
         self.backend.read_store()
     }

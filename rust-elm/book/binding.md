@@ -258,6 +258,20 @@ flowchart TB
 | Derive field paths | `#[derive(Kp, Hash, FieldDiff)]` |
 | Legacy full snapshot | `store.subscribe_state()` (see [store.md](./store.md)) |
 
+### RwLock (`RwStore`)
+
+Same projection model on `Arc<RwLock<S>>`. Hold one [`RwStore`](./rw_ecommerce.md); call
+`store.read_store()` for reader threads:
+
+| Task | API |
+|------|-----|
+| Root read (many threads) | `store.read_store().with_read(f)` |
+| Root read/write binding | `store.binding()` → `RwStateBinding` |
+| Projected read | `read_store.read_binding().project(kp)` → `ReadProjectedBinding` |
+| Projected write | `store.binding().project(kp)` → `RwProjectedBinding` |
+
+See [rw_ecommerce.md](./rw_ecommerce.md) for the shop example.
+
 ---
 
 ## 9. Related
@@ -269,5 +283,6 @@ flowchart TB
 | [architecture.md](./architecture.md) | Runtime threading, reducer loop |
 | [validation.md](./validation.md) | Keypath field validation |
 | [`tests/store_changes_integration.rs`](../tests/store_changes_integration.rs) | Zero-clone tests with `panic_on_state_clone!` |
-| [`src/runtime/binding.rs`](../src/runtime/binding.rs) | `StateBinding`, `ProjectedBinding`, `ComposedBinding` |
+| [`src/runtime/binding.rs`](../src/runtime/binding.rs) | `StateBinding`, `ProjectedBinding`, `ComposedBinding`, `ReadStateBinding`, `RwStateBinding` |
+| [`src/runtime/rw_store.rs`](../src/runtime/rw_store.rs) | `RwStore`, `ReadStore` |
 | [`src/runtime/store.rs`](../src/runtime/store.rs) | `ChangeSubscriber`, `ChangeSet`, `ScopedChangeSubscriber` |

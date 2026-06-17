@@ -567,20 +567,18 @@ reducer panic is contained and the app keeps running.
 
 ## Quick reference
 
-| Task | API |
-|------|-----|
-| Get a store | `runtime.store()` |
-| Fire-and-forget | `store.dispatch(action)` |
-| Dispatch + await effects | `store.send(action).finish()` |
-| Read snapshot (clones `S`) | `store.state()` |
-| Read borrow (no clone) | `store.binding()` → `with` / `with_mut` — see [binding.md](./binding.md) |
-| Observe field changes (no clone) | `store.subscribe_changes()` → `next()` / `wait_next()` |
-| Observe full snapshots (legacy) | `store.subscribe_state()` → `next()` / `wait_next()` |
-| Child handle | `store.scope(state_kp, action_cp)` |
-| Child binding (no clone) | `scoped.binding()` |
-| Child snapshot (clones parent) | `scoped.child_state()` |
-| Observe child snapshots (legacy) | `scoped.subscribe_state()` |
-| Observe child field changes | `scoped.subscribe_changes()` |
-| Cancel effect | `store.cancel(effect_id)` |
-| Safe reduce (standalone) | `safe_reduce_update` / `safe_reduce_rollback` — see [safe_reducer.md](./safe_reducer.md) |
-| Safe reduce (composed) | `CatchReducer` / `RollbackCatchReducer` |
+| Task | `Store` (mutex) | `RwStore` (RwLock) |
+|------|-----------------|---------------------|
+| Get handle | `runtime.store()` | `runtime.rw_store()` |
+| Fire-and-forget | `store.dispatch(action)` | same |
+| Dispatch + await effects | `store.send(action).finish()` | same |
+| Read snapshot (clones `S`) | `store.state()` | `store.state()` |
+| Read borrow (no clone) | `store.binding()` — [binding.md](./binding.md) | `store.read_store().with_read(f)` or `store.binding()` |
+| Field change signals | `store.subscribe_changes()` | same |
+| Full snapshots (legacy) | `store.subscribe_state()` | same |
+| Child handle | `store.scope(kp, cp)` | same (`ScopedRwStore`) |
+| Child binding | `scoped.binding()` | `scoped.read_binding()` / `scoped.rw_binding()` |
+| Concurrent reader threads | mutex serializes reads | `store.read_store()` per thread |
+| Cancel effect | `store.cancel(id)` | same |
+
+RwLock guide: [rw_ecommerce.md](./rw_ecommerce.md). Safe reduce: [safe_reducer.md](./safe_reducer.md).

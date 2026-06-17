@@ -107,7 +107,8 @@ fn main() {
 | `scope_for_each` | `cargo run -p rust-elm --example scope_for_each` | Scope + ForEach without Runtime |
 | `dependencies` | `cargo run -p rust-elm --example dependencies` | `Environment` live vs test |
 | `shared_state` | `cargo run -p rust-elm --example shared_state` | `Shared<T>` observers |
-| `ecommerce` | `cargo run -p rust-elm --example ecommerce` | Full shop (all features) |
+| `ecommerce` | `cargo run -p rust-elm --example ecommerce` | Full shop (mutex `Runtime`) |
+| `rw_ecommerce` | `cargo run -p rust-elm --example rw_ecommerce` | Same shop on `RwRuntime` |
 
 ## Quality tooling
 
@@ -129,4 +130,4 @@ use rust_elm::keypath::{Kp, KpTrait, RefKpTrait, Readable, Writable};
 use key_paths_derive::Kp;
 ```
 
-See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/safe_reducer.md`](book/safe_reducer.md), [`book/ecommerce.md`](book/ecommerce.md).
+See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/safe_reducer.md`](book/safe_reducer.md), [`book/ecommerce.md`](book/ecommerce.md), [`book/rw_ecommerce.md`](book/rw_ecommerce.md).

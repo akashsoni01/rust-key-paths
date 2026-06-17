@@ -18,7 +18,7 @@ use crate::sub::Sub;
 
 use super::config::RuntimeConfig;
 use super::interpreter::{interpret_effects_async, InterpreterState};
-use super::rw_store::{ReadStore, RwStore, RwStoreBackend};
+use super::rw_store::{RwStore, RwStoreBackend};
 use super::store::{StoreHub, StoreWork, StoreWorkUnwindGuard};
 use super::subscription;
 
@@ -203,13 +203,6 @@ where
         self.backend.rw_store()
     }
 
-    pub fn read_store(&self) -> ReadStore<S, M>
-    where
-        S: Clone + Send + Sync + 'static,
-    {
-        self.backend.read_store()
-    }
-
     pub fn dispatch(&self, msg: M) {
         let _ = self.bus.sender().send_blocking(msg);
     }
@@ -273,10 +266,10 @@ mod tests {
     fn read_store_allows_concurrent_reads() {
         let program = Program::new(init, update, subs);
         let runtime = RwRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16));
-        let read_store = runtime.read_store();
-        runtime.dispatch(5);
+        let store = runtime.rw_store();
+        store.dispatch(5);
         std::thread::sleep(Duration::from_millis(100));
-        assert_eq!(read_store.with_read(|s| s.n), 5);
+        assert_eq!(store.read_store().with_read(|s| s.n), 5);
         runtime.shutdown();
     }
 }
