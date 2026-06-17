@@ -26,7 +26,7 @@ For reducer composition, subscriptions, and DI, see [ecommerce.md](./ecommerce.m
 Enable the feature in `Cargo.toml`:
 
 ```toml
-rust-elm = { version = "0.6", features = ["arc-swap"] }
+rust-elm = { version = "0.7", features = ["arc-swap"] }
 ```
 
 ---

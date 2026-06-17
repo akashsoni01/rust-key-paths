@@ -19,7 +19,7 @@ key-paths-derive = "3.3.0"
 
 ```toml
 [dependencies]
-rust-elm = "0.6.0"
+rust-elm = "0.7.0"
 rust-key-paths = "3.4.0"
 key-paths-derive = "3.3.0"
 ```
@@ -31,9 +31,13 @@ key-paths-derive = "3.3.0"
 | [`key-paths-core`](https://crates.io/crates/key-paths-core) | **2.1.0** | `#![no_std]` traits; `FieldDiff` + `hash_value` for per-field change signals |
 | [`rust-key-paths`](https://crates.io/crates/rust-key-paths) | **3.4.0** | `Kp`, locks, HOF; `RefKpTrait` on `Kp` |
 | [`key-paths-derive`](https://crates.io/crates/key-paths-derive) | **3.3.0** | `#[derive(Kp)]`, `#[derive(Cp)]`, `#[derive(FieldDiff)]` |
-| [`rust-elm`](https://crates.io/crates/rust-elm) | **0.6.0** | `RwRuntime`, `RwStore`, concurrent `read_store()`, field bindings |
+| [`rust-elm`](https://crates.io/crates/rust-elm) | **0.7.0** | `SwapRuntime` (`arc-swap`), `RwStore`, bindings, field change signals |
 | [`rust_identified_vec`](https://crates.io/crates/rust_identified_vec) | **0.1.2** | Identified collections (used by `rust-elm`) |
 | [`rust_dependencies`](https://crates.io/crates/rust_dependencies) | **0.1.2** | Typed DI for effects (used by `rust-elm`) |
+
+#### 0.7.0
+
+- **`arc-swap` feature** — `SwapRuntime` / `SwapStore` lock-free snapshot reads; see [swap_ecommerce.md](./rust-elm/book/swap_ecommerce.md).
 
 #### 0.6.0
 

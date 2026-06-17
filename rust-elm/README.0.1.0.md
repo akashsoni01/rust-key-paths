@@ -1,4 +1,4 @@
-# rust-elm 0.6.0
+# rust-elm 0.7.0
 
 Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 
@@ -7,7 +7,7 @@ Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 ```toml
 [dependencies]
 rust-elm = { path = "../rust-elm" }
-rust-elm = "0.6.0"
+rust-elm = "0.7.0"
 rust-key-paths = "3.4.0"
 key-paths-derive = "3.3.0"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
@@ -59,6 +59,11 @@ fn main() {
 ```
 
 ## Release notes
+
+### 0.7.0
+
+- **`arc-swap` feature** — optional `SwapRuntime`, `SwapStore`, `SnapshotStore`, snapshot bindings.
+- **`swap_ecommerce` example** — lock-free snapshot reads on the shared shop domain.
 
 ### 0.6.0
 
