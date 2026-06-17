@@ -35,3 +35,25 @@ impl<S> StateWrite<S> for Arc<RwLock<S>> {
         f(&mut *self.write())
     }
 }
+
+#[cfg(feature = "arc-swap")]
+use arc_swap::ArcSwap;
+
+/// Lock-free snapshot load from [`ArcSwap`] (see `arc-swap` feature).
+#[cfg(feature = "arc-swap")]
+pub(crate) trait SnapshotRead<S> {
+    fn with_snapshot<R>(&self, f: impl FnOnce(&S) -> R) -> R;
+
+    fn load_snapshot(&self) -> Arc<S>;
+}
+
+#[cfg(feature = "arc-swap")]
+impl<S> SnapshotRead<S> for Arc<ArcSwap<S>> {
+    fn with_snapshot<R>(&self, f: impl FnOnce(&S) -> R) -> R {
+        f(&*self.load_full())
+    }
+
+    fn load_snapshot(&self) -> Arc<S> {
+        self.load_full()
+    }
+}

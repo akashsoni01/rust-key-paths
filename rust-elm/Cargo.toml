@@ -25,6 +25,7 @@ tokio-tungstenite = { version = "0.26", optional = true }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
+arc-swap = { version = "1.7", optional = true }
 
 [dev-dependencies]
 key-paths-derive = { version = "3.3", path = "../key-paths-derive" }
@@ -43,6 +44,8 @@ default = ["runtime", "websocket"]
 runtime = ["dep:tokio"]
 # Real WebSocket subscriptions via tokio-tungstenite (simulated interval stub when disabled).
 websocket = ["runtime", "dep:tokio-tungstenite", "dep:futures-util"]
+# Lock-free snapshot reads via arc-swap (SwapRuntime / SwapStore).
+arc-swap = ["runtime", "dep:arc-swap"]
 serde = ["dep:serde", "dep:serde_json", "rust_identified_vec/serde"]
 
 [[example]]

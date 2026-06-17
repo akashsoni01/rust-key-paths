@@ -18,6 +18,7 @@ tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
 | Feature | Default | Purpose |
 |---------|---------|---------|
 | `runtime` | yes | Tokio interpreter, `Runtime`, `RwRuntime`, `Store`, subscriptions |
+| `arc-swap` | no | `SwapRuntime` / `SwapStore` — lock-free snapshot reads (`arc-swap` crate) |
 | `websocket` | yes | Real `Sub::websocket` via `tokio-tungstenite` (interval stub without it) |
 | `serde` | no | `FileStorage`, replay snapshots |
 
@@ -61,10 +62,9 @@ fn main() {
 
 ### 0.6.0
 
-- **`RwRuntime`** — `Arc<RwLock<S>>` reducer loop for read-heavy workloads.
-- **`RwStore`** / **`ReadStore`** — dispatch + `read_store()` for concurrent readers; `ScopedRwStore`.
-- **Rw bindings** — `ReadStateBinding`, `RwStateBinding`, projected variants.
-- **`StoreHub`** + **`StoreWork`** — shared bus/listeners between mutex and Rw backends.
+- **`RwRuntime`** / **`RwStore`** / **`ReadStore`** — read-heavy store API on `RwLock`.
+- **`SwapRuntime`** / **`SwapStore`** (`arc-swap` feature) — lock-free snapshot reads via `ArcSwap`.
+- **`StoreHub`** — shared dispatch hub for mutex, Rw, and swap backends.
 
 ### 0.5.0
 
@@ -93,7 +93,7 @@ fn main() {
 | `safe_reducer` | `safe_reduce_update`, `safe_reduce_rollback`, `SafeReduceError` |
 | `runtime` | Bus-driven update loop + Tokio interpreter (`runtime` feature) |
 | `subscription` | Sub interpreter — tick/stream/websocket (`runtime` feature) |
-| `store` | `Store`, `RwStore`, `ReadStore`, `StoreTask`, `ScopedStore` (`runtime` feature) |
+| `store` | `Store`, `RwStore`, `SwapStore` (`arc-swap`), `StoreTask`, scoped stores (`runtime`) |
 | `test_store` | `ExhaustiveTestStore` for synchronous effect/action testing |
 | `test_runtime` | Sync testing without Tokio |
 | `shared` | `Shared<T>`, `Storage`, `InMemoryStorage`, `FileStorage` (serde) |

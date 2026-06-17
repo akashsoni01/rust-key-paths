@@ -66,6 +66,9 @@ where
 ///
 /// `update` runs on the runtime thread — actions are never applied synchronously inside
 /// `send`, so reducers cannot re-enter themselves from the caller's stack (UDF parity).
+///
+/// See also [`RwStore`](crate::runtime::rw_store::RwStore) and, with the `arc-swap` feature,
+/// [`SwapStore`](crate::runtime::swap_store::SwapStore).
 pub struct Store<S, M> {
     pub(crate) backend: StoreBackend<S, M>,
 }

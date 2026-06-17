@@ -569,7 +569,7 @@ reducer panic is contained and the app keeps running.
 
 | Task | `Store` (mutex) | `RwStore` (RwLock) |
 |------|-----------------|---------------------|
-| Get handle | `runtime.store()` | `runtime.rw_store()` |
+| Get handle | `runtime.store()` | `runtime.rw_store()` | `runtime.swap_store()` (`arc-swap`) |
 | Fire-and-forget | `store.dispatch(action)` | same |
 | Dispatch + await effects | `store.send(action).finish()` | same |
 | Read snapshot (clones `S`) | `store.state()` | `store.state()` |
@@ -578,7 +578,7 @@ reducer panic is contained and the app keeps running.
 | Full snapshots (legacy) | `store.subscribe_state()` | same |
 | Child handle | `store.scope(kp, cp)` | same (`ScopedRwStore`) |
 | Child binding | `scoped.binding()` | `scoped.read_binding()` / `scoped.rw_binding()` |
-| Concurrent reader threads | mutex serializes reads | `store.read_store()` per thread |
+| Concurrent reader threads | mutex serializes reads | `store.read_store()` per thread | `store.snapshot_store()` — lock-free `load()` |
 | Cancel effect | `store.cancel(id)` | same |
 
-RwLock guide: [rw_ecommerce.md](./rw_ecommerce.md). Safe reduce: [safe_reducer.md](./safe_reducer.md).
+RwLock guide: [rw_ecommerce.md](./rw_ecommerce.md). Arc-swap snapshots: enable `arc-swap` feature on `rust-elm`. Safe reduce: [safe_reducer.md](./safe_reducer.md).

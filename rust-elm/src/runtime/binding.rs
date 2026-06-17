@@ -278,6 +278,82 @@ where
     }
 }
 
+// ── ArcSwap snapshot bindings (`arc-swap` feature) ──────────────────────────
+
+/// Lock-free read binding over [`ArcSwap`](arc_swap::ArcSwap) state snapshots.
+#[cfg(feature = "arc-swap")]
+#[derive(Clone)]
+pub struct SnapshotStateBinding<S: 'static> {
+    state: Arc<arc_swap::ArcSwap<S>>,
+}
+
+#[cfg(feature = "arc-swap")]
+impl<S: 'static> SnapshotStateBinding<S> {
+    pub(crate) fn new(state: Arc<arc_swap::ArcSwap<S>>) -> Self {
+        Self { state }
+    }
+
+    pub fn with_snapshot<R>(&self, f: impl FnOnce(&S) -> R) -> R {
+        f(&*self.state.load_full())
+    }
+
+    pub fn load(&self) -> Arc<S>
+    where
+        S: Clone,
+    {
+        self.state.load_full()
+    }
+
+    pub fn project<V, SK>(&self, kp: SK) -> SnapshotProjectedBinding<S, V, SK>
+    where
+        SK: RefKpTrait<S, V>,
+    {
+        SnapshotProjectedBinding {
+            state: Arc::clone(&self.state),
+            kp,
+            _marker: PhantomData,
+        }
+    }
+}
+
+/// Projected field from [`SnapshotStateBinding`].
+#[cfg(feature = "arc-swap")]
+pub struct SnapshotProjectedBinding<Root: 'static, Focus: 'static, SK> {
+    state: Arc<arc_swap::ArcSwap<Root>>,
+    kp: SK,
+    _marker: PhantomData<Focus>,
+}
+
+#[cfg(feature = "arc-swap")]
+impl<Root, Focus, SK> Clone for SnapshotProjectedBinding<Root, Focus, SK>
+where
+    Root: 'static,
+    Focus: 'static,
+    SK: RefKpTrait<Root, Focus> + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            state: Arc::clone(&self.state),
+            kp: self.kp.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "arc-swap")]
+impl<Root, Focus, SK> SnapshotProjectedBinding<Root, Focus, SK>
+where
+    Root: 'static,
+    Focus: 'static,
+    SK: RefKpTrait<Root, Focus>,
+{
+    pub fn with_snapshot<R>(&self, f: impl FnOnce(&Focus) -> R) -> Option<R> {
+        let snapshot = self.state.load_full();
+        let focused = self.kp.focus(&*snapshot)?;
+        Some(f(focused))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

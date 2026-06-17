@@ -71,6 +71,8 @@ pub use replay::{ReplayHarness, ReplayLog};
 pub use replay::StateSnapshot;
 #[cfg(feature = "runtime")]
 pub use runtime::{Runtime, RuntimeConfig, RwRuntime};
+#[cfg(all(feature = "runtime", feature = "arc-swap"))]
+pub use runtime::SwapRuntime;
 pub use scope::{
     lift_cmd, lift_cmd_with_id, ForEachReducer, IfCaseLetReducer, IfLetReducer, OptionalReducer,
     ScopeReducer,
@@ -87,10 +89,16 @@ pub use store::{
 pub use runtime::rw_store::{
     ReadStore, RwChangeSubscriber, RwStateSubscriber, RwStore, ScopedRwStore,
 };
+#[cfg(all(feature = "runtime", feature = "arc-swap"))]
+pub use runtime::swap_store::{
+    ScopedSwapStore, SnapshotStore, SwapChangeSubscriber, SwapStateSubscriber, SwapStore,
+};
 pub use runtime::binding::{
     ComposedBinding, ProjectedBinding, ReadProjectedBinding, ReadStateBinding,
     RwProjectedBinding, RwStateBinding, StateBinding,
 };
+#[cfg(feature = "arc-swap")]
+pub use runtime::binding::{SnapshotProjectedBinding, SnapshotStateBinding};
 pub use sub::Sub;
 pub use test_runtime::TestRuntime;
 #[cfg(feature = "runtime")]
