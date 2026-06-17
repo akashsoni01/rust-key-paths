@@ -23,7 +23,7 @@ For runtime internals (bus, Tokio, general UDF flow), see [architecture.md](./ar
 | Root metrics from child subs | `subscription_metrics_reducer` |
 | All five `Sub` varieties | tick, stream, websocket, map_msg, batch |
 | Dependency injection | `Environment` + live/mock HTTP + date |
-| Panic recovery | `GlobalAction::TriggerPanic` + `CatchReducer` |
+| Panic recovery | `GlobalAction::TriggerPanic` + `CatchReducer` (`safe_reduce_update`) |
 
 ---
 
@@ -31,7 +31,7 @@ For runtime internals (bus, Tokio, general UDF flow), see [architecture.md](./ar
 
 ```mermaid
 flowchart TB
-    Catch["CatchReducer (panic recover)"]
+    Catch["CatchReducer (safe_reduce_update)"]
     C1["1 subscription_metrics"]
     C2["2 detail_cart_bridge"]
     C3["3 global"]
@@ -243,12 +243,12 @@ sequenceDiagram
 Layers involved:
 
 1. **`safe_reduce_update`** (runtime) — catches unwind; state not reverted
-2. **`CatchReducer`** — logs `{panic:?}`; returns `Cmd::none()` (effects from that turn dropped)
+2. **`CatchReducer`** — uses `safe_reduce_update`; logs `SafeReduceError`; returns `Cmd::none()` (effects from that turn dropped)
 3. **`StoreWorkUnwindGuard`** — `StoreTask::finish` does not hang
 
 Reducers **after** the panicking sibling in the same `CombineReducers` tuple **do not run** for that action. Here `global_reducer` is slot 3; catalog/cart/checkout never see `TriggerPanic`.
 
-For rollback-on-panic, use `RollbackCatchReducer` ([`examples/safe_reducer.rs`](../examples/safe_reducer.rs)).
+For rollback-on-panic, use `RollbackCatchReducer` / `safe_reduce_rollback` ([`examples/safe_reducer.rs`](../examples/safe_reducer.rs), [safe_reducer.md](./safe_reducer.md)).
 
 ---
 

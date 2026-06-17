@@ -300,6 +300,7 @@ You can combine them: an actor can **dispatch** into a `Store` (external events 
 ## Panic-free applications
 
 rust-elm provides **layers** of resilience; none replace careful reducer/effect code.
+See [safe_reducer.md](./safe_reducer.md) for the full API reference.
 
 ```mermaid
 flowchart TB
@@ -352,6 +353,7 @@ mindmap
     reducer
       CombineReducers
       CatchReducer
+      safe_reducer
     scope
       ScopeReducer
       IfLetReducer
@@ -372,6 +374,8 @@ mindmap
 ## Related docs
 
 - [README / quick start](../README.0.1.0.md)
+- [safe_reducer](./safe_reducer.md)
+- [binding](./binding.md)
 - [ROADMAP](../ROADMAP.md)
 - [dependencies](../rust_dependencies/book/dependencies.md) — `Environment` / DI
 - [identified collections](../rust_identified_vec/book/identified.md) — `ForEachReducer`

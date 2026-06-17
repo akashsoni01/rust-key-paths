@@ -2,10 +2,11 @@
 
 | Document | Description |
 |----------|-------------|
-| [architecture.md](./architecture.md) | Runtime, threading, effects, composition, actors comparison, panic strategy |
+| [architecture.md](./architecture.md) | Runtime, threading, effects, composition, actors comparison, safe reducer strategy |
 | [store.md](./store.md) | Store dispatch, scoping, legacy snapshot subscription (`subscribe_state`) |
 | [binding.md](./binding.md) | Zero-copy bindings, keypath projection, field change signals (`subscribe_changes`) |
-| [ecommerce.md](./ecommerce.md) | Shop example: scoping, subs, locks, panic demo, production notes, cross-thread store |
+| [safe_reducer.md](./safe_reducer.md) | `safe_reduce_update`, `safe_reduce_rollback`, `CatchReducer` |
+| [ecommerce.md](./ecommerce.md) | Shop example: scoping, subs, locks, safe reducer demo, cross-thread store |
 | [pain.md](./pain.md) | ISO 20022 PAIN.001 payload state + keypath field validation |
 | [validation.md](./validation.md) | Reusable keypath validation framework (`Rule`, `Validator`, `Validate`) |
 | [../examples/ecommerce.rs](../examples/ecommerce.rs) | Full compositional shop example (4-level actions, scopes, ifLet, forEach) |

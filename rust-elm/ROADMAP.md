@@ -16,6 +16,7 @@
 - Effects parity (phase 6): `debounce`, `throttle`, `from_run`/`RunSender`, `cancellable_with`, `result_task`, `task_try`
 - Dependencies (phase 7): `DependencyValues`, `DependencyKey`, `Environment::live`/`test`, built-in Clock/Uuid/Now/Rng, `Effect::provide_dependency`
 - Store (phase 8): `Store`, `StoreTask`, `ScopedStore`, `StateSubscriber`, `Runtime::store()`, ping-based state subscription, in-flight work tracking for `send().finish()`
+- Safe reducer (phase 8b): `safe_reducer` module — `safe_reduce_update`, `safe_reduce_rollback`, `SafeReduceError`; `CatchReducer`, `RollbackCatchReducer`
 - Test store (phase 9): `ExhaustiveTestStore`, `send_with`, `receive`/`receive_timeout`, `finish`, `with_exhaustivity(false)`
 - Shared state (phase 10): `Shared<T>`, `Storage`/`InMemoryStorage`/`FileStorage`, `ReplayHarness::snapshot`/`restore`, `StateSnapshot`
 

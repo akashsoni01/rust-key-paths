@@ -1,4 +1,4 @@
-# rust-elm 0.3.0
+# rust-elm 0.5.0
 
 Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 
@@ -7,7 +7,7 @@ Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 ```toml
 [dependencies]
 rust-elm = { path = "../rust-elm" }
-rust-elm = "0.3.0"
+rust-elm = "0.5.0"
 rust-key-paths = "3.4.0"
 key-paths-derive = "3.3.0"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
@@ -59,6 +59,12 @@ fn main() {
 
 ## Release notes
 
+### 0.5.0
+
+- **`safe_reducer`** module — `safe_reduce_update`, `safe_reduce_rollback`, `SafeReduceError` (replaces `reduce_panic` / `catch_reduce_panic` / `ReducePanic`).
+- **`StateBinding`** / **`subscribe_changes`** — zero-copy store reads and field-level change signals; see [binding.md](book/binding.md).
+- Example renamed: `safe_reducer` (was `catch_reduce`).
+
 ### 0.3.0
 
 - **`RuntimeConfig`** — `bus_capacity`, `worker_threads`, `thread_name` for `Runtime::from_program`.
@@ -87,7 +93,7 @@ fn main() {
 | `dependencies` | Re-exports [`rust_dependencies`](../rust_dependencies) |
 | `env` | `Environment` (`live`/`test`), `FakeClock`, `MockHttp` |
 | `optics` | State/action focusing via `rust-key-paths` |
-| `reducer` | `Reducer` trait, `CombineReducers` (up to **6** siblings), `reducers!` |
+| `reducer` | `Reducer` trait, `CombineReducers`, `CatchReducer`, `RollbackCatchReducer` |
 | `scope` | `ScopeReducer`, `IfLetReducer`, `ForEachReducer`, `lift_cmd` |
 | `identified` | Re-exports [`rust_identified_vec`](../rust_identified_vec) |
 | `replay` | Action log + replay harness |
@@ -123,4 +129,4 @@ use rust_elm::keypath::{Kp, KpTrait, RefKpTrait, Readable, Writable};
 use key_paths_derive::Kp;
 ```
 
-See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/ecommerce.md`](book/ecommerce.md).
+See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/safe_reducer.md`](book/safe_reducer.md), [`book/ecommerce.md`](book/ecommerce.md).

@@ -265,6 +265,7 @@ flowchart TB
 | Document | Topic |
 |----------|-------|
 | [store.md](./store.md) | Dispatch, scoping, `subscribe_state`, `StoreTask` |
+| [safe_reducer.md](./safe_reducer.md) | `safe_reduce_update`, `CatchReducer`, rollback |
 | [architecture.md](./architecture.md) | Runtime threading, reducer loop |
 | [validation.md](./validation.md) | Keypath field validation |
 | [`tests/store_changes_integration.rs`](../tests/store_changes_integration.rs) | Zero-clone tests with `panic_on_state_clone!` |

@@ -11,7 +11,7 @@
 //! | Directory | Role |
 //! |-----------|------|
 //! | [`core/`](core) | `Cmd`, `Effect`, `Sub`, `Program`, `bus` — pure data |
-//! | [`compose/`](compose) | `Reducer`, `ScopeReducer`, optics, panic recovery |
+//! | [`compose/`](compose) | `Reducer`, `ScopeReducer`, `safe_reducer`, optics |
 //! | [`infra/`](infra) | `Environment`, `Shared`, replay |
 //! | [`runtime/`](runtime) | Store, Tokio interpreter, subscriptions (`runtime` feature) |
 //! | [`testing/`](testing) | `TestRuntime`, `ExhaustiveTestStore`, macros |

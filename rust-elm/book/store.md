@@ -521,8 +521,8 @@ Relatives: `IfLetReducer` (optional child + dismiss/cancel), `ForEachReducer`
 
 ### `CatchReducer` — a *safety* adapter (same state/action)
 
-`CatchReducer<R, F>` wraps any reducer and runs it inside `safe_reduce_update`. On panic
-it calls your `recover` to produce a fallback `Cmd` instead of unwinding the reducer
+`CatchReducer<R, F>` wraps any reducer and runs it inside [`safe_reduce_update`](./safe_reducer.md). On panic
+it calls your `recover` with a [`SafeReduceError`](./safe_reducer.md) to produce a fallback `Cmd` instead of unwinding the reducer
 thread:
 
 ```100:114:rust-elm/src/compose/reducer.rs
@@ -537,15 +537,15 @@ where
     fn reduce(&self, state: &mut S, action: A) -> Cmd<A> {
         match safe_reduce_update(state, |s, a| self.inner.reduce(s, a), action) {
             Ok(cmd) => cmd,
-            Err(panic) => (self.recover)(panic),
+            Err(err) => (self.recover)(err),
         }
     }
 }
 ```
 
 It keeps the **same** `State`/`Action` (it's a transparent wrapper), and by default does
-**not** revert partial mutations made before the panic (use `RollbackCatchReducer` for
-checkpoint rollback). In the shop it wraps the entire `CombineReducers` tuple so any
+**not** revert partial mutations made before the panic (use [`RollbackCatchReducer`](./safe_reducer.md) /
+[`safe_reduce_rollback`](./safe_reducer.md) for checkpoint rollback). In the shop it wraps the entire `CombineReducers` tuple so any
 reducer panic is contained and the app keeps running.
 
 ### Side-by-side
@@ -582,3 +582,5 @@ reducer panic is contained and the app keeps running.
 | Observe child snapshots (legacy) | `scoped.subscribe_state()` |
 | Observe child field changes | `scoped.subscribe_changes()` |
 | Cancel effect | `store.cancel(effect_id)` |
+| Safe reduce (standalone) | `safe_reduce_update` / `safe_reduce_rollback` — see [safe_reducer.md](./safe_reducer.md) |
+| Safe reduce (composed) | `CatchReducer` / `RollbackCatchReducer` |

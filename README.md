@@ -39,7 +39,7 @@ key-paths-derive = "3.3.0"
 
 - **`FieldDiff`** in `key-paths-core` — per-field hashing for change signals without cloning whole state.
 - **`#[derive(FieldDiff)]`** in `key-paths-derive` 3.3.0 — generates `{Struct}Field` path enum + `field_hashes`.
-- **`rust-elm` 0.5.0** — `StateBinding` / keypath projection, `subscribe_changes`, `ScopedChangeSubscriber`; see [binding.md](./rust-elm/book/binding.md).
+- **`rust-elm` 0.5.0** — `StateBinding` / `subscribe_changes`, `safe_reducer` module (`safe_reduce_update`, `SafeReduceError`); see [binding.md](./rust-elm/book/binding.md) and [safe_reducer.md](./rust-elm/book/safe_reducer.md).
 
 #### 3.3.1 / 2.0.4 / 0.3.0
 
