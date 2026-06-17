@@ -4,7 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crossbeam_channel::RecvTimeoutError;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use tokio::runtime::{Builder as TokioRuntimeBuilder, Runtime as TokioRuntime};
 
 use crate::bus::{Bus, BusSender};
@@ -18,22 +18,23 @@ use crate::sub::Sub;
 
 use super::config::RuntimeConfig;
 use super::interpreter::{interpret_effects_async, InterpreterState};
-use super::store::{StoreBackend, StoreWork, StoreWorkUnwindGuard};
+use super::rw_store::{ReadStore, RwStore, RwStoreBackend};
+use super::store::{StoreHub, StoreWork, StoreWorkUnwindGuard};
 use super::subscription;
 
-/// Live runtime — bus-driven update loop on a pinned thread with Tokio effect interpreter.
-pub struct Runtime<S, M> {
-    pub state: Arc<Mutex<S>>,
+/// Live runtime with [`RwLock`] state — many concurrent readers, exclusive writer on reducer thread.
+pub struct RwRuntime<S, M> {
+    pub state: Arc<RwLock<S>>,
     pub bus: Bus<M>,
     pub env: Environment,
-    backend: StoreBackend<S, M>,
+    backend: RwStoreBackend<S, M>,
     shutdown: Arc<AtomicBool>,
     _thread: Option<JoinHandle<()>>,
     _tokio: Arc<TokioRuntime>,
     _subscriptions: Arc<subscription::SubscriptionHandles>,
 }
 
-impl<S, M> Runtime<S, M>
+impl<S, M> RwRuntime<S, M>
 where
     S: Send + Sync + 'static,
     M: Send + 'static,
@@ -81,7 +82,7 @@ where
             thread_name,
         } = config;
         let (initial_state, init_cmd) = init();
-        let state = Arc::new(Mutex::new(initial_state));
+        let state = Arc::new(RwLock::new(initial_state));
         let bus = Bus::new(bus_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
         let tokio = Arc::new(
@@ -94,7 +95,8 @@ where
         );
         let interpreter = InterpreterState::new();
         let sub_handles = Arc::new(subscription::SubscriptionHandles::new());
-        let backend = StoreBackend::new(state.clone(), bus.sender(), interpreter);
+        let hub = StoreHub::new(bus.sender(), interpreter);
+        let backend = RwStoreBackend::new(state.clone(), hub);
         let tx = bus.sender();
         let init_handles = tokio.block_on(interpret_effects_async(
             init_cmd.into_effects(),
@@ -135,14 +137,14 @@ where
                     );
                 };
 
-                sync_subs(&state_for_thread.lock());
+                sync_subs(&state_for_thread.read());
 
                 while !shutdown_for_thread.load(Ordering::Relaxed) {
                     match receiver.recv_timeout(Duration::from_millis(50)) {
                         Ok(msg) => {
                             let mut unwind = StoreWorkUnwindGuard::new(&backend_for_thread);
                             let cmd = {
-                                let mut guard = state_for_thread.lock();
+                                let mut guard = state_for_thread.write();
                                 match safe_reduce_update(&mut *guard, |s, a| update(s, a), msg) {
                                     Ok(cmd) => cmd,
                                     Err(_) => {
@@ -173,7 +175,7 @@ where
                                 });
                             }
 
-                            sync_subs(&state_for_thread.lock());
+                            sync_subs(&state_for_thread.read());
                         }
                         Err(RecvTimeoutError::Timeout) => continue,
                         Err(RecvTimeoutError::Disconnected) => break,
@@ -194,11 +196,18 @@ where
         }
     }
 
-    pub fn store(&self) -> crate::Store<S, M>
+    pub fn rw_store(&self) -> RwStore<S, M>
     where
         S: Clone + Send + Sync + 'static,
     {
-        self.backend.store()
+        self.backend.rw_store()
+    }
+
+    pub fn read_store(&self) -> ReadStore<S, M>
+    where
+        S: Clone + Send + Sync + 'static,
+    {
+        self.backend.read_store()
     }
 
     pub fn dispatch(&self, msg: M) {
@@ -227,7 +236,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::effect::Effect;
     use crate::panic_on_state_clone;
 
     panic_on_state_clone! {
@@ -251,68 +259,24 @@ mod tests {
     }
 
     #[test]
-    fn runtime_tick_subscription_dispatches() {
-        fn subs(_: &Counter) -> Sub<i32> {
-            Sub::tick(7, Duration::from_millis(30), || 1)
-        }
-
+    fn rw_runtime_applies_dispatched_messages() {
         let program = Program::new(init, update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
-        std::thread::sleep(Duration::from_millis(200));
-        assert!(runtime.state.lock().n >= 1);
-        runtime.shutdown();
-    }
-
-    #[test]
-    fn runtime_applies_dispatched_messages() {
-        let program = Program::new(init, update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let runtime = RwRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16));
         runtime.dispatch(3);
         runtime.dispatch(4);
         std::thread::sleep(Duration::from_millis(200));
-        assert_eq!(runtime.state.lock().n, 7);
+        assert_eq!(runtime.state.read().n, 7);
         runtime.shutdown();
     }
 
     #[test]
-    fn runtime_runs_task_effects() {
-        fn update_with_effect(s: &mut Counter, msg: i32) -> Cmd<i32> {
-            if msg == 0 {
-                Cmd::single(Effect::task(1, || Box::pin(async { Ok(10) })))
-            } else {
-                s.n += msg;
-                Cmd::none()
-            }
-        }
-        let program = Program::new(init, update_with_effect, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
-        runtime.dispatch(0);
-        std::thread::sleep(Duration::from_millis(200));
-        assert_eq!(runtime.state.lock().n, 10);
-        runtime.shutdown();
-    }
-
-    #[test]
-    fn runtime_safe_reduce_update_unwinds_store_work() {
-        fn panicking_update(s: &mut Counter, msg: i32) -> Cmd<i32> {
-            s.n = 99;
-            if msg < 0 {
-                panic!("reduce panic");
-            }
-            s.n = msg;
-            Cmd::none()
-        }
-
-        let program = Program::new(init, panicking_update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
-        let store = runtime.store();
-        let task = store.send(-1);
-        assert!(task.finish().is_ok());
-        assert_eq!(runtime.state.lock().n, 99);
-
-        runtime.dispatch(4);
-        std::thread::sleep(Duration::from_millis(200));
-        assert_eq!(runtime.state.lock().n, 4);
+    fn read_store_allows_concurrent_reads() {
+        let program = Program::new(init, update, subs);
+        let runtime = RwRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let read_store = runtime.read_store();
+        runtime.dispatch(5);
+        std::thread::sleep(Duration::from_millis(100));
+        assert_eq!(read_store.with_read(|s| s.n), 5);
         runtime.shutdown();
     }
 }

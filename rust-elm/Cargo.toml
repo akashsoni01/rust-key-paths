@@ -68,6 +68,10 @@ name = "ecommerce"
 path = "examples/ecommerce.rs"
 
 [[example]]
+name = "rw_ecommerce"
+path = "examples/rw_ecommerce.rs"
+
+[[example]]
 name = "subscriptions"
 path = "examples/subscriptions.rs"
 required-features = ["runtime"]

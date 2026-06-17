@@ -7,21 +7,22 @@ use tokio::runtime::Handle;
 use tokio::task::AbortHandle;
 
 use crate::bus::BusSender;
-use crate::store::StoreBackend;
+use crate::store::StoreWork;
 
 #[cfg(feature = "websocket")]
-pub(crate) fn spawn_websocket<S, M>(
+pub(crate) fn spawn_websocket<S, M, B>(
     url: &'static str,
     reconnect_every: Duration,
     produce: fn() -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     handle
         .spawn(async move {
@@ -31,18 +32,19 @@ where
 }
 
 #[cfg(feature = "websocket")]
-pub(crate) fn spawn_websocket_mapped<S, M>(
+pub(crate) fn spawn_websocket_mapped<S, M, B>(
     url: &'static str,
     reconnect_every: Duration,
     map: fn(()) -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     handle
         .spawn(async move {
@@ -60,15 +62,16 @@ where
 }
 
 #[cfg(feature = "websocket")]
-async fn websocket_simulated_loop<S, M, F>(
+async fn websocket_simulated_loop<S, M, B, F>(
     every: Duration,
     produce: F,
-    backend: &StoreBackend<S, M>,
+    backend: &B,
     tx: &BusSender<M>,
     shutdown: &Arc<AtomicBool>,
 ) where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M>,
     F: Fn() -> M,
 {
     loop {
@@ -85,16 +88,17 @@ async fn websocket_simulated_loop<S, M, F>(
 }
 
 #[cfg(feature = "websocket")]
-async fn websocket_loop_impl<S, M, F>(
+async fn websocket_loop_impl<S, M, B, F>(
     url: &str,
     reconnect_every: Duration,
     produce: F,
-    backend: &StoreBackend<S, M>,
+    backend: &B,
     tx: &BusSender<M>,
     shutdown: &Arc<AtomicBool>,
 ) where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M>,
     F: Fn() -> M,
 {
     if url.starts_with("mock://") {
@@ -144,49 +148,52 @@ async fn websocket_loop_impl<S, M, F>(
 }
 
 #[cfg(not(feature = "websocket"))]
-pub(crate) fn spawn_websocket<S, M>(
+pub(crate) fn spawn_websocket<S, M, B>(
     _url: &'static str,
     every: Duration,
     produce: fn() -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     spawn_websocket_simulated(every, produce, handle, tx, backend, shutdown)
 }
 
 #[cfg(not(feature = "websocket"))]
-pub(crate) fn spawn_websocket_mapped<S, M>(
+pub(crate) fn spawn_websocket_mapped<S, M, B>(
     _url: &'static str,
     every: Duration,
     map: fn(()) -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     spawn_websocket_simulated_mapped(every, map, handle, tx, backend, shutdown)
 }
 
 #[cfg(not(feature = "websocket"))]
-async fn websocket_simulated_loop<S, M, F>(
+async fn websocket_simulated_loop<S, M, B, F>(
     every: Duration,
     produce: F,
-    backend: &StoreBackend<S, M>,
+    backend: &B,
     tx: &BusSender<M>,
     shutdown: &Arc<AtomicBool>,
 ) where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M>,
     F: Fn() -> M,
 {
     loop {
@@ -203,17 +210,18 @@ async fn websocket_simulated_loop<S, M, F>(
 }
 
 #[cfg(not(feature = "websocket"))]
-fn spawn_websocket_simulated<S, M>(
+fn spawn_websocket_simulated<S, M, B>(
     every: Duration,
     produce: fn() -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     handle
         .spawn(async move {
@@ -223,17 +231,18 @@ where
 }
 
 #[cfg(not(feature = "websocket"))]
-fn spawn_websocket_simulated_mapped<S, M>(
+fn spawn_websocket_simulated_mapped<S, M, B>(
     every: Duration,
     map: fn(()) -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     handle
         .spawn(async move {

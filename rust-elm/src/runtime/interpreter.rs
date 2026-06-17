@@ -10,7 +10,7 @@ use crate::error::EffectError;
 use crate::interp::flatten_effects;
 use crate::bus::BusSender;
 use super::dispatch::dispatch_from_effect;
-use super::store::StoreBackend;
+use super::store::StoreWork;
 
 pub(crate) struct InterpreterState<M> {
     pub cancel_tokens: Mutex<HashMap<EffectId, tokio::task::AbortHandle>>,
@@ -34,18 +34,19 @@ struct ThrottleGate<M> {
     timer: Option<TokioJoinHandle<()>>,
 }
 
-pub(super) async fn interpret_effects_async<S, M>(
+pub(super) async fn interpret_effects_async<S, M, B>(
     effects: Vec<Effect<M>>,
     tx: BusSender<M>,
     env: Environment,
     handle: tokio::runtime::Handle,
-    backend: StoreBackend<S, M>,
+    backend: B,
 ) -> Vec<TokioJoinHandle<()>>
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
-    let interpreter = backend.interpreter.clone();
+    let interpreter = backend.hub().interpreter.clone();
     let mut handles = Vec::new();
     for effect in effects {
         for leaf in flatten_effects(effect) {
@@ -62,17 +63,18 @@ where
     handles
 }
 
-fn spawn_effect<S, M>(
+fn spawn_effect<S, M, B>(
     effect: Effect<M>,
     tx: BusSender<M>,
     env: Environment,
     handle: tokio::runtime::Handle,
     interpreter: Arc<InterpreterState<M>>,
-    backend: StoreBackend<S, M>,
+    backend: B,
 ) -> Vec<TokioJoinHandle<()>>
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     let mut batch = Vec::new();
     spawn_effect_inner(
@@ -102,17 +104,18 @@ fn track_spawn<M>(
     batch.push(join);
 }
 
-fn spawn_effect_inner<S, M>(
+fn spawn_effect_inner<S, M, B>(
     effect: Effect<M>,
     tx: BusSender<M>,
     env: Environment,
     handle: tokio::runtime::Handle,
     interpreter: Arc<InterpreterState<M>>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     batch: &mut Vec<TokioJoinHandle<()>>,
 ) where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     use crate::effect::{
         run_registered_env_task, run_registered_run, run_registered_task,

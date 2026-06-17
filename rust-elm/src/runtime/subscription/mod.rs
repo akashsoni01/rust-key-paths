@@ -10,7 +10,7 @@ use tokio::task::AbortHandle;
 use tokio::time::{interval, MissedTickBehavior};
 
 use crate::bus::BusSender;
-use crate::store::StoreBackend;
+use crate::store::StoreWork;
 use crate::sub::Sub;
 
 pub(crate) struct SubscriptionHandles {
@@ -33,16 +33,17 @@ impl SubscriptionHandles {
 }
 
 /// Reconcile running subscription tasks with the desired [`Sub`] tree.
-pub(crate) fn sync_subscriptions<S, M>(
+pub(crate) fn sync_subscriptions<S, M, B>(
     sub: &Sub<M>,
     registry: &SubscriptionHandles,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     let mut desired = HashSet::new();
     collect_sub_ids(sub, &mut desired);
@@ -67,16 +68,17 @@ pub(crate) fn sync_subscriptions<S, M>(
     );
 }
 
-fn spawn_subscriptions<S, M>(
+fn spawn_subscriptions<S, M, B>(
     sub: &Sub<M>,
     active: &mut HashMap<u64, AbortHandle>,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     match sub {
         Sub::None => {}
@@ -119,17 +121,18 @@ fn spawn_subscriptions<S, M>(
     }
 }
 
-fn spawn_unit_subscriptions<S, M>(
+fn spawn_unit_subscriptions<S, M, B>(
     sub: &Sub<()>,
     map: fn(()) -> M,
     active: &mut HashMap<u64, AbortHandle>,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     match sub {
         Sub::None => {}
@@ -172,17 +175,18 @@ fn spawn_if_new(id: u64, active: &mut HashMap<u64, AbortHandle>, spawn: impl FnO
     active.insert(id, spawn());
 }
 
-fn spawn_tick<S, M>(
+fn spawn_tick<S, M, B>(
     every: std::time::Duration,
     produce: fn() -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     handle
         .spawn(async move {
@@ -203,17 +207,18 @@ where
         .abort_handle()
 }
 
-fn spawn_tick_mapped<S, M>(
+fn spawn_tick_mapped<S, M, B>(
     every: std::time::Duration,
     map: fn(()) -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     handle
         .spawn(async move {
@@ -234,18 +239,19 @@ where
         .abort_handle()
 }
 
-fn spawn_stream<S, M>(
+fn spawn_stream<S, M, B>(
     _name: &'static str,
     every: std::time::Duration,
     produce: fn() -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     handle
         .spawn(async move {
@@ -265,18 +271,19 @@ where
         .abort_handle()
 }
 
-fn spawn_stream_mapped<S, M>(
+fn spawn_stream_mapped<S, M, B>(
     _name: &'static str,
     every: std::time::Duration,
     map: fn(()) -> M,
     handle: Handle,
     tx: BusSender<M>,
-    backend: StoreBackend<S, M>,
+    backend: B,
     shutdown: Arc<AtomicBool>,
 ) -> AbortHandle
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + Clone + Send + Sync + 'static,
 {
     handle
         .spawn(async move {

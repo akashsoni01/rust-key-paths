@@ -10,7 +10,9 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use key_paths_core::RefKpTrait;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
+
+use crate::runtime::state_access::{StateRead, StateWrite};
 
 /// Read/write access to store state without cloning `S`.
 #[derive(Clone)]
@@ -132,6 +134,146 @@ where
         let mut guard = self.state.lock();
         let mid = self.parent_kp.focus_mut(&mut *guard)?;
         let focused = self.sub_kp.focus_mut(mid)?;
+        Some(f(focused))
+    }
+}
+
+// ── RwLock-backed bindings (concurrent readers) ─────────────────────────────
+
+/// Read-only binding over [`RwLock`] state — many concurrent readers.
+#[derive(Clone)]
+pub struct ReadStateBinding<S: 'static> {
+    state: Arc<RwLock<S>>,
+}
+
+impl<S: 'static> ReadStateBinding<S> {
+    pub(crate) fn new(state: Arc<RwLock<S>>) -> Self {
+        Self { state }
+    }
+
+    pub fn with_read<R>(&self, f: impl FnOnce(&S) -> R) -> R {
+        self.state.with_read(f)
+    }
+
+    pub fn project<V, SK>(&self, kp: SK) -> ReadProjectedBinding<S, V, SK>
+    where
+        SK: RefKpTrait<S, V>,
+    {
+        ReadProjectedBinding {
+            state: Arc::clone(&self.state),
+            kp,
+            _marker: PhantomData,
+        }
+    }
+}
+
+/// Read/write binding over [`RwLock`] state — writes take exclusive lock.
+#[derive(Clone)]
+pub struct RwStateBinding<S: 'static> {
+    state: Arc<RwLock<S>>,
+}
+
+impl<S: 'static> RwStateBinding<S> {
+    pub(crate) fn new(state: Arc<RwLock<S>>) -> Self {
+        Self { state }
+    }
+
+    pub fn with_read<R>(&self, f: impl FnOnce(&S) -> R) -> R {
+        self.state.with_read(f)
+    }
+
+    pub fn with_write<R>(&self, f: impl FnOnce(&mut S) -> R) -> R {
+        self.state.with_write(f)
+    }
+
+    pub fn read_store(&self) -> ReadStateBinding<S> {
+        ReadStateBinding::new(Arc::clone(&self.state))
+    }
+
+    pub fn project<V, SK>(&self, kp: SK) -> RwProjectedBinding<S, V, SK>
+    where
+        SK: RefKpTrait<S, V>,
+    {
+        RwProjectedBinding {
+            state: Arc::clone(&self.state),
+            kp,
+            _marker: PhantomData,
+        }
+    }
+}
+
+/// Read-only projected field from [`ReadStateBinding`].
+pub struct ReadProjectedBinding<Root: 'static, Focus: 'static, SK> {
+    state: Arc<RwLock<Root>>,
+    kp: SK,
+    _marker: PhantomData<Focus>,
+}
+
+impl<Root, Focus, SK> Clone for ReadProjectedBinding<Root, Focus, SK>
+where
+    Root: 'static,
+    Focus: 'static,
+    SK: RefKpTrait<Root, Focus> + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            state: Arc::clone(&self.state),
+            kp: self.kp.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<Root, Focus, SK> ReadProjectedBinding<Root, Focus, SK>
+where
+    Root: 'static,
+    Focus: 'static,
+    SK: RefKpTrait<Root, Focus>,
+{
+    pub fn with_read<R>(&self, f: impl FnOnce(&Focus) -> R) -> Option<R> {
+        let guard = self.state.read();
+        let focused = self.kp.focus(&*guard)?;
+        Some(f(focused))
+    }
+}
+
+/// Projected field from [`RwStateBinding`].
+pub struct RwProjectedBinding<Root: 'static, Focus: 'static, SK> {
+    state: Arc<RwLock<Root>>,
+    kp: SK,
+    _marker: PhantomData<Focus>,
+}
+
+impl<Root, Focus, SK> Clone for RwProjectedBinding<Root, Focus, SK>
+where
+    Root: 'static,
+    Focus: 'static,
+    SK: RefKpTrait<Root, Focus> + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            state: Arc::clone(&self.state),
+            kp: self.kp.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<Root, Focus, SK> RwProjectedBinding<Root, Focus, SK>
+where
+    Root: 'static,
+    Focus: 'static,
+    SK: RefKpTrait<Root, Focus>,
+{
+    pub fn with_read<R>(&self, f: impl FnOnce(&Focus) -> R) -> Option<R> {
+        let guard = self.state.read();
+        let focused = self.kp.focus(&*guard)?;
+        Some(f(focused))
+    }
+
+    pub fn with_write<R>(&self, f: impl FnOnce(&mut Focus) -> R) -> Option<R> {
+        let mut guard = self.state.write();
+        let focused = self.kp.focus_mut(&mut *guard)?;
         Some(f(focused))
     }
 }

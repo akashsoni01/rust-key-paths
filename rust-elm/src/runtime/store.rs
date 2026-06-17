@@ -16,28 +16,31 @@ use crate::runtime::binding::StateBinding;
 use key_paths_core::RefKpTrait;
 use super::interpreter::InterpreterState;
 
-/// Calls [`StoreBackend::end_store_work`] on drop unless [`Self::disarm`]d.
+/// Calls [`StoreWork::end_store_work`] on drop unless [`Self::disarm`]d.
 ///
 /// Mirrors stack-unwind / `finally` semantics so [`StoreTask`] waiters are not left
 /// hanging when a dispatch aborts (e.g. reducer panic).
-pub(crate) struct StoreWorkUnwindGuard<'a, S, M>
+pub(crate) struct StoreWorkUnwindGuard<'a, S, M, B: StoreWork<S, M> + ?Sized>
 where
     S: Send + 'static,
     M: Send + 'static,
 {
-    backend: &'a StoreBackend<S, M>,
+    backend: &'a B,
     active: bool,
+    _marker: PhantomData<(S, M)>,
 }
 
-impl<'a, S, M> StoreWorkUnwindGuard<'a, S, M>
+impl<'a, S, M, B> StoreWorkUnwindGuard<'a, S, M, B>
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + ?Sized,
 {
-    pub(crate) fn new(backend: &'a StoreBackend<S, M>) -> Self {
+    pub(crate) fn new(backend: &'a B) -> Self {
         Self {
             backend,
             active: true,
+            _marker: PhantomData,
         }
     }
 
@@ -46,10 +49,11 @@ where
     }
 }
 
-impl<S, M> Drop for StoreWorkUnwindGuard<'_, S, M>
+impl<S, M, B> Drop for StoreWorkUnwindGuard<'_, S, M, B>
 where
     S: Send + 'static,
     M: Send + 'static,
+    B: StoreWork<S, M> + ?Sized,
 {
     fn drop(&mut self) {
         if self.active {
@@ -78,68 +82,54 @@ where
     }
 }
 
-pub(crate) struct StoreBackend<S, M> {
-    pub state: Arc<Mutex<S>>,
+pub(crate) struct StoreHub<S, M> {
     pub sender: BusSender<M>,
-    state_listeners: Arc<Mutex<Vec<Sender<()>>>>,
-    effect_done: Arc<Mutex<VecDeque<Sender<()>>>>,
-    in_flight: Arc<AtomicUsize>,
+    pub state_listeners: Arc<Mutex<Vec<Sender<()>>>>,
+    pub effect_done: Arc<Mutex<VecDeque<Sender<()>>>>,
+    pub in_flight: Arc<AtomicUsize>,
     pub interpreter: Arc<InterpreterState<M>>,
+    _marker: PhantomData<S>,
 }
 
-impl<S, M> Clone for StoreBackend<S, M>
+/// Shared store-work accounting (in-flight dispatches, listener notify, effect-done signals).
+pub(crate) trait StoreWork<S, M>
 where
     S: Send + 'static,
     M: Send + 'static,
 {
-    fn clone(&self) -> Self {
-        Self {
-            state: self.state.clone(),
-            sender: self.sender.clone(),
-            state_listeners: self.state_listeners.clone(),
-            effect_done: self.effect_done.clone(),
-            in_flight: self.in_flight.clone(),
-            interpreter: self.interpreter.clone(),
+    fn hub(&self) -> &Arc<StoreHub<S, M>>;
+
+    fn begin_store_work(&self) {
+        self.hub().in_flight.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn end_store_work(&self) {
+        let prev = self.hub().in_flight.fetch_sub(1, Ordering::SeqCst);
+        if prev == 1 {
+            self.hub().notify_state();
+            self.hub().signal_effect_done();
         }
+    }
+
+    fn notify_state(&self) {
+        self.hub().notify_state();
     }
 }
 
-impl<S, M> StoreBackend<S, M>
+impl<S, M> StoreHub<S, M>
 where
     S: Send + 'static,
     M: Send + 'static,
 {
-    pub fn new(
-        state: Arc<Mutex<S>>,
-        sender: BusSender<M>,
-        interpreter: Arc<InterpreterState<M>>,
-    ) -> Self {
-        Self {
-            state,
+    pub fn new(sender: BusSender<M>, interpreter: Arc<InterpreterState<M>>) -> Arc<Self> {
+        Arc::new(Self {
             sender,
             state_listeners: Arc::new(Mutex::new(Vec::new())),
             effect_done: Arc::new(Mutex::new(VecDeque::new())),
             in_flight: Arc::new(AtomicUsize::new(0)),
             interpreter,
-        }
-    }
-
-    pub fn begin_store_work(&self) {
-        self.in_flight.fetch_add(1, Ordering::SeqCst);
-    }
-
-    pub fn end_store_work(&self) {
-        let prev = self.in_flight.fetch_sub(1, Ordering::SeqCst);
-        if prev == 1 {
-            self.notify_state();
-            self.signal_effect_done();
-        }
-    }
-
-    pub fn store(&self) -> Store<S, M> {
-        Store {
-            backend: self.clone(),
-        }
+            _marker: PhantomData,
+        })
     }
 
     pub fn notify_state(&self) {
@@ -159,6 +149,57 @@ where
     }
 }
 
+pub(crate) struct StoreBackend<S, M> {
+    pub state: Arc<Mutex<S>>,
+    pub hub: Arc<StoreHub<S, M>>,
+}
+
+impl<S, M> Clone for StoreBackend<S, M>
+where
+    S: Send + 'static,
+    M: Send + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            hub: self.hub.clone(),
+        }
+    }
+}
+
+impl<S, M> StoreWork<S, M> for StoreBackend<S, M>
+where
+    S: Send + 'static,
+    M: Send + 'static,
+{
+    fn hub(&self) -> &Arc<StoreHub<S, M>> {
+        &self.hub
+    }
+}
+
+impl<S, M> StoreBackend<S, M>
+where
+    S: Send + 'static,
+    M: Send + 'static,
+{
+    pub fn new(
+        state: Arc<Mutex<S>>,
+        sender: BusSender<M>,
+        interpreter: Arc<InterpreterState<M>>,
+    ) -> Self {
+        Self {
+            state,
+            hub: StoreHub::new(sender, interpreter),
+        }
+    }
+
+    pub fn store(&self) -> Store<S, M> {
+        Store {
+            backend: self.clone(),
+        }
+    }
+}
+
 impl<S, M> Store<S, M>
 where
     S: Send + Sync + Clone + 'static,
@@ -167,10 +208,10 @@ where
     /// Dispatch an action and return a handle that completes when its effects finish.
     pub fn send(&self, action: M) -> StoreTask {
         let (tx, rx) = crossbeam_channel::bounded(1);
-        self.backend.effect_done.lock().push_back(tx);
+        self.backend.hub.effect_done.lock().push_back(tx);
         self.backend.begin_store_work();
-        let _ = self.backend.sender.send_blocking(action);
-        StoreTask { rx }
+        let _ = self.backend.hub.sender.send_blocking(action);
+        StoreTask::from_rx(rx)
     }
 
     /// Fire-and-forget dispatch.
@@ -188,7 +229,7 @@ where
     }
 
     pub fn cancel(&self, id: EffectId) {
-        if let Some(handle) = self.backend.interpreter.cancel_tokens.lock().remove(&id) {
+        if let Some(handle) = self.backend.hub.interpreter.cancel_tokens.lock().remove(&id) {
             handle.abort();
         }
     }
@@ -199,7 +240,7 @@ where
         S: Clone + PartialEq,
     {
         let (tx, rx) = crossbeam_channel::unbounded();
-        self.backend.state_listeners.lock().push(tx);
+        self.backend.hub.state_listeners.lock().push(tx);
         StateSubscriber {
             rx,
             state: self.backend.state.clone(),
@@ -216,7 +257,7 @@ where
         S: FieldDiff + Hash,
     {
         let (tx, rx) = crossbeam_channel::unbounded();
-        self.backend.state_listeners.lock().push(tx);
+        self.backend.hub.state_listeners.lock().push(tx);
         let (last_hash, last_fields) = {
             let guard = self.backend.state.lock();
             let root = hash_value(&*guard);
@@ -262,6 +303,10 @@ pub struct StoreTask {
 }
 
 impl StoreTask {
+    pub(crate) fn from_rx(rx: Receiver<()>) -> Self {
+        Self { rx }
+    }
+
     pub fn finish(self) -> Result<(), StoreTaskError> {
         self.finish_with_timeout(Duration::from_secs(5))
     }
@@ -493,7 +538,7 @@ where
         CS: FieldDiff + Hash,
     {
         let (tx, rx) = crossbeam_channel::unbounded();
-        self.store.backend.state_listeners.lock().push(tx);
+        self.store.backend.hub.state_listeners.lock().push(tx);
         let (last_hash, last_fields) = {
             let guard = self.store.backend.state.lock();
             if let Some(child) = self.state_kp.focus(&*guard) {

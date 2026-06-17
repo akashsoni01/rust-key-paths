@@ -7,9 +7,11 @@
 | [binding.md](./binding.md) | Zero-copy bindings, keypath projection, field change signals (`subscribe_changes`) |
 | [safe_reducer.md](./safe_reducer.md) | `safe_reduce_update`, `safe_reduce_rollback`, `CatchReducer` |
 | [ecommerce.md](./ecommerce.md) | Shop example: scoping, subs, locks, safe reducer demo, cross-thread store |
+| [rw_ecommerce.md](./rw_ecommerce.md) | Same shop on `RwRuntime`: concurrent readers, `ReadStore`, bindings |
 | [pain.md](./pain.md) | ISO 20022 PAIN.001 payload state + keypath field validation |
 | [validation.md](./validation.md) | Reusable keypath validation framework (`Rule`, `Validator`, `Validate`) |
 | [../examples/ecommerce.rs](../examples/ecommerce.rs) | Full compositional shop example (4-level actions, scopes, ifLet, forEach) |
+| [../examples/rw_ecommerce.rs](../examples/rw_ecommerce.rs) | Shop on `RwRuntime` with concurrent `ReadStore` readers |
 | [../examples/safe_reducer.rs](../examples/safe_reducer.rs) | Safe reducer updates: default vs rollback |
 | [../README.0.1.0.md](../README.0.1.0.md) | Install and quick start |
 

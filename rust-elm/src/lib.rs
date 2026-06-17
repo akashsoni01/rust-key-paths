@@ -70,7 +70,7 @@ pub use replay::{ReplayHarness, ReplayLog};
 #[cfg(feature = "serde")]
 pub use replay::StateSnapshot;
 #[cfg(feature = "runtime")]
-pub use runtime::{Runtime, RuntimeConfig};
+pub use runtime::{Runtime, RuntimeConfig, RwRuntime};
 pub use scope::{
     lift_cmd, lift_cmd_with_id, ForEachReducer, IfCaseLetReducer, IfLetReducer, OptionalReducer,
     ScopeReducer,
@@ -83,7 +83,14 @@ pub use store::{
     ChangeSet, ChangeSubscriber, ScopedChangeSubscriber, ScopedStore, StateSubscriber, Store,
     StoreTask, StoreTaskError,
 };
-pub use runtime::binding::{ComposedBinding, ProjectedBinding, StateBinding};
+#[cfg(feature = "runtime")]
+pub use runtime::rw_store::{
+    ReadStore, RwChangeSubscriber, RwStateSubscriber, RwStore, ScopedRwStore,
+};
+pub use runtime::binding::{
+    ComposedBinding, ProjectedBinding, ReadProjectedBinding, ReadStateBinding,
+    RwProjectedBinding, RwStateBinding, StateBinding,
+};
 pub use sub::Sub;
 pub use test_runtime::TestRuntime;
 #[cfg(feature = "runtime")]
