@@ -1,4 +1,4 @@
-# rust-elm 0.5.0
+# rust-elm 0.6.0
 
 Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 
@@ -7,7 +7,7 @@ Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 ```toml
 [dependencies]
 rust-elm = { path = "../rust-elm" }
-rust-elm = "0.5.0"
+rust-elm = "0.6.0"
 rust-key-paths = "3.4.0"
 key-paths-derive = "3.3.0"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
@@ -17,7 +17,7 @@ tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
 
 | Feature | Default | Purpose |
 |---------|---------|---------|
-| `runtime` | yes | Tokio interpreter, `Runtime`, `Store`, subscriptions |
+| `runtime` | yes | Tokio interpreter, `Runtime`, `RwRuntime`, `Store`, subscriptions |
 | `websocket` | yes | Real `Sub::websocket` via `tokio-tungstenite` (interval stub without it) |
 | `serde` | no | `FileStorage`, replay snapshots |
 
@@ -59,6 +59,13 @@ fn main() {
 
 ## Release notes
 
+### 0.6.0
+
+- **`RwRuntime`** — `Arc<RwLock<S>>` reducer loop for read-heavy workloads.
+- **`RwStore`** / **`ReadStore`** — dispatch + `read_store()` for concurrent readers; `ScopedRwStore`.
+- **Rw bindings** — `ReadStateBinding`, `RwStateBinding`, projected variants.
+- **`StoreHub`** + **`StoreWork`** — shared bus/listeners between mutex and Rw backends.
+
 ### 0.5.0
 
 - **`safe_reducer`** module — `safe_reduce_update`, `safe_reduce_rollback`, `SafeReduceError` (replaces `reduce_panic` / `catch_reduce_panic` / `ReducePanic`).
@@ -86,7 +93,7 @@ fn main() {
 | `safe_reducer` | `safe_reduce_update`, `safe_reduce_rollback`, `SafeReduceError` |
 | `runtime` | Bus-driven update loop + Tokio interpreter (`runtime` feature) |
 | `subscription` | Sub interpreter — tick/stream/websocket (`runtime` feature) |
-| `store` | `Store`, `StoreTask`, `ScopedStore`, state subscription (`runtime` feature) |
+| `store` | `Store`, `RwStore`, `ReadStore`, `StoreTask`, `ScopedStore` (`runtime` feature) |
 | `test_store` | `ExhaustiveTestStore` for synchronous effect/action testing |
 | `test_runtime` | Sync testing without Tokio |
 | `shared` | `Shared<T>`, `Storage`, `InMemoryStorage`, `FileStorage` (serde) |
