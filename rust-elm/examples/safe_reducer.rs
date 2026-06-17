@@ -1,12 +1,13 @@
-//! Panic handling: [`catch_reduce_panic`] is the default (no state revert).
-//! Use [`catch_reduce`] / [`RollbackCatchReducer`] only when you want rollback.
+//! Safe reducer updates: [`safe_reduce_update`] is the default (no state revert).
+//! Use [`safe_reduce_rollback`] / [`RollbackCatchReducer`] only when you want rollback.
 //!
 //! ```bash
-//! cargo run -p rust-elm --example catch_reduce
+//! cargo run -p rust-elm --example safe_reducer
 //! ```
 
 use rust_elm::{
-    catch_reduce, catch_reduce_panic, CatchReducer, Cmd, Reduce, Reducer, RollbackCatchReducer,
+    safe_reduce_rollback, safe_reduce_update, CatchReducer, Cmd, Reduce, Reducer,
+    RollbackCatchReducer, SafeReduceError,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,16 +35,16 @@ fn risky_reducer(state: &mut Counter, action: Action) -> Cmd<Action> {
 }
 
 fn main() {
-    // ── Default: catch_reduce_panic (runtime + CatchReducer) ──
+    // ── Default: safe_reduce_update (runtime + CatchReducer) ──
     let mut state = Counter { n: 0 };
-    let _ = catch_reduce_panic(&mut state, risky_reducer, Action::Panic);
-    println!("catch_reduce_panic: {state:?} (partial mutation kept)");
+    let _ = safe_reduce_update(&mut state, risky_reducer, Action::Panic);
+    println!("safe_reduce_update: {state:?} (partial mutation kept)");
     assert_eq!(state.n, 999);
 
     let mut state = Counter { n: 0 };
     let safe = CatchReducer::new(
         Reduce::new(risky_reducer),
-        |_: rust_elm::ReducePanic| Cmd::none(),
+        |_: SafeReduceError| Cmd::none(),
     );
     safe.reduce(&mut state, Action::Panic);
     println!("CatchReducer: {state:?} (same — no revert)");
@@ -52,15 +53,15 @@ fn main() {
     // ── Opt-in rollback via checkpoint ──
     let mut state = Counter { n: 0 };
     let mut checkpoint = state.clone();
-    let _ = catch_reduce(&mut state, &mut checkpoint, risky_reducer, Action::Inc);
-    let _ = catch_reduce(&mut state, &mut checkpoint, risky_reducer, Action::Panic);
-    println!("catch_reduce: {state:?} (rolled back via checkpoint swap)");
+    let _ = safe_reduce_rollback(&mut state, &mut checkpoint, risky_reducer, Action::Inc);
+    let _ = safe_reduce_rollback(&mut state, &mut checkpoint, risky_reducer, Action::Panic);
+    println!("safe_reduce_rollback: {state:?} (rolled back via checkpoint swap)");
     assert_eq!(state.n, 1);
 
     let mut state = Counter { n: 0 };
     let rollback = RollbackCatchReducer::new(
         Reduce::new(risky_reducer),
-        |_: rust_elm::ReducePanic| Cmd::none(),
+        |_: SafeReduceError| Cmd::none(),
         &state,
     );
     rollback.reduce(&mut state, Action::Inc);
@@ -68,5 +69,5 @@ fn main() {
     println!("RollbackCatchReducer: {state:?}");
     assert_eq!(state.n, 1);
 
-    println!("catch_reduce example OK");
+    println!("safe_reducer example OK");
 }

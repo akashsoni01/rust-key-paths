@@ -30,7 +30,7 @@ pub mod testing;
 
 // Flat re-exports — stable public API.
 pub use core::{batch, bus, cmd, effect, error, interp, program, sub};
-pub use compose::{component, optics, reduce_panic, reducer, scope};
+pub use compose::{component, optics, reducer, safe_reducer, scope};
 pub use infra::{env, replay, shared};
 pub use testing::{macros, test_runtime, test_support};
 #[cfg(feature = "runtime")]
@@ -64,7 +64,7 @@ pub use optics::{
     EnumKpType, EnumValueKpType, Kp,
 };
 pub use program::{Program, ReducerProgram};
-pub use reduce_panic::{catch_reduce, catch_reduce_panic, ReducePanic};
+pub use safe_reducer::{safe_reduce_rollback, safe_reduce_update, SafeReduceError};
 pub use reducer::{coerce_fn, CatchReducer, CombineReducers, Reduce, Reducer, RollbackCatchReducer};
 pub use replay::{ReplayHarness, ReplayLog};
 #[cfg(feature = "serde")]

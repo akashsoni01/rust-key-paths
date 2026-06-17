@@ -13,7 +13,7 @@ use crate::effect::EffectId;
 use crate::env::Environment;
 use crate::program::{Program, ReducerProgram};
 use crate::reducer::Reducer;
-use crate::reduce_panic::catch_reduce_panic;
+use crate::safe_reducer::safe_reduce_update;
 use crate::sub::Sub;
 
 use super::config::RuntimeConfig;
@@ -143,7 +143,7 @@ where
                             let mut unwind = StoreWorkUnwindGuard::new(&backend_for_thread);
                             let cmd = {
                                 let mut guard = state_for_thread.lock();
-                                match catch_reduce_panic(&mut *guard, |s, a| update(s, a), msg) {
+                                match safe_reduce_update(&mut *guard, |s, a| update(s, a), msg) {
                                     Ok(cmd) => cmd,
                                     Err(_) => {
                                         drop(guard);
@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn runtime_catches_reduce_panic_and_unwinds_store_work() {
+    fn runtime_safe_reduce_update_unwinds_store_work() {
         fn panicking_update(s: &mut Counter, msg: i32) -> Cmd<i32> {
             s.n = 99;
             if msg < 0 {

@@ -9,7 +9,7 @@
 | [pain.md](./pain.md) | ISO 20022 PAIN.001 payload state + keypath field validation |
 | [validation.md](./validation.md) | Reusable keypath validation framework (`Rule`, `Validator`, `Validate`) |
 | [../examples/ecommerce.rs](../examples/ecommerce.rs) | Full compositional shop example (4-level actions, scopes, ifLet, forEach) |
-| [../examples/catch_reduce.rs](../examples/catch_reduce.rs) | Panic handling: default vs rollback |
+| [../examples/safe_reducer.rs](../examples/safe_reducer.rs) | Safe reducer updates: default vs rollback |
 | [../README.0.1.0.md](../README.0.1.0.md) | Install and quick start |
 
 ---

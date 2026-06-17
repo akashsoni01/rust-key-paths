@@ -31,7 +31,7 @@ flowchart TB
 
     subgraph ReducerThread["Dedicated reducer OS thread"]
         Loop["recv → reduce → notify"]
-        Reduce["catch_reduce_panic(update)"]
+        Reduce["safe_reduce_update(update)"]
     end
 
     subgraph TokioRT["Tokio runtime (same process)"]
@@ -78,7 +78,7 @@ sequenceDiagram
     Store->>Bus: send_blocking(action)
     Bus->>RT: recv
     RT->>State: lock
-    RT->>State: catch_reduce_panic(reduce)
+    RT->>State: safe_reduce_update(reduce)
     State-->>RT: Cmd
     RT->>State: unlock + notify listeners
     RT->>Tokio: interpret_effects_async(cmd)
@@ -304,7 +304,7 @@ rust-elm provides **layers** of resilience; none replace careful reducer/effect 
 ```mermaid
 flowchart TB
     L1["1. Pure reducers — no unwrap in reduce"]
-    L2["2. catch_reduce_panic in Runtime"]
+    L2["2. safe_reduce_update in Runtime"]
     L3["3. CatchReducer at root"]
     L4["4. Effect::catch for async errors"]
     L5["5. RollbackCatchReducer (opt-in)"]
@@ -317,7 +317,7 @@ flowchart TB
 
 | Layer | What it does |
 |-------|----------------|
-| **`catch_reduce_panic`** (Runtime default) | Catches reducer panics; **keeps state**; skips command |
+| **`safe_reduce_update`** (Runtime default) | Catches reducer panics; **keeps state**; skips command |
 | **`CatchReducer`** | Same policy at reducer-composition level + custom `recover` cmd |
 | **`RollbackCatchReducer`** | Checkpoint swap on panic (opt-in revert) |
 | **`Effect::catch`** | Map effect failure to recovery effect (not panic) |
@@ -327,12 +327,12 @@ flowchart TB
 
 1. Treat reducers as **pure**: no `unwrap`, no I/O, no blocking.
 2. Use **`Result` in async effects**; surface failures as actions or `Effect::catch`.
-3. Wrap the root in **`CatchReducer`** (Runtime already uses `catch_reduce_panic`).
+3. Wrap the root in **`CatchReducer`** (Runtime already uses `safe_reduce_update`).
 4. Use **`RollbackCatchReducer`** only when reverting state on panic is worth the clone cost.
 5. Test with **`panic_on_state_clone!`** (see `test_support`) to catch accidental state copies in tests.
 6. Prefer **`ReplayHarness`** for regression tests on action sequences.
 
-See [`examples/catch_reduce.rs`](../examples/catch_reduce.rs) for panic vs rollback behavior.
+See [`examples/safe_reducer.rs`](../examples/safe_reducer.rs) for panic vs rollback behavior.
 
 ---
 
@@ -344,7 +344,7 @@ mindmap
     runtime
       Bus
       Tokio interpreter
-      catch_reduce_panic
+      safe_reduce_update
     store
       Store
       ScopedStore

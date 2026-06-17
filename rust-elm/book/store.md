@@ -521,7 +521,7 @@ Relatives: `IfLetReducer` (optional child + dismiss/cancel), `ForEachReducer`
 
 ### `CatchReducer` — a *safety* adapter (same state/action)
 
-`CatchReducer<R, F>` wraps any reducer and runs it inside `catch_reduce_panic`. On panic
+`CatchReducer<R, F>` wraps any reducer and runs it inside `safe_reduce_update`. On panic
 it calls your `recover` to produce a fallback `Cmd` instead of unwinding the reducer
 thread:
 
@@ -529,13 +529,13 @@ thread:
 impl<R, F, S, A> Reducer for CatchReducer<R, F>
 where
     R: Reducer<State = S, Action = A>,
-    F: Fn(ReducePanic) -> Cmd<A>,
+    F: Fn(SafeReduceError) -> Cmd<A>,
 {
     type State = S;
     type Action = A;
 
     fn reduce(&self, state: &mut S, action: A) -> Cmd<A> {
-        match catch_reduce_panic(state, |s, a| self.inner.reduce(s, a), action) {
+        match safe_reduce_update(state, |s, a| self.inner.reduce(s, a), action) {
             Ok(cmd) => cmd,
             Err(panic) => (self.recover)(panic),
         }

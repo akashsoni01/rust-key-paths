@@ -5,7 +5,7 @@
 use key_paths_derive::{Cp, Kp};
 use rust_elm::{
     reducer::Reduce, CatchReducer, Cmd, ForEachReducer, Identifiable, IdentifiedVec, Reducer,
-    ReducePanic, ScopeReducer, Shared, Sub,
+    SafeReduceError, ScopeReducer, Shared, Sub,
 };
 use rust_key_paths::Kp as KpPath;
 use std::time::Duration;
@@ -139,7 +139,7 @@ fn miri_sub_description_is_pure_data() {
 }
 
 #[test]
-fn miri_catch_reducer_survives_panic() {
+fn miri_safe_reducer_survives_panic() {
     #[derive(Default, Debug, PartialEq)]
     struct S {
         n: i32,
@@ -152,7 +152,7 @@ fn miri_catch_reducer_survives_panic() {
         s.n = 99;
         panic!("miri test panic");
     }
-    let r = CatchReducer::new(Reduce::new(boom), |_: ReducePanic| Cmd::none());
+    let r = CatchReducer::new(Reduce::new(boom), |_: SafeReduceError| Cmd::none());
     let mut s = S::default();
     r.reduce(&mut s, A::Boom);
     assert_eq!(s.n, 99);

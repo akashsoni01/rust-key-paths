@@ -45,7 +45,7 @@ impl Calculator {
 }
 
 fn main() {
-    let safe = CatchReducer::new(Reduce::new(calculator_reducer), |_: rust_elm::ReducePanic| {
+    let safe = CatchReducer::new(Reduce::new(calculator_reducer), |_: rust_elm::SafeReduceError| {
         println!("paincked .........");
         Cmd::none()
     });

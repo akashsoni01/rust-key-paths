@@ -242,13 +242,13 @@ sequenceDiagram
 
 Layers involved:
 
-1. **`catch_reduce_panic`** (runtime) — catches unwind; state not reverted
+1. **`safe_reduce_update`** (runtime) — catches unwind; state not reverted
 2. **`CatchReducer`** — logs `{panic:?}`; returns `Cmd::none()` (effects from that turn dropped)
 3. **`StoreWorkUnwindGuard`** — `StoreTask::finish` does not hang
 
 Reducers **after** the panicking sibling in the same `CombineReducers` tuple **do not run** for that action. Here `global_reducer` is slot 3; catalog/cart/checkout never see `TriggerPanic`.
 
-For rollback-on-panic, use `RollbackCatchReducer` ([`examples/catch_reduce.rs`](../examples/catch_reduce.rs)).
+For rollback-on-panic, use `RollbackCatchReducer` ([`examples/safe_reducer.rs`](../examples/safe_reducer.rs)).
 
 ---
 

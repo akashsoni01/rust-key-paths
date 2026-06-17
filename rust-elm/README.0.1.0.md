@@ -77,7 +77,7 @@ fn main() {
 | `cmd` | Commands returned from `update` |
 | `effect` | Pure async effect descriptions (`debounce`, `throttle`, `from_run`, `cancel`) |
 | `sub` | Subscription descriptions (runtime-agnostic data) |
-| `reduce_panic` | `catch_reduce_panic`, `catch_reduce`, `ReducePanic` |
+| `safe_reducer` | `safe_reduce_update`, `safe_reduce_rollback`, `SafeReduceError` |
 | `runtime` | Bus-driven update loop + Tokio interpreter (`runtime` feature) |
 | `subscription` | Sub interpreter — tick/stream/websocket (`runtime` feature) |
 | `store` | `Store`, `StoreTask`, `ScopedStore`, state subscription (`runtime` feature) |
@@ -96,7 +96,7 @@ fn main() {
 
 | Example | Command | Shows |
 |---------|---------|-------|
-| `catch_reduce` | `cargo run -p rust-elm --example catch_reduce` | Panic: default vs rollback |
+| `safe_reducer` | `cargo run -p rust-elm --example safe_reducer` | Safe update: default vs rollback |
 | `subscriptions` | `cargo run -p rust-elm --example subscriptions` | Tick + map_msg subs |
 | `scope_for_each` | `cargo run -p rust-elm --example scope_for_each` | Scope + ForEach without Runtime |
 | `dependencies` | `cargo run -p rust-elm --example dependencies` | `Environment` live vs test |

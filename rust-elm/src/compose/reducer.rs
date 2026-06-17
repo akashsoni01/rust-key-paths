@@ -1,5 +1,5 @@
 use crate::cmd::Cmd;
-use crate::reduce_panic::{catch_reduce, catch_reduce_panic, ReducePanic};
+use crate::safe_reducer::{safe_reduce_rollback, safe_reduce_update, SafeReduceError};
 
 /// Composable update logic (UDF `Reducer` parity).
 pub trait Reducer {
@@ -84,7 +84,7 @@ impl_combine_reducers!(R1, R2, R3, R4, R5);
 impl_combine_reducers!(R1, R2, R3, R4, R5, R6);
 
 /// Wraps a reducer with panic recovery — default behavior matches the runtime: panics are
-/// caught and state is **not** reverted (see [`catch_reduce_panic`]).
+/// caught and state is **not** reverted (see [`safe_reduce_update`]).
 #[derive(Clone, Debug)]
 pub struct CatchReducer<R, F> {
     inner: R,
@@ -100,13 +100,13 @@ impl<R, F> CatchReducer<R, F> {
 impl<R, F, S, A> Reducer for CatchReducer<R, F>
 where
     R: Reducer<State = S, Action = A>,
-    F: Fn(ReducePanic) -> Cmd<A>,
+    F: Fn(SafeReduceError) -> Cmd<A>,
 {
     type State = S;
     type Action = A;
 
     fn reduce(&self, state: &mut S, action: A) -> Cmd<A> {
-        match catch_reduce_panic(state, |s, a| self.inner.reduce(s, a), action) {
+        match safe_reduce_update(state, |s, a| self.inner.reduce(s, a), action) {
             Ok(cmd) => cmd,
             Err(panic) => (self.recover)(panic),
         }
@@ -114,7 +114,7 @@ where
 }
 
 /// Opt-in rollback — like [`CatchReducer`], but restores the last committed state on panic
-/// via [`catch_reduce`].
+/// via [`safe_reduce_rollback`].
 pub struct RollbackCatchReducer<R, F, S> {
     inner: R,
     recover: F,
@@ -166,14 +166,14 @@ impl<R, F, S, A> Reducer for RollbackCatchReducer<R, F, S>
 where
     R: Reducer<State = S, Action = A>,
     S: Clone,
-    F: Fn(ReducePanic) -> Cmd<A>,
+    F: Fn(SafeReduceError) -> Cmd<A>,
 {
     type State = S;
     type Action = A;
 
     fn reduce(&self, state: &mut S, action: A) -> Cmd<A> {
         let mut checkpoint = self.checkpoint.lock();
-        match catch_reduce(state, &mut *checkpoint, |s, a| self.inner.reduce(s, a), action) {
+        match safe_reduce_rollback(state, &mut *checkpoint, |s, a| self.inner.reduce(s, a), action) {
             Ok(cmd) => cmd,
             Err(panic) => (self.recover)(panic),
         }
@@ -299,13 +299,13 @@ mod tests {
     }
 
     #[test]
-    fn catch_reducer_recovers_without_reverting_state() {
+    fn safe_reducer_recovers_without_reverting_state() {
         fn panicking(s: &mut App, _: Action) -> Cmd<Action> {
             s.a = 99;
             panic!("boom");
         }
 
-        fn recover(_: ReducePanic) -> Cmd<Action> {
+        fn recover(_: SafeReduceError) -> Cmd<Action> {
             Cmd::none()
         }
 
@@ -317,13 +317,13 @@ mod tests {
     }
 
     #[test]
-    fn rollback_catch_reducer_unwinds_state_on_panic() {
+    fn rollback_safe_reducer_unwinds_state_on_panic() {
         fn panicking(s: &mut App, _: Action) -> Cmd<Action> {
             s.a = 99;
             panic!("boom");
         }
 
-        fn recover(_: ReducePanic) -> Cmd<Action> {
+        fn recover(_: SafeReduceError) -> Cmd<Action> {
             Cmd::none()
         }
 

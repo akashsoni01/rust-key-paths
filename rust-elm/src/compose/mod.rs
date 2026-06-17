@@ -2,6 +2,6 @@
 
 pub mod component;
 pub mod optics;
-pub mod reduce_panic;
+pub mod safe_reducer;
 pub mod reducer;
 pub mod scope;
