@@ -75,6 +75,11 @@ name = "rw_ecommerce"
 path = "examples/rw_ecommerce.rs"
 
 [[example]]
+name = "swap_ecommerce"
+path = "examples/swap_ecommerce.rs"
+required-features = ["runtime", "arc-swap"]
+
+[[example]]
 name = "subscriptions"
 path = "examples/subscriptions.rs"
 required-features = ["runtime"]

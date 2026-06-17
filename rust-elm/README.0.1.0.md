@@ -116,6 +116,7 @@ fn main() {
 | `shared_state` | `cargo run -p rust-elm --example shared_state` | `Shared<T>` observers |
 | `ecommerce` | `cargo run -p rust-elm --example ecommerce` | Full shop (mutex `Runtime`) |
 | `rw_ecommerce` | `cargo run -p rust-elm --example rw_ecommerce` | Same shop on `RwRuntime` |
+| `swap_ecommerce` | `cargo run -p rust-elm --example swap_ecommerce --features arc-swap` | Same shop on `SwapRuntime` |
 
 ## Quality tooling
 
@@ -137,4 +138,4 @@ use rust_elm::keypath::{Kp, KpTrait, RefKpTrait, Readable, Writable};
 use key_paths_derive::Kp;
 ```
 
-See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/safe_reducer.md`](book/safe_reducer.md), [`book/ecommerce.md`](book/ecommerce.md), [`book/rw_ecommerce.md`](book/rw_ecommerce.md).
+See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/safe_reducer.md`](book/safe_reducer.md), [`book/ecommerce.md`](book/ecommerce.md), [`book/rw_ecommerce.md`](book/rw_ecommerce.md), [`book/swap_ecommerce.md`](book/swap_ecommerce.md).

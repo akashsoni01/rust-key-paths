@@ -365,6 +365,7 @@ Each uses a **single `match`** on its action type; unknown variants return `Cmd:
 | [`examples/ecommerce.rs`](../examples/ecommerce.rs) | Main program + demo scenario (`Runtime` / `Mutex`) |
 | [`examples/ecommerce/shop.rs`](../examples/ecommerce/shop.rs) | Shared state, reducers, subscriptions |
 | [`examples/rw_ecommerce.rs`](../examples/rw_ecommerce.rs) | Same shop on `RwRuntime` — see [rw_ecommerce.md](./rw_ecommerce.md) |
+| [`examples/swap_ecommerce.rs`](../examples/swap_ecommerce.rs) | Same shop on `SwapRuntime` — see [swap_ecommerce.md](./swap_ecommerce.md) |
 | [`examples/ecommerce/deps.rs`](../examples/ecommerce/deps.rs) | HTTP + date DI |
 | [`src/reducer.rs`](../src/reducer.rs) | `CombineReducers` up to **6** siblings |
 | [`src/scope.rs`](../src/scope.rs) | `ScopeReducer`, `IfLetReducer`, `ForEachReducer` |
