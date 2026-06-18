@@ -58,6 +58,11 @@ name = "calculator"
 path = "examples/calculator.rs"
 
 [[example]]
+name = "counter"
+path = "examples/counter.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "throughput"
 path = "examples/throughput.rs"
 required-features = ["runtime"]
