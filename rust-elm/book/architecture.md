@@ -24,6 +24,7 @@ rust-elm offers **three store backends** for the same bus + reducer-thread + Tok
 | **`Store`** / `Runtime` | `Arc<Mutex<S>>` | lock | same lock | `runtime` (default) |
 | **`RwStore`** / `RwRuntime` | `Arc<RwLock<S>>` | shared `read()` | exclusive `write()` on reducer | `runtime` |
 | **`SwapStore`** / `SwapRuntime` | `Arc<ArcSwap<S>>` | lock-free `load()` | clone + atomic `store` | `arc-swap` |
+| **`TeaStore`** / `TeaRuntime` | reducer thread only | channel `Arc<S>` push | in-place on reducer | `runtime` |
 
 All three share **`StoreHub`** (in `runtime/store.rs`) for dispatch, listener notify, and effect-done signaling.
 
@@ -38,6 +39,7 @@ flowchart TB
         StoreM["Store / Mutex"]
         StoreRw["RwStore / RwLock"]
         StoreSwap["SwapStore / ArcSwap"]
+        StoreTea["TeaStore / channel"]
         Bus["Bus (crossbeam channel)"]
         Hub["StoreHub"]
     end
@@ -55,9 +57,11 @@ flowchart TB
     Dispatch --> StoreM
     Dispatch --> StoreRw
     Dispatch --> StoreSwap
+    Dispatch --> StoreTea
     StoreM --> Hub
     StoreRw --> Hub
     StoreSwap --> Hub
+    StoreTea --> Hub
     Hub --> Bus
     Bus --> Loop
     Loop --> Reduce
@@ -67,14 +71,14 @@ flowchart TB
     Reduce --> Subscribe
 ```
 
-For lock-free snapshot reads, see [swap_ecommerce.md](./swap_ecommerce.md). For concurrent `read()` without cloning `S`, see [rw_ecommerce.md](./rw_ecommerce.md).
+For lock-free snapshot reads, see [swap_ecommerce.md](./swap_ecommerce.md). For concurrent `read()` without cloning `S`, see [rw_ecommerce.md](./rw_ecommerce.md). For channel-pushed model (true TEA), see [tea_ecommerce.md](./tea_ecommerce.md).
 
 | Component | Role |
 |-----------|------|
-| **`Store` / `RwStore` / `SwapStore`** | Public API: `dispatch`, `send` + `StoreTask`, `scope`, subscriptions |
+| **`Store` / `RwStore` / `SwapStore` / `TeaStore`** | Public API: `dispatch`, `send` + `StoreTask`, `scope`, subscriptions |
 | **`StoreHub`** | Shared dispatch hub: bus sender, listener lists, in-flight counter, interpreter |
 | **`Bus`** | FIFO action queue between producers (UI, effects) and the reducer thread |
-| **`Runtime` / `RwRuntime` / `SwapRuntime`** | Owns state container, bus, reducer thread, and Tokio interpreter |
+| **`Runtime` / `RwRuntime` / `SwapRuntime` / `TeaRuntime`** | Owns state container (or reducer-local model), bus, reducer thread, Tokio |
 | **`Reducer`** | Composable `reduce(&mut State, Action) → Cmd<Action>` |
 | **`Cmd` / `Effect`** | Pure descriptions of async work returned from reducers |
 | **`Environment`** | Live/test dependencies injected into env-scoped effects |

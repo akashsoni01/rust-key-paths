@@ -567,19 +567,15 @@ reducer panic is contained and the app keeps running.
 
 ## Quick reference
 
-| Task | `Store` (mutex) | `RwStore` (RwLock) | `SwapStore` (`arc-swap`) |
-|------|-----------------|---------------------|---------------------------|
-| Get handle | `runtime.store()` | `runtime.rw_store()` | `runtime.swap_store()` |
-| Fire-and-forget | `store.dispatch(action)` | same | same |
-| Dispatch + await effects | `store.send(action).finish()` | same | same |
-| Read snapshot (clones `S`) | `store.state()` | `store.state()` | `store.snapshot_store().load()` |
-| Read borrow (no clone) | `store.binding()` — [binding.md](./binding.md) | `store.read_store().with_read(f)` or `store.binding()` | `store.snapshot_store().with_snapshot(f)` |
-| Field change signals | `store.subscribe_changes()` | same | same |
-| Full snapshots (legacy) | `store.subscribe_state()` | same | same |
-| Child handle | `store.scope(kp, cp)` | `ScopedRwStore` | `ScopedSwapStore` |
-| Child binding | `scoped.binding()` | `scoped.read_binding()` / `scoped.rw_binding()` | `scoped.snapshot_binding()` |
-| Concurrent reader threads | mutex serializes reads | `store.read_store()` per thread | `store.snapshot_store()` — lock-free `load()` |
-| Cancel effect | `store.cancel(id)` | same | same |
-| State bound | `S: Send` | `S: Send + Sync` | `S: Send + Sync + Clone` |
+| Task | `Store` (mutex) | `RwStore` (RwLock) | `SwapStore` (`arc-swap`) | `TeaStore` (channel) |
+|------|-----------------|---------------------|---------------------------|------------------------|
+| Get handle | `runtime.store()` | `runtime.rw_store()` | `runtime.swap_store()` | `runtime.tea_store()` |
+| Fire-and-forget | `store.dispatch(action)` | same | same | same |
+| Dispatch + await effects | `store.send(action).finish()` | same | same | same |
+| Read latest model | `store.state()` (lock) | `store.state()` | `snapshot_store().load()` | `subscribe_state().latest()` or `view_store().load()` |
+| Live view / readers | `subscribe_state()` ping+lock | same | push via ArcSwap load | **`subscribe_state()` push `Arc<S>`** |
+| Concurrent reader threads | mutex serializes | `read_store()` | `snapshot_store()` | `view_store().subscribe_state()` |
+| Child handle | `store.scope(kp, cp)` | `ScopedRwStore` | `ScopedSwapStore` | `ScopedTeaStore` |
+| State bound | `S: Send` | `S: Send + Sync` | `S: Send + Sync + Clone` | `S: Send + Sync + Clone` |
 
-RwLock guide: [rw_ecommerce.md](./rw_ecommerce.md). Arc-swap snapshots: [swap_ecommerce.md](./swap_ecommerce.md) (enable `arc-swap` feature). Safe reduce: [safe_reducer.md](./safe_reducer.md).
+RwLock guide: [rw_ecommerce.md](./rw_ecommerce.md). Arc-swap: [swap_ecommerce.md](./swap_ecommerce.md). Channel TEA: [tea_ecommerce.md](./tea_ecommerce.md). Safe reduce: [safe_reducer.md](./safe_reducer.md).

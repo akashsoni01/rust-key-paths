@@ -80,6 +80,11 @@ path = "examples/swap_ecommerce.rs"
 required-features = ["runtime", "arc-swap"]
 
 [[example]]
+name = "tea_ecommerce"
+path = "examples/tea_ecommerce.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "subscriptions"
 path = "examples/subscriptions.rs"
 required-features = ["runtime"]

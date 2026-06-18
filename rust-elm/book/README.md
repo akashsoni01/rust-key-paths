@@ -9,11 +9,13 @@
 | [ecommerce.md](./ecommerce.md) | Shop example: scoping, subs, locks, safe reducer demo, cross-thread store |
 | [rw_ecommerce.md](./rw_ecommerce.md) | Same shop on `RwRuntime`: one `RwStore`, `read_store()` on demand |
 | [swap_ecommerce.md](./swap_ecommerce.md) | Same shop on `SwapRuntime` (`arc-swap`): lock-free snapshot reads |
+| [tea_ecommerce.md](./tea_ecommerce.md) | Same shop on `TeaRuntime`: channel-pushed model (true TEA) |
 | [pain.md](./pain.md) | ISO 20022 PAIN.001 payload state + keypath field validation |
 | [validation.md](./validation.md) | Reusable keypath validation framework (`Rule`, `Validator`, `Validate`) |
 | [../examples/ecommerce.rs](../examples/ecommerce.rs) | Full compositional shop example (4-level actions, scopes, ifLet, forEach) |
 | [../examples/rw_ecommerce.rs](../examples/rw_ecommerce.rs) | Shop on `RwRuntime` — single `RwStore`, concurrent readers via `read_store()` |
 | [../examples/swap_ecommerce.rs](../examples/swap_ecommerce.rs) | Shop on `SwapRuntime` — lock-free `snapshot_store()` (`arc-swap` feature) |
+| [../examples/tea_ecommerce.rs](../examples/tea_ecommerce.rs) | Shop on `TeaRuntime` — channel-pushed model snapshots (true TEA) |
 | [../examples/safe_reducer.rs](../examples/safe_reducer.rs) | Safe reducer updates: default vs rollback |
 | [../README.0.1.0.md](../README.0.1.0.md) | Install and quick start |
 

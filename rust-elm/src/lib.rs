@@ -70,7 +70,7 @@ pub use replay::{ReplayHarness, ReplayLog};
 #[cfg(feature = "serde")]
 pub use replay::StateSnapshot;
 #[cfg(feature = "runtime")]
-pub use runtime::{Runtime, RuntimeConfig, RwRuntime};
+pub use runtime::{Runtime, RuntimeConfig, RwRuntime, TeaRuntime};
 #[cfg(all(feature = "runtime", feature = "arc-swap"))]
 pub use runtime::SwapRuntime;
 pub use scope::{
@@ -88,6 +88,11 @@ pub use store::{
 #[cfg(feature = "runtime")]
 pub use runtime::rw_store::{
     ReadStore, RwChangeSubscriber, RwStateSubscriber, RwStore, ScopedRwStore,
+};
+#[cfg(feature = "runtime")]
+pub use runtime::tea_store::{
+    ScopedTeaStore, ScopedTeaStateSubscriber, TeaChangeSubscriber, TeaStateSubscriber, TeaStore,
+    TeaViewStore,
 };
 #[cfg(all(feature = "runtime", feature = "arc-swap"))]
 pub use runtime::swap_store::{

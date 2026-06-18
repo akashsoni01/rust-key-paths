@@ -17,7 +17,7 @@ tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
 
 | Feature | Default | Purpose |
 |---------|---------|---------|
-| `runtime` | yes | Tokio interpreter, `Runtime`, `RwRuntime`, `Store`, subscriptions |
+| `runtime` | yes | Tokio interpreter, `Runtime`, `RwRuntime`, `TeaRuntime`, `Store`, subscriptions |
 | `arc-swap` | no | `SwapRuntime` / `SwapStore` — lock-free snapshot reads (`arc-swap` crate) |
 | `websocket` | yes | Real `Sub::websocket` via `tokio-tungstenite` (interval stub without it) |
 | `serde` | no | `FileStorage`, replay snapshots |
@@ -64,6 +64,8 @@ fn main() {
 
 - **`arc-swap` feature** — optional `SwapRuntime`, `SwapStore`, `SnapshotStore`, snapshot bindings.
 - **`swap_ecommerce` example** — lock-free snapshot reads on the shared shop domain.
+- **`TeaRuntime`** / **`TeaStore`** — channel-pushed model (true TEA: no shared mutable state).
+- **`tea_ecommerce` example** — same shop with channel-delivered snapshots.
 
 ### 0.6.0
 
@@ -98,7 +100,7 @@ fn main() {
 | `safe_reducer` | `safe_reduce_update`, `safe_reduce_rollback`, `SafeReduceError` |
 | `runtime` | Bus-driven update loop + Tokio interpreter (`runtime` feature) |
 | `subscription` | Sub interpreter — tick/stream/websocket (`runtime` feature) |
-| `store` | `Store`, `RwStore`, `SwapStore` (`arc-swap`), `StoreTask`, scoped stores (`runtime`) |
+| `store` | `Store`, `RwStore`, `TeaStore`, `SwapStore` (`arc-swap`), `StoreTask`, scoped stores (`runtime`) |
 | `test_store` | `ExhaustiveTestStore` for synchronous effect/action testing |
 | `test_runtime` | Sync testing without Tokio |
 | `shared` | `Shared<T>`, `Storage`, `InMemoryStorage`, `FileStorage` (serde) |
@@ -122,6 +124,7 @@ fn main() {
 | `ecommerce` | `cargo run -p rust-elm --example ecommerce` | Full shop (mutex `Runtime`) |
 | `rw_ecommerce` | `cargo run -p rust-elm --example rw_ecommerce` | Same shop on `RwRuntime` |
 | `swap_ecommerce` | `cargo run -p rust-elm --example swap_ecommerce --features arc-swap` | Same shop on `SwapRuntime` |
+| `tea_ecommerce` | `cargo run -p rust-elm --example tea_ecommerce` | Same shop on `TeaRuntime` (channel TEA) |
 
 ## Quality tooling
 
@@ -143,4 +146,4 @@ use rust_elm::keypath::{Kp, KpTrait, RefKpTrait, Readable, Writable};
 use key_paths_derive::Kp;
 ```
 
-See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/safe_reducer.md`](book/safe_reducer.md), [`book/ecommerce.md`](book/ecommerce.md), [`book/rw_ecommerce.md`](book/rw_ecommerce.md), [`book/swap_ecommerce.md`](book/swap_ecommerce.md).
+See [`ROADMAP.md`](ROADMAP.md), [`book/architecture.md`](book/architecture.md), [`book/safe_reducer.md`](book/safe_reducer.md), [`book/ecommerce.md`](book/ecommerce.md), [`book/rw_ecommerce.md`](book/rw_ecommerce.md), [`book/swap_ecommerce.md`](book/swap_ecommerce.md), [`book/tea_ecommerce.md`](book/tea_ecommerce.md).
