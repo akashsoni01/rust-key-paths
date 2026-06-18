@@ -567,18 +567,19 @@ reducer panic is contained and the app keeps running.
 
 ## Quick reference
 
-| Task | `Store` (mutex) | `RwStore` (RwLock) |
-|------|-----------------|---------------------|
-| Get handle | `runtime.store()` | `runtime.rw_store()` | `runtime.swap_store()` (`arc-swap`) |
-| Fire-and-forget | `store.dispatch(action)` | same |
-| Dispatch + await effects | `store.send(action).finish()` | same |
-| Read snapshot (clones `S`) | `store.state()` | `store.state()` |
-| Read borrow (no clone) | `store.binding()` — [binding.md](./binding.md) | `store.read_store().with_read(f)` or `store.binding()` |
-| Field change signals | `store.subscribe_changes()` | same |
-| Full snapshots (legacy) | `store.subscribe_state()` | same |
-| Child handle | `store.scope(kp, cp)` | same (`ScopedRwStore`) |
-| Child binding | `scoped.binding()` | `scoped.read_binding()` / `scoped.rw_binding()` |
+| Task | `Store` (mutex) | `RwStore` (RwLock) | `SwapStore` (`arc-swap`) |
+|------|-----------------|---------------------|---------------------------|
+| Get handle | `runtime.store()` | `runtime.rw_store()` | `runtime.swap_store()` |
+| Fire-and-forget | `store.dispatch(action)` | same | same |
+| Dispatch + await effects | `store.send(action).finish()` | same | same |
+| Read snapshot (clones `S`) | `store.state()` | `store.state()` | `store.snapshot_store().load()` |
+| Read borrow (no clone) | `store.binding()` — [binding.md](./binding.md) | `store.read_store().with_read(f)` or `store.binding()` | `store.snapshot_store().with_snapshot(f)` |
+| Field change signals | `store.subscribe_changes()` | same | same |
+| Full snapshots (legacy) | `store.subscribe_state()` | same | same |
+| Child handle | `store.scope(kp, cp)` | `ScopedRwStore` | `ScopedSwapStore` |
+| Child binding | `scoped.binding()` | `scoped.read_binding()` / `scoped.rw_binding()` | `scoped.snapshot_binding()` |
 | Concurrent reader threads | mutex serializes reads | `store.read_store()` per thread | `store.snapshot_store()` — lock-free `load()` |
-| Cancel effect | `store.cancel(id)` | same |
+| Cancel effect | `store.cancel(id)` | same | same |
+| State bound | `S: Send` | `S: Send + Sync` | `S: Send + Sync + Clone` |
 
-RwLock guide: [rw_ecommerce.md](./rw_ecommerce.md). Arc-swap snapshots: enable `arc-swap` feature on `rust-elm`. Safe reduce: [safe_reducer.md](./safe_reducer.md).
+RwLock guide: [rw_ecommerce.md](./rw_ecommerce.md). Arc-swap snapshots: [swap_ecommerce.md](./swap_ecommerce.md) (enable `arc-swap` feature). Safe reduce: [safe_reducer.md](./safe_reducer.md).

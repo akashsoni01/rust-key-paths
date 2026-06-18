@@ -22,6 +22,6 @@
 
 ## Next
 
-- Phase 11: polish
+- Phase 11: polish — lock-free snapshot reads (`arc-swap`), doc parity, integration tests
 
-See [`todo.md`](../todo.md) for the full checklist.
+See [`todo.md`](../todo.md) for the full LLM-followable checklist (no-lock state reads, docs, examples, architecture diagrams).

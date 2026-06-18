@@ -272,6 +272,22 @@ Same projection model on `Arc<RwLock<S>>`. Hold one [`RwStore`](./rw_ecommerce.m
 
 See [rw_ecommerce.md](./rw_ecommerce.md) for the shop example.
 
+### ArcSwap (`SwapStore`, `arc-swap` feature)
+
+Lock-free snapshot reads via [`ArcSwap`](https://docs.rs/arc-swap). Hold one [`SwapStore`](./swap_ecommerce.md); call
+`store.snapshot_store()` for reader threads:
+
+| Task | API |
+|------|-----|
+| Root read (many threads) | `store.snapshot_store().with_snapshot(f)` or `.load()` |
+| Root snapshot binding | `store.snapshot_store().snapshot_binding()` → `SnapshotStateBinding` |
+| Projected read | `snapshot_binding().project(kp)` → `SnapshotProjectedBinding` |
+| Scoped snapshot binding | `scoped.snapshot_binding()` |
+
+Readers never take `Mutex` / `RwLock` on `S`. The reducer clones the current `Arc<S>`, reduces, and atomically publishes a new snapshot — readers may observe slightly stale data until the swap completes.
+
+See [swap_ecommerce.md](./swap_ecommerce.md) for the shop example and trade-offs vs `RwStore`.
+
 ---
 
 ## 9. Related
@@ -283,6 +299,7 @@ See [rw_ecommerce.md](./rw_ecommerce.md) for the shop example.
 | [architecture.md](./architecture.md) | Runtime threading, reducer loop |
 | [validation.md](./validation.md) | Keypath field validation |
 | [`tests/store_changes_integration.rs`](../tests/store_changes_integration.rs) | Zero-clone tests with `panic_on_state_clone!` |
-| [`src/runtime/binding.rs`](../src/runtime/binding.rs) | `StateBinding`, `ProjectedBinding`, `ComposedBinding`, `ReadStateBinding`, `RwStateBinding` |
+| [`src/runtime/binding.rs`](../src/runtime/binding.rs) | `StateBinding`, `ProjectedBinding`, `ComposedBinding`, `ReadStateBinding`, `RwStateBinding`, `SnapshotStateBinding` |
 | [`src/runtime/rw_store.rs`](../src/runtime/rw_store.rs) | `RwStore`, `ReadStore` |
+| [`src/runtime/swap_store.rs`](../src/runtime/swap_store.rs) | `SwapStore`, `SnapshotStore` |
 | [`src/runtime/store.rs`](../src/runtime/store.rs) | `ChangeSubscriber`, `ChangeSet`, `ScopedChangeSubscriber` |

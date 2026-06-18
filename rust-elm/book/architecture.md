@@ -17,16 +17,29 @@ rust-elm implements **Elm Architecture / UDF-style** state management in Rust:
 
 ## System overview
 
+rust-elm offers **three store backends** for the same bus + reducer-thread + Tokio interpreter stack. Pick based on read concurrency and whether `S: Clone` is affordable:
+
+| Backend | State container | Read path | Write path | Feature |
+|---------|-----------------|-----------|------------|---------|
+| **`Store`** / `Runtime` | `Arc<Mutex<S>>` | lock | same lock | `runtime` (default) |
+| **`RwStore`** / `RwRuntime` | `Arc<RwLock<S>>` | shared `read()` | exclusive `write()` on reducer | `runtime` |
+| **`SwapStore`** / `SwapRuntime` | `Arc<ArcSwap<S>>` | lock-free `load()` | clone + atomic `store` | `arc-swap` |
+
+All three share **`StoreHub`** (in `runtime/store.rs`) for dispatch, listener notify, and effect-done signaling.
+
 ```mermaid
 flowchart TB
     subgraph UI["UI / tests / services"]
         Dispatch["dispatch(action)"]
-        Subscribe["subscribe_state()"]
+        Subscribe["subscribe_state / snapshot_store"]
     end
 
-    subgraph StoreLayer["Store layer"]
-        Store["Store / ScopedStore"]
+    subgraph StoreLayer["Store layer — pick one backend"]
+        StoreM["Store / Mutex"]
+        StoreRw["RwStore / RwLock"]
+        StoreSwap["SwapStore / ArcSwap"]
         Bus["Bus (crossbeam channel)"]
+        Hub["StoreHub"]
     end
 
     subgraph ReducerThread["Dedicated reducer OS thread"]
@@ -39,8 +52,13 @@ flowchart TB
         Tasks["Async tasks"]
     end
 
-    Dispatch --> Store
-    Store --> Bus
+    Dispatch --> StoreM
+    Dispatch --> StoreRw
+    Dispatch --> StoreSwap
+    StoreM --> Hub
+    StoreRw --> Hub
+    StoreSwap --> Hub
+    Hub --> Bus
     Bus --> Loop
     Loop --> Reduce
     Reduce -->|Cmd| Interpreter
@@ -49,11 +67,14 @@ flowchart TB
     Reduce --> Subscribe
 ```
 
+For lock-free snapshot reads, see [swap_ecommerce.md](./swap_ecommerce.md). For concurrent `read()` without cloning `S`, see [rw_ecommerce.md](./rw_ecommerce.md).
+
 | Component | Role |
 |-----------|------|
-| **`Store`** | Public API: `dispatch`, `send` + `StoreTask`, `scope`, `subscribe_state` |
+| **`Store` / `RwStore` / `SwapStore`** | Public API: `dispatch`, `send` + `StoreTask`, `scope`, subscriptions |
+| **`StoreHub`** | Shared dispatch hub: bus sender, listener lists, in-flight counter, interpreter |
 | **`Bus`** | FIFO action queue between producers (UI, effects) and the reducer thread |
-| **`Runtime`** | Owns state mutex, bus, reducer thread, and Tokio interpreter |
+| **`Runtime` / `RwRuntime` / `SwapRuntime`** | Owns state container, bus, reducer thread, and Tokio interpreter |
 | **`Reducer`** | Composable `reduce(&mut State, Action) → Cmd<Action>` |
 | **`Cmd` / `Effect`** | Pure descriptions of async work returned from reducers |
 | **`Environment`** | Live/test dependencies injected into env-scoped effects |
@@ -62,25 +83,35 @@ flowchart TB
 
 ## Action lifecycle
 
-One user or effect-driven action goes through this pipeline:
+One user or effect-driven action goes through this pipeline. The state step differs by backend:
+
+| Backend | State step on reduce |
+|---------|----------------------|
+| `Store` (Mutex) | `lock` → mutate in place → `unlock` |
+| `RwStore` (RwLock) | `write()` → mutate in place → drop guard |
+| `SwapStore` (ArcSwap) | `load()` → clone `S` → mutate copy → `store(Arc::new(next))` |
 
 ```mermaid
 sequenceDiagram
     participant UI as Caller
-    participant Store as Store
+    participant Store as Store / RwStore / SwapStore
     participant Bus as Bus
     participant RT as Reducer thread
-    participant State as State (Mutex)
+    participant State as State container
     participant Tokio as Tokio interpreter
     participant FX as Effect task
 
     UI->>Store: dispatch(action)
     Store->>Bus: send_blocking(action)
     Bus->>RT: recv
-    RT->>State: lock
-    RT->>State: safe_reduce_update(reduce)
+    alt Mutex / RwLock
+        RT->>State: lock or write()
+        RT->>State: safe_reduce_update(reduce)
+    else ArcSwap
+        RT->>State: load → clone → reduce → store(new Arc)
+    end
     State-->>RT: Cmd
-    RT->>State: unlock + notify listeners
+    RT->>Store: notify listeners
     RT->>Tokio: interpret_effects_async(cmd)
     Tokio->>FX: spawn task(s)
     FX->>Bus: send_blocking(result action)
@@ -88,11 +119,14 @@ sequenceDiagram
     FX-->>Store: end_store_work (StoreTask completes)
 ```
 
+**SwapStore readers** (parallel to the above): any thread calls `snapshot_store().load()` without entering this sequence — they observe the last published `Arc<S>`.
+
 Important properties:
 
 1. **Reducers always run on one dedicated thread**, one action at a time (serial).
 2. **Effects never call `reduce` directly** — they enqueue a new action on the bus.
 3. **`Store::send`** returns a `StoreTask` that completes when that action's effect tree finishes.
+4. **`SwapStore` readers** never block the reducer and are never blocked by it (copy-on-write snapshots).
 
 ---
 
@@ -106,6 +140,8 @@ Important properties:
 | Effect interpretation (spawn, debounce timers, cancel registry) | **Tokio worker threads** (multi-thread runtime created inside `Runtime`) |
 | UI / test code calling `dispatch` | **Your thread** (typically main) |
 | Actions produced by effects | Posted to bus from Tokio; **processed serially** on reducer thread |
+| **`SwapStore` snapshot reads** | **Any thread** — `ArcSwap::load()` without locking `S` |
+| **`RwStore` concurrent reads** | **Any thread** — shared `RwLock::read()` |
 
 Effects are **not** executed on the reducer thread. After each reduce, the reducer thread `block_on`s effect spawning, then hands long-running work to Tokio:
 
@@ -344,8 +380,12 @@ mindmap
   root((rust-elm))
     runtime
       Bus
+      StoreHub
       Tokio interpreter
       safe_reduce_update
+      Mutex Store Runtime
+      RwLock RwStore RwRuntime
+      ArcSwap SwapStore SwapRuntime
     store
       Store
       ScopedStore
@@ -371,11 +411,29 @@ mindmap
 
 ---
 
+## Locks by design (not on state read hot path)
+
+| Location | Lock | Why it stays |
+|----------|------|--------------|
+| `StoreHub::state_listeners`, `effect_done` | `Mutex` | register/wake listeners; not per-read |
+| `InterpreterState` (cancel, debounce, throttle) | `Mutex` | Tokio effect bookkeeping |
+| `SubscriptionHandles` | `Mutex` | subscription lifecycle |
+| `RollbackCatchReducer::checkpoint` | `Mutex` | panic recovery only |
+| `effect.rs` type-erasure registries | `std::Mutex` | registration at effect construction |
+
+**Goal:** application state reads via `SwapStore::snapshot_store()` never touch these locks. See [todo.md](../../todo.md) for the full migration checklist.
+
+---
+
 ## Related docs
 
 - [README / quick start](../README.0.1.0.md)
+- [store backends comparison](./store.md)
+- [swap_ecommerce — lock-free reads](./swap_ecommerce.md)
+- [rw_ecommerce — RwLock reads](./rw_ecommerce.md)
 - [safe_reducer](./safe_reducer.md)
 - [binding](./binding.md)
 - [ROADMAP](../ROADMAP.md)
+- [todo checklist](../../todo.md)
 - [dependencies](../rust_dependencies/book/dependencies.md) — `Environment` / DI
 - [identified collections](../rust_identified_vec/book/identified.md) — `ForEachReducer`

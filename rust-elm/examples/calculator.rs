@@ -4,7 +4,7 @@
 //! cargo run -p rust-elm --example calculator
 //! ```
 
-use rust_elm::{CatchReducer, Cmd, Environment, Reduce, Reducer, ReducerProgram, Runtime, RuntimeConfig};
+use rust_elm::{CatchReducer, Cmd, Reduce, Reducer, SafeReduceError};
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 struct Calculator {
@@ -31,28 +31,11 @@ fn calculator_reducer(state: &mut Calculator, action: CalculatorAction) -> Cmd<C
     Cmd::none()
 }
 
-impl Calculator {
-    fn new() -> Self {
-        Self{
-            result: 0,
-        }
-    }
-}
-impl Calculator {
-    fn init() -> (Self, Cmd<CalculatorAction>) {
-        (Calculator::new(), Cmd::none())
-    }
-}
-
 fn main() {
-    let safe = CatchReducer::new(Reduce::new(calculator_reducer), |_: rust_elm::SafeReduceError| {
-        println!("paincked .........");
+    let safe = CatchReducer::new(Reduce::new(calculator_reducer), |_: SafeReduceError| {
+        println!("reducer panic caught");
         Cmd::none()
     });
-    let program = ReducerProgram::new(safe, init, subscriptions);
-    let runtime: Runtime<Calculator, CalculatorAction> = Runtime::from_reducer_program(program, Environment::test(), RuntimeConfig::new(64));
-    let store: rust_elm::Store<ShopState, ShopAction> = runtime.store();
-
 
     let mut calc = Calculator::default();
 
