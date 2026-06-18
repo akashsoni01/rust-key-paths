@@ -1,5 +1,6 @@
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 /// Lock-free bounded MPMC message bus with explicit backpressure.
 #[derive(Debug)]
@@ -7,7 +8,7 @@ pub struct Bus<M> {
     sender: Sender<M>,
     receiver: Receiver<M>,
     capacity: usize,
-    dropped: AtomicU64,
+    dropped: Arc<AtomicU64>,
 }
 
 impl<M: Send + 'static> Bus<M> {
@@ -17,14 +18,14 @@ impl<M: Send + 'static> Bus<M> {
             sender,
             receiver,
             capacity: capacity.max(1),
-            dropped: AtomicU64::new(0),
+            dropped: Arc::new(AtomicU64::new(0)),
         }
     }
 
     pub fn sender(&self) -> BusSender<M> {
         BusSender {
             inner: self.sender.clone(),
-            dropped: &self.dropped,
+            dropped: Arc::clone(&self.dropped),
         }
     }
 
@@ -44,14 +45,14 @@ impl<M: Send + 'static> Bus<M> {
 #[derive(Debug)]
 pub struct BusSender<M> {
     inner: Sender<M>,
-    dropped: *const AtomicU64,
+    dropped: Arc<AtomicU64>,
 }
 
 impl<M> Clone for BusSender<M> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
-            dropped: self.dropped,
+            dropped: Arc::clone(&self.dropped),
         }
     }
 }
@@ -61,10 +62,7 @@ impl<M> BusSender<M> {
         match self.inner.try_send(msg) {
             Ok(()) => Ok(()),
             Err(TrySendError::Full(msg)) => {
-                // Backpressure: drop and count when full (caller may retry).
-                unsafe {
-                    (*self.dropped).fetch_add(1, Ordering::Relaxed);
-                }
+                self.dropped.fetch_add(1, Ordering::Relaxed);
                 Err(msg)
             }
             Err(TrySendError::Disconnected(msg)) => Err(msg),
@@ -75,9 +73,6 @@ impl<M> BusSender<M> {
         self.inner.send(msg).map_err(|e| e.into_inner())
     }
 }
-
-unsafe impl<M> Send for BusSender<M> {}
-unsafe impl<M> Sync for BusSender<M> {}
 
 #[cfg(test)]
 mod tests {

@@ -92,7 +92,7 @@ mod tests {
         if let Some(counter) = kp.focus_mut(&mut state) {
             counter.value = 5;
         }
-        assert_eq!(state.counter.unwrap().value, 5);
+        assert_eq!(state.counter.as_ref().map(|c| c.value), Some(5));
     }
 
     #[test]
@@ -132,6 +132,6 @@ mod tests {
         if let Some(v) = value_kp.get_mut(&mut state) {
             *v = 99;
         }
-        assert_eq!(state.counter.unwrap().value, 99);
+        assert_eq!(state.counter.as_ref().map(|c| c.value), Some(99));
     }
 }

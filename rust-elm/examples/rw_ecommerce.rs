@@ -18,7 +18,7 @@ mod deps;
 mod shop;
 
 use shop::*;
-use rust_elm::{Environment, ReducerProgram, RuntimeConfig, RwRuntime};
+use rust_elm::{start_rw_reducer_runtime, Environment, ReducerProgram, RuntimeConfig, RwRuntime};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -59,7 +59,7 @@ fn run_rw_shop(label: &str, env: Environment) {
 
     let program = ReducerProgram::new(shop_reducer(), init, subscriptions);
     let runtime: RwRuntime<ShopState, ShopAction> =
-        RwRuntime::from_reducer_program(program, env, RuntimeConfig::new(64));
+        start_rw_reducer_runtime(program, env, RuntimeConfig::new(64));
 
     let store = runtime.rw_store();
 

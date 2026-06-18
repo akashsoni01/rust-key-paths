@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use arc_swap::ArcSwap;
 use crossbeam_channel::RecvTimeoutError;
-use tokio::runtime::{Builder as TokioRuntimeBuilder, Runtime as TokioRuntime};
+use tokio::runtime::Runtime as TokioRuntime;
 
 use crate::bus::{Bus, BusSender};
 use crate::cmd::Cmd;
@@ -17,6 +17,7 @@ use crate::safe_reducer::safe_reduce_update;
 use crate::sub::Sub;
 
 use super::config::RuntimeConfig;
+use super::error::{build_tokio, RuntimeError};
 use super::interpreter::{interpret_effects_async, InterpreterState};
 use super::store::{StoreHub, StoreWork, StoreWorkUnwindGuard};
 use super::subscription;
@@ -42,7 +43,11 @@ where
     S: Send + Sync + Clone + 'static,
     M: Send + 'static,
 {
-    pub fn from_program(program: Program<S, M>, env: Environment, config: RuntimeConfig) -> Self {
+    pub fn from_program(
+        program: Program<S, M>,
+        env: Environment,
+        config: RuntimeConfig,
+    ) -> Result<Self, RuntimeError> {
         Self::bootstrap(
             program.init,
             program.update,
@@ -56,7 +61,7 @@ where
         program: ReducerProgram<R>,
         env: Environment,
         config: RuntimeConfig,
-    ) -> Self
+    ) -> Result<Self, RuntimeError>
     where
         R: Reducer<State = S, Action = M> + Send + Sync + 'static,
     {
@@ -78,7 +83,7 @@ where
         subscriptions: fn(&S) -> Sub<M>,
         env: Environment,
         config: RuntimeConfig,
-    ) -> Self {
+    ) -> Result<Self, RuntimeError> {
         let RuntimeConfig {
             bus_capacity,
             worker_threads,
@@ -88,14 +93,7 @@ where
         let state = Arc::new(ArcSwap::from(Arc::new(initial_state)));
         let bus = Bus::new(bus_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
-        let tokio = Arc::new(
-            TokioRuntimeBuilder::new_multi_thread()
-                .worker_threads(worker_threads.max(1))
-                .thread_name(thread_name)
-                .enable_all()
-                .build()
-                .expect("failed to create Tokio runtime for rust-elm"),
-        );
+        let tokio = build_tokio(worker_threads, thread_name)?;
         let interpreter = InterpreterState::new();
         let sub_handles = Arc::new(subscription::SubscriptionHandles::new());
         let hub = StoreHub::new(bus.sender(), interpreter);
@@ -188,9 +186,9 @@ where
                     }
                 }
             })
-            .expect("failed to spawn rust-elm reducer thread");
+            .map_err(RuntimeError::ThreadSpawn)?;
 
-        Self {
+        Ok(Self {
             state,
             bus,
             env,
@@ -199,7 +197,7 @@ where
             _thread: Some(thread),
             _tokio: tokio,
             _subscriptions: sub_handles,
-        }
+        })
     }
 
     pub fn swap_store(&self) -> SwapStore<S, M> {
@@ -251,11 +249,16 @@ mod tests {
         Sub::none()
     }
 
+    fn boot(program: Program<Counter, i32>) -> SwapRuntime<Counter, i32> {
+        match SwapRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16)) {
+            Ok(runtime) => runtime,
+            Err(err) => panic!("test runtime bootstrap failed: {err}"),
+        }
+    }
+
     #[test]
     fn swap_runtime_applies_dispatched_messages() {
-        let program = Program::new(init, update, subs);
-        let runtime =
-            SwapRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let runtime = boot(Program::new(init, update, subs));
         runtime.dispatch(3);
         runtime.dispatch(4);
         std::thread::sleep(Duration::from_millis(200));
@@ -265,9 +268,7 @@ mod tests {
 
     #[test]
     fn snapshot_store_lock_free_reads() {
-        let program = Program::new(init, update, subs);
-        let runtime =
-            SwapRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let runtime = boot(Program::new(init, update, subs));
         let store = runtime.swap_store();
         store.dispatch(5);
         std::thread::sleep(Duration::from_millis(100));

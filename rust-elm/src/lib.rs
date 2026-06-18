@@ -70,7 +70,7 @@ pub use replay::{ReplayHarness, ReplayLog};
 #[cfg(feature = "serde")]
 pub use replay::StateSnapshot;
 #[cfg(feature = "runtime")]
-pub use runtime::{Runtime, RuntimeConfig, RwRuntime, TeaRuntime};
+pub use runtime::{Runtime, RuntimeConfig, RuntimeError, RwRuntime, TeaRuntime};
 #[cfg(all(feature = "runtime", feature = "arc-swap"))]
 pub use runtime::SwapRuntime;
 pub use scope::{
@@ -92,7 +92,7 @@ pub use runtime::rw_store::{
 #[cfg(feature = "runtime")]
 pub use runtime::tea_store::{
     ScopedTeaStore, ScopedTeaStateSubscriber, TeaChangeSubscriber, TeaStateSubscriber, TeaStore,
-    TeaViewStore,
+    TeaStoreError, TeaViewStore,
 };
 #[cfg(all(feature = "runtime", feature = "arc-swap"))]
 pub use runtime::swap_store::{
@@ -110,7 +110,10 @@ pub use test_runtime::TestRuntime;
 pub use test_store::{ExhaustiveTestStore, TestStoreError};
 pub use test_support::{
     allow_state_clones, on_state_clone, replay_snapshot, shared_get, shared_with_mut,
+    start_reducer_runtime, start_runtime, start_rw_reducer_runtime, start_tea_reducer_runtime,
 };
+#[cfg(all(feature = "runtime", feature = "arc-swap"))]
+pub use test_support::start_swap_reducer_runtime;
 #[cfg(feature = "runtime")]
 pub use test_support::{
     scoped_child_state, scoped_subscribe_state, scoped_subscriber_next, store_state,

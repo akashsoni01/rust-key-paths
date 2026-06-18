@@ -585,7 +585,7 @@ mod tests {
             child: Some(Child { n: 0 }),
         };
         scope.reduce(&mut parent, ParentAction::Child(ChildAction::Inc("Akash Soni".to_string())));
-        assert_eq!(parent.child.as_ref().unwrap().n, 1);
+        assert_eq!(parent.child.as_ref().map(|c| c.n), Some(1));
     }
 
     #[test]
@@ -600,9 +600,9 @@ mod tests {
             child: Some(Child { n: 0 }),
         };
         scope.reduce(&mut parent, ParentAction::Child(ChildAction::Inc("Akash Soni".to_string())));
-        assert_eq!(parent.child.as_ref().unwrap().n, 1);
+        assert_eq!(parent.child.as_ref().map(|c| c.n), Some(1));
         scope.reduce(&mut parent, ParentAction::Other);
-        assert_eq!(parent.child.as_ref().unwrap().n, 1);
+        assert_eq!(parent.child.as_ref().map(|c| c.n), Some(1));
     }
 
     #[test]
@@ -703,8 +703,8 @@ mod tests {
         parent.rows.insert(Row { id: 1, n: 0 });
         parent.rows.insert(Row { id: 2, n: 0 });
         for_each.reduce(&mut parent, ListAction::Row(1, RowAction::Bump));
-        assert_eq!(parent.rows.get(1).unwrap().n, 1);
-        assert_eq!(parent.rows.get(2).unwrap().n, 0);
+        assert_eq!(parent.rows.get(1).map(|r| r.n), Some(1));
+        assert_eq!(parent.rows.get(2).map(|r| r.n), Some(0));
     }
 
     #[test]

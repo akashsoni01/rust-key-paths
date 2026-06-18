@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use rust_elm::{Cmd, Environment, Program, Runtime, RuntimeConfig, Sub};
+use rust_elm::{start_runtime, Cmd, Environment, Program, Runtime, RuntimeConfig, Sub};
 
 #[derive(Default, Clone)]
 struct State {
@@ -51,7 +51,7 @@ fn drain(store: &rust_elm::Store<State, Action>, expected: usize) {
 
 fn run_parallel(threads: usize, per: usize, bus: usize) -> (f64, u64) {
     let total = threads * per;
-    let runtime = Runtime::from_program(
+    let runtime = start_runtime(
         Program::new(init, update, subs),
         Environment::new(),
         RuntimeConfig::new(bus),

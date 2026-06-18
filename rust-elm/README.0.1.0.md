@@ -49,14 +49,34 @@ fn subscriptions(_: &State) -> Sub<i32> {
     Sub::none()
 }
 
-fn main() {
+fn main() -> Result<(), rust_elm::RuntimeError> {
     let program = Program::new(init, update, subscriptions);
-    let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(64));
+    let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(64))?;
     let store = runtime.store();
     store.dispatch(1);
     runtime.shutdown();
+    Ok(())
 }
 ```
+
+## Snapshot reads: blocking vs background
+
+`dispatch` / `send` **never wait for a snapshot** — they only enqueue on the action bus (may block if the bus is full).
+
+How you **read** state depends on the store backend:
+
+| API | When snapshot is taken | Blocks caller? |
+|-----|------------------------|----------------|
+| `Store::state()` / `RwStore::state()` | immediately on **your thread** | **Yes** — locks `Mutex` / `RwLock`, clones `S` |
+| `Store::binding()` / `with_read` | immediately on **your thread** | **Yes** — holds lock for the closure |
+| `SwapStore::snapshot_store().load()` | immediately on **your thread** | **No lock** — atomic `Arc` load (may be slightly stale) |
+| `Store::subscribe_state()` / `subscribe_changes()` | after reduce (+ effect batch for `send`) | **Background notify** — `next()` / `wait_next()` **block** until a ping or push arrives |
+| `TeaStore::subscribe_state()` | reducer **pushes** `Arc<S>` after each `update` | **Background push** — `next()` / `wait_next()` **block** on the channel |
+| `TeaStore::state()` / `TeaViewStore::load()` | RPC to reducer thread | **Yes** — caller blocks until reducer replies on control channel |
+
+**Rule of thumb:** subscriptions are **push/async relative to reduce** (you wait on a channel). One-off `state()` / `load()` / `with_snapshot()` are **synchronous reads** on the calling thread (Tea RPC blocks until the reducer responds; Mutex/RwLock blocks on the lock).
+
+See [tea_ecommerce.md](book/tea_ecommerce.md) (channel TEA), [swap_ecommerce.md](book/swap_ecommerce.md) (atomic snapshots), and [store.md](book/store.md) (API reference).
 
 ## Release notes
 
@@ -66,6 +86,8 @@ fn main() {
 - **`swap_ecommerce` example** — lock-free snapshot reads on the shared shop domain.
 - **`TeaRuntime`** / **`TeaStore`** — channel-pushed model (true TEA: no shared mutable state).
 - **`tea_ecommerce` example** — same shop with channel-delivered snapshots.
+- **`RuntimeError`** / **`TeaStoreError`** — fallible runtime bootstrap and tea snapshot reads (no `unwrap` / `expect` in library code).
+- **No `unsafe`** — `BusSender` drop counter uses `Arc<AtomicU64>` instead of raw pointers.
 
 ### 0.6.0
 

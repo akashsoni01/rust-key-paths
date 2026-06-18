@@ -76,13 +76,11 @@ impl<M> Sub<M> {
     }
 
     pub fn batch(subs: impl IntoIterator<Item = Sub<M>>) -> Self {
-        let subs: Vec<_> = subs.into_iter().collect();
-        if subs.is_empty() {
-            Self::None
-        } else if subs.len() == 1 {
-            subs.into_iter().next().unwrap()
-        } else {
-            Self::Batch(subs)
+        let mut subs: Vec<_> = subs.into_iter().collect();
+        match subs.len() {
+            0 => Self::None,
+            1 => subs.pop().map_or(Self::None, |single| single),
+            _ => Self::Batch(subs),
         }
     }
 

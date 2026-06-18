@@ -24,7 +24,7 @@ mod deps;
 mod shop;
 
 use shop::*;
-use rust_elm::{Environment, ReducerProgram, Runtime, RuntimeConfig};
+use rust_elm::{start_reducer_runtime, Environment, ReducerProgram, Runtime, RuntimeConfig};
 use std::time::Duration;
 
 fn run_shop(label: &str, env: Environment) {
@@ -32,7 +32,7 @@ fn run_shop(label: &str, env: Environment) {
 
     let program = ReducerProgram::new(shop_reducer(), init, subscriptions);
     let runtime: Runtime<ShopState, ShopAction> =
-        Runtime::from_reducer_program(program, env, RuntimeConfig::new(64));
+        start_reducer_runtime(program, env, RuntimeConfig::new(64));
     let store: rust_elm::Store<ShopState, ShopAction> = runtime.store();
 
     std::thread::sleep(Duration::from_millis(600));

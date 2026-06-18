@@ -24,7 +24,7 @@ use sample::{sample_invalid, sample_valid};
 use validation::{FieldError, Validate};
 
 use key_paths_derive::Kp;
-use rust_elm::{Cmd, Environment, Reduce, ReducerProgram, Runtime, RuntimeConfig, Sub};
+use rust_elm::{start_reducer_runtime, Cmd, Environment, Reduce, ReducerProgram, Runtime, RuntimeConfig, Sub};
 
 #[derive(Clone, Debug, Default, PartialEq, Kp)]
 struct PainAppState {
@@ -113,7 +113,7 @@ fn main() {
     println!("=== PAIN.001 ISO 20022 — elm state + keypath validation ===");
 
     let program = ReducerProgram::new(Reduce::new(pain_reducer), init, subscriptions);
-    let runtime = Runtime::from_reducer_program(program, Environment::new(), RuntimeConfig::new(16));
+    let runtime = start_reducer_runtime(program, Environment::new(), RuntimeConfig::new(16));
     let store = runtime.store();
 
     dispatch(&store, PainAction::Validate);

@@ -297,9 +297,12 @@ mod tests {
     fn in_memory_storage_round_trip() {
         let storage = InMemoryStorage::new();
         let shared = Shared::new(Counter { n: 7 });
-        allow_state_clones(2, || shared.persist(&storage, "counter")).unwrap();
-        let loaded =
-            allow_state_clones(1, || Shared::load(&storage, "counter", Counter { n: 0 })).unwrap();
+        let persist = allow_state_clones(2, || shared.persist(&storage, "counter"));
+        assert!(persist.is_ok(), "persist failed: {persist:?}");
+        let loaded = allow_state_clones(1, || Shared::load(&storage, "counter", Counter { n: 0 }));
+        let Ok(loaded) = loaded else {
+            panic!("load failed");
+        };
         assert_eq!(shared_get(&loaded).n, 7);
     }
 
@@ -310,9 +313,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let storage = FileStorage::new(&dir);
         let shared = Shared::new(Counter { n: 42 });
-        allow_state_clones(2, || shared.persist(&storage, "counter")).unwrap();
-        let loaded =
-            allow_state_clones(1, || Shared::load(&storage, "counter", Counter { n: 0 })).unwrap();
+        let persist = allow_state_clones(2, || shared.persist(&storage, "counter"));
+        assert!(persist.is_ok(), "persist failed: {persist:?}");
+        let loaded = allow_state_clones(1, || Shared::load(&storage, "counter", Counter { n: 0 }));
+        let Ok(loaded) = loaded else {
+            panic!("load failed");
+        };
         assert_eq!(shared_get(&loaded).n, 42);
         let _ = std::fs::remove_dir_all(&dir);
     }

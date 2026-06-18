@@ -2,7 +2,7 @@
 #[path = "support/ws_echo.rs"]
 mod ws_echo;
 
-use rust_elm::{Environment, Program, ReducerProgram, Runtime, RuntimeConfig, Sub};
+use rust_elm::{start_reducer_runtime, start_runtime, Environment, Program, ReducerProgram, Runtime, RuntimeConfig, Sub};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -97,7 +97,7 @@ fn all_subscription_varieties_fire() {
     };
 
     let program = Program::new(init, update, subscriptions);
-    let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(32));
+    let runtime = start_runtime(program, Environment::new(), RuntimeConfig::new(32));
     runtime.dispatch(Action::Login);
     std::thread::sleep(Duration::from_millis(500));
     let app = *runtime.state.lock();
@@ -122,7 +122,7 @@ fn subscriptions_stop_when_logged_out() {
         init,
         subscriptions,
     );
-    let runtime = Runtime::from_reducer_program(program, Environment::new(), RuntimeConfig::new(32));
+    let runtime = start_reducer_runtime(program, Environment::new(), RuntimeConfig::new(32));
     runtime.dispatch(Action::Login);
     std::thread::sleep(Duration::from_millis(200));
     let ticks_before = runtime.state.lock().ticks;

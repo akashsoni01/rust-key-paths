@@ -7,6 +7,7 @@
 //! - [`swap_store::SwapStore`] — lock-free snapshot reads (`arc-swap` feature, [`SwapRuntime`])
 
 mod config;
+pub mod error;
 pub(crate) mod dispatch;
 mod engine;
 mod rw_engine;
@@ -24,6 +25,7 @@ pub mod swap_store;
 pub mod subscription;
 
 pub use config::RuntimeConfig;
+pub use error::RuntimeError;
 pub use engine::Runtime;
 pub use rw_engine::RwRuntime;
 pub use tea_engine::TeaRuntime;

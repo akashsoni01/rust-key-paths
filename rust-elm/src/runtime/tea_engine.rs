@@ -4,7 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender};
-use tokio::runtime::{Builder as TokioRuntimeBuilder, Runtime as TokioRuntime};
+use tokio::runtime::Runtime as TokioRuntime;
 
 use crate::bus::{Bus, BusSender};
 use crate::cmd::Cmd;
@@ -16,6 +16,7 @@ use crate::safe_reducer::safe_reduce_update;
 use crate::sub::Sub;
 
 use super::config::RuntimeConfig;
+use super::error::{build_tokio, RuntimeError};
 use super::interpreter::{interpret_effects_async, InterpreterState};
 use super::store::{StoreHub, StoreWork, StoreWorkUnwindGuard};
 use super::subscription;
@@ -40,7 +41,11 @@ where
     S: Send + Sync + Clone + 'static,
     M: Send + 'static,
 {
-    pub fn from_program(program: Program<S, M>, env: Environment, config: RuntimeConfig) -> Self {
+    pub fn from_program(
+        program: Program<S, M>,
+        env: Environment,
+        config: RuntimeConfig,
+    ) -> Result<Self, RuntimeError> {
         Self::bootstrap(
             program.init,
             program.update,
@@ -54,7 +59,7 @@ where
         program: ReducerProgram<R>,
         env: Environment,
         config: RuntimeConfig,
-    ) -> Self
+    ) -> Result<Self, RuntimeError>
     where
         R: Reducer<State = S, Action = M> + Send + Sync + 'static,
     {
@@ -76,7 +81,7 @@ where
         subscriptions: fn(&S) -> Sub<M>,
         env: Environment,
         config: RuntimeConfig,
-    ) -> Self {
+    ) -> Result<Self, RuntimeError> {
         let RuntimeConfig {
             bus_capacity,
             worker_threads,
@@ -85,14 +90,7 @@ where
         let (mut state, init_cmd) = init();
         let bus = Bus::new(bus_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
-        let tokio = Arc::new(
-            TokioRuntimeBuilder::new_multi_thread()
-                .worker_threads(worker_threads.max(1))
-                .thread_name(thread_name)
-                .enable_all()
-                .build()
-                .expect("failed to create Tokio runtime for rust-elm"),
-        );
+        let tokio = build_tokio(worker_threads, thread_name)?;
         let interpreter = InterpreterState::new();
         let sub_handles = Arc::new(subscription::SubscriptionHandles::new());
         let hub = StoreHub::new(bus.sender(), interpreter);
@@ -201,9 +199,9 @@ where
                     }
                 }
             })
-            .expect("failed to spawn rust-elm tea reducer thread");
+            .map_err(RuntimeError::ThreadSpawn)?;
 
-        Self {
+        Ok(Self {
             bus,
             env,
             backend,
@@ -211,7 +209,7 @@ where
             _thread: Some(thread),
             _tokio: tokio,
             _subscriptions: sub_handles,
-        }
+        })
     }
 
     pub fn tea_store(&self) -> TeaStore<S, M> {
@@ -292,30 +290,39 @@ mod tests {
         Sub::none()
     }
 
+    fn boot(program: Program<Counter, i32>) -> TeaRuntime<Counter, i32> {
+        match TeaRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16)) {
+            Ok(runtime) => runtime,
+            Err(err) => panic!("test runtime bootstrap failed: {err}"),
+        }
+    }
+
     #[test]
     fn tea_runtime_dispatches_and_pushes_snapshots() {
-        let program = Program::new(init, update, subs);
-        let runtime =
-            TeaRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16));
-        let store = runtime.tea_store();
-        let mut sub = store.subscribe_state();
+        let store = boot(Program::new(init, update, subs)).tea_store();
+        let Ok(mut sub) = store.subscribe_state() else {
+            panic!("expected subscribe_state to succeed in test");
+        };
         store.dispatch(3);
         store.dispatch(4);
         std::thread::sleep(Duration::from_millis(200));
         while sub.next().is_some() {}
         assert_eq!(sub.latest().map(|s| s.n), Some(7));
-        runtime.shutdown();
+        boot(Program::new(init, update, subs)).shutdown();
     }
 
     #[test]
     fn tea_view_store_requests_snapshot() {
-        let program = Program::new(init, update, subs);
-        let runtime =
-            TeaRuntime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let runtime = boot(Program::new(init, update, subs));
         let store = runtime.tea_store();
         store.dispatch(5);
         std::thread::sleep(Duration::from_millis(100));
-        assert_eq!(store.view_store().with_snapshot(|s| s.n), 5);
+        let n = store
+            .view_store()
+            .try_with_snapshot(|s| s.n)
+            .map_err(|e| format!("{e}"))
+            .ok();
+        assert_eq!(n, Some(5));
         runtime.shutdown();
     }
 }

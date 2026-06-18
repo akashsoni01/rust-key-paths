@@ -18,7 +18,7 @@ mod deps;
 mod shop;
 
 use shop::*;
-use rust_elm::{Environment, ReducerProgram, RuntimeConfig, SwapRuntime};
+use rust_elm::{start_swap_reducer_runtime, Environment, ReducerProgram, RuntimeConfig, SwapRuntime};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -61,7 +61,7 @@ fn run_swap_shop(label: &str, env: Environment) {
 
     let program = ReducerProgram::new(shop_reducer(), init, subscriptions);
     let runtime: SwapRuntime<ShopState, ShopAction> =
-        SwapRuntime::from_reducer_program(program, env, RuntimeConfig::new(64));
+        start_swap_reducer_runtime(program, env, RuntimeConfig::new(64));
 
     let store = runtime.swap_store();
 

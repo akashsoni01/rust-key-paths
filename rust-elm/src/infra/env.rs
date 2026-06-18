@@ -231,11 +231,23 @@ mod tests {
     #[test]
     fn test_env_is_deterministic() {
         let env = Environment::test();
-        let uuid1 = env.require::<UuidDep>().unwrap().0.next();
-        let rng1 = env.require::<RngDep>().unwrap().0.next_u64();
+        let Ok(uuid_dep) = env.require::<UuidDep>() else {
+            panic!("missing uuid dependency");
+        };
+        let uuid1 = uuid_dep.0.next();
+        let Ok(rng_dep) = env.require::<RngDep>() else {
+            panic!("missing rng dependency");
+        };
+        let rng1 = rng_dep.0.next_u64();
         let env2 = Environment::test();
-        let uuid2 = env2.require::<UuidDep>().unwrap().0.next();
-        let rng2 = env2.require::<RngDep>().unwrap().0.next_u64();
+        let Ok(uuid_dep2) = env2.require::<UuidDep>() else {
+            panic!("missing uuid dependency");
+        };
+        let uuid2 = uuid_dep2.0.next();
+        let Ok(rng_dep2) = env2.require::<RngDep>() else {
+            panic!("missing rng dependency");
+        };
+        let rng2 = rng_dep2.0.next_u64();
         assert_eq!(uuid1, uuid2);
         assert_eq!(rng1, rng2);
     }
@@ -243,11 +255,17 @@ mod tests {
     #[test]
     fn scoped_override_replaces_dependency() {
         let env = Environment::test();
-        let base = env.require::<UuidDep>().unwrap().0.next();
+        let Ok(base_dep) = env.require::<UuidDep>() else {
+            panic!("missing uuid dependency");
+        };
+        let base = base_dep.0.next();
         let scoped = env.scoped_with(Environment::new().with(UuidDep(Arc::new(SeededUuidGen::new(
             99,
         )))));
-        let overridden = scoped.require::<UuidDep>().unwrap().0.next();
+        let Ok(overridden_dep) = scoped.require::<UuidDep>() else {
+            panic!("missing uuid dependency");
+        };
+        let overridden = overridden_dep.0.next();
         assert_ne!(base, overridden);
         assert_eq!(overridden, SeededUuidGen::new(99).next());
     }

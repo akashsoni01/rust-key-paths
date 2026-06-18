@@ -165,3 +165,73 @@ macro_rules! panic_on_state_clone {
         }
     };
 }
+
+/// Start a [`Runtime`](crate::Runtime) in tests/examples; panics only if bootstrap fails.
+#[cfg(feature = "runtime")]
+pub fn start_runtime<S, M>(
+    program: crate::Program<S, M>,
+    env: crate::Environment,
+    config: crate::RuntimeConfig,
+) -> crate::Runtime<S, M>
+where
+    S: Send + Sync + 'static,
+    M: Send + 'static,
+{
+    match crate::Runtime::from_program(program, env, config) {
+        Ok(runtime) => runtime,
+        Err(err) => panic!("runtime bootstrap failed: {err}"),
+    }
+}
+
+/// Start a [`Runtime`](crate::Runtime) from a [`ReducerProgram`](crate::ReducerProgram).
+#[cfg(feature = "runtime")]
+pub fn start_reducer_runtime<R>(program: crate::ReducerProgram<R>, env: crate::Environment, config: crate::RuntimeConfig) -> crate::Runtime<R::State, R::Action>
+where
+    R: crate::Reducer + Send + Sync + 'static,
+    R::State: Send + Sync + Clone + 'static,
+    R::Action: Send + 'static,
+{
+    match crate::Runtime::from_reducer_program(program, env, config) {
+        Ok(runtime) => runtime,
+        Err(err) => panic!("runtime bootstrap failed: {err}"),
+    }
+}
+
+#[cfg(feature = "runtime")]
+pub fn start_rw_reducer_runtime<R>(program: crate::ReducerProgram<R>, env: crate::Environment, config: crate::RuntimeConfig) -> crate::RwRuntime<R::State, R::Action>
+where
+    R: crate::Reducer + Send + Sync + 'static,
+    R::State: Send + Sync + 'static,
+    R::Action: Send + 'static,
+{
+    match crate::RwRuntime::from_reducer_program(program, env, config) {
+        Ok(runtime) => runtime,
+        Err(err) => panic!("runtime bootstrap failed: {err}"),
+    }
+}
+
+#[cfg(all(feature = "runtime", feature = "arc-swap"))]
+pub fn start_swap_reducer_runtime<R>(program: crate::ReducerProgram<R>, env: crate::Environment, config: crate::RuntimeConfig) -> crate::SwapRuntime<R::State, R::Action>
+where
+    R: crate::Reducer + Send + Sync + 'static,
+    R::State: Send + Sync + Clone + 'static,
+    R::Action: Send + 'static,
+{
+    match crate::SwapRuntime::from_reducer_program(program, env, config) {
+        Ok(runtime) => runtime,
+        Err(err) => panic!("runtime bootstrap failed: {err}"),
+    }
+}
+
+#[cfg(feature = "runtime")]
+pub fn start_tea_reducer_runtime<R>(program: crate::ReducerProgram<R>, env: crate::Environment, config: crate::RuntimeConfig) -> crate::TeaRuntime<R::State, R::Action>
+where
+    R: crate::Reducer + Send + Sync + 'static,
+    R::State: Send + Sync + Clone + 'static,
+    R::Action: Send + 'static,
+{
+    match crate::TeaRuntime::from_reducer_program(program, env, config) {
+        Ok(runtime) => runtime,
+        Err(err) => panic!("runtime bootstrap failed: {err}"),
+    }
+}

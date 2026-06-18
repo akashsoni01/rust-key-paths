@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use key_paths_derive::{Cp, FieldDiff, Kp};
-use rust_elm::{
+use rust_elm::{start_runtime, 
     allow_state_clones, panic_on_state_clone, Runtime, RuntimeConfig, Environment, Program, Cmd,
     Sub,
 };
@@ -49,7 +49,7 @@ fn subs(_: &App) -> Sub<Action> {
 
 #[test]
 fn subscribe_changes_emits_changed_paths_without_cloning_state() {
-    let runtime = Runtime::from_program(
+    let runtime = start_runtime(
         Program::new(init, update, subs),
         Environment::new(),
         RuntimeConfig::new(16),
@@ -90,7 +90,7 @@ fn subscribe_changes_emits_changed_paths_without_cloning_state() {
 
 #[test]
 fn store_binding_projects_without_clone() {
-    let runtime = Runtime::from_program(
+    let runtime = start_runtime(
         Program::new(init, update, subs),
         Environment::new(),
         RuntimeConfig::new(16),

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use crossbeam_channel::RecvTimeoutError;
 use parking_lot::Mutex;
-use tokio::runtime::{Builder as TokioRuntimeBuilder, Runtime as TokioRuntime};
+use tokio::runtime::Runtime as TokioRuntime;
 
 use crate::bus::{Bus, BusSender};
 use crate::cmd::Cmd;
@@ -17,6 +17,7 @@ use crate::safe_reducer::safe_reduce_update;
 use crate::sub::Sub;
 
 use super::config::RuntimeConfig;
+use super::error::{build_tokio, RuntimeError};
 use super::interpreter::{interpret_effects_async, InterpreterState};
 use super::store::{StoreBackend, StoreWork, StoreWorkUnwindGuard};
 use super::subscription;
@@ -38,7 +39,11 @@ where
     S: Send + Sync + 'static,
     M: Send + 'static,
 {
-    pub fn from_program(program: Program<S, M>, env: Environment, config: RuntimeConfig) -> Self {
+    pub fn from_program(
+        program: Program<S, M>,
+        env: Environment,
+        config: RuntimeConfig,
+    ) -> Result<Self, RuntimeError> {
         Self::bootstrap(
             program.init,
             program.update,
@@ -52,7 +57,7 @@ where
         program: ReducerProgram<R>,
         env: Environment,
         config: RuntimeConfig,
-    ) -> Self
+    ) -> Result<Self, RuntimeError>
     where
         R: Reducer<State = S, Action = M> + Send + Sync + 'static,
     {
@@ -74,7 +79,7 @@ where
         subscriptions: fn(&S) -> Sub<M>,
         env: Environment,
         config: RuntimeConfig,
-    ) -> Self {
+    ) -> Result<Self, RuntimeError> {
         let RuntimeConfig {
             bus_capacity,
             worker_threads,
@@ -84,14 +89,7 @@ where
         let state = Arc::new(Mutex::new(initial_state));
         let bus = Bus::new(bus_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
-        let tokio = Arc::new(
-            TokioRuntimeBuilder::new_multi_thread()
-                .worker_threads(worker_threads.max(1))
-                .thread_name(thread_name)
-                .enable_all()
-                .build()
-                .expect("failed to create Tokio runtime for rust-elm"),
-        );
+        let tokio = build_tokio(worker_threads, thread_name)?;
         let interpreter = InterpreterState::new();
         let sub_handles = Arc::new(subscription::SubscriptionHandles::new());
         let backend = StoreBackend::new(state.clone(), bus.sender(), interpreter);
@@ -180,9 +178,9 @@ where
                     }
                 }
             })
-            .expect("failed to spawn rust-elm reducer thread");
+            .map_err(RuntimeError::ThreadSpawn)?;
 
-        Self {
+        Ok(Self {
             state,
             bus,
             env,
@@ -191,7 +189,7 @@ where
             _thread: Some(thread),
             _tokio: tokio,
             _subscriptions: sub_handles,
-        }
+        })
     }
 
     pub fn store(&self) -> crate::Store<S, M>
@@ -250,6 +248,13 @@ mod tests {
         Sub::none()
     }
 
+    fn boot(program: Program<Counter, i32>) -> Runtime<Counter, i32> {
+        match Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16)) {
+            Ok(runtime) => runtime,
+            Err(err) => panic!("test runtime bootstrap failed: {err}"),
+        }
+    }
+
     #[test]
     fn runtime_tick_subscription_dispatches() {
         fn subs(_: &Counter) -> Sub<i32> {
@@ -257,7 +262,7 @@ mod tests {
         }
 
         let program = Program::new(init, update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let runtime = boot(program);
         std::thread::sleep(Duration::from_millis(200));
         assert!(runtime.state.lock().n >= 1);
         runtime.shutdown();
@@ -266,7 +271,7 @@ mod tests {
     #[test]
     fn runtime_applies_dispatched_messages() {
         let program = Program::new(init, update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let runtime = boot(program);
         runtime.dispatch(3);
         runtime.dispatch(4);
         std::thread::sleep(Duration::from_millis(200));
@@ -285,7 +290,7 @@ mod tests {
             }
         }
         let program = Program::new(init, update_with_effect, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let runtime = boot(program);
         runtime.dispatch(0);
         std::thread::sleep(Duration::from_millis(200));
         assert_eq!(runtime.state.lock().n, 10);
@@ -304,7 +309,7 @@ mod tests {
         }
 
         let program = Program::new(init, panicking_update, subs);
-        let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(16));
+        let runtime = boot(program);
         let store = runtime.store();
         let task = store.send(-1);
         assert!(task.finish().is_ok());

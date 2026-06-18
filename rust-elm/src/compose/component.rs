@@ -89,6 +89,6 @@ mod tests {
             PMsg::Child(c) => Some(c),
         };
         let _ = slot.lift(&mut parent, PMsg::Child(CMsg::Inc), extract);
-        assert_eq!(parent.child.unwrap().n, 1);
+        assert_eq!(parent.child.as_ref().map(|c| c.n), Some(1));
     }
 }

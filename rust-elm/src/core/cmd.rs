@@ -19,13 +19,11 @@ impl<M> Cmd<M> {
     }
 
     pub fn batch(cmds: impl IntoIterator<Item = Cmd<M>>) -> Self {
-        let cmds: Vec<_> = cmds.into_iter().collect();
-        if cmds.is_empty() {
-            Self::None
-        } else if cmds.len() == 1 {
-            cmds.into_iter().next().unwrap()
-        } else {
-            Self::Batch(cmds)
+        let mut cmds: Vec<_> = cmds.into_iter().collect();
+        match cmds.len() {
+            0 => Self::None,
+            1 => cmds.pop().map_or(Self::None, |single| single),
+            _ => Self::Batch(cmds),
         }
     }
 

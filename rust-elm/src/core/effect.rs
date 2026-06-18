@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
+
+use parking_lot::Mutex;
 use std::time::Duration;
 
 use crate::bus::BusSender;
@@ -69,7 +71,7 @@ where
     F: Fn() -> Pin<Box<dyn Future<Output = Result<M, EffectError>> + Send>> + Send + Sync + 'static,
 {
     let id = NEXT_REGISTRY_ID.fetch_add(1, Ordering::Relaxed);
-    task_registry().lock().unwrap().insert(
+    task_registry().lock().insert(
         id,
         Arc::new(move || {
             let fut = run();
@@ -90,7 +92,7 @@ where
         + 'static,
 {
     let id = NEXT_REGISTRY_ID.fetch_add(1, Ordering::Relaxed);
-    env_task_registry().lock().unwrap().insert(
+    env_task_registry().lock().insert(
         id,
         Arc::new(move |env| {
             let fut = run(env);
@@ -105,8 +107,12 @@ where
 pub(crate) fn run_registered_task<M: Send + 'static>(
     id: EffectId,
 ) -> Pin<Box<dyn Future<Output = Result<M, EffectError>> + Send>> {
-    let registry = task_registry().lock().unwrap();
-    let task = registry.get(&id).expect("missing registered task").clone();
+    let registry = task_registry().lock();
+    let Some(task) = registry.get(&id).cloned() else {
+        return Box::pin(async {
+            Err(EffectError::TaskFailed("missing registered task"))
+        });
+    };
     drop(registry);
     Box::pin(async move {
         let any = (task)().await?;
@@ -120,8 +126,12 @@ pub(crate) fn run_registered_env_task<M: Send + 'static>(
     env: &Environment,
     id: EffectId,
 ) -> Pin<Box<dyn Future<Output = Result<M, EffectError>> + Send>> {
-    let registry = env_task_registry().lock().unwrap();
-    let task = registry.get(&id).expect("missing registered env task").clone();
+    let registry = env_task_registry().lock();
+    let Some(task) = registry.get(&id).cloned() else {
+        return Box::pin(async {
+            Err(EffectError::TaskFailed("missing registered env task"))
+        });
+    };
     let env = env.clone();
     drop(registry);
     Box::pin(async move {
@@ -141,13 +151,15 @@ where
         + 'static,
 {
     let id = NEXT_REGISTRY_ID.fetch_add(1, Ordering::Relaxed);
-    run_registry().lock().unwrap().insert(
+    run_registry().lock().insert(
         id,
         Arc::new(move |any: Box<dyn Any + Send>| {
-            let tx = *any
-                .downcast::<BusSender<M>>()
-                .expect("run sender type mismatch");
-            run(RunSender { tx })
+            match any.downcast::<BusSender<M>>() {
+                Ok(tx) => run(RunSender { tx: *tx }),
+                Err(_) => Box::pin(async {
+                    Err(EffectError::TaskFailed("run sender type mismatch"))
+                }),
+            }
         }),
     );
     id
@@ -157,8 +169,10 @@ pub(crate) fn run_registered_run<M: Send + 'static>(
     id: EffectId,
     tx: BusSender<M>,
 ) -> Pin<Box<dyn Future<Output = Result<(), EffectError>> + Send>> {
-    let registry = run_registry().lock().unwrap();
-    let run = registry.get(&id).expect("missing registered run").clone();
+    let registry = run_registry().lock();
+    let Some(run) = registry.get(&id).cloned() else {
+        return Box::pin(async { Err(EffectError::TaskFailed("missing registered run")) });
+    };
     drop(registry);
     Box::pin(async move { (run)(Box::new(tx) as Box<dyn Any + Send>).await })
 }
@@ -354,13 +368,11 @@ impl<M> Effect<M> {
     }
 
     pub fn batch(effects: impl IntoIterator<Item = Effect<M>>) -> Self {
-        let effects: Vec<_> = effects.into_iter().collect();
-        if effects.is_empty() {
-            Self::None
-        } else if effects.len() == 1 {
-            effects.into_iter().next().unwrap()
-        } else {
-            Self::Batch(effects)
+        let mut effects: Vec<_> = effects.into_iter().collect();
+        match effects.len() {
+            0 => Self::None,
+            1 => effects.pop().map_or(Self::None, |single| single),
+            _ => Self::Batch(effects),
         }
     }
 

@@ -7,18 +7,42 @@
 //! Hold one [`TeaStore`] from [`TeaRuntime::tea_store`](crate::TeaRuntime::tea_store).
 //! Reader threads clone [`TeaViewStore`] and [`TeaStateSubscriber::wait_next`].
 
+use std::fmt;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender};
-use key_paths_core::{FieldDiff, hash_value};
+use key_paths_core::{FieldDiff, hash_value, RefKpTrait};
 
 use crate::effect::EffectId;
 use crate::optics::Casepath;
 use crate::runtime::store::{ChangeSet, StoreHub, StoreTask, StoreWork};
-use key_paths_core::RefKpTrait;
+
+/// Errors reading or subscribing to channel-delivered model snapshots.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TeaStoreError {
+    RuntimeShutdown,
+    SubscribeTimeout,
+    SnapshotTimeout,
+    SnapshotUnavailable,
+}
+
+impl fmt::Display for TeaStoreError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::RuntimeShutdown => write!(f, "tea runtime control channel disconnected"),
+            Self::SubscribeTimeout => write!(f, "timed out waiting for snapshot subscription"),
+            Self::SnapshotTimeout => write!(f, "timed out waiting for model snapshot"),
+            Self::SnapshotUnavailable => write!(f, "model snapshot unavailable"),
+        }
+    }
+}
+
+impl std::error::Error for TeaStoreError {}
+
+const DEFAULT_SNAPSHOT_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Control messages handled on the reducer thread (subscription + snapshot RPC).
 pub(crate) enum TeaControl<S> {
@@ -88,12 +112,14 @@ where
         }
     }
 
-    fn request_snapshot(&self, timeout: Duration) -> Option<Arc<S>> {
+    fn request_snapshot(&self, timeout: Duration) -> Result<Arc<S>, TeaStoreError> {
         let (reply_tx, reply_rx) = crossbeam_channel::bounded(1);
         self.control_tx
             .send(TeaControl::RequestSnapshot { reply: reply_tx })
-            .ok()?;
-        reply_rx.recv_timeout(timeout).ok()
+            .map_err(|_| TeaStoreError::RuntimeShutdown)?;
+        reply_rx
+            .recv_timeout(timeout)
+            .map_err(|_| TeaStoreError::SnapshotTimeout)
     }
 }
 
@@ -131,12 +157,16 @@ where
         let _ = self.send(action);
     }
 
-    /// Request a point-in-time model snapshot from the reducer thread (channel RPC).
-    pub fn state(&self) -> S {
+    /// Request a point-in-time model snapshot from the reducer thread (blocks until reply).
+    pub fn try_state(&self) -> Result<S, TeaStoreError> {
         self.backend
-            .request_snapshot(Duration::from_secs(5))
+            .request_snapshot(DEFAULT_SNAPSHOT_TIMEOUT)
             .map(|s| (*s).clone())
-            .expect("tea store snapshot request timed out")
+    }
+
+    /// Same as [`Self::try_state`] — provided for call sites that expect infallible reads.
+    pub fn state(&self) -> Result<S, TeaStoreError> {
+        self.try_state()
     }
 
     /// Read-only view handle — clone onto reader threads.
@@ -157,31 +187,47 @@ where
         }
     }
 
-    /// Subscribe to model snapshots pushed after each reduce (no shared-state lock).
-    pub fn subscribe_state(&self) -> TeaStateSubscriber<S>
+    pub fn try_subscribe_state(&self) -> Result<TeaStateSubscriber<S>, TeaStoreError>
     where
         S: PartialEq,
     {
         self.register_snapshot_subscriber()
     }
 
-    /// Field-level changes derived from pushed snapshots (no lock on live state).
-    pub fn subscribe_changes(&self) -> TeaChangeSubscriber<S>
+    /// Subscribe to model snapshots pushed after each reduce (no shared-state lock).
+    pub fn subscribe_state(&self) -> Result<TeaStateSubscriber<S>, TeaStoreError>
+    where
+        S: PartialEq,
+    {
+        self.try_subscribe_state()
+    }
+
+    pub fn try_subscribe_changes(&self) -> Result<TeaChangeSubscriber<S>, TeaStoreError>
     where
         S: FieldDiff + Hash + PartialEq,
     {
-        let mut snapshot_sub = self.register_snapshot_subscriber();
+        let mut snapshot_sub = self.register_snapshot_subscriber()?;
         let initial = snapshot_sub
             .latest()
-            .or_else(|| snapshot_sub.wait_next(Duration::from_secs(5)))
-            .expect("tea store initial snapshot");
+            .or_else(|| snapshot_sub.wait_next(DEFAULT_SNAPSHOT_TIMEOUT));
+        let Some(initial) = initial else {
+            return Err(TeaStoreError::SnapshotUnavailable);
+        };
         let (last_hash, last_fields) = snapshot_hashes(&initial);
-        TeaChangeSubscriber {
+        Ok(TeaChangeSubscriber {
             snapshot_sub,
             last_hash: Some(last_hash),
             last_fields,
             _marker: PhantomData,
-        }
+        })
+    }
+
+    /// Field-level changes derived from pushed snapshots (no lock on live state).
+    pub fn subscribe_changes(&self) -> Result<TeaChangeSubscriber<S>, TeaStoreError>
+    where
+        S: FieldDiff + Hash + PartialEq,
+    {
+        self.try_subscribe_changes()
     }
 
     pub fn scope<CS, CM, AK, SK>(
@@ -205,7 +251,7 @@ where
         }
     }
 
-    fn register_snapshot_subscriber(&self) -> TeaStateSubscriber<S> {
+    fn register_snapshot_subscriber(&self) -> Result<TeaStateSubscriber<S>, TeaStoreError> {
         let (snapshot_tx, snapshot_rx) = crossbeam_channel::unbounded();
         let (ready_tx, ready_rx) = crossbeam_channel::bounded(1);
         self.backend
@@ -214,17 +260,17 @@ where
                 snapshot_tx,
                 ready_tx,
             })
-            .expect("tea reducer control channel disconnected");
+            .map_err(|_| TeaStoreError::RuntimeShutdown)?;
         ready_rx
-            .recv_timeout(Duration::from_secs(5))
-            .expect("tea store subscribe timed out");
+            .recv_timeout(DEFAULT_SNAPSHOT_TIMEOUT)
+            .map_err(|_| TeaStoreError::SubscribeTimeout)?;
         let initial = snapshot_rx
-            .recv_timeout(Duration::from_secs(5))
-            .expect("tea store initial snapshot missing");
-        TeaStateSubscriber {
+            .recv_timeout(DEFAULT_SNAPSHOT_TIMEOUT)
+            .map_err(|_| TeaStoreError::SnapshotUnavailable)?;
+        Ok(TeaStateSubscriber {
             rx: snapshot_rx,
             last: Some(initial),
-        }
+        })
     }
 }
 
@@ -250,32 +296,41 @@ where
     S: Send + Sync + Clone + 'static,
     M: Send + 'static,
 {
-    pub fn with_snapshot<R>(&self, f: impl FnOnce(&S) -> R) -> R {
+    pub fn try_with_snapshot<R>(&self, f: impl FnOnce(&S) -> R) -> Result<R, TeaStoreError> {
         let snap = self
             .backend
-            .request_snapshot(Duration::from_secs(5))
-            .expect("tea view snapshot request timed out");
-        f(snap.as_ref())
+            .request_snapshot(DEFAULT_SNAPSHOT_TIMEOUT)?;
+        Ok(f(snap.as_ref()))
     }
 
-    pub fn load(&self) -> Arc<S> {
-        self.backend
-            .request_snapshot(Duration::from_secs(5))
-            .expect("tea view snapshot request timed out")
+    pub fn with_snapshot<R>(&self, f: impl FnOnce(&S) -> R) -> Result<R, TeaStoreError> {
+        self.try_with_snapshot(f)
     }
 
-    pub fn state(&self) -> S {
-        self.with_snapshot(|s| s.clone())
+    pub fn try_load(&self) -> Result<Arc<S>, TeaStoreError> {
+        self.backend.request_snapshot(DEFAULT_SNAPSHOT_TIMEOUT)
     }
 
-    pub fn subscribe_state(&self) -> TeaStateSubscriber<S>
+    pub fn load(&self) -> Result<Arc<S>, TeaStoreError> {
+        self.try_load()
+    }
+
+    pub fn try_state(&self) -> Result<S, TeaStoreError> {
+        self.try_with_snapshot(|s| s.clone())
+    }
+
+    pub fn state(&self) -> Result<S, TeaStoreError> {
+        self.try_state()
+    }
+
+    pub fn subscribe_state(&self) -> Result<TeaStateSubscriber<S>, TeaStoreError>
     where
         S: PartialEq,
     {
         self.backend.tea_store().subscribe_state()
     }
 
-    pub fn subscribe_changes(&self) -> TeaChangeSubscriber<S>
+    pub fn subscribe_changes(&self) -> Result<TeaChangeSubscriber<S>, TeaStoreError>
     where
         S: FieldDiff + Hash + PartialEq,
     {
@@ -450,21 +505,21 @@ where
         self.store.dispatch(self.action_kp.wrap(action));
     }
 
-    pub fn child_state(&self) -> Option<CS> {
-        let parent = self.store.state();
-        self.state_kp.focus(&parent).cloned()
+    pub fn child_state(&self) -> Result<Option<CS>, TeaStoreError> {
+        let parent = self.store.state()?;
+        Ok(self.state_kp.focus(&parent).cloned())
     }
 
-    pub fn subscribe_state(&self) -> ScopedTeaStateSubscriber<S, CS, SK>
+    pub fn subscribe_state(&self) -> Result<ScopedTeaStateSubscriber<S, CS, SK>, TeaStoreError>
     where
         S: PartialEq,
         SK: Clone,
     {
-        ScopedTeaStateSubscriber {
-            inner: self.store.subscribe_state(),
+        Ok(ScopedTeaStateSubscriber {
+            inner: self.store.subscribe_state()?,
             state_kp: self.state_kp.clone(),
             _marker: PhantomData,
-        }
+        })
     }
 }
 
@@ -534,8 +589,11 @@ mod tests {
             last_fields: vec![("n", hash_value(&0))],
             _marker: PhantomData,
         };
-        tx.send(Arc::new(App { n: 1 })).unwrap();
-        let change = sub.next().expect("change");
-        assert_eq!(change.paths, vec!["n"]);
+        tx.send(Arc::new(App { n: 1 })).ok();
+        let change = sub.next();
+        assert!(change.is_some());
+        if let Some(change) = change {
+            assert_eq!(change.paths, vec!["n"]);
+        }
     }
 }

@@ -18,7 +18,7 @@ mod deps;
 mod shop;
 
 use shop::*;
-use rust_elm::{Environment, ReducerProgram, RuntimeConfig, TeaRuntime};
+use rust_elm::{start_tea_reducer_runtime, Environment, ReducerProgram, RuntimeConfig, TeaRuntime};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -39,7 +39,10 @@ fn spawn_catalog_readers(
             thread::Builder::new()
                 .name(format!("catalog-tea-view-{i}"))
                 .spawn(move || {
-                    let mut sub = view.subscribe_state();
+                    let mut sub = match view.subscribe_state() {
+                        Ok(sub) => sub,
+                        Err(err) => panic!("subscribe_state failed: {err}"),
+                    };
                     while !stop.load(Ordering::Relaxed) {
                         if let Some(snap) = sub.wait_next(Duration::from_millis(50)) {
                             let q = snap.catalog.query.clone();
@@ -59,7 +62,7 @@ fn run_tea_shop(label: &str, env: Environment) {
 
     let program = ReducerProgram::new(shop_reducer(), init, subscriptions);
     let runtime: TeaRuntime<ShopState, ShopAction> =
-        TeaRuntime::from_reducer_program(program, env, RuntimeConfig::new(64));
+        start_tea_reducer_runtime(program, env, RuntimeConfig::new(64));
 
     let store = runtime.tea_store();
     let view = store.view_store();
@@ -74,9 +77,12 @@ fn run_tea_shop(label: &str, env: Environment) {
     );
 
     thread::sleep(Duration::from_millis(600));
-    let (boot_user, boot_origin) = view.with_snapshot(|s| {
+    let (boot_user, boot_origin) = match view.with_snapshot(|s| {
         (s.session.user.clone(), s.session.http_origin.clone())
-    });
+    }) {
+        Ok(v) => v,
+        Err(err) => panic!("snapshot read failed: {err}"),
+    };
     println!("{label} boot: user={boot_user:?} origin={boot_origin:?}");
 
     let cart_scope = store.scope(cart_lens(), ShopAction::cart_cp());
@@ -100,12 +106,14 @@ fn run_tea_shop(label: &str, env: Environment) {
         )))
         .finish();
 
-    let detail_name = view.with_snapshot(|s| {
-        s.catalog
-            .detail
-            .as_ref()
-            .and_then(|d| d.name.clone())
-    });
+    let detail_name = view
+        .with_snapshot(|s| {
+            s.catalog
+                .detail
+                .as_ref()
+                .and_then(|d| d.name.clone())
+        })
+        .ok();
     println!("{label} catalog loaded: {detail_name:?}");
 
     store.dispatch(ShopAction::Catalog(CatalogAction::Browse(
@@ -131,13 +139,15 @@ fn run_tea_shop(label: &str, env: Environment) {
     }
 
     let reads = catalog_reads.load(Ordering::Relaxed);
-    let (lines, paid, metrics) = view.with_snapshot(|s| {
-        (
-            s.cart.lines.len(),
-            s.checkout.as_ref().map(|c| c.paid),
-            s.metrics.clone(),
-        )
-    });
+    let (lines, paid, metrics) = view
+        .with_snapshot(|s| {
+            (
+                s.cart.lines.len(),
+                s.checkout.as_ref().map(|c| c.paid),
+                s.metrics.clone(),
+            )
+        })
+        .unwrap_or((0, None, Default::default()));
 
     println!("\n--- {label} final (channel-delivered model) ---");
     println!("catalog snapshot pushes observed (non-empty query): {reads}");

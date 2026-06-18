@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
 use rust_elm::{
-    reducer::coerce_fn, reducers, Cmd, CombineReducers, Reduce, Reducer, ReducerProgram, Runtime,
-    RuntimeConfig, panic_on_state_clone, Sub, Environment,
+    reducer::coerce_fn, reducers, start_reducer_runtime, Cmd, CombineReducers, Reduce, Reducer,
+    ReducerProgram, Runtime, RuntimeConfig, panic_on_state_clone, Sub, Environment,
 };
 
 panic_on_state_clone! {
@@ -74,7 +74,7 @@ fn runtime_from_reducer_program() {
         init,
         subscriptions,
     );
-    let runtime = Runtime::from_reducer_program(program, Environment::new(), RuntimeConfig::new(8));
+    let runtime = start_reducer_runtime(program, Environment::new(), RuntimeConfig::new(8));
     runtime.dispatch(Action::N(4));
     std::thread::sleep(std::time::Duration::from_millis(100));
     let state = runtime.state.lock();

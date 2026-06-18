@@ -150,11 +150,15 @@ fn tokio_test_block_on<M: Send + 'static>(
         Box<dyn std::future::Future<Output = Result<M, crate::EffectError>> + Send>,
     >,
 ) -> Result<M, crate::EffectError> {
-    tokio::runtime::Builder::new_current_thread()
+    match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .expect("test tokio runtime")
-        .block_on(fut)
+    {
+        Ok(rt) => rt.block_on(fut),
+        Err(err) => Err(crate::EffectError::Other(format!(
+            "failed to create test tokio runtime: {err}"
+        ))),
+    }
 }
 
 #[cfg(test)]
