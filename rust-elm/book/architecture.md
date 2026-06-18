@@ -144,8 +144,9 @@ Important properties:
 | Effect interpretation (spawn, debounce timers, cancel registry) | **Tokio worker threads** (multi-thread runtime created inside `Runtime`) |
 | UI / test code calling `dispatch` | **Your thread** (typically main) |
 | Actions produced by effects | Posted to bus from Tokio; **processed serially** on reducer thread |
-| **`SwapStore` snapshot reads** | **Any thread** — `ArcSwap::load()` without locking `S` |
-| **`RwStore` concurrent reads** | **Any thread** — shared `RwLock::read()` |
+| **`SwapStore` snapshot reads** | **Any caller thread** — `ArcSwap::load()` (last publish from reducer thread) |
+| **`RwStore` concurrent reads** | **Any caller thread** — shared `RwLock::read()` |
+| **`TeaStore` snapshot push** | **Reducer thread** publishes; **caller thread** receives on `subscribe.next()` |
 
 Effects are **not** executed on the reducer thread. After each reduce, the reducer thread `block_on`s effect spawning, then hands long-running work to Tokio:
 
@@ -155,6 +156,53 @@ Tokio threads:   [HTTP] [timer] [debounce] … → dispatch(action) → bus
 ```
 
 So: **same process**, **different threads**. The reducer stays synchronous and cheap; I/O and timers live on Tokio.
+
+---
+
+## Snapshot threading
+
+One **`Runtime`** (or `TeaRuntime`, etc.) per app — **`Store` is not a separate runtime**, just a cloneable handle (`Arc` backend + bus sender) you pass to `main`, UI, or worker threads.
+
+| Question | Answer |
+|----------|--------|
+| Where does `Program::update` / `ReducerProgram::reduce` run? | **Reducer thread only** — the OS thread spawned by `Runtime::bootstrap` |
+| Who publishes new snapshots? | **Reducer thread** — after each successful `reduce` (and listener notify / Tea channel push / Swap `store`) |
+| Who calls `dispatch`? | **Any thread** with a `Store` clone — usually `main`, UI, or effect callbacks (via bus) |
+| Who calls `state()` / `load()` / `subscribe.next()`? | **The thread that called the API** — main or a dedicated reader thread |
+| Do Tokio effect threads produce snapshots? | **No** — they only enqueue actions; the reducer applies them and publishes state |
+
+```mermaid
+flowchart LR
+    subgraph Callers["Caller threads main / UI / readers"]
+        Main["main + Store handle"]
+        Reader["reader thread + ViewStore"]
+    end
+
+    subgraph OneRuntime["One Runtime same process"]
+        StoreH["Store / TeaStore handle"]
+        Bus["Action bus"]
+        Reducer["Reducer thread Program.update"]
+        State["State S"]
+    end
+
+    subgraph Tokio["Tokio pool not snapshots"]
+        FX["Effects HTTP timer WS"]
+    end
+
+    Main --> StoreH
+    Reader --> StoreH
+    StoreH --> Bus
+    Bus --> Reducer
+    Reducer --> State
+    Reducer -->|"notify / push / atomic store"| Reader
+    Main -->|"state load RPC"| Reducer
+    Reducer --> FX
+    FX -->|"dispatch action"| Bus
+```
+
+**Mutex / RwLock:** shared `Arc<Mutex<S>>` or `Arc<RwLock<S>>` lives in the runtime; reducer thread writes; caller threads read under lock on **their** thread.  
+**SwapStore:** reducer thread publishes `Arc<S>`; caller threads `load()` on **their** thread.  
+**TeaStore:** model `S` never leaves the reducer thread except as cloned `Arc<S>` sent on channels; caller threads receive on **their** thread.
 
 ---
 

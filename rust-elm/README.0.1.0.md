@@ -61,22 +61,49 @@ fn main() -> Result<(), rust_elm::RuntimeError> {
 
 ## Snapshot reads: blocking vs background
 
+There is **one live runtime** per app (`Runtime`, `RwRuntime`, `SwapRuntime`, or `TeaRuntime`).  
+`Store` / `TeaStore` / … are **cloneable handles** into that same runtime — not a separate “store runtime”.  
+Your `main` thread (or any worker) holds a handle, calls `dispatch`, and reads snapshots; the **reducer thread** runs `Program::update` / `ReducerProgram::reduce`.
+
+### Which thread does what?
+
+| Thread | Role | Snapshots? |
+|--------|------|------------|
+| **Reducer thread** (one per runtime) | `recv` action → `reduce` → notify/publish state | **Produces** updates — mutates state here; Tea **pushes** `Arc<S>`; Swap **stores** new `Arc`; Mutex/Rw **notify** listeners |
+| **Your thread** (main, UI, HTTP handler) | `store.dispatch` / `store.state()` / `subscribe.next()` | **Consumes** — one-off reads run here; subscriptions **block this thread** waiting for reducer |
+| **Tokio worker threads** | Run effects (HTTP, timers, WebSocket) | **Never** read or publish app snapshots — only `send_blocking(action)` back to the bus |
+| **Other reader threads** | `read_store()`, `snapshot_store()`, `TeaViewStore` | **Consumes** on that thread (atomic load or channel recv) |
+
+```text
+main / UI thread                reducer thread (Program lives here)
+      |                                |
+      |  dispatch(action)              |
+      +------------------------------->|  reduce(&mut state, action)
+      |                                |  publish snapshot / notify
+      |  state() / load() / next()     |
+      |<-------------------------------+  (Tea: push Arc<S> on channel)
+      |                                |
+Tokio effect thread                    |
+      |  effect finishes               |
+      +--- dispatch(result action) ---->|
+```
+
 `dispatch` / `send` **never wait for a snapshot** — they only enqueue on the action bus (may block if the bus is full).
 
 How you **read** state depends on the store backend:
 
-| API | When snapshot is taken | Blocks caller? |
-|-----|------------------------|----------------|
-| `Store::state()` / `RwStore::state()` | immediately on **your thread** | **Yes** — locks `Mutex` / `RwLock`, clones `S` |
-| `Store::binding()` / `with_read` | immediately on **your thread** | **Yes** — holds lock for the closure |
-| `SwapStore::snapshot_store().load()` | immediately on **your thread** | **No lock** — atomic `Arc` load (may be slightly stale) |
-| `Store::subscribe_state()` / `subscribe_changes()` | after reduce (+ effect batch for `send`) | **Background notify** — `next()` / `wait_next()` **block** until a ping or push arrives |
-| `TeaStore::subscribe_state()` | reducer **pushes** `Arc<S>` after each `update` | **Background push** — `next()` / `wait_next()` **block** on the channel |
-| `TeaStore::state()` / `TeaViewStore::load()` | RPC to reducer thread | **Yes** — caller blocks until reducer replies on control channel |
+| API | Snapshot taken on | Published by | Blocks caller? |
+|-----|-------------------|--------------|----------------|
+| `Store::state()` / `RwStore::state()` | **Your thread** (lock + clone) | last reducer `reduce` | **Yes** |
+| `Store::binding()` / `with_read` | **Your thread** (borrow under lock) | live state on reducer thread | **Yes** |
+| `SwapStore::snapshot_store().load()` | **Your thread** (atomic load) | reducer thread after last `reduce` | **No lock** (may be slightly stale) |
+| `subscribe_state()` / `subscribe_changes()` | **Your thread** in `next()` (after ping) | reducer thread after `reduce` (+ effect batch for `send`) | **Wait** on channel until reducer notifies |
+| `TeaStore::subscribe_state()` | **Your thread** in `next()` (channel recv) | reducer thread **pushes** after each `reduce` | **Wait** on channel |
+| `TeaStore::state()` / `TeaViewStore::load()` | reducer thread clones; **your thread** receives reply | reducer thread (RPC) | **Yes** — caller blocks until reply |
 
-**Rule of thumb:** subscriptions are **push/async relative to reduce** (you wait on a channel). One-off `state()` / `load()` / `with_snapshot()` are **synchronous reads** on the calling thread (Tea RPC blocks until the reducer responds; Mutex/RwLock blocks on the lock).
+**Rule of thumb:** the **reducer thread** is the only thread that runs `update` and **publishes** new model values. **Your thread** (main or a reader) **consumes** snapshots via lock, atomic load, or channel. Subscriptions are **push/async relative to reduce**; one-off `state()` / `load()` are **synchronous on the caller**.
 
-See [tea_ecommerce.md](book/tea_ecommerce.md) (channel TEA), [swap_ecommerce.md](book/swap_ecommerce.md) (atomic snapshots), and [store.md](book/store.md) (API reference).
+See [architecture.md](book/architecture.md#snapshot-threading), [tea_ecommerce.md](book/tea_ecommerce.md), [swap_ecommerce.md](book/swap_ecommerce.md), and [store.md](book/store.md).
 
 ## Release notes
 
