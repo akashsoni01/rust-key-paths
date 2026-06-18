@@ -1,4 +1,4 @@
-# rust-elm 0.7.0
+# rust-elm 0.8.0
 
 Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 
@@ -7,7 +7,7 @@ Elm Architecture for Rust, evolving toward The Composable Architecture (UDF).
 ```toml
 [dependencies]
 rust-elm = { path = "../rust-elm" }
-rust-elm = "0.7.0"
+rust-elm = "0.8.0"
 rust-key-paths = "3.4.0"
 key-paths-derive = "3.3.0"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
@@ -106,6 +106,12 @@ How you **read** state depends on the store backend:
 See [architecture.md](book/architecture.md#snapshot-threading), [tea_ecommerce.md](book/tea_ecommerce.md), [swap_ecommerce.md](book/swap_ecommerce.md), and [store.md](book/store.md).
 
 ## Release notes
+
+### 0.8.0
+
+- **`counter`**, **`rw_counter`**, **`swap_counter` examples** — `CounterState { a, b, c }` with keypath-scoped bucket reads; side-by-side Tea / Rw / Swap clone comparison.
+- **`book/counter.md`** — documents snapshot clone behavior per store backend.
+- **Snapshot threading docs** — README and architecture notes on which thread clones vs borrows state.
 
 ### 0.7.0
 
