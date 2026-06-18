@@ -54,9 +54,15 @@ fn main() -> Result<(), rust_elm::RuntimeError> {
     let runtime = Runtime::from_program(program, Environment::new(), RuntimeConfig::new(64))?;
     let store = runtime.store();
     store.dispatch(1);
-    runtime.shutdown();
     Ok(())
 }
+```
+
+Runtimes (`Runtime`, `RwRuntime`, `TeaRuntime`, `SwapRuntime`) **shut down automatically on drop** — joining the reducer thread and aborting subscriptions. Call [`Runtime::shutdown`] explicitly if you need deterministic teardown before drop.
+
+```rust
+// explicit shutdown still works (idempotent with Drop)
+runtime.shutdown();
 ```
 
 ## Snapshot reads: blocking vs background

@@ -19,7 +19,7 @@
 //!
 //! See also: [`counter.rs`](counter.rs), [`rw_counter.rs`](rw_counter.rs), [`book/counter.md`](../book/counter.md).
 
-#[path = "counter_common.rs"]
+#[path = "counter/common.rs"]
 mod common;
 
 use std::time::Duration;

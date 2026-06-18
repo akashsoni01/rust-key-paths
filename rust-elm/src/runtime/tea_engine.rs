@@ -301,7 +301,8 @@ mod tests {
 
     #[test]
     fn tea_runtime_dispatches_and_pushes_snapshots() {
-        let store = boot(Program::new(init, update, subs)).tea_store();
+        let runtime = boot(Program::new(init, update, subs));
+        let store = runtime.tea_store();
         let Ok(mut sub) = store.subscribe_state() else {
             panic!("expected subscribe_state to succeed in test");
         };
@@ -310,7 +311,6 @@ mod tests {
         std::thread::sleep(Duration::from_millis(200));
         while sub.next().is_some() {}
         assert_eq!(sub.latest().map(|s| s.n), Some(7));
-        boot(Program::new(init, update, subs)).shutdown();
     }
 
     #[test]

@@ -8,7 +8,7 @@
 //! cargo run -p rust-elm --example rw_counter
 //! ```
 
-#[path = "counter_common.rs"]
+#[path = "counter/common.rs"]
 mod common;
 
 use std::time::Duration;
