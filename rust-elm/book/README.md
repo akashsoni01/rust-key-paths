@@ -17,7 +17,8 @@
 | [../examples/swap_ecommerce.rs](../examples/swap_ecommerce.rs) | Shop on `SwapRuntime` — lock-free `snapshot_store()` (`arc-swap` feature) |
 | [../examples/tea_ecommerce.rs](../examples/tea_ecommerce.rs) | Shop on `TeaRuntime` — channel-pushed model snapshots (true TEA) |
 | [../examples/counter.rs](../examples/counter.rs) | Minimal `HashMap<String, u64>` counters on `TeaStore` |
-| [counter.md](./counter.md) | Counter example — inc/dec + where snapshot clones happen |
+| [../examples/rw_counter.rs](../examples/rw_counter.rs) | Same counters on `RwStore` — zero-clone reads via `read_binding` |
+| [counter.md](./counter.md) | Counter examples — Tea vs Rw clone behavior |
 | [../examples/safe_reducer.rs](../examples/safe_reducer.rs) | Safe reducer updates: default vs rollback |
 | [../README.0.1.0.md](../README.0.1.0.md) | Install and quick start |
 

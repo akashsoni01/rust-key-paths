@@ -160,8 +160,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     store.dispatch(CounterAction::B(BucketAction::Inc("page_views".into())));
     std::thread::sleep(Duration::from_millis(50));
 
+    // TeaStore: reducer already cloned full CounterState when building Arc snapshots.
+    // try_with_snapshot borrows through Arc (no extra clone on main); scoped subscribe clones only `b`.
     demo_borrow_b(&store)?;
     demo_scoped_b(&store)?;
+
+    println!("\nFor zero-clone reads of bucket `b`, see: cargo run -p rust-elm --example rw_counter");
 
     runtime.shutdown();
     println!("\ncounter example OK");

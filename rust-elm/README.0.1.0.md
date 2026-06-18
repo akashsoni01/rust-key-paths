@@ -175,6 +175,7 @@ See [architecture.md](book/architecture.md#snapshot-threading), [tea_ecommerce.m
 | `swap_ecommerce` | `cargo run -p rust-elm --example swap_ecommerce --features arc-swap` | Same shop on `SwapRuntime` |
 | `tea_ecommerce` | `cargo run -p rust-elm --example tea_ecommerce` | Same shop on `TeaRuntime` (channel TEA) |
 | `counter` | `cargo run -p rust-elm --example counter` | `HashMap<String, u64>` on `TeaStore` — inc/dec + snapshots |
+| `rw_counter` | `cargo run -p rust-elm --example rw_counter` | Same counters on `RwStore` — zero-clone reads via `read_binding` |
 
 ## Quality tooling
 

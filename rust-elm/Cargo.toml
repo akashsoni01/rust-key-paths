@@ -63,6 +63,11 @@ path = "examples/counter.rs"
 required-features = ["runtime"]
 
 [[example]]
+name = "rw_counter"
+path = "examples/rw_counter.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "throughput"
 path = "examples/throughput.rs"
 required-features = ["runtime"]

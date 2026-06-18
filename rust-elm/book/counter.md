@@ -1,29 +1,68 @@
-# Counter example — `HashMap<String, u64>` on TeaStore
+# Counter examples — `HashMap` buckets on TeaStore vs RwStore
 
-Companion to [`examples/counter.rs`](../examples/counter.rs).
+| Example | Backend | When to use |
+|---------|---------|-------------|
+| [`counter.rs`](../examples/counter.rs) | `TeaRuntime` / `TeaStore` | True TEA — channel-pushed model, no shared lock |
+| [`rw_counter.rs`](../examples/rw_counter.rs) | `RwRuntime` / `RwStore` | **Zero-clone reads** of one bucket via `read_binding` |
 
 ```bash
 cargo run -p rust-elm --example counter
+cargo run -p rust-elm --example rw_counter
 ```
 
 ---
 
 ## State and actions
 
+Root state holds three buckets (`a`, `b`, `c`):
+
 ```rust
-type Counters = HashMap<String, u64>;
+struct CounterState {
+    a: HashMap<String, u64>,
+    b: HashMap<String, u64>,
+    c: HashMap<String, u64>,
+}
 
 enum CounterAction {
-    Inc(String),  // counters[key] += 1 (insert 0 first)
-    Dec(String),  // counters[key] saturating_sub 1
+    A(BucketAction),
+    B(BucketAction),
+    C(BucketAction),
 }
 ```
 
-The live map exists **only on the reducer thread**. `main` holds a [`TeaStore`](./tea_ecommerce.md) handle and dispatches actions.
+Use `store.scope(b_lens(), CounterAction::b_cp())` to dispatch only to bucket `b`.
 
 ---
 
-## Reading snapshots (three APIs)
+## TeaStore (`counter`) — reducer clones full root
+
+Even `try_with_snapshot(|s| s.b.get(...))` **borrows on main without cloning**, but the
+reducer already ran `Arc::new(state.clone())` — **entire `CounterState`** including all
+three maps.
+
+See clone table in [`examples/counter.rs`](../examples/counter.rs).
+
+---
+
+## RwStore (`rw_counter`) — borrow under read lock, no struct clone
+
+```rust
+// borrow field b — CounterState is NOT cloned
+let n = store.read_store().with_read(|s| s.b.get("page_views").copied().unwrap_or(0));
+
+// keypath-scoped binding — still no clone
+let b_scope = store.scope(b_lens(), CounterAction::b_cp());
+let n = b_scope.read_binding().with_read(|b| b.get("page_views").copied().unwrap_or(0));
+```
+
+`rw_counter` uses `panic_on_state_clone!` so the example **panics** if a read path
+accidentally clones `CounterState`.
+
+Avoid on hot paths: `store.state()` and `subscribe_state().next()` — both clone the full struct.
+
+---
+
+## Reading snapshots on TeaStore (legacy single-map notes)
 
 ### 1. RPC — `view_store().try_load()` (recommended for one-off reads)
 
@@ -100,5 +139,7 @@ sequenceDiagram
 
 ## Related
 
+- [rw_ecommerce.md](./rw_ecommerce.md) — RwStore read bindings in a full app
+- [binding.md](./binding.md) — `StateBinding` / `read_binding` zero-clone pattern
 - [tea_ecommerce.md](./tea_ecommerce.md) — full TeaStore architecture
 - [README snapshot section](../README.0.1.0.md#snapshot-reads-blocking-vs-background) — threading overview
