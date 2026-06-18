@@ -1,117 +1,149 @@
-//! Named counters in a `HashMap<String, u64>` on [`TeaRuntime`] / [`TeaStore`].
+//! Three named counter buckets (`a`, `b`, `c`) in one root struct on [`TeaStore`].
 //!
-//! Demonstrates increment/decrement actions and **three ways to read snapshots**:
+//! **Keypaths** focus dispatch and reads on one bucket (e.g. `b`) without cloning
+//! the whole struct on the **main thread** — but see clone table below.
 //!
-//! | API | Clone cost on main thread |
-//! |-----|---------------------------|
-//! | `view.try_load()` | **None** — receive `Arc<HashMap>` (refcount only) |
-//! | `view.try_with_snapshot(\|m\| …)` | **None** — borrow via `Arc` on main |
-//! | `store.state()` | **Full `HashMap` clone** on main (unwraps `Arc`) |
-//! | `subscribe_state().next()` | **None** — receive `Arc<HashMap>` per push |
+//! | Read API | Main thread clone |
+//! |----------|-------------------|
+//! | `view.try_with_snapshot(\|s\| s.b.get(...))` | **None** — borrow `b` through `Arc<CounterState>` |
+//! | `b_scope.subscribe_state().next()` | **Only `b` HashMap** (parent `Arc` is refcount) |
+//! | `store.state()` | **Full `CounterState`** (all three maps) |
 //!
-//! **Where does cloning happen?** The live `HashMap` lives only on the **reducer thread**.
-//! After each `Inc` / `Dec`, the reducer clones the map (`state.clone()`) and sends
-//! `Arc<HashMap>` to subscribers or RPC replies — that **full map clone is on the reducer thread**.
-//! Main thread work is cheap unless you call `state()` or clone the map yourself.
+//! **Reducer thread:** TeaStore always publishes `Arc::new(state.clone())` — the **entire
+//! root struct** is cloned on the reducer when pushing snapshots / RPC replies.
+//! Keypaths do **not** skip that. For large maps, store each bucket as
+//! `Arc<HashMap<…>>` so root `clone()` only bumps Arc refcounts.
 //!
 //! ```bash
 //! cargo run -p rust-elm --example counter
 //! ```
 //!
-//! See [`book/counter.md`](../book/counter.md) for architecture notes.
+//! See [`book/counter.md`](../book/counter.md).
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
 
+use key_paths_derive::{Cp, Kp};
 use rust_elm::{
     Cmd, Environment, Program, RuntimeConfig, Sub, TeaRuntime, TeaStoreError,
 };
+use rust_key_paths::Kp as KpPath;
 
-type Counters = HashMap<String, u64>;
+type Bucket = HashMap<String, u64>;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum CounterAction {
+/// Root model — three independent counter maps.
+///
+/// Tip: replace `Bucket` with `Arc<Bucket>` if maps are large; then `CounterState::clone()`
+/// on the reducer thread is cheap and only changed buckets need a new `Arc`.
+#[derive(Clone, Debug, PartialEq, Eq, Kp)]
+struct CounterState {
+    a: Bucket,
+    b: Bucket,
+    c: Bucket,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
+enum BucketAction {
     Inc(String),
     Dec(String),
 }
 
-fn init() -> (Counters, Cmd<CounterAction>) {
-    let mut counters = HashMap::new();
-    counters.insert("page_views".into(), 0);
-    counters.insert("api_calls".into(), 0);
-    (counters, Cmd::none())
+#[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
+enum CounterAction {
+    A(BucketAction),
+    B(BucketAction),
+    C(BucketAction),
 }
 
-fn update(counters: &mut Counters, action: CounterAction) -> Cmd<CounterAction> {
+fn empty_bucket() -> Bucket {
+    HashMap::new()
+}
+
+fn init() -> (CounterState, Cmd<CounterAction>) {
+    let mut a = empty_bucket();
+    a.insert("requests".into(), 0);
+    let mut b = empty_bucket();
+    b.insert("page_views".into(), 0);
+    let mut c = empty_bucket();
+    c.insert("errors".into(), 0);
+    (
+        CounterState { a, b, c },
+        Cmd::none(),
+    )
+}
+
+fn reduce_bucket(bucket: &mut Bucket, action: BucketAction) {
     match action {
-        CounterAction::Inc(key) => {
-            *counters.entry(key).or_insert(0) += 1;
+        BucketAction::Inc(key) => {
+            *bucket.entry(key).or_insert(0) += 1;
         }
-        CounterAction::Dec(key) => {
-            let entry = counters.entry(key).or_insert(0);
+        BucketAction::Dec(key) => {
+            let entry = bucket.entry(key).or_insert(0);
             *entry = entry.saturating_sub(1);
         }
+    }
+}
+
+fn update(state: &mut CounterState, action: CounterAction) -> Cmd<CounterAction> {
+    match action {
+        CounterAction::A(a) => reduce_bucket(&mut state.a, a),
+        CounterAction::B(b) => reduce_bucket(&mut state.b, b),
+        CounterAction::C(c) => reduce_bucket(&mut state.c, c),
     }
     Cmd::none()
 }
 
-fn subscriptions(_: &Counters) -> Sub<CounterAction> {
+fn subscriptions(_: &CounterState) -> Sub<CounterAction> {
     Sub::none()
 }
 
-fn read_key(snap: &Arc<Counters>, key: &str) -> u64 {
-    snap.get(key).copied().unwrap_or(0)
+type BucketKp = KpPath<
+    CounterState,
+    Bucket,
+    &'static CounterState,
+    &'static Bucket,
+    &'static mut CounterState,
+    &'static mut Bucket,
+    for<'a> fn(&'a CounterState) -> Option<&'a Bucket>,
+    for<'a> fn(&'a mut CounterState) -> Option<&'a mut Bucket>,
+>;
+
+fn b_lens() -> BucketKp {
+    fn get(s: &CounterState) -> Option<&Bucket> {
+        Some(&s.b)
+    }
+    fn get_mut(s: &mut CounterState) -> Option<&mut Bucket> {
+        Some(&mut s.b)
+    }
+    KpPath::new(get, get_mut)
 }
 
-fn print_snapshot(label: &str, snap: &Arc<Counters>) {
-    println!(
-        "{label}: page_views={} api_calls={}",
-        read_key(snap, "page_views"),
-        read_key(snap, "api_calls"),
-    );
-}
-
-fn demo_rpc_read(store: &rust_elm::TeaStore<Counters, CounterAction>) -> Result<(), TeaStoreError> {
-    println!("\n--- RPC snapshot (main waits; HashMap clone on reducer thread) ---");
-
-    // Preferred: Arc only — reducer cloned the map when building the reply.
-    let snap = store.view_store().try_load()?;
-    print_snapshot("try_load (Arc on main — no extra HashMap clone)", &snap);
-
-    // Borrow one field — no HashMap clone on main.
+fn demo_borrow_b(store: &rust_elm::TeaStore<CounterState, CounterAction>) -> Result<(), TeaStoreError> {
+    println!("\n--- borrow `b` only (no HashMap clone on main) ---");
     let views = store
         .view_store()
-        .try_with_snapshot(|m| m.get("page_views").copied().unwrap_or(0))?;
-    println!("try_with_snapshot page_views={views}");
-
-    // Full owned copy — HashMap clone on MAIN (.state() clones out of Arc).
-    let owned = store.state()?;
-    println!(
-        "state() — HashMap cloned on main: page_views={}",
-        owned.get("page_views").copied().unwrap_or(0)
-    );
-
+        .try_with_snapshot(|s| s.b.get("page_views").copied().unwrap_or(0))?;
+    println!("try_with_snapshot b.page_views={views}");
     Ok(())
 }
 
-fn demo_subscribe(store: &rust_elm::TeaStore<Counters, CounterAction>) -> Result<(), TeaStoreError> {
-    println!("\n--- subscribe_state (reducer pushes Arc after each reduce) ---");
-    let mut sub = store.subscribe_state()?;
-    if let Some(snap) = sub.latest() {
-        print_snapshot("initial subscribe", &snap);
+fn demo_scoped_b(store: &rust_elm::TeaStore<CounterState, CounterAction>) -> Result<(), TeaStoreError> {
+    println!("\n--- ScopedTeaStore on `b` (dispatch + subscribe child only) ---");
+
+    // Keypath: state focus `CounterState::b`, action casepath `CounterAction::b_cp`.
+    let b_scope = store.scope(b_lens(), CounterAction::b_cp());
+    let mut sub = b_scope.subscribe_state()?;
+
+    b_scope.dispatch(BucketAction::Inc("page_views".into()));
+    b_scope.dispatch(BucketAction::Inc("page_views".into()));
+
+    if let Some(owned_b) = sub.wait_next(Duration::from_millis(200)) {
+        println!(
+            "scoped subscribe — owned clone of **b only**: page_views={}",
+            owned_b.get("page_views").copied().unwrap_or(0)
+        );
     }
 
-    store.dispatch(CounterAction::Inc("page_views".into()));
-    store.dispatch(CounterAction::Inc("page_views".into()));
-    store.dispatch(CounterAction::Dec("api_calls".into()));
-
-    std::thread::sleep(Duration::from_millis(100));
-    while sub.next().is_some() {}
-
-    if let Some(snap) = sub.latest() {
-        print_snapshot("latest after pushes (Arc on main)", &snap);
-    }
     Ok(())
 }
 
@@ -123,15 +155,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let store = runtime.tea_store();
 
-    println!("=== TeaStore counter (HashMap<String, u64>) ===");
+    println!("=== CounterState {{ a, b, c }} on TeaStore ===");
 
-    store.dispatch(CounterAction::Inc("page_views".into()));
-    store.dispatch(CounterAction::Inc("api_calls".into()));
-    store.dispatch(CounterAction::Inc("api_calls".into()));
+    store.dispatch(CounterAction::B(BucketAction::Inc("page_views".into())));
     std::thread::sleep(Duration::from_millis(50));
 
-    demo_rpc_read(&store)?;
-    demo_subscribe(&store)?;
+    demo_borrow_b(&store)?;
+    demo_scoped_b(&store)?;
 
     runtime.shutdown();
     println!("\ncounter example OK");
