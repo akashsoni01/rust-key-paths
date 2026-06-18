@@ -10,6 +10,7 @@ mod config;
 pub mod error;
 pub(crate) mod dispatch;
 mod engine;
+mod lifecycle;
 mod rw_engine;
 mod tea_engine;
 #[cfg(feature = "arc-swap")]

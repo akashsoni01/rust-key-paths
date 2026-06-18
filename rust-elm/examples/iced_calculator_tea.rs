@@ -3,13 +3,15 @@
 //! - **Reducer thread** owns [`CalcState`]; clicks `TeaStore::dispatch`.
 //! - **UI thread** mirrors model from [`TeaStateSubscriber`] (channel-pushed `Arc<CalcState>`).
 //!
+//! [`TeaRuntime`] shuts down automatically on drop when the iced window closes.
+//!
 //! Compare with [`iced_calculator_rw`](iced_calculator_rw.rs) (`RwStore` — borrow in `view`).
 //!
 //! ```bash
 //! cargo run -p rust-elm --example iced_calculator_tea
 //! ```
 
-#[path = "iced_calc_common.rs"]
+#[path = "iced_calculator/common.rs"]
 mod common;
 
 use std::time::Duration;
@@ -26,7 +28,7 @@ enum Message {
 }
 
 struct App {
-    runtime: Option<TeaRuntime<CalcState, CalcAction>>,
+    _runtime: TeaRuntime<CalcState, CalcAction>,
     store: TeaStore<CalcState, CalcAction>,
     tea_sub: rust_elm::TeaStateSubscriber<CalcState>,
     model: CalcState,
@@ -48,10 +50,10 @@ fn boot() -> (App, Task<Message>) {
 
     (
         App {
-            runtime: Some(runtime),
             store,
             tea_sub,
             model,
+            _runtime: runtime,
         },
         Task::none(),
     )
@@ -91,12 +93,4 @@ fn main() -> iced::Result {
     .window_size((360.0, 480.0))
     .centered()
     .run_with(boot)
-}
-
-impl Drop for App {
-    fn drop(&mut self) {
-        if let Some(runtime) = self.runtime.take() {
-            runtime.shutdown();
-        }
-    }
 }

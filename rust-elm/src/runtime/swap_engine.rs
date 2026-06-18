@@ -218,12 +218,14 @@ where
         }
     }
 
-    pub fn shutdown(self) {
-        self.shutdown.store(true, Ordering::Relaxed);
-        self._subscriptions.abort_all();
-        if let Some(handle) = self._thread {
-            let _ = handle.join();
-        }
+    pub fn shutdown(mut self) {
+        super::lifecycle::join_reducer_thread(&self.shutdown, &self._subscriptions, &mut self._thread);
+    }
+}
+
+impl<S, M> Drop for SwapRuntime<S, M> {
+    fn drop(&mut self) {
+        super::lifecycle::join_reducer_thread(&self.shutdown, &self._subscriptions, &mut self._thread);
     }
 }
 

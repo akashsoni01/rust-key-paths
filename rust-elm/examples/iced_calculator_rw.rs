@@ -1,8 +1,9 @@
 //! Calculator GUI on [`RwRuntime`] / [`RwStore`] + [iced](https://github.com/iced-rs/iced).
 //!
 //! - **Shared state** in `Arc<RwLock<CalcState>>`; reducer mutates in place.
-//! - **UI thread** reads display via `read_store().with_read` each `view` — borrow under
-//!   read lock (no full [`CalcState`] clone; only the display `String` for iced text).
+//! - **UI thread** reads display via `read_store().with_read` each `view`.
+//!
+//! [`RwRuntime`] shuts down automatically on drop when the iced window closes.
 //!
 //! Compare with [`iced_calculator_tea`](iced_calculator_tea.rs) (channel-pushed snapshots).
 //!
@@ -10,7 +11,7 @@
 //! cargo run -p rust-elm --example iced_calculator_rw
 //! ```
 
-#[path = "iced_calc_common.rs"]
+#[path = "iced_calculator/common.rs"]
 mod common;
 
 use common::{calculator_view, init, subscriptions, update, CalcAction, CalcState};
@@ -19,7 +20,7 @@ use iced::{Task, Theme};
 use rust_elm::{Environment, Program, RuntimeConfig, RwRuntime, RwStore};
 
 struct App {
-    runtime: Option<RwRuntime<CalcState, CalcAction>>,
+    _runtime: RwRuntime<CalcState, CalcAction>,
     store: RwStore<CalcState, CalcAction>,
 }
 
@@ -34,7 +35,7 @@ fn boot() -> (App, Task<CalcAction>) {
     (
         App {
             store: runtime.rw_store(),
-            runtime: Some(runtime),
+            _runtime: runtime,
         },
         Task::none(),
     )
@@ -64,12 +65,4 @@ fn main() -> iced::Result {
     .window_size((360.0, 480.0))
     .centered()
     .run_with(boot)
-}
-
-impl Drop for App {
-    fn drop(&mut self) {
-        if let Some(runtime) = self.runtime.take() {
-            runtime.shutdown();
-        }
-    }
 }
