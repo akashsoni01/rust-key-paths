@@ -37,6 +37,7 @@ tokio = { version = "1.38", features = ["sync", "rt", "rt-multi-thread", "macros
 tokio-tungstenite = "0.26"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 criterion = { version = "0.5", features = ["html_reports"] }
+iced = { version = "0.13", features = ["tokio"] }
 
 [features]
 default = ["runtime", "websocket"]
@@ -56,6 +57,11 @@ required-features = ["runtime"]
 [[example]]
 name = "calculator"
 path = "examples/calculator.rs"
+
+[[example]]
+name = "iced_calculator_tea"
+path = "examples/iced_calculator_tea.rs"
+required-features = ["runtime"]
 
 [[example]]
 name = "counter"
