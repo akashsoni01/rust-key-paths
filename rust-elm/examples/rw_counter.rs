@@ -1,91 +1,51 @@
 //! Same `CounterState { a, b, c }` as [`counter`](counter.rs), on [`RwRuntime`] / [`RwStore`].
 //!
-//! With RwStore the live model stays in `Arc<RwLock<CounterState>>`. Reads borrow under a
-//! **read lock** — the root struct and individual buckets are **not cloned**.
+//! Reads borrow under a **read lock** — `CounterState` is **not cloned** on the main thread.
 //!
-//! | Read API | Clones `CounterState`? |
-//! |----------|------------------------|
-//! | `read_store().with_read(\|s\| s.b.get(...))` | **No** — borrow root, read field `b` |
-//! | `b_scope.read_binding().with_read(\|m\| …)` | **No** — keypath focus, borrow `b` only |
-//! | `store.state()` | **Yes** — full struct clone (avoid on hot paths) |
-//! | `subscribe_state().next()` | **Yes** — clones full struct under read lock |
-//!
-//! This example uses [`panic_on_state_clone!`] + [`allow_state_clones`] to **panic** if a read
-//! path accidentally clones `CounterState`. Compare with `counter.rs` (TeaStore), where the
-//! reducer clones the entire struct on every publish even when you only need `b`.
+//! Compare all three backends: `cargo run -p rust-elm --example swap_counter --features arc-swap`
 //!
 //! ```bash
 //! cargo run -p rust-elm --example rw_counter
 //! ```
 
-use std::collections::HashMap;
+#[path = "counter_common.rs"]
+mod common;
+
 use std::time::Duration;
 
-use key_paths_derive::{Cp, Kp};
+use common::{BucketAction, CounterAction};
 use rust_elm::{
     allow_state_clones, panic_on_state_clone, Cmd, Environment, Program, RuntimeConfig, RwRuntime,
     Sub,
 };
 use rust_key_paths::Kp as KpPath;
 
-type Bucket = HashMap<String, u64>;
-
 panic_on_state_clone! {
-    #[derive(Debug, PartialEq, Eq, Kp)]
+    #[derive(Debug, PartialEq, Eq, key_paths_derive::Kp)]
     struct CounterState {
-        a: Bucket,
-        b: Bucket,
-        c: Bucket,
+        a: common::Bucket,
+        b: common::Bucket,
+        c: common::Bucket,
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
-enum BucketAction {
-    Inc(String),
-    Dec(String),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
-enum CounterAction {
-    A(BucketAction),
-    B(BucketAction),
-    C(BucketAction),
-}
-
-fn empty_bucket() -> Bucket {
-    HashMap::new()
 }
 
 fn init() -> (CounterState, Cmd<CounterAction>) {
-    let mut a = empty_bucket();
-    a.insert("requests".into(), 0);
-    let mut b = empty_bucket();
-    b.insert("page_views".into(), 0);
-    let mut c = empty_bucket();
-    c.insert("errors".into(), 0);
+    let (s, cmd) = common::init();
     (
-        CounterState { a, b, c },
-        Cmd::none(),
+        CounterState {
+            a: s.a,
+            b: s.b,
+            c: s.c,
+        },
+        cmd,
     )
-}
-
-fn reduce_bucket(bucket: &mut Bucket, action: BucketAction) {
-    match action {
-        BucketAction::Inc(key) => {
-            *bucket.entry(key).or_insert(0) += 1;
-        }
-        BucketAction::Dec(key) => {
-            let entry = bucket.entry(key).or_insert(0);
-            *entry = entry.saturating_sub(1);
-        }
-    }
 }
 
 fn update(state: &mut CounterState, action: CounterAction) -> Cmd<CounterAction> {
     match action {
-        CounterAction::A(a) => reduce_bucket(&mut state.a, a),
-        CounterAction::B(b) => reduce_bucket(&mut state.b, b),
-        CounterAction::C(c) => reduce_bucket(&mut state.c, c),
+        CounterAction::A(a) => common::reduce_bucket(&mut state.a, a),
+        CounterAction::B(b) => common::reduce_bucket(&mut state.b, b),
+        CounterAction::C(c) => common::reduce_bucket(&mut state.c, c),
     }
     Cmd::none()
 }
@@ -94,33 +54,24 @@ fn subscriptions(_: &CounterState) -> Sub<CounterAction> {
     Sub::none()
 }
 
-type BucketKp = KpPath<
-    CounterState,
-    Bucket,
-    &'static CounterState,
-    &'static Bucket,
-    &'static mut CounterState,
-    &'static mut Bucket,
-    for<'a> fn(&'a CounterState) -> Option<&'a Bucket>,
-    for<'a> fn(&'a mut CounterState) -> Option<&'a mut Bucket>,
->;
-
-fn b_lens() -> BucketKp {
-    fn get(s: &CounterState) -> Option<&Bucket> {
+fn b_lens() -> impl rust_elm::keypath::RefKpTrait<CounterState, common::Bucket> + Clone {
+    fn get(s: &CounterState) -> Option<&common::Bucket> {
         Some(&s.b)
     }
-    fn get_mut(s: &mut CounterState) -> Option<&mut Bucket> {
+    fn get_mut(s: &mut CounterState) -> Option<&mut common::Bucket> {
         Some(&mut s.b)
     }
     KpPath::new(get, get_mut)
 }
 
+fn b_page_views(state: &CounterState) -> u64 {
+    state.b.get("page_views").copied().unwrap_or(0)
+}
+
 fn demo_read_b(store: &rust_elm::RwStore<CounterState, CounterAction>) {
     println!("\n--- read_store().with_read (zero CounterState clone) ---");
     allow_state_clones(0, || {
-        let views = store
-            .read_store()
-            .with_read(|s| s.b.get("page_views").copied().unwrap_or(0));
+        let views = store.read_store().with_read(|s| b_page_views(s));
         println!("with_read b.page_views={views}");
     });
 }
@@ -156,7 +107,7 @@ fn demo_state_clones(store: &rust_elm::RwStore<CounterState, CounterAction>) {
         let owned = store.state();
         println!(
             "state() cloned entire struct: b.page_views={}",
-            owned.b.get("page_views").copied().unwrap_or(0)
+            b_page_views(&owned)
         );
     });
 }

@@ -11,8 +11,8 @@
 //!
 //! **Reducer thread:** TeaStore always publishes `Arc::new(state.clone())` — the **entire
 //! root struct** is cloned on the reducer when pushing snapshots / RPC replies.
-//! Keypaths do **not** skip that. For large maps, store each bucket as
-//! `Arc<HashMap<…>>` so root `clone()` only bumps Arc refcounts.
+//!
+//! Compare all three backends: `cargo run -p rust-elm --example swap_counter --features arc-swap`
 //!
 //! ```bash
 //! cargo run -p rust-elm --example counter
@@ -20,117 +20,25 @@
 //!
 //! See [`book/counter.md`](../book/counter.md).
 
-use std::collections::HashMap;
+#[path = "counter_common.rs"]
+mod common;
+
 use std::time::Duration;
 
-use key_paths_derive::{Cp, Kp};
-use rust_elm::{
-    Cmd, Environment, Program, RuntimeConfig, Sub, TeaRuntime, TeaStoreError,
-};
-use rust_key_paths::Kp as KpPath;
+use common::{b_lens, b_page_views, init, update, subscriptions, BucketAction, CounterAction};
+use rust_elm::{Environment, Program, RuntimeConfig, TeaRuntime, TeaStoreError};
 
-type Bucket = HashMap<String, u64>;
-
-/// Root model — three independent counter maps.
-///
-/// Tip: replace `Bucket` with `Arc<Bucket>` if maps are large; then `CounterState::clone()`
-/// on the reducer thread is cheap and only changed buckets need a new `Arc`.
-#[derive(Clone, Debug, PartialEq, Eq, Kp)]
-struct CounterState {
-    a: Bucket,
-    b: Bucket,
-    c: Bucket,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
-enum BucketAction {
-    Inc(String),
-    Dec(String),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Kp, Cp)]
-enum CounterAction {
-    A(BucketAction),
-    B(BucketAction),
-    C(BucketAction),
-}
-
-fn empty_bucket() -> Bucket {
-    HashMap::new()
-}
-
-fn init() -> (CounterState, Cmd<CounterAction>) {
-    let mut a = empty_bucket();
-    a.insert("requests".into(), 0);
-    let mut b = empty_bucket();
-    b.insert("page_views".into(), 0);
-    let mut c = empty_bucket();
-    c.insert("errors".into(), 0);
-    (
-        CounterState { a, b, c },
-        Cmd::none(),
-    )
-}
-
-fn reduce_bucket(bucket: &mut Bucket, action: BucketAction) {
-    match action {
-        BucketAction::Inc(key) => {
-            *bucket.entry(key).or_insert(0) += 1;
-        }
-        BucketAction::Dec(key) => {
-            let entry = bucket.entry(key).or_insert(0);
-            *entry = entry.saturating_sub(1);
-        }
-    }
-}
-
-fn update(state: &mut CounterState, action: CounterAction) -> Cmd<CounterAction> {
-    match action {
-        CounterAction::A(a) => reduce_bucket(&mut state.a, a),
-        CounterAction::B(b) => reduce_bucket(&mut state.b, b),
-        CounterAction::C(c) => reduce_bucket(&mut state.c, c),
-    }
-    Cmd::none()
-}
-
-fn subscriptions(_: &CounterState) -> Sub<CounterAction> {
-    Sub::none()
-}
-
-type BucketKp = KpPath<
-    CounterState,
-    Bucket,
-    &'static CounterState,
-    &'static Bucket,
-    &'static mut CounterState,
-    &'static mut Bucket,
-    for<'a> fn(&'a CounterState) -> Option<&'a Bucket>,
-    for<'a> fn(&'a mut CounterState) -> Option<&'a mut Bucket>,
->;
-
-fn b_lens() -> BucketKp {
-    fn get(s: &CounterState) -> Option<&Bucket> {
-        Some(&s.b)
-    }
-    fn get_mut(s: &mut CounterState) -> Option<&mut Bucket> {
-        Some(&mut s.b)
-    }
-    KpPath::new(get, get_mut)
-}
-
-fn demo_borrow_b(store: &rust_elm::TeaStore<CounterState, CounterAction>) -> Result<(), TeaStoreError> {
+fn demo_borrow_b(store: &rust_elm::TeaStore<common::CounterState, CounterAction>) -> Result<(), TeaStoreError> {
     println!("\n--- borrow `b` only (no HashMap clone on main) ---");
     let views = store
         .view_store()
-        .try_with_snapshot(|s| s.b.get("page_views").copied().unwrap_or(0))?;
+        .try_with_snapshot(|s| b_page_views(s))?;
     println!("try_with_snapshot b.page_views={views}");
     Ok(())
 }
 
-fn demo_scoped_b(store: &rust_elm::TeaStore<CounterState, CounterAction>) -> Result<(), TeaStoreError> {
+fn demo_scoped_b(store: &rust_elm::TeaStore<common::CounterState, CounterAction>) -> Result<(), TeaStoreError> {
     println!("\n--- ScopedTeaStore on `b` (dispatch + subscribe child only) ---");
-
-    // Keypath: state focus `CounterState::b`, action casepath `CounterAction::b_cp`.
     let b_scope = store.scope(b_lens(), CounterAction::b_cp());
     let mut sub = b_scope.subscribe_state()?;
 
@@ -160,12 +68,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     store.dispatch(CounterAction::B(BucketAction::Inc("page_views".into())));
     std::thread::sleep(Duration::from_millis(50));
 
-    // TeaStore: reducer already cloned full CounterState when building Arc snapshots.
-    // try_with_snapshot borrows through Arc (no extra clone on main); scoped subscribe clones only `b`.
     demo_borrow_b(&store)?;
     demo_scoped_b(&store)?;
 
-    println!("\nFor zero-clone reads of bucket `b`, see: cargo run -p rust-elm --example rw_counter");
+    println!("\nCompare Tea / Rw / Swap: cargo run -p rust-elm --example swap_counter --features arc-swap");
 
     runtime.shutdown();
     println!("\ncounter example OK");

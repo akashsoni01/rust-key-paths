@@ -68,6 +68,11 @@ path = "examples/rw_counter.rs"
 required-features = ["runtime"]
 
 [[example]]
+name = "swap_counter"
+path = "examples/swap_counter.rs"
+required-features = ["runtime", "arc-swap"]
+
+[[example]]
 name = "throughput"
 path = "examples/throughput.rs"
 required-features = ["runtime"]

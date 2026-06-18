@@ -1,13 +1,15 @@
-# Counter examples — `HashMap` buckets on TeaStore vs RwStore
+# Counter examples — TeaStore vs RwStore vs SwapStore
 
 | Example | Backend | When to use |
 |---------|---------|-------------|
 | [`counter.rs`](../examples/counter.rs) | `TeaRuntime` / `TeaStore` | True TEA — channel-pushed model, no shared lock |
 | [`rw_counter.rs`](../examples/rw_counter.rs) | `RwRuntime` / `RwStore` | **Zero-clone reads** of one bucket via `read_binding` |
+| [`swap_counter.rs`](../examples/swap_counter.rs) | All three compared | Side-by-side clone/sync comparison |
 
 ```bash
 cargo run -p rust-elm --example counter
 cargo run -p rust-elm --example rw_counter
+cargo run -p rust-elm --example swap_counter --features arc-swap
 ```
 
 ---
@@ -59,6 +61,23 @@ let n = b_scope.read_binding().with_read(|b| b.get("page_views").copied().unwrap
 accidentally clones `CounterState`.
 
 Avoid on hot paths: `store.state()` and `subscribe_state().next()` — both clone the full struct.
+
+---
+
+## SwapStore (`swap_counter`) — lock-free borrow, reducer clones full root
+
+```rust
+let views = store.snapshot_store().with_snapshot(|s| s.b.get("page_views").copied().unwrap_or(0));
+
+let b_scope = store.scope(b_lens(), CounterAction::b_cp());
+let n = b_scope.snapshot_binding().with_snapshot(|b| b.get("page_views").copied().unwrap_or(0));
+```
+
+Like TeaStore, the reducer **clones the full `CounterState`** before each `ArcSwap::store`.
+Unlike TeaStore, reads are **lock-free** atomic loads — good for many concurrent reader threads.
+Unlike RwStore, readers never take a `RwLock`.
+
+Run all three in one binary: `swap_counter` (see table at startup).
 
 ---
 
