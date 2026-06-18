@@ -184,6 +184,7 @@ See [architecture.md](book/architecture.md#snapshot-threading), [tea_ecommerce.m
 | `rw_counter` | `cargo run -p rust-elm --example rw_counter` | Same counters on `RwStore` — zero-clone reads via `read_binding` |
 | `swap_counter` | `cargo run -p rust-elm --example swap_counter --features arc-swap` | Compare Tea / Rw / Swap on same counter domain |
 | `iced_calculator_tea` | `cargo run -p rust-elm --example iced_calculator_tea` | iced GUI calculator on `TeaStore` |
+| `iced_calculator_rw` | `cargo run -p rust-elm --example iced_calculator_rw` | iced GUI calculator on `RwStore` |
 
 ## Quality tooling
 

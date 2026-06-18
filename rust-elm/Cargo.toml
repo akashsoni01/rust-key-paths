@@ -64,6 +64,11 @@ path = "examples/iced_calculator_tea.rs"
 required-features = ["runtime"]
 
 [[example]]
+name = "iced_calculator_rw"
+path = "examples/iced_calculator_rw.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "counter"
 path = "examples/counter.rs"
 required-features = ["runtime"]
