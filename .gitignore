@@ -37,3 +37,4 @@ key-paths-core/.idea/key-paths-core.iml
 benches/cheq_dataset
 keypaths-proc/Cargo.lock
 /.internals
+druid-derive/.DS_Store
