@@ -2,7 +2,7 @@
 
 Every reducer turn ends with a **`Cmd<Action>`**: zero or more effects to run after state has been updated. `Cmd` is the **contract** between your pure `update` function and the runtime interpreter.
 
-Source: [`src/core/cmd.rs`](../src/core/cmd.rs) · Companion: [effects.md](./effects.md) (what lives inside a command) · Wiring: [`src/core/program.rs`](../src/core/program.rs), [`src/runtime/engine.rs`](../src/runtime/engine.rs)
+Source: [`src/core/cmd.rs`](../src/core/cmd.rs) · Companion: [effects.md](./effects.md) (what lives inside a command), [sub.md](./sub.md) (long-lived listeners vs one-shot commands) · Wiring: [`src/core/program.rs`](../src/core/program.rs), [`src/runtime/engine.rs`](../src/runtime/engine.rs)
 
 ---
 
