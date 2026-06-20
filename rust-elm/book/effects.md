@@ -4,7 +4,7 @@ Effects are **descriptions of async work**, not the work itself. Your reducer st
 
 Source: [`src/core/effect.rs`](../src/core/effect.rs) · Interpreter: [`src/runtime/interpreter.rs`](../src/runtime/interpreter.rs)
 
-See also: [architecture.md](./architecture.md) (threading model), [`tests/effect_integration.rs`](../tests/effect_integration.rs) (debounce, cancel, throttle).
+See also: [cmd.md](./cmd.md) (the `Cmd` wrapper reducers return), [architecture.md](./architecture.md) (threading model), [`tests/effect_integration.rs`](../tests/effect_integration.rs) (debounce, cancel, throttle).
 
 ---
 

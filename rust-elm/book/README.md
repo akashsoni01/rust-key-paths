@@ -3,6 +3,7 @@
 | Document | Description |
 |----------|-------------|
 | [architecture.md](./architecture.md) | Runtime, threading, effects, composition, actors comparison, safe reducer strategy |
+| [cmd.md](./cmd.md) | Commands (`Cmd`): reducer boundary, batch vs single, composition, init, cookbook |
 | [effects.md](./effects.md) | Effect system deep dive: architecture, every combinator, parallel/sequential/race recipes |
 | [store.md](./store.md) | Store dispatch, scoping, legacy snapshot subscription (`subscribe_state`) |
 | [binding.md](./binding.md) | Zero-copy bindings, keypath projection, field change signals (`subscribe_changes`) |
