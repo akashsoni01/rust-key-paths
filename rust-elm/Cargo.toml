@@ -90,6 +90,11 @@ path = "examples/rw_counter.rs"
 required-features = ["runtime"]
 
 [[example]]
+name = "read_correctness"
+path = "examples/read_correctness.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "swap_counter"
 path = "examples/swap_counter.rs"
 required-features = ["runtime", "arc-swap"]
@@ -151,6 +156,11 @@ required-features = ["runtime"]
 
 [[bench]]
 name = "rw_calculator"
+harness = false
+required-features = ["runtime"]
+
+[[bench]]
+name = "counter"
 harness = false
 required-features = ["runtime"]
 

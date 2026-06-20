@@ -20,6 +20,7 @@
 | [../examples/swap_ecommerce.rs](../examples/swap_ecommerce.rs) | Shop on `SwapRuntime` — lock-free `snapshot_store()` (`arc-swap` feature) |
 | [../examples/tea_ecommerce.rs](../examples/tea_ecommerce.rs) | Shop on `TeaRuntime` — channel-pushed model snapshots (true TEA) |
 | [../examples/counter.rs](../examples/counter.rs) | Minimal `HashMap<String, u64>` counters on `TeaStore` |
+| [../examples/read_correctness.rs](../examples/read_correctness.rs) | RwStore parallel read template — `output_state`, replay golden, 100 threads |
 | [../examples/rw_counter.rs](../examples/rw_counter.rs) | Same counters on `RwStore` — zero-clone reads via `read_binding` |
 | [../examples/swap_counter.rs](../examples/swap_counter.rs) | Compare Tea / Rw / Swap on same counter domain |
 | [counter.md](./counter.md) | Counter examples — clone behavior per backend |
@@ -35,6 +36,8 @@ Numbers below are from **release** builds on Apple Silicon (M-series), reducer =
 ```bash
 cargo run -p rust-elm --example throughput --release
 cargo bench -p rust-elm --bench hashmap_dispatch -- --noplot
+cargo bench -p rust-elm --bench counter -- --noplot
+cargo bench -p rust-elm --bench rw_calculator -- --noplot
 ```
 
 | Workload | Estimated TPS | Notes |
@@ -83,6 +86,39 @@ struct CalcOutput {
 - Each benchmark iteration **asserts** `output_state` Copy fields and display match the replayed golden state after the queue drains.
 
 See [`benches/rw_calculator.rs`](../benches/rw_calculator.rs).
+
+---
+
+## RwStore counter — 100-thread benchmark
+
+Release build on Apple Silicon (M-series). Domain: [`examples/counter/common.rs`](../examples/counter/common.rs) (`CounterState { a, b, c }` buckets) on [`RwRuntime`](../examples/rw_counter.rs). Reproduce:
+
+```bash
+cargo bench -p rust-elm --bench counter -- --noplot
+```
+
+| Workload | Result | Notes |
+|----------|--------|-------|
+| **`output_state` correctness** (100 writers × 50 `B(Inc page_views)`) | **PASS** | Copy totals match replay; `page_views` = 5000; `requests` / `errors` unchanged |
+| **`output_state` read** (100 threads, Copy-only) | **~180 ns/read** (~5.6M reads/s) | Reads `requests`, `page_views`, `errors` as `u64` — no `CounterState` clone |
+| **Parallel dispatch** (100 threads × 5000 actions/bench iter) | **~700K actions/s** (~7 ms/iter) | `HashMap` bucket `Inc` on reducer thread; bus 65_536 |
+
+### What `output_state` checks
+
+```rust
+struct CounterOutput {
+    requests: u64,    // bucket `a` — Copy
+    page_views: u64,  // bucket `b` — Copy
+    errors: u64,      // bucket `c` — Copy
+}
+```
+
+- **Mutation:** only `CounterAction::B(Inc("page_views"))` from 100 threads; final `page_views` must equal dispatch count.
+- **Isolation:** `requests` and `errors` stay at init value (`0`) — other buckets not corrupted.
+- **Replay:** recorded actions replayed locally; `output_state` from `read_store()` must match golden totals.
+- **No clone** on the read path — all fields are `Copy` `u64`s read under one `with_read` guard.
+
+See [`benches/counter.rs`](../benches/counter.rs) and [`examples/read_correctness.rs`](../examples/read_correctness.rs) (runnable template).
 
 ---
 
