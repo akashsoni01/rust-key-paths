@@ -50,6 +50,42 @@ The insert itself is ~50 ns; the remaining ~410 ns per action is bus send/recv, 
 
 ---
 
+## RwStore calculator — 100-thread benchmark
+
+Release build on Apple Silicon (M-series). Domain: [`examples/calc_common.rs`](../examples/calc_common.rs) on [`RwRuntime`](../examples/iced_calculator_rw.rs). Reproduce:
+
+```bash
+cargo bench -p rust-elm --bench rw_calculator -- --noplot
+```
+
+| Workload | Result | Notes |
+|----------|--------|-------|
+| **`output_state` correctness** (100 writers × 50 `Digit(1)`) | **PASS** | Copy fields + display match local replay; display = `"1"` × 5000 |
+| **`output_state` read** (100 threads, Copy-only) | **~168 ns/read** (~5.9M reads/s) | `read_store().with_read` — no `CalcState` / `String` clone |
+| **Parallel dispatch** (100 threads × 5000 actions/bench iter) | **~1.2M actions/s** (~4 ms/iter) | Single reducer thread; bus capacity 65_536 |
+
+### What `output_state` checks
+
+The bench exposes a **Copy-only** snapshot for hot parallel reads:
+
+```rust
+struct CalcOutput {
+    lhs: Option<f64>,      // Copy
+    op: Option<CalcOp>,    // Copy
+    fresh_rhs: bool,       // Copy
+    display_len: usize,    // Copy
+}
+```
+
+- **No clone** on the read path — only `Copy` fields are returned from `with_read`.
+- **Display correctness** compares `&str` inside the read guard (`output_display_matches`) — no owned `String` until the test builds the replay golden value.
+- **Parallel writers:** 100 threads each dispatch `Digit(1)` after `Clear`. Order varies, but the result is commutative (all append `1`), so the final display length and replay still agree.
+- Each benchmark iteration **asserts** `output_state` Copy fields and display match the replayed golden state after the queue drains.
+
+See [`benches/rw_calculator.rs`](../benches/rw_calculator.rs).
+
+---
+
 ## 50k parallel requests — recommended config
 
 Use this when many threads (HTTP handlers, workers, UI surfaces) each call `store.dispatch` and the reducer mostly updates a `HashMap`.

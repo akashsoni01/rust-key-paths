@@ -149,6 +149,11 @@ name = "hashmap_dispatch"
 harness = false
 required-features = ["runtime"]
 
+[[bench]]
+name = "rw_calculator"
+harness = false
+required-features = ["runtime"]
+
 [[test]]
 name = "miri_smoke"
 path = "tests/miri_smoke.rs"
