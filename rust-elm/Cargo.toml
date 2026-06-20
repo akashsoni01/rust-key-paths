@@ -105,6 +105,16 @@ path = "examples/throughput.rs"
 required-features = ["runtime"]
 
 [[example]]
+name = "init_cost"
+path = "examples/init_cost.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "api_worker"
+path = "examples/api_worker.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "safe_reducer"
 path = "examples/safe_reducer.rs"
 

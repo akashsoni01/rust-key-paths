@@ -7,6 +7,7 @@
 | [sub.md](./sub.md) | Subscriptions (`Sub`): long-lived listeners, state-driven sync, tick/stream/WebSocket |
 | [effects.md](./effects.md) | Effect system deep dive: architecture, every combinator, parallel/sequential/race recipes |
 | [store.md](./store.md) | Store dispatch, scoping, legacy snapshot subscription (`subscribe_state`) |
+| [api_worker.md](./api_worker.md) | **Server pattern** — one runtime per worker, clone `RwStore` per request |
 | [binding.md](./binding.md) | Zero-copy bindings, keypath projection, field change signals (`subscribe_changes`) |
 | [safe_reducer.md](./safe_reducer.md) | `safe_reduce_update`, `safe_reduce_rollback`, `CatchReducer` |
 | [ecommerce.md](./ecommerce.md) | Shop example: scoping, subs, locks, safe reducer demo, cross-thread store |
@@ -20,6 +21,8 @@
 | [../examples/swap_ecommerce.rs](../examples/swap_ecommerce.rs) | Shop on `SwapRuntime` — lock-free `snapshot_store()` (`arc-swap` feature) |
 | [../examples/tea_ecommerce.rs](../examples/tea_ecommerce.rs) | Shop on `TeaRuntime` — channel-pushed model snapshots (true TEA) |
 | [../examples/counter.rs](../examples/counter.rs) | Minimal `HashMap<String, u64>` counters on `TeaStore` |
+| [../examples/init_cost.rs](../examples/init_cost.rs) | Runtime boot cost — Mutex / Rw / Tea store init with & without full runtime |
+| [../examples/api_worker.rs](../examples/api_worker.rs) | One `RwRuntime` per worker; handlers clone `Arc<RwStore>` per request |
 | [../examples/read_correctness.rs](../examples/read_correctness.rs) | RwStore parallel read template — `output_state`, replay golden, 100 threads |
 | [../examples/rw_counter.rs](../examples/rw_counter.rs) | Same counters on `RwStore` — zero-clone reads via `read_binding` |
 | [../examples/swap_counter.rs](../examples/swap_counter.rs) | Compare Tea / Rw / Swap on same counter domain |
@@ -34,6 +37,7 @@
 Numbers below are from **release** builds on Apple Silicon (M-series), reducer = `HashMap<u64,u64>::insert` + `Cmd::none()`, no subscriptions, no effects. Reproduce with:
 
 ```bash
+cargo run -p rust-elm --example init_cost --release
 cargo run -p rust-elm --example throughput --release
 cargo bench -p rust-elm --bench hashmap_dispatch -- --noplot
 cargo bench -p rust-elm --bench counter -- --noplot
@@ -50,6 +54,90 @@ cargo bench -p rust-elm --bench rw_calculator -- --noplot
 **Key takeaway:** parallel dispatch does **not** multiply reduce throughput. Many threads enqueue actions; **one reducer thread** applies them. Extra threads add queue depth and producer blocking, not more inserts/sec.
 
 The insert itself is ~50 ns; the remaining ~410 ns per action is bus send/recv, `parking_lot` lock, listener notify, and `StoreTask` bookkeeping.
+
+---
+
+## Runtime init cost — can you boot a store per API request?
+
+Release build on Apple Silicon (M-series), `Cmd::none()` init, no subscriptions. Reproduce:
+
+```bash
+cargo run -p rust-elm --example init_cost --release
+```
+
+### Without runtime (state / reducer only)
+
+| Step | Median time | What it includes |
+|------|------------:|------------------|
+| **`program init()` only** | **~400 ns** | Default state + empty `Cmd` — no threads, no Tokio, no bus |
+
+This is cheap enough to call on every request **if** you only need a fresh value in memory and will run `update` yourself (unit-test style). It is **not** a live store — no async effects, no concurrent readers, no subscription sync.
+
+### Full runtime bootstrap (thread + Tokio + bus + reducer loop)
+
+Each backend pays roughly the same fixed costs: spawn **Tokio** pool, spawn **reducer thread**, allocate **bus**, run `init` effects, sync subscriptions.
+
+| Backend | Lean config¹ | Default config² |
+|---------|-------------:|----------------:|
+| **Mutex `Store`** (`Runtime`) | **~165 µs** boot+shutdown | **~370 µs** boot+shutdown |
+| **`RwStore`** (`RwRuntime`) | **~170 µs** boot+shutdown | **~360 µs** boot+shutdown |
+| **`TeaStore`** (`TeaRuntime`) | **~130 µs** boot+shutdown | **~315 µs** boot+shutdown |
+
+¹ `RuntimeConfig { bus_capacity: 256, worker_threads: 1 }` — good for one API worker.  
+² `RuntimeConfig::default()` — bus 4096, Tokio workers = logical CPU count.
+
+| Step | Median time | Notes |
+|------|------------:|-------|
+| Boot only (no `shutdown`) | **~35 µs** | Thread + Tokio live until drop — leaks resources if forgotten |
+| **`Store` handle `clone()`** | **~40 ns** | Shared `Arc` backend — use this per task |
+| **`dispatch` enqueue** | **~600 ns** | Fire-and-forget; reduce still ~460 ns end-to-end on hot path |
+
+**Store type does not dominate init cost** — Mutex vs RwLock vs Tea channel differs by only ~10–20%. Almost all time is **Tokio + OS thread + channels**.
+
+### Per-request runtime init — viable?
+
+| Traffic | Cost if you boot+shutdown every request (lean ~165 µs) | Verdict |
+|---------|--------------------------------------------------------|---------|
+| 100 req/s | ~16 ms/s CPU (~1.6% of one core) | Wasteful but might “work” for prototypes |
+| 1 000 req/s | ~165 ms/s (~16% core) | **Avoid** — use shared runtime |
+| 10 000 req/s | ~1.6 s/s (>1 core) | **Impossible** to scale |
+
+**Answer:** Do **not** create a full `Runtime` / `RwRuntime` per HTTP request. Reuse **one runtime per process or per worker thread**.
+
+### Recommended design patterns
+
+```mermaid
+flowchart TB
+    subgraph Good["Recommended"]
+        W1["Worker / process start"]
+        RT["One Runtime or RwRuntime"]
+        H1["Handler clones Store"]
+        H2["Handler clones Store"]
+        W1 --> RT
+        RT --> H1
+        RT --> H2
+    end
+
+    subgraph Bad["Avoid at scale"]
+        R1["Request → new Runtime"]
+        R2["Request → new Runtime"]
+    end
+```
+
+| Pattern | When | How |
+|---------|------|-----|
+| **One runtime per worker** | HTTP (Actix, Axum, hyper) | `Runtime::from_program` in worker `main`; `web::Data<Store>` or thread-local clone |
+| **One runtime per app** | Desktop / mobile shell | Same as today’s iced/druid examples; drop on exit |
+| **Session in state** | Per-user isolation | `HashMap<SessionId, SessionState>` + `Action::ForSession(id, …)` or `ForEachReducer` |
+| **Scoped child** | Per-tenant / per-checkout | `RwStore::scope` + `IfLetReducer`; dismiss clears + `Effect::cancel` |
+| **Fresh state without runtime** | Pure validation / replay tests | `init()` + synchronous `update` — no `Runtime` |
+| **Per-request reset** | Short-lived “transaction” UI | Dispatch `Action::Reset` / `IfLet` dismiss — same runtime, new child state |
+
+**RwStore vs Mutex Store for APIs:** Prefer **`RwRuntime`** when handlers **read** state on thread pool threads (`read_store().with_read`, Copy fields). Use **`Runtime`** when readers are rare or you use `binding()`. **`TeaRuntime`** when you want channel-pushed snapshots to UI subscribers, not for typical REST read paths.
+
+**What to init per request:** the **HTTP context** (path, auth, body) — not the Elm runtime. Pass context into actions; keep one reducer loop owning canonical state.
+
+See [`examples/init_cost.rs`](../examples/init_cost.rs) and [`examples/api_worker.rs`](../examples/api_worker.rs) (runnable worker pattern).
 
 ---
 
