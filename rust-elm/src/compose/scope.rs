@@ -291,6 +291,17 @@ where
             attempts,
             inner: Box::new(map_effect_with_id(*inner, embed, id)),
         },
+        Effect::RetryBackoff {
+            attempts,
+            delay,
+            max_delay,
+            inner,
+        } => Effect::RetryBackoff {
+            attempts,
+            delay,
+            max_delay,
+            inner: Box::new(map_effect_with_id(*inner, embed, id)),
+        },
         Effect::Timeout { duration, inner } => Effect::Timeout {
             duration,
             inner: Box::new(map_effect_with_id(*inner, embed, id)),
@@ -417,6 +428,17 @@ where
             attempts,
             inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
         },
+        Effect::RetryBackoff {
+            attempts,
+            delay,
+            max_delay,
+            inner,
+        } => Effect::RetryBackoff {
+            attempts,
+            delay,
+            max_delay,
+            inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
+        },
         Effect::Timeout { duration, inner } => Effect::Timeout {
             duration,
             inner: Box::new(map_effect_with_casepath(*inner, casepath.clone())),
@@ -486,6 +508,17 @@ fn tag_cancel_id<M>(effect: Effect<M>, cancel_id: EffectId) -> Effect<M> {
         },
         Effect::Retry { attempts, inner } => Effect::Retry {
             attempts,
+            inner: Box::new(tag_cancel_id(*inner, cancel_id)),
+        },
+        Effect::RetryBackoff {
+            attempts,
+            delay,
+            max_delay,
+            inner,
+        } => Effect::RetryBackoff {
+            attempts,
+            delay,
+            max_delay,
             inner: Box::new(tag_cancel_id(*inner, cancel_id)),
         },
         Effect::Timeout { duration, inner } => Effect::Timeout {

@@ -360,6 +360,40 @@ fn spawn_effect_inner<S, M, B>(
                 batch,
             );
         }
+        Effect::RetryBackoff {
+            attempts,
+            delay,
+            max_delay,
+            inner,
+        } => {
+            let tx = tx.clone();
+            let env = env.clone();
+            let backend = backend.clone();
+            let inner = *inner;
+            track_spawn(
+                handle.spawn(async move {
+                    let mut backoff = delay;
+                    for attempt in 0..attempts.max(1) {
+                        match run_effect_once(inner.clone(), env.clone()).await {
+                            Ok(msg) => {
+                                dispatch_from_effect(&backend, &tx, msg);
+                                break;
+                            }
+                            Err(_) => {
+                                if attempt + 1 >= attempts.max(1) {
+                                    break;
+                                }
+                                tokio::time::sleep(backoff).await;
+                                backoff = backoff.saturating_mul(2).min(max_delay);
+                            }
+                        }
+                    }
+                }),
+                None,
+                &interpreter,
+                batch,
+            );
+        }
         Effect::Timeout { duration, inner } => {
             let tx = tx.clone();
             let env = env.clone();

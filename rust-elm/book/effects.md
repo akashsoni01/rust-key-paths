@@ -85,7 +85,7 @@ Effect::Batch(items) => items.into_iter().flat_map(flatten_effects).collect(),
 other => vec![other],
 ```
 
-Each **flattened leaf** that is a bare `Task` / `RegisteredTask` / … gets its **own Tokio task**. Combinators like `Sequence`, `Debounce`, `Retry` stay as **one interpreter node** (one outer task or timer).
+Each **flattened leaf** that is a bare `Task` / `RegisteredTask` / … gets its **own Tokio task**. Combinators like `Sequence`, `Debounce`, `Retry`, `RetryBackoff` stay as **one interpreter node** (one outer task or timer).
 
 | What you return | What runs in parallel |
 |-----------------|----------------------|
@@ -451,6 +451,39 @@ Combine with `catch` or `result_task` if you need `Action::SaveFailed` when retr
 
 ---
 
+### `Effect::retry_backoff`
+
+**Theory:** Like [`Effect::retry`](#effectretry), but sleeps between failures with **exponential backoff**. The first attempt runs immediately; after each failure, sleep `delay`, then double the delay (capped at `max_delay`) before the next try.
+
+**Real life:** Rate-limited APIs, thundering-herd avoidance after outages, same flaky fetch as `retry` but without hand-rolling a sleep loop in `from_fn`.
+
+```rust
+Cmd::single(Effect::retry_backoff(
+    6,
+    Duration::from_millis(50),
+    Duration::from_secs(2),
+    Effect::from_fn(|| Box::pin(async {
+        Ok(Action::Done(fetch().await?))
+    })),
+))
+```
+
+See [`examples/backoff_retry.rs`](../examples/backoff_retry.rs) for a side-by-side timing comparison with immediate `retry`.
+
+---
+
+### Sync vs async recursion
+
+| Pattern | Example | When |
+|---------|---------|------|
+| **Async effect recursion** | [`examples/recursion.rs`](../examples/recursion.rs) | Each step is I/O; reducer schedules the next effect via `Cmd` after an action |
+| **Sync driver loop** | [`examples/sync_recursion.rs`](../examples/sync_recursion.rs) | Pure or test harness: caller loops `update(app, Step(n))` with no runtime |
+| **Pure functional recursion** | `sum_tree` in `sync_recursion.rs` | Data-structure walks inside the functional core — no actions at all |
+
+Async recursion is **tail-call style through the runtime**: `PageLoaded` → `fetch_page(n + 1)` until done. Sync recursion is the same pagination shape, but the **driver** advances `Step(n)` in a `for` loop — useful for unit tests, batch jobs, and REPL-style stepping.
+
+---
+
 ### `Effect::timeout`
 
 **Theory:** Run `inner` with a wall-clock bound. On timeout, the effect completes with **no action** (silent drop).
@@ -624,6 +657,7 @@ flowchart TB
 
     subgraph Resilience["Resilience"]
         RT["retry"]
+        RB["retry_backoff"]
         TO["timeout"]
         CA["catch"]
     end
@@ -641,6 +675,7 @@ flowchart TB
 | `sequence` | No | **No** (continues) | No |
 | `from_fn` + `?` | No | **Yes** | via your `Result` |
 | `retry` | No | After N tries | No if exhausted |
+| `retry_backoff` | No | After N tries (with sleeps) | No if exhausted |
 | `timeout` | No | — | No on timeout |
 | `catch` | No | — | Runs `recover` |
 | `debounce` / `throttle` | Timer | — | Inner behavior |

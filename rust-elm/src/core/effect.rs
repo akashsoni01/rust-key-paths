@@ -219,6 +219,12 @@ pub enum Effect<M> {
         attempts: u32,
         inner: Box<Effect<M>>,
     },
+    RetryBackoff {
+        attempts: u32,
+        delay: Duration,
+        max_delay: Duration,
+        inner: Box<Effect<M>>,
+    },
     Timeout {
         duration: Duration,
         inner: Box<Effect<M>>,
@@ -277,6 +283,17 @@ impl<M> Clone for Effect<M> {
             },
             Self::Retry { attempts, inner } => Self::Retry {
                 attempts: *attempts,
+                inner: inner.clone(),
+            },
+            Self::RetryBackoff {
+                attempts,
+                delay,
+                max_delay,
+                inner,
+            } => Self::RetryBackoff {
+                attempts: *attempts,
+                delay: *delay,
+                max_delay: *max_delay,
                 inner: inner.clone(),
             },
             Self::Timeout { duration, inner } => Self::Timeout {
@@ -451,6 +468,17 @@ impl<M> Effect<M> {
                 attempts,
                 inner: Box::new(inner.map(f)),
             },
+            Self::RetryBackoff {
+                attempts,
+                delay,
+                max_delay,
+                inner,
+            } => Effect::RetryBackoff {
+                attempts,
+                delay,
+                max_delay,
+                inner: Box::new(inner.map(f)),
+            },
             Self::Timeout { duration, inner } => Effect::Timeout {
                 duration,
                 inner: Box::new(inner.map(f)),
@@ -510,6 +538,24 @@ impl<M> Effect<M> {
     pub fn retry(attempts: u32, inner: Effect<M>) -> Self {
         Self::Retry {
             attempts,
+            inner: Box::new(inner),
+        }
+    }
+
+    /// Re-run `inner` up to `attempts` times with exponential backoff between failures.
+    ///
+    /// The first attempt runs immediately. After each failure, sleeps `delay`, then doubles
+    /// the delay (capped at `max_delay`) before the next attempt.
+    pub fn retry_backoff(
+        attempts: u32,
+        delay: Duration,
+        max_delay: Duration,
+        inner: Effect<M>,
+    ) -> Self {
+        Self::RetryBackoff {
+            attempts,
+            delay,
+            max_delay,
             inner: Box::new(inner),
         }
     }
@@ -574,6 +620,15 @@ impl<M> std::fmt::Debug for Effect<M> {
             } => write!(f, "Effect::Throttle({id}, {duration:?}, latest={latest})"),
             Self::Provide { .. } => write!(f, "Effect::Provide"),
             Self::Retry { attempts, .. } => write!(f, "Effect::Retry({attempts})"),
+            Self::RetryBackoff {
+                attempts,
+                delay,
+                max_delay,
+                ..
+            } => write!(
+                f,
+                "Effect::RetryBackoff({attempts}, {delay:?}, max={max_delay:?})"
+            ),
             Self::Timeout { duration, .. } => write!(f, "Effect::Timeout({duration:?})"),
             Self::Sequence(n) => write!(f, "Effect::Sequence({})", n.len()),
             Self::Race(n) => write!(f, "Effect::Race({})", n.len()),
@@ -653,5 +708,28 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn retry_backoff_constructor() {
+        let inner = Effect::<i32>::none();
+        match Effect::retry_backoff(
+            3,
+            Duration::from_millis(50),
+            Duration::from_secs(2),
+            inner,
+        ) {
+            Effect::RetryBackoff {
+                attempts,
+                delay,
+                max_delay,
+                ..
+            } => {
+                assert_eq!(attempts, 3);
+                assert_eq!(delay, Duration::from_millis(50));
+                assert_eq!(max_delay, Duration::from_secs(2));
+            }
+            other => panic!("expected RetryBackoff, got {other:?}"),
+        }
     }
 }

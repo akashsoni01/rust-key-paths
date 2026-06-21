@@ -2,7 +2,7 @@
 //!
 //! Compares (two sequential runs):
 //! - [`Effect::retry`] — immediate re-attempts (no delay)
-//! - Custom backoff inside [`Effect::from_fn`] — sleep 50ms → 100ms → 200ms …
+//! - [`Effect::retry_backoff`] — exponential sleep between attempts
 //!
 //! ```bash
 //! cargo run -p rust-elm --example backoff_retry --release
@@ -48,43 +48,34 @@ async fn simulate_fetch() -> Result<String, ()> {
     }
 }
 
-fn immediate_retry_effect() -> Effect<Action> {
-    Effect::retry(
-        6,
-        Effect::from_fn(|| {
-            Box::pin(async move {
-                match simulate_fetch().await {
-                    Ok(data) => Ok(Action::Done(Ok(data))),
-                    Err(()) => Err(rust_elm::EffectError::TaskFailed("fetch failed")),
-                }
-            })
-        }),
-    )
-}
-
-fn backoff_retry_effect(max_attempts: u32) -> Effect<Action> {
-    Effect::from_fn(move || {
+fn fetch_effect() -> Effect<Action> {
+    Effect::from_fn(|| {
         Box::pin(async move {
-            let mut backoff = Duration::from_millis(50);
-            for attempt in 1..=max_attempts {
-                match simulate_fetch().await {
-                    Ok(data) => return Ok(Action::Done(Ok(data))),
-                    Err(()) if attempt < max_attempts => {
-                        tokio::time::sleep(backoff).await;
-                        backoff = backoff.saturating_mul(2).min(Duration::from_secs(2));
-                    }
-                    Err(()) => return Ok(Action::Done(Err(attempt))),
-                }
+            match simulate_fetch().await {
+                Ok(data) => Ok(Action::Done(Ok(data))),
+                Err(()) => Err(rust_elm::EffectError::TaskFailed("fetch failed")),
             }
-            Ok(Action::Done(Err(max_attempts)))
         })
     })
+}
+
+fn immediate_retry_effect() -> Effect<Action> {
+    Effect::retry(6, fetch_effect())
+}
+
+fn backoff_retry_effect() -> Effect<Action> {
+    Effect::retry_backoff(
+        6,
+        Duration::from_millis(50),
+        Duration::from_secs(2),
+        fetch_effect(),
+    )
 }
 
 fn update(app: &mut App, action: Action) -> Cmd<Action> {
     match action {
         Action::RunImmediate => Cmd::single(immediate_retry_effect()),
-        Action::RunBackoff => Cmd::single(backoff_retry_effect(6)),
+        Action::RunBackoff => Cmd::single(backoff_retry_effect()),
         Action::Done(result) => {
             app.result = Some(result);
             Cmd::none()
@@ -127,7 +118,7 @@ fn main() {
     let (imm_result, imm_attempts, imm_elapsed) =
         run_case("Effect::retry (immediate)", Action::RunImmediate);
     let (back_result, back_attempts, back_elapsed) =
-        run_case("backoff loop in from_fn", Action::RunBackoff);
+        run_case("Effect::retry_backoff", Action::RunBackoff);
 
     assert_eq!(imm_result, Ok("payload-v1".into()));
     assert_eq!(back_result, Ok("payload-v1".into()));
