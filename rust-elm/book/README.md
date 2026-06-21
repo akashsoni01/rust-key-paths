@@ -7,7 +7,7 @@
 | [sub.md](./sub.md) | Subscriptions (`Sub`): long-lived listeners, state-driven sync, tick/stream/WebSocket |
 | [effects.md](./effects.md) | Effect system deep dive: architecture, every combinator, parallel/sequential/race recipes |
 | [../examples/recursion.rs](../examples/recursion.rs) | Effect recursion — paginated fetch via action → effect → action loop |
-| [../examples/sync_recursion.rs](../examples/sync_recursion.rs) | Sync recursion — driver loop + pure tree fold (no runtime) |
+| [../examples/sync_recursion.rs](../examples/sync_recursion.rs) | Sync effect recursion — `ExhaustiveTestStore` + `boot`/`receive` (no runtime) |
 | [../examples/backoff_retry.rs](../examples/backoff_retry.rs) | `Effect::retry` vs `Effect::retry_backoff` on flaky fetch |
 | [store.md](./store.md) | Store dispatch, scoping, legacy snapshot subscription (`subscribe_state`) |
 | [api_worker.md](./api_worker.md) | **Server pattern** — one runtime per worker, clone `RwStore` per request |

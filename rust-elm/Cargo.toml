@@ -149,6 +149,7 @@ required-features = ["runtime"]
 [[example]]
 name = "sync_recursion"
 path = "examples/sync_recursion.rs"
+required-features = ["runtime"]
 
 [[example]]
 name = "backoff_retry"

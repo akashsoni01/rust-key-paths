@@ -41,6 +41,14 @@ where
         self.send_expect(action, None);
     }
 
+    /// Run a command without dispatching an action (e.g. the `Cmd` from `init`).
+    pub fn boot(&mut self, cmd: Cmd<M>) {
+        if self.exhaustive {
+            self.assert_idle();
+        }
+        self.enqueue_effects(cmd.into_effects());
+    }
+
     pub fn send_with(&mut self, action: M, expect: impl FnOnce(&mut S)) {
         let mut expected = self.state.clone();
         expect(&mut expected);

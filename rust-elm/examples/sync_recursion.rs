@@ -1,85 +1,102 @@
-//! **Sync recursion** — no runtime; a driver calls `update` synchronously in a loop.
+//! **Sync effect recursion** — same paginated fetch as [`recursion`], driven by
+//! [`ExhaustiveTestStore`] instead of a Tokio runtime.
 //!
-//! Compare with [`recursion`]: async effect chain where each page schedules the next fetch.
+//! Pattern: `init` boots `fetch_page(0)`; each `PageLoaded` schedules `fetch_page(n + 1)`
+//! until `has_more` is false. Effects run synchronously via `receive` / `boot`.
 //!
 //! ```bash
 //! cargo run -p rust-elm --example sync_recursion --release
 //! ```
 
+use rust_elm::{allow_state_clones, Cmd, Effect, ExhaustiveTestStore};
+
 const PAGES: &[&str] = &["alpha", "beta", "gamma", "delta"];
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 struct App {
     items: Vec<String>,
-    pages_loaded: u32,
+    pages_fetched: u32,
     done: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Action {
-    Start,
-    Step(u32),
+    PageLoaded {
+        page: u32,
+        chunk: Vec<String>,
+        has_more: bool,
+    },
 }
 
-fn init() -> App {
-    App::default()
+fn init() -> (App, Cmd<Action>) {
+    (App::default(), Cmd::single(fetch_page(0)))
 }
 
-fn update(app: &mut App, action: Action) {
-    match action {
-        Action::Start => {
-            app.items.clear();
-            app.pages_loaded = 0;
-            app.done = false;
-        }
-        Action::Step(page) => {
-            if (page as usize) < PAGES.len() {
-                app.items.push(PAGES[page as usize].to_string());
-                app.pages_loaded = page + 1;
+fn fetch_page(page: u32) -> Effect<Action> {
+    Effect::from_fn(move || {
+        Box::pin(async move {
+            if page as usize >= PAGES.len() {
+                Ok(Action::PageLoaded {
+                    page,
+                    chunk: vec![],
+                    has_more: false,
+                })
+            } else {
+                Ok(Action::PageLoaded {
+                    page,
+                    chunk: vec![PAGES[page as usize].to_string()],
+                    has_more: page as usize + 1 < PAGES.len(),
+                })
             }
-            app.done = (page as usize + 1) >= PAGES.len();
+        })
+    })
+}
+
+fn update(app: &mut App, action: Action) -> Cmd<Action> {
+    match action {
+        Action::PageLoaded {
+            page,
+            chunk,
+            has_more,
+        } => {
+            app.pages_fetched = page + 1;
+            app.items.extend(chunk);
+            if has_more {
+                Cmd::single(fetch_page(page + 1))
+            } else {
+                app.done = true;
+                Cmd::none()
+            }
         }
     }
 }
 
-/// Tail-call style pagination without effects: the driver loops `Step(n)`.
-fn drive_sync_pagination() -> App {
-    let mut app = init();
-    update(&mut app, Action::Start);
-    for page in 0..PAGES.len() {
-        update(&mut app, Action::Step(page as u32));
-    }
-    app
-}
-
-/// Pure functional recursion on a tree (functional core, no actions).
-#[derive(Debug)]
-enum Node {
-    Leaf(u32),
-    Branch(Vec<Node>),
-}
-
-fn sum_tree(node: &Node) -> u32 {
-    match node {
-        Node::Leaf(n) => *n,
-        Node::Branch(children) => children.iter().map(sum_tree).sum(),
+fn expected_page_loaded(page: u32) -> Action {
+    Action::PageLoaded {
+        page,
+        chunk: vec![PAGES[page as usize].to_string()],
+        has_more: page as usize + 1 < PAGES.len(),
     }
 }
 
 fn main() {
-    let tree = Node::Branch(vec![
-        Node::Leaf(1),
-        Node::Branch(vec![Node::Leaf(2), Node::Leaf(3)]),
-    ]);
-    assert_eq!(sum_tree(&tree), 6);
-    println!("sum_tree: {}", sum_tree(&tree));
+    let (state, init_cmd) = init();
+    let mut store = ExhaustiveTestStore::new(state, update);
+    store.boot(init_cmd);
 
-    let app = drive_sync_pagination();
-    println!("pages loaded: {}", app.pages_loaded);
-    println!("items: {:?}", app.items);
-    assert!(app.done);
-    assert_eq!(app.items, ["alpha", "beta", "gamma", "delta"]);
-    assert_eq!(app.pages_loaded, PAGES.len() as u32);
+    for page in 0..PAGES.len() {
+        store.receive(expected_page_loaded(page as u32));
+    }
+    store.finish();
+
+    allow_state_clones(1, || {
+        println!("pages fetched: {}", store.state.pages_fetched);
+        println!("items: {:?}", store.state.items);
+    });
+
+    assert!(store.state.done);
+    assert_eq!(store.state.items, ["alpha", "beta", "gamma", "delta"]);
+    assert_eq!(store.state.pages_fetched, PAGES.len() as u32);
 
     println!("sync_recursion example OK");
 }

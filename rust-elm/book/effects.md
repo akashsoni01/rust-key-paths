@@ -477,10 +477,9 @@ See [`examples/backoff_retry.rs`](../examples/backoff_retry.rs) for a side-by-si
 | Pattern | Example | When |
 |---------|---------|------|
 | **Async effect recursion** | [`examples/recursion.rs`](../examples/recursion.rs) | Each step is I/O; reducer schedules the next effect via `Cmd` after an action |
-| **Sync driver loop** | [`examples/sync_recursion.rs`](../examples/sync_recursion.rs) | Pure or test harness: caller loops `update(app, Step(n))` with no runtime |
-| **Pure functional recursion** | `sum_tree` in `sync_recursion.rs` | Data-structure walks inside the functional core — no actions at all |
+| **Sync effect recursion** | [`examples/sync_recursion.rs`](../examples/sync_recursion.rs) | Same action → effect → action loop; `ExhaustiveTestStore::boot` + `receive` instead of Tokio |
 
-Async recursion is **tail-call style through the runtime**: `PageLoaded` → `fetch_page(n + 1)` until done. Sync recursion is the same pagination shape, but the **driver** advances `Step(n)` in a `for` loop — useful for unit tests, batch jobs, and REPL-style stepping.
+Async recursion is **tail-call style through the runtime**: `PageLoaded` → `fetch_page(n + 1)` until done. Sync recursion uses the **same reducer and effects**, but `ExhaustiveTestStore` runs each effect immediately and you consume actions with explicit `receive` calls — ideal for unit tests and deterministic replays.
 
 ---
 
