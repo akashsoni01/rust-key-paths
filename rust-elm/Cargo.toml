@@ -142,6 +142,16 @@ path = "examples/subscriptions.rs"
 required-features = ["runtime"]
 
 [[example]]
+name = "recursion"
+path = "examples/recursion.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "backoff_retry"
+path = "examples/backoff_retry.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "scope_for_each"
 path = "examples/scope_for_each.rs"
 

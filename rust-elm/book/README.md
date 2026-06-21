@@ -6,6 +6,8 @@
 | [cmd.md](./cmd.md) | Commands (`Cmd`): reducer boundary, batch vs single, composition, init, cookbook |
 | [sub.md](./sub.md) | Subscriptions (`Sub`): long-lived listeners, state-driven sync, tick/stream/WebSocket |
 | [effects.md](./effects.md) | Effect system deep dive: architecture, every combinator, parallel/sequential/race recipes |
+| [../examples/recursion.rs](../examples/recursion.rs) | Effect recursion — paginated fetch via action → effect → action loop |
+| [../examples/backoff_retry.rs](../examples/backoff_retry.rs) | Retry vs exponential backoff in `Effect::from_fn` |
 | [store.md](./store.md) | Store dispatch, scoping, legacy snapshot subscription (`subscribe_state`) |
 | [api_worker.md](./api_worker.md) | **Server pattern** — one runtime per worker, clone `RwStore` per request |
 | [binding.md](./binding.md) | Zero-copy bindings, keypath projection, field change signals (`subscribe_changes`) |
