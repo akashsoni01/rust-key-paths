@@ -437,25 +437,174 @@ Effect::throttle(CLICK_ID, Duration::from_millis(500), false, inner)
 
 ### `Effect::retry`
 
-**Theory:** Re-run `inner` up to `attempts` times until **first success**. Failures do not dispatch; if all attempts fail, **nothing** is dispatched (silent exhaustion).
+**Theory:** Wrap a single **leaf** effect (`from_fn`, `task`, `env_task`, …) in a retry loop. The interpreter spawns **one Tokio task** that runs `inner` up to `attempts` times until the first `Ok(action)`. Each failure is an `Err(EffectError)` from the inner effect — the loop continues immediately with no sleep and no action dispatched.
 
-**Real life:** Flaky network, optimistic locking conflicts, idempotent POST.
+This is **not** a reducer-level loop and **not** recursion through actions. The entire retry sequence happens inside one interpreter node before any new action reaches `update`.
+
+#### Interpreter behavior
+
+```mermaid
+sequenceDiagram
+    participant R as Reducer
+    participant I as Interpreter
+    participant T as Inner task
+
+    R->>I: Cmd::single(Effect::retry(N, inner))
+    I->>I: spawn one async task
+    loop up to N attempts
+        I->>T: run_effect_once(inner)
+        alt Ok(action)
+            T-->>I: Ok(M)
+            I->>R: dispatch(M)
+        else Err(EffectError)
+            T-->>I: Err
+            Note over I: no dispatch, retry immediately
+        end
+    end
+    Note over I,R: all N failed → silent stop
+```
+
+Implementation sketch (see [`interpreter.rs`](../src/runtime/interpreter.rs)):
+
+```rust
+for _ in 0..attempts.max(1) {
+    match run_effect_once(inner.clone(), env.clone()).await {
+        Ok(msg) => {
+            dispatch_from_effect(&backend, &tx, msg);
+            break;
+        }
+        Err(_) => continue,
+    }
+}
+```
+
+Key points:
+
+| Topic | Behavior |
+|-------|----------|
+| **Attempts** | `attempts.max(1)` — `0` still runs once |
+| **Success** | First `Ok(M)` dispatches **one** action and stops |
+| **Failure** | Any `Err(EffectError)` from `inner` counts as a failed attempt |
+| **Exhaustion** | After all attempts fail, **nothing is dispatched** (silent) |
+| **Concurrency** | One outer task; `inner` is re-run sequentially in that task |
+| **Flattening** | `Retry` is **not** flattened — it stays one interpreter node |
+
+#### What counts as failure?
+
+`retry` only reacts to **`EffectError`**, not to business-level `Result` values inside your action:
+
+```rust
+// ✅ Retries: inner returns Err(EffectError)
+Effect::from_fn(|| Box::pin(async {
+    match fetch().await {
+        Ok(data) => Ok(Action::Done(Ok(data))),
+        Err(()) => Err(EffectError::TaskFailed("fetch failed")),
+    }
+}))
+
+// ❌ Does NOT retry: Ok even when the HTTP call failed
+Effect::from_fn(|| Box::pin(async {
+    Ok(Action::Done(fetch().await)) // Err<T, E> becomes Action, not EffectError
+}))
+```
+
+Use `Effect::result_task` or map HTTP errors to `EffectError::TaskFailed` / `EffectError::Other` when you want retries to fire.
+
+#### Basic usage
 
 ```rust
 Cmd::single(Effect::retry(3, Effect::from_fn(|| Box::pin(async {
-    Ok(Action::Saved(upload().await?))
+    let body = upload().await.map_err(|e| EffectError::Other(e.to_string()))?;
+    Ok(Action::Saved(body))
 }))))
 ```
 
-Combine with `catch` or `result_task` if you need `Action::SaveFailed` when retries exhaust.
+**Real life:** Idempotent POST, optimistic-lock conflict retry, quick re-attempt on transient DNS blips where hammering the server is acceptable.
+
+#### Handling exhaustion (silent failure)
+
+Built-in `retry` never produces `EffectError::RetryExhausted` and never dispatches on total failure. The reducer is not notified unless you design for it.
+
+| Goal | Pattern |
+|------|---------|
+| Dispatch `Action::SaveFailed` after N tries | Wrap with `Effect::catch`, or use a single `from_fn` loop with explicit `Ok(Action::Failed)` |
+| Surface retry count in UI | Track attempts inside `from_fn` and return `Ok(Action::AttemptFailed(n))` before returning `Err` on the last try |
+| Fallback after retries | `Effect::catch(Effect::retry(n, inner), \|_\| fallback_effect)` |
+
+Example — notify the reducer when all attempts fail:
+
+```rust
+Effect::catch(
+    Effect::retry(3, fetch_effect()),
+    |_| Effect::from_fn(|| Box::pin(async { Ok(Action::FetchFailed) })),
+)
+```
+
+Example — encode failure in the action without `catch` (see [`examples/backoff_retry.rs`](../examples/backoff_retry.rs)):
+
+```rust
+Effect::from_fn(|| Box::pin(async move {
+    match simulate_fetch().await {
+        Ok(data) => Ok(Action::Done(Ok(data))),
+        Err(()) => Err(EffectError::TaskFailed("fetch failed")),
+    }
+}))
+// Effect::retry(6, fetch_effect()) — succeeds on 4th attempt, dispatches Action::Done(Ok(...))
+// If all 6 fail: no Action::Done at all
+```
+
+For explicit `Action::Done(Err(attempts))` on exhaustion, keep the loop in one `from_fn` or combine `retry` with `catch` as above.
+
+#### When to use immediate `retry`
+
+| Good fit | Poor fit |
+|----------|----------|
+| Fast, idempotent reads | Rate-limited APIs (use `retry_backoff`) |
+| In-memory / local I/O | Long-running work where each attempt is expensive |
+| Failures are cheap | You need UI feedback per failed attempt |
+| 2–5 quick tries | You need jitter, circuit breaking, or per-error backoff policies |
+
+Immediate retry can complete in milliseconds; see the timing gap in [`examples/backoff_retry.rs`](../examples/backoff_retry.rs) (~30 ms immediate vs ~380 ms with backoff for the same 4 attempts).
+
+#### Composition notes
+
+```rust
+// Retry runs inside the debounce timer — each debounced fire gets its own retry loop
+Effect::debounce(SEARCH_ID, Duration::from_millis(300),
+    Effect::retry(3, search_effect()))
+
+// Sequence: retry wraps one step; sequence continues even if retry exhausts silently
+Effect::sequence([
+    Effect::retry(3, step_a()),
+    step_b(), // still runs if step_a exhausted without dispatch
+])
+
+// Scoped child actions still map through retry
+Effect::retry(3, inner).map(ParentAction::Child)
+```
+
+**Testing:** `ExhaustiveTestStore` only executes **leaf** effects directly. `Retry` / `RetryBackoff` are interpreter combinators — test them with the runtime ([`examples/backoff_retry.rs`](../examples/backoff_retry.rs)) or integration tests, not by expecting `TestStore` to expand the retry loop.
 
 ---
 
 ### `Effect::retry_backoff`
 
-**Theory:** Like [`Effect::retry`](#effectretry), but sleeps between failures with **exponential backoff**. The first attempt runs immediately; after each failure, sleep `delay`, then double the delay (capped at `max_delay`) before the next try.
+**Theory:** Same success/failure/exhaustion semantics as [`Effect::retry`](#effectretry), but waits between failures with **exponential backoff**. The first attempt runs immediately; after each `Err`, sleep `delay`, then double the delay (saturating, capped at `max_delay`) before the next try.
 
-**Real life:** Rate-limited APIs, thundering-herd avoidance after outages, same flaky fetch as `retry` but without hand-rolling a sleep loop in `from_fn`.
+**Real life:** Rate-limited APIs, thundering-herd avoidance after outages, flaky remote services where immediate retry would make things worse.
+
+#### Backoff schedule
+
+With `delay = 50ms`, `max_delay = 2s`, `attempts = 6`:
+
+| Attempt | When it runs | Sleep after failure |
+|---------|--------------|---------------------|
+| 1 | immediately | 50 ms |
+| 2 | after 50 ms | 100 ms |
+| 3 | after 100 ms | 200 ms |
+| 4 | after 200 ms | 400 ms |
+| 5 | after 400 ms | 800 ms |
+| 6 | after 800 ms | — (stop if still failing) |
 
 ```rust
 Cmd::single(Effect::retry_backoff(
@@ -463,12 +612,25 @@ Cmd::single(Effect::retry_backoff(
     Duration::from_millis(50),
     Duration::from_secs(2),
     Effect::from_fn(|| Box::pin(async {
-        Ok(Action::Done(fetch().await?))
+        match fetch().await {
+            Ok(data) => Ok(Action::Done(Ok(data))),
+            Err(()) => Err(EffectError::TaskFailed("fetch failed")),
+        }
     })),
 ))
 ```
 
-See [`examples/backoff_retry.rs`](../examples/backoff_retry.rs) for a side-by-side timing comparison with immediate `retry`.
+#### `retry` vs `retry_backoff`
+
+| | `Effect::retry` | `Effect::retry_backoff` |
+|--|-----------------|-------------------------|
+| Delay between failures | None | Exponential, capped |
+| Total wall time | Minimal | Grows with backoff |
+| Server load on outage | Higher | Lower |
+| API | `retry(attempts, inner)` | `retry_backoff(attempts, delay, max_delay, inner)` |
+| Exhaustion | Silent | Silent (same) |
+
+See [`examples/backoff_retry.rs`](../examples/backoff_retry.rs) for a side-by-side timing comparison on the same flaky fetch.
 
 ---
 
@@ -555,6 +717,8 @@ if let Ok(msg) = run().await {
 // Err: no dispatch — unless Catch / result_task / from_run handles it
 ```
 
+`EffectError::RetryExhausted` exists for manual use in custom effects; the built-in `Effect::retry` / `Effect::retry_backoff` combinators do **not** emit it — they stop silently when attempts are exhausted. See [`Effect::retry`](#effectretry).
+
 | Goal | Approach |
 |------|----------|
 | Success/failure as actions | `Result` inside `from_fn` + `Ok(Action::Failed(…))` |
@@ -590,6 +754,10 @@ See [dashboard example](#pattern-a--parallel-effects--reducer-join-idiomatic-tea
 ### 3. Try primary API, fall back to cache
 
 → `Effect::catch` or `result_task` with fallback action.
+
+### 3b. Flaky API — retry with or without backoff
+
+→ `Effect::retry(n, inner)` for fast idempotent retries; `Effect::retry_backoff(n, delay, max, inner)` when you must space attempts. Return `Err(EffectError::…)` from `inner` on transient failure, not `Ok(Action::Failed)`. Wrap with `Effect::catch` if the reducer must handle exhaustion. See [`examples/backoff_retry.rs`](../examples/backoff_retry.rs).
 
 ### 4. User typing — don’t DDoS your backend
 
