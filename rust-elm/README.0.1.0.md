@@ -193,6 +193,7 @@ See [architecture.md](book/architecture.md#snapshot-threading), [tea_ecommerce.m
 | `iced_calculator_rw` | `cargo run -p rust-elm --example iced_calculator_rw` | iced GUI calculator on `RwStore` |
 | `druid_calculator_tea` | `cargo run -p rust-elm --example druid_calculator_tea` | Druid GUI calculator on `TeaStore` |
 | `druid_calculator_rw` | `cargo run -p rust-elm --example druid_calculator_rw` | Druid GUI calculator on `RwStore` |
+| `slint_calculator_rw` | `cargo run -p rust-elm --example slint_calculator_rw` | Slint GUI calculator on `RwStore` |
 
 ## Quality tooling
 
