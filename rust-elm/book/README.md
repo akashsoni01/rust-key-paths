@@ -130,7 +130,7 @@ flowchart TB
 | Pattern | When | How |
 |---------|------|-----|
 | **One runtime per worker** | HTTP (Actix, Axum, hyper) | `Runtime::from_program` in worker `main`; `web::Data<Store>` or thread-local clone |
-| **One runtime per app** | Desktop / mobile shell | iced / druid / slint calculator examples; drop on exit |
+| **One runtime per app** | Desktop / mobile shell | iced / druid / egui calculator examples; drop on exit |
 | **Session in state** | Per-user isolation | `HashMap<SessionId, SessionState>` + `Action::ForSession(id, …)` or `ForEachReducer` |
 | **Scoped child** | Per-tenant / per-checkout | `RwStore::scope` + `IfLetReducer`; dismiss clears + `Effect::cancel` |
 | **Fresh state without runtime** | Pure validation / replay tests | `init()` + synchronous `update` — no `Runtime` |

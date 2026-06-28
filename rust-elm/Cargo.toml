@@ -6,7 +6,6 @@ authors = ["Codefonsi <info@codefonsi.com>"]
 license = "MPL-2.0"
 description = "Elm Architecture for Rust: composable reducers, pure effects, async runtime."
 readme = "README.0.1.0.md"
-build = "build.rs"
 keywords = ["elm", "udf", "reducer", "effect", "architecture"]
 repository = "https://github.com/codefonsi/rust-key-paths"
 homepage = "https://github.com/codefonsi/rust-key-paths/tree/main/rust-elm"
@@ -28,9 +27,6 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 arc-swap = { version = "1.7", optional = true }
 
-[build-dependencies]
-slint-build = "1.17"
-
 [dev-dependencies]
 key-paths-derive = { version = "3.3", path = "../key-paths-derive" }
 serde = { version = "1", features = ["derive"] }
@@ -43,7 +39,7 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 criterion = { version = "0.5", features = ["html_reports"] }
 iced = { version = "0.13", features = ["tokio"] }
 druid = { path = "../druid", default-features = false }
-slint = "1.17"
+eframe = { version = "0.31", default-features = true, features = ["default_fonts", "glow"] }
 
 [features]
 default = ["runtime", "websocket"]
@@ -85,8 +81,8 @@ path = "examples/druid_calculator_rw.rs"
 required-features = ["runtime"]
 
 [[example]]
-name = "slint_calculator_rw"
-path = "examples/slint_calculator_rw.rs"
+name = "egui_calculator_rw"
+path = "examples/egui_calculator_rw.rs"
 required-features = ["runtime"]
 
 [[example]]
